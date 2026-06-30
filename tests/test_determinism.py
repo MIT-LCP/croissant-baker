@@ -73,6 +73,22 @@ def test_default_citation_uses_real_creators_and_date_year(
     assert "Dataset Creator" not in meta["citeAs"]
 
 
+def test_default_citation_creator_without_date(mimic_demo_dir: Path) -> None:
+    """Common CLI path: --creator given, --date-published omitted → no year.
+
+    --creator is required by the CLI but --date-published is optional, so the
+    "creator, no date" case is the default citation most runs produce. It must
+    be deterministic and carry no fabricated year.
+    """
+    meta = MetadataGenerator(
+        str(mimic_demo_dir),
+        name="My DS",
+        description="d",
+        creators=[{"name": "Ada Lovelace"}],
+    ).generate_metadata()
+    assert meta["citeAs"] == "Ada Lovelace. My DS [Data set]."
+
+
 def test_default_citation_omitted_when_nothing_to_cite(mimic_demo_dir: Path) -> None:
     """With neither creators nor a date there is nothing real to cite, so omit it."""
     meta = MetadataGenerator(

@@ -468,16 +468,13 @@ class MetadataGenerator:
             )
 
     def _build_citation(self) -> Optional[str]:
-        """Return a deterministic default citation, or None.
+        """Build the default citation, or None.
 
-        A caller-supplied ``citation`` is used verbatim. Otherwise we synthesise
-        one only from metadata we actually have — never from wall-clock state, so
-        the same dataset always bakes to the same citation. The year comes from a
-        supplied publication/creation date (the old ``datetime.now().year`` made
-        output drift across year boundaries); the author comes from the supplied
-        creators (the old default fabricated "Dataset Creator" even when real
-        creators were given). If neither a creator nor a date is available there
-        is nothing real to cite, so we omit ``cite_as`` rather than invent it.
+        A caller-supplied ``citation`` is used verbatim. Otherwise it is derived
+        only from real metadata — the supplied creators and the year of the
+        publication/creation date — so the same input always bakes to the same
+        citation (no wall-clock state). With neither a creator nor a date there
+        is nothing real to cite, so ``cite_as`` is omitted rather than invented.
         """
         if self.citation:
             return self.citation
@@ -510,12 +507,10 @@ class MetadataGenerator:
     def _resolve_date(self) -> Optional[datetime]:
         """Return the parsed publication date, or None when none was supplied.
 
-        Previously this defaulted to ``datetime.now()``, stamping the
-        metadata-generation time (down to the microsecond) as the dataset's
-        ``datePublished``. That made output non-reproducible — baking the same
-        dataset twice produced two different files — and is semantically wrong,
-        since the dataset was not published at generation time. ``datePublished``
-        is optional in schema.org/Croissant, so we omit it when unset.
+        ``datePublished`` is omitted when unset rather than defaulted, so output
+        stays reproducible (no generation-time wall clock leaks into it) and we
+        don't assert a publication date the caller never gave. It is optional in
+        schema.org/Croissant.
         """
         if not self.date_published:
             return None
