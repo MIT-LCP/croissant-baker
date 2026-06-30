@@ -50,7 +50,7 @@
   "name": "Hillel Yaffe Glaucoma Dataset (subset)",
   "description": "Subset of fundus images for glaucoma screening with GON labels",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
-  "citeAs": "Dataset Creator. (2026). Hillel Yaffe Glaucoma Dataset (subset) Dataset. Generated with automated type inference.",
+  "citeAs": "Hillel Yaffe Medical Center. (2024). Hillel Yaffe Glaucoma Dataset (subset) [Data set].",
   "creator": {
     "@type": "sc:Person",
     "name": "Hillel Yaffe Medical Center"

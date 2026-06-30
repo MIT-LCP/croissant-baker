@@ -50,7 +50,7 @@
   "name": "Open Targets Platform (toy)",
   "description": "Synthetic subset of Open Targets Platform data for testing partitioned Parquet support",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
-  "citeAs": "Dataset Creator. (2026). Open Targets Platform (toy) Dataset. Generated with automated type inference.",
+  "citeAs": "Open Targets. (2025). Open Targets Platform (toy) [Data set].",
   "creator": {
     "@type": "sc:Person",
     "name": "Open Targets",

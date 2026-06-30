@@ -467,16 +467,58 @@ class MetadataGenerator:
                 f"Expected '2023-12-15' or '2023-12-15T10:30:00'. Error: {e}"
             )
 
-    def _build_citation(self) -> str:
+    def _build_citation(self) -> Optional[str]:
+        """Return a deterministic default citation, or None.
+
+        A caller-supplied ``citation`` is used verbatim. Otherwise we synthesise
+        one only from metadata we actually have — never from wall-clock state, so
+        the same dataset always bakes to the same citation. The year comes from a
+        supplied publication/creation date (the old ``datetime.now().year`` made
+        output drift across year boundaries); the author comes from the supplied
+        creators (the old default fabricated "Dataset Creator" even when real
+        creators were given). If neither a creator nor a date is available there
+        is nothing real to cite, so we omit ``cite_as`` rather than invent it.
+        """
         if self.citation:
             return self.citation
-        year = datetime.now().year
-        name = self.name or self.dataset_path.name
-        return f"Dataset Creator. ({year}). {name} Dataset. Generated with automated type inference."
 
-    def _resolve_date(self) -> datetime:
+        names = [
+            c["name"]
+            for c in (self.creators or [])
+            if isinstance(c, dict) and c.get("name")
+        ]
+        author = ", ".join(names) if names else None
+
+        year = None
+        for raw in (self.date_published, self.date_created):
+            if not raw:
+                continue
+            try:
+                year = datetime.fromisoformat(raw).year
+                break
+            except ValueError:
+                continue
+
+        if author is None and year is None:
+            return None
+
+        name = self.name or self.dataset_path.name
+        author_part = author if author else "Unknown"
+        year_part = f" ({year})." if year is not None else ""
+        return f"{author_part}.{year_part} {name} [Data set]."
+
+    def _resolve_date(self) -> Optional[datetime]:
+        """Return the parsed publication date, or None when none was supplied.
+
+        Previously this defaulted to ``datetime.now()``, stamping the
+        metadata-generation time (down to the microsecond) as the dataset's
+        ``datePublished``. That made output non-reproducible — baking the same
+        dataset twice produced two different files — and is semantically wrong,
+        since the dataset was not published at generation time. ``datePublished``
+        is optional in schema.org/Croissant, so we omit it when unset.
+        """
         if not self.date_published:
-            return datetime.now()
+            return None
         try:
             return datetime.fromisoformat(self.date_published)
         except ValueError as e:

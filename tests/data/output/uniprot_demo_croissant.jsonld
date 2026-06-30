@@ -50,7 +50,7 @@
   "name": "UniProt Human Reviewed (demo)",
   "description": "200 reviewed human proteins from UniProt Swiss-Prot",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
-  "citeAs": "Dataset Creator. (2026). UniProt Human Reviewed (demo) Dataset. Generated with automated type inference.",
+  "citeAs": "UniProt Consortium. (2025). UniProt Human Reviewed (demo) [Data set].",
   "creator": {
     "@type": "sc:Person",
     "name": "UniProt Consortium"
