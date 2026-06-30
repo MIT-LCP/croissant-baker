@@ -152,6 +152,7 @@ class MetadataGenerator:
         field_mappings: Optional[Dict[str, Dict[str, object]]] = None,
         count_csv_rows: bool = False,
         max_workers: Optional[int] = None,
+        detect_references: bool = False,
         includes: Optional[List[str]] = None,
         excludes: Optional[List[str]] = None,
         rai_fields: Optional[Dict[str, object]] = None,
@@ -197,6 +198,9 @@ class MetadataGenerator:
             max_workers: Maximum worker threads for per-file metadata
                 extraction. None (default) auto-sizes from the CPU count; 1
                 forces serial. Output is identical regardless of this value.
+            detect_references: If True, run conservative foreign-key detection
+                and emit cr:references links between RecordSets that share a key
+                column with a name-identifiable parent table. Defaults to False.
             includes: Glob patterns to include. Applied before excludes.
             excludes: Glob patterns to exclude. Applied after includes.
             rai_fields: Native mlcroissant RAI metadata fields, passed through
@@ -238,6 +242,7 @@ class MetadataGenerator:
         self.rai_fields = rai_fields or {}
         self.max_workers = max_workers
         self.handlers = handlers if handlers is not None else default_registry()
+        self.detect_references = detect_references
         # Generic options forwarded to every handler via **kwargs.
         # Handlers declare what they use; others ignore the rest.
         # To add a new handler-specific flag: add one key here — the call site never changes.
@@ -465,6 +470,9 @@ class MetadataGenerator:
         # batch is visible at once.
         record_sets = _disambiguate_record_sets(batches)
 
+        if self.detect_references and len(record_sets) >= 2:
+            self._apply_reference_detection(record_sets)
+
         described_metas = [
             (e.handler, e.meta) for e in entries if e.outcome is Outcome.DESCRIBED
         ]
@@ -613,6 +621,61 @@ class MetadataGenerator:
             counter += 1
 
         return objects, counter
+
+    def _apply_reference_detection(self, record_sets: list) -> None:
+        """Detect and attach foreign-key cr:references across RecordSets.
+
+        Opt-in via ``detect_references``. Delegates the (pure) detection to
+        ``references.detect_foreign_keys`` and maps its result back onto the real
+        Field objects. Conservative: a child field's ``references`` is set only
+        when a shared key column has a parent RecordSet identifiable by name;
+        unresolved shared keys are logged, not linked.
+        """
+        from croissant_baker.references import detect_foreign_keys
+
+        descriptors = [
+            {
+                "id": rs.id,
+                "name": rs.name or rs.id,
+                "columns": [f.name for f in (rs.fields or [])],
+            }
+            for rs in record_sets
+        ]
+        links, unresolved = detect_foreign_keys(descriptors)
+
+        rs_by_id = {rs.id: rs for rs in record_sets}
+        applied = 0
+        for link in links:
+            parent_rs = rs_by_id.get(link["parent_rs"])
+            child_rs = rs_by_id.get(link["child_rs"])
+            if parent_rs is None or child_rs is None:
+                continue
+            parent_field = next(
+                (f for f in parent_rs.fields if f.name == link["parent_column"]),
+                None,
+            )
+            child_field = next(
+                (f for f in child_rs.fields if f.name == link["column"]), None
+            )
+            if parent_field is None or child_field is None:
+                continue
+            child_field.references = mlc.Source(field=parent_field.id)
+            applied += 1
+
+        if applied or unresolved:
+            logger.info(
+                "reference detection: linked %d foreign key(s); %d shared key(s) "
+                "had no name-identifiable parent",
+                applied,
+                len(unresolved),
+            )
+        for unresolved_key in unresolved:
+            logger.info(
+                "  shared key '%s' across %d record sets — no parent table named "
+                "after it; not linked",
+                unresolved_key["column"],
+                len(unresolved_key["record_sets"]),
+            )
 
     def _build_description(self, file_metadata: list) -> str:
         if self.description:
