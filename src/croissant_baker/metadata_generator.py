@@ -2,8 +2,10 @@
 
 import json
 import logging
+import os
 import tempfile
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -170,6 +172,7 @@ class MetadataGenerator:
         usage_info: Optional[str] = None,
         field_mappings: Optional[Dict[str, Dict[str, object]]] = None,
         count_csv_rows: bool = False,
+        max_workers: Optional[int] = None,
         includes: Optional[List[str]] = None,
         excludes: Optional[List[str]] = None,
         rai_fields: Optional[Dict[str, object]] = None,
@@ -211,6 +214,9 @@ class MetadataGenerator:
                 external vocabularies like Wikidata/SNOMED/LOINC.
             count_csv_rows: If True, scan each CSV fully for exact row counts.
                 Defaults to False for performance.
+            max_workers: Maximum worker threads for per-file metadata
+                extraction. None (default) auto-sizes from the CPU count; 1
+                forces serial. Output is identical regardless of this value.
             includes: Glob patterns to include. Applied before excludes.
             excludes: Glob patterns to exclude. Applied after includes.
             rai_fields: Native mlcroissant RAI metadata fields, passed through
@@ -247,6 +253,7 @@ class MetadataGenerator:
         self.includes = includes
         self.excludes = excludes
         self.rai_fields = rai_fields or {}
+        self.max_workers = max_workers
         # Generic options forwarded to every handler via **kwargs.
         # Handlers declare what they use; others ignore the rest.
         # To add a new handler-specific flag: add one key here — the call site never changes.
@@ -257,43 +264,67 @@ class MetadataGenerator:
     def generate_metadata(self, progress_callback=None) -> dict:
         """Generate complete Croissant metadata for the dataset.
 
+        Per-file metadata extraction (handler selection, whole-file SHA-256,
+        header/schema reads) is I/O-bound and independent across files, so it
+        runs on a thread pool sized by ``max_workers``. Results are reassembled
+        in discovery order before any FileObject @id is assigned, so the output
+        — including the order of warnings — is identical regardless of worker
+        count.
+
         Args:
             progress_callback: Optional callback with signature
-                (current: int, total: int, file_path: str) -> None
-                called before processing each file.
+                (completed: int, total: int, file_path: str) -> None
+                invoked once per file as it finishes extraction.
         """
         files = discover_files(
             str(self.dataset_path),
             include_patterns=self.includes,
             exclude_patterns=self.excludes,
         )
-
-        # Extract metadata as (handler, meta) pairs so handler identity is
-        # stored by reference, not by id() — no fragility if dicts are copied.
         total_files = len(files)
+
+        # Extract every file's metadata, possibly concurrently. results[i]
+        # corresponds to files[i], so downstream assembly stays deterministic
+        # no matter what order the threads finish in.
+        results: list = [None] * total_files
+        workers = self._resolve_worker_count(total_files)
+        if workers == 1:
+            for i, file_path in enumerate(files):
+                results[i] = self._extract_file(file_path)
+                if progress_callback:
+                    progress_callback(i + 1, total_files, str(file_path))
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                future_to_idx = {
+                    pool.submit(self._extract_file, fp): i for i, fp in enumerate(files)
+                }
+                completed = 0
+                for future in as_completed(future_to_idx):
+                    idx = future_to_idx[future]
+                    results[idx] = future.result()
+                    completed += 1
+                    if progress_callback:
+                        progress_callback(completed, total_files, str(files[idx]))
+
+        # Reassemble in discovery order. Handler identity is stored by reference
+        # (not id()), so there is no fragility if dicts are copied. Warnings and
+        # the skip-note are emitted here, in order, to match the serial path.
         file_metadata: list[tuple] = []
-        # Track files that look like a recognised binary format by extension
-        # but were rejected at handler-selection time (e.g. .dcm files
-        # without the DICM preamble at offset 128). These are valid skips,
-        # not errors, but worth surfacing so the user knows not all .dcm
-        # files made it into the output.
+        # Files that look like a recognised binary format by extension but were
+        # rejected at handler-selection time (e.g. .dcm files without the DICM
+        # preamble at offset 128) are valid skips, not errors — surfaced so the
+        # user knows not all such files made it into the output.
         unmatched_by_ext: dict[str, int] = {}
-        for i, file_path in enumerate(files):
-            if progress_callback:
-                progress_callback(i, total_files, str(file_path))
-            full_path = self.dataset_path / file_path
-            handler = find_handler(full_path)
-            if handler:
-                try:
-                    meta = handler.extract_metadata(full_path, **self._handler_kwargs)
-                    meta["relative_path"] = str(file_path)
-                    file_metadata.append((handler, meta))
-                except Exception as e:
-                    logger.warning("Failed to process %s: %s", file_path, e)
-            else:
-                ext = full_path.suffix.lower()
+        for file_path, handler, meta, error in results:
+            if error is not None:
+                logger.warning("Failed to process %s: %s", file_path, error)
+                continue
+            if handler is None:
+                ext = (self.dataset_path / file_path).suffix.lower()
                 if ext in {".dcm", ".dicom"}:
                     unmatched_by_ext[ext] = unmatched_by_ext.get(ext, 0) + 1
+                continue
+            file_metadata.append((handler, meta))
 
         if unmatched_by_ext:
             total = sum(unmatched_by_ext.values())
@@ -420,6 +451,42 @@ class MetadataGenerator:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _resolve_worker_count(self, n_files: int) -> int:
+        """Decide how many threads to use for extraction.
+
+        An explicit ``max_workers`` wins (floored at 1). Otherwise auto-size: 1
+        for trivial inputs, else a modest oversubscription of the CPU count (the
+        work is I/O-bound — whole-file hashing and header reads — so threads
+        spend most of their time off-CPU), capped to bound open file descriptors.
+        """
+        if self.max_workers is not None:
+            return max(1, self.max_workers)
+        if n_files <= 1:
+            return 1
+        cpu = os.cpu_count() or 1
+        return min(8, n_files, cpu * 2)
+
+    def _extract_file(self, file_path: Path) -> tuple:
+        """Select a handler and extract one file's metadata.
+
+        Reads only the file at ``file_path`` and returns plain data, holding no
+        generator state, so it is safe to call concurrently across files. No
+        mlcroissant objects are built here — that happens single-threaded during
+        assembly. Returns ``(file_path, handler, meta, error)``: for a handled
+        file ``handler``/``meta`` are set; for an extraction failure ``error`` is
+        set; for an unmatched file all three are None.
+        """
+        full_path = self.dataset_path / file_path
+        handler = find_handler(full_path)
+        if handler is None:
+            return (file_path, None, None, None)
+        try:
+            meta = handler.extract_metadata(full_path, **self._handler_kwargs)
+            meta["relative_path"] = str(file_path)
+            return (file_path, handler, meta, None)
+        except Exception as e:  # noqa: BLE001 — re-surfaced as a per-file warning
+            return (file_path, None, None, e)
 
     def _build_description(self, file_metadata: list) -> str:
         if self.description:
