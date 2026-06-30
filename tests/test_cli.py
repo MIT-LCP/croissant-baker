@@ -1,6 +1,7 @@
 """Tests for Croissant Baker CLI."""
 
 import json
+import logging
 import re
 from pathlib import Path
 
@@ -836,8 +837,10 @@ def test_usage_info_accepts_any_uri_scheme(
     assert json.loads(output.read_text())["usageInfo"] == uri
 
 
-def test_field_mapping_warns_on_multiple_matches(tmp_path: Path) -> None:
-    """A mapping that hits more than one field warns the user."""
+def test_field_mapping_warns_on_multiple_matches(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A mapping that hits more than one field warns the user (via logging)."""
     dataset_dir = tmp_path / "ds"
     dataset_dir.mkdir()
     # Two CSVs both with an 'id' column — same name, different semantics.
@@ -845,23 +848,26 @@ def test_field_mapping_warns_on_multiple_matches(tmp_path: Path) -> None:
     (dataset_dir / "diagnoses.csv").write_text("id,code\n1,X\n2,Y\n")
 
     output = tmp_path / "out.jsonld"
-    result = runner.invoke(
-        app,
-        [
-            "--input",
-            str(dataset_dir),
-            "--output",
-            str(output),
-            "--creator",
-            "Test",
-            "--field-mapping",
-            "id=http://www.wikidata.org/entity/Q577",
-            "--no-validate",
-        ],
-    )
+    with caplog.at_level(logging.WARNING, logger="croissant_baker.metadata_generator"):
+        result = runner.invoke(
+            app,
+            [
+                "--input",
+                str(dataset_dir),
+                "--output",
+                str(output),
+                "--creator",
+                "Test",
+                "--field-mapping",
+                "id=http://www.wikidata.org/entity/Q577",
+                "--no-validate",
+            ],
+        )
     assert result.exit_code == 0, result.output
-    combined = (result.output or "") + (result.stderr or "")
-    assert "field mapping 'id' applied to 2 fields" in combined
+    assert any(
+        "field mapping 'id' applied to 2 fields" in r.getMessage()
+        for r in caplog.records
+    ), caplog.records
 
 
 def test_field_mappings_yaml_rejects_unknown_keys(

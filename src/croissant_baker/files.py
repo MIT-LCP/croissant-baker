@@ -6,6 +6,12 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Cap on example paths retained for the hidden-directory skip debug log. The
+# skipped count is always exact; only this example list is bounded, so a dataset
+# with a huge hidden tree (an accidental .git or .ipynb_checkpoints, say) cannot
+# accumulate an unbounded list of paths we only ever sample from.
+_MAX_SKIPPED_EXAMPLES = 5
+
 
 def discover_files(
     dir_path: str,
@@ -34,7 +40,7 @@ def discover_files(
             raise FileNotFoundError(f"{dir_path} is not a directory")
 
         skipped_count = 0
-        skipped_examples = []
+        skipped_examples: List[str] = []
 
         files = []
         for file in directory.rglob("*"):
@@ -45,7 +51,8 @@ def discover_files(
 
             if any(part.startswith(".") for part in rel_path.parts):
                 skipped_count += 1
-                skipped_examples.append(str(rel_path))
+                if len(skipped_examples) < _MAX_SKIPPED_EXAMPLES:
+                    skipped_examples.append(str(rel_path))
                 continue
 
             files.append(rel_path)

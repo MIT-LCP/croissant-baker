@@ -1,6 +1,7 @@
 """Croissant metadata generator for datasets."""
 
 import json
+import logging
 import tempfile
 from collections import defaultdict
 from datetime import datetime
@@ -11,6 +12,8 @@ import mlcroissant as mlc
 
 from croissant_baker.files import discover_files
 from croissant_baker.handlers.registry import find_handler, register_all_handlers
+
+logger = logging.getLogger(__name__)
 
 # Register all handlers
 register_all_handlers()
@@ -124,10 +127,13 @@ def _apply_field_mappings(
 
     for name, count in match_counts.items():
         if count > 1:
-            print(
-                f"Warning: field mapping '{name}' applied to {count} fields. "
-                f"If '{name}' means different things in different RecordSets, "
-                "rename the columns or split the bake."
+            logger.warning(
+                "field mapping '%s' applied to %d fields. If '%s' means "
+                "different things in different RecordSets, rename the columns "
+                "or split the bake.",
+                name,
+                count,
+                name,
             )
 
 
@@ -283,7 +289,7 @@ class MetadataGenerator:
                     meta["relative_path"] = str(file_path)
                     file_metadata.append((handler, meta))
                 except Exception as e:
-                    print(f"Warning: Failed to process {file_path}: {e}")
+                    logger.warning("Failed to process %s: %s", file_path, e)
             else:
                 ext = full_path.suffix.lower()
                 if ext in {".dcm", ".dicom"}:
@@ -382,7 +388,7 @@ class MetadataGenerator:
                 distributions.extend(filesets)
                 record_sets.extend(rs)
             except Exception as e:
-                print(f"Warning: {type(_h).__name__}.build_croissant failed: {e}")
+                logger.warning("%s.build_croissant failed: %s", type(_h).__name__, e)
 
         _assert_unique_node_ids(distributions, record_sets)
 
