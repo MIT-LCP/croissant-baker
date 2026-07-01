@@ -1,5 +1,6 @@
 """Tests for file discovery utilities."""
 
+import logging
 from pathlib import Path
 import pytest
 from croissant_baker.files import discover_files
@@ -51,6 +52,29 @@ def test_discover_files_skips_hidden_dirs(tmp_path: Path) -> None:
     files = discover_files(str(tmp_path))
     expected = {Path("file1.txt"), Path("sub/file2.txt")}
     assert set(files) == expected
+
+
+def test_discover_files_caps_skipped_examples(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The skipped-file count is exact, but the example list is bounded.
+
+    Regression guard: previously every hidden-directory path was appended to an
+    in-memory list used only for a debug log, so a large hidden tree (e.g. a
+    stray .git) grew the list without bound.
+    """
+    (tmp_path / "keep.txt").write_text("x")
+    (tmp_path / ".hidden").mkdir()
+    for i in range(20):
+        (tmp_path / ".hidden" / f"f{i}.txt").write_text("x")
+
+    with caplog.at_level(logging.DEBUG, logger="croissant_baker.files"):
+        files = discover_files(str(tmp_path))
+
+    assert set(files) == {Path("keep.txt")}
+    rec = next(r for r in caplog.records if "hidden directories" in r.getMessage())
+    assert rec.args[0] == 20  # exact skipped count preserved
+    assert len(rec.args[1]) == 5  # example list capped
 
 
 def test_discover_files_include_patterns(tmp_path: Path) -> None:
