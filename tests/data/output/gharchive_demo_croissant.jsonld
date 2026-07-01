@@ -50,7 +50,7 @@
   "name": "GH Archive (demo slice)",
   "description": "200-event slice of GitHub Archive hourly JSONL export (2023-01-01 00:00 UTC)",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
-  "citeAs": "Dataset Creator. (2026). GH Archive (demo slice) Dataset. Generated with automated type inference.",
+  "citeAs": "GitHub Archive. (2023). GH Archive (demo slice) [Data set].",
   "creator": {
     "@type": "sc:Person",
     "name": "GitHub Archive"

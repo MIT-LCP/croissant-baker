@@ -473,16 +473,53 @@ class MetadataGenerator:
                 f"Expected '2023-12-15' or '2023-12-15T10:30:00'. Error: {e}"
             )
 
-    def _build_citation(self) -> str:
+    def _build_citation(self) -> Optional[str]:
+        """Build the default citation, or None.
+
+        A caller-supplied ``citation`` is used verbatim. Otherwise it is derived
+        only from real metadata — the supplied creators and the year of the
+        publication/creation date — so the same input always bakes to the same
+        citation (no wall-clock state). With neither a creator nor a date there
+        is nothing real to cite, so ``cite_as`` is omitted rather than invented.
+        """
         if self.citation:
             return self.citation
-        year = datetime.now().year
-        name = self.name or self.dataset_path.name
-        return f"Dataset Creator. ({year}). {name} Dataset. Generated with automated type inference."
 
-    def _resolve_date(self) -> datetime:
+        names = [
+            c["name"]
+            for c in (self.creators or [])
+            if isinstance(c, dict) and c.get("name")
+        ]
+        author = ", ".join(names) if names else None
+
+        year = None
+        for raw in (self.date_published, self.date_created):
+            if not raw:
+                continue
+            try:
+                year = datetime.fromisoformat(raw).year
+                break
+            except ValueError:
+                continue
+
+        if author is None and year is None:
+            return None
+
+        name = self.name or self.dataset_path.name
+        author_part = author if author else "Unknown"
+        year_part = f" ({year})." if year is not None else ""
+        return f"{author_part}.{year_part} {name} [Data set]."
+
+    def _resolve_date(self) -> Optional[datetime]:
+        """Return the parsed publication date, or None when none was supplied.
+
+        ``datePublished`` is omitted when unset rather than defaulted, so output
+        stays reproducible (no generation-time wall clock leaks into it) and we
+        don't assert a publication date the caller never gave. It is optional in
+        schema.org/Croissant.
+        """
         if not self.date_published:
-            return datetime.now()
+            return None
         try:
             return datetime.fromisoformat(self.date_published)
         except ValueError as e:

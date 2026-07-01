@@ -50,7 +50,7 @@
   "name": "MIMIC-IV demo data in the Medical Event Data Standard (MEDS)",
   "description": "MEDS demo of MIMIC-IV represented as Parquet event streams",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
-  "citeAs": "Dataset Creator. (2026). MIMIC-IV demo data in the Medical Event Data Standard (MEDS) Dataset. Generated with automated type inference.",
+  "citeAs": "Robin van de Water, Matthew McDermott. (2025). MIMIC-IV demo data in the Medical Event Data Standard (MEDS) [Data set].",
   "creator": [
     {
       "@type": "sc:Person",

@@ -50,7 +50,7 @@
   "name": "Multi-Modal Satellite Imagery for Public Health (subset)",
   "description": "Subset of Sentinel-2 satellite imagery linked to public health indicators in Colombia",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
-  "citeAs": "Dataset Creator. (2026). Multi-Modal Satellite Imagery for Public Health (subset) Dataset. Generated with automated type inference.",
+  "citeAs": "Suri Allison Garzón Mora. (2024). Multi-Modal Satellite Imagery for Public Health (subset) [Data set].",
   "creator": {
     "@type": "sc:Person",
     "name": "Suri Allison Garzón Mora"

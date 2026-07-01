@@ -50,7 +50,7 @@
   "name": "Myocardial Perfusion SPECT (demo subset)",
   "description": "Mixed DICOM + NIfTI subset of the PhysioNet open-access SPECT database",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
-  "citeAs": "Dataset Creator. (2026). Myocardial Perfusion SPECT (demo subset) Dataset. Generated with automated type inference.",
+  "citeAs": "Calixto et al.. (2025). Myocardial Perfusion SPECT (demo subset) [Data set].",
   "creator": {
     "@type": "sc:Person",
     "name": "Calixto et al."
