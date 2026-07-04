@@ -47,6 +47,15 @@ class FileTypeHandler(ABC):
         """
         Extract comprehensive metadata from a single file.
 
+        Thread-safety: ``extract_metadata`` may be called concurrently across
+        files on a single shared handler instance — handlers are registered as
+        singletons and extraction is parallelised (see ``MetadataGenerator``).
+        Implementations must be safe to call concurrently: do not mutate shared
+        or instance state during extraction, and use only parsers that are safe
+        for concurrent reads of independent files. Read-only state set once at
+        construction is fine; mutable per-call state must stay local — never on
+        ``self`` (nor on the class or module).
+
         Should return a dictionary containing file information, structure,
         types, and any format-specific metadata needed for Croissant generation.
 

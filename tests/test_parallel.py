@@ -11,6 +11,10 @@ from pathlib import Path
 
 import pytest
 
+from croissant_baker.handlers.registry import (
+    get_registered_handlers,
+    register_all_handlers,
+)
 from croissant_baker.metadata_generator import MetadataGenerator, serialize_datetime
 
 
@@ -93,3 +97,41 @@ def test_resolve_worker_count(mimic_demo_dir: Path) -> None:
     assert gen._resolve_worker_count(0) == 1
     assert gen._resolve_worker_count(1) == 1
     assert gen._resolve_worker_count(100) >= 1
+
+
+def _instance_state(handler) -> dict:
+    """Return a handler's per-instance state — covering both ``__dict__`` and
+    ``__slots__`` layouts, so a future ``__slots__`` handler is neither missed
+    nor crashes this check with ``TypeError`` (which bare ``vars(h)`` would)."""
+    state = dict(getattr(handler, "__dict__", {}) or {})
+    for cls in type(handler).__mro__:
+        for slot in getattr(cls, "__slots__", ()):
+            if slot not in ("__dict__", "__weakref__") and hasattr(handler, slot):
+                state[slot] = getattr(handler, slot)
+    return state
+
+
+def test_registered_handlers_are_stateless() -> None:
+    """Extraction runs concurrently on shared handler singletons (#112), so
+    handlers must carry no mutable per-instance state — a byte-identical test
+    won't reliably catch a resulting race. This fails loudly if a future handler
+    adds instance state, forcing a conscious thread-safety review before it ships.
+
+    Scope: this guards the instance-state case only. Class-level mutable
+    attributes (e.g. a shared ``_cache = {}`` mutated during extraction),
+    module-level globals, and non-reentrant parser libraries are equally unsafe
+    but are not introspectable here — they are covered by the thread-safety
+    contract on ``FileTypeHandler.extract_metadata`` and by review of the
+    extraction path.
+    """
+    register_all_handlers()
+    stateful = {}
+    for handler in get_registered_handlers():
+        state = _instance_state(handler)
+        if state:
+            stateful[type(handler).__name__] = state
+    assert not stateful, (
+        f"Handlers with instance state: {stateful}. extract_metadata is called "
+        "concurrently on a shared instance (#112). If this state is read-only and "
+        "set once at construction, confirm it is thread-safe and update this test."
+    )
