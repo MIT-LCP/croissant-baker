@@ -6,6 +6,9 @@ repo_url: https://github.com/MIT-LCP/croissant-baker
 repo_name: MIT-LCP/croissant-baker
 edit_uri: edit/main/docs/
 
+copyright: >
+  <a href="https://accessibility.mit.edu/">Accessibility</a>
+
 theme:
   name: material
   logo: assets/baker_logo.png
