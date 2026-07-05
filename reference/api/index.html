@@ -1000,7 +1000,7 @@ via the build_croissant protocol, and assembles the final JSON-LD.</p>
 
 
 <h3 id="croissant_baker.metadata_generator.MetadataGenerator.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">citation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_published</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_created</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_modified</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">creators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">publisher</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_language</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">same_as</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternate_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_live_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temporal_coverage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">usage_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">field_mappings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">count_csv_rows</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">excludes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rai_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">citation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_published</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_created</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_modified</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">creators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">publisher</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_language</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">same_as</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternate_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_live_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temporal_coverage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">usage_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">field_mappings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">count_csv_rows</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">excludes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rai_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h3>
 
@@ -1401,6 +1401,24 @@ Defaults to False for performance.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>max_workers</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum worker threads for per-file metadata
+extraction. None (default) auto-sizes from the CPU count; 1
+forces serial. Output is identical regardless of this value.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>includes</code>
             </td>
             <td>
@@ -1491,6 +1509,12 @@ to <code>mlc.Metadata</code> unchanged.</p>
     <div class="doc doc-contents ">
 
         <p>Generate complete Croissant metadata for the dataset.</p>
+<p>Per-file metadata extraction (handler selection, whole-file SHA-256,
+header/schema reads) is I/O-bound and independent across files, so it
+runs on a thread pool sized by <code>max_workers</code>. Results are reassembled
+in discovery order before any FileObject @id is assigned, so the output
+— including the order of warnings — is identical regardless of worker
+count.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1513,8 +1537,8 @@ to <code>mlc.Metadata</code> unchanged.</p>
             <td>
               <div class="doc-md-description">
                 <p>Optional callback with signature
-(current: int, total: int, file_path: str) -&gt; None
-called before processing each file.</p>
+(completed: int, total: int, file_path: str) -&gt; None
+invoked once per file as it finishes extraction.</p>
               </div>
             </td>
             <td>
@@ -1909,6 +1933,14 @@ register the instance in registry.py — no other files need to change.</p>
     <div class="doc doc-contents ">
 
         <p>Extract comprehensive metadata from a single file.</p>
+<p>Thread-safety: <code>extract_metadata</code> may be called concurrently across
+files on a single shared handler instance — handlers are registered as
+singletons and extraction is parallelised (see <code>MetadataGenerator</code>).
+Implementations must be safe to call concurrently: do not mutate shared
+or instance state during extraction, and use only parsers that are safe
+for concurrent reads of independent files. Read-only state set once at
+construction is fine; mutable per-call state must stay local — never on
+<code>self</code> (nor on the class or module).</p>
 <p>Should return a dictionary containing file information, structure,
 types, and any format-specific metadata needed for Croissant generation.</p>
 <p>Subclasses may declare additional named parameters before **kwargs
@@ -2181,6 +2213,11 @@ IDs aligned by position.</p>
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
       <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      <a href="https://accessibility.mit.edu/">Accessibility</a>
+
+    </div>
   
   
     Made with
