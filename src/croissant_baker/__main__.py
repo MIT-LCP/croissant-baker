@@ -495,6 +495,12 @@ def main(
         "--count-csv-rows",
         help="Count exact row numbers for CSV files (slow for large datasets)",
     ),
+    jobs: int = typer.Option(
+        0,
+        "--jobs",
+        "-j",
+        help="Worker threads for file extraction. 0 = auto (from CPU count), 1 = serial. Output is identical regardless of this value.",
+    ),
     # Native mlcroissant RAI fields exposed directly as CLI flags.
     rai_data_collection: Optional[str] = typer.Option(
         None, "--rai-data-collection", help="How and where the data was gathered."
@@ -787,6 +793,7 @@ def main(
             usage_info=usage_info,
             field_mappings=merged_field_mappings,
             count_csv_rows=count_csv_rows,
+            max_workers=jobs or None,
             includes=include,
             excludes=exclude,
             rai_fields=native_rai_fields,
