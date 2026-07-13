@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.2](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.3.1...croissant-baker-v0.3.2) (2026-07-05)
+
+
+### Bug Fixes
+
+* bound discovery memory and route generator warnings through logging ([84f925c](https://github.com/MIT-LCP/croissant-baker/commit/84f925ce2a07e585a8d7302cf1b024758b968eb0))
+* bound discovery memory and route generator warnings through logging ([4f3d42e](https://github.com/MIT-LCP/croissant-baker/commit/4f3d42e70c962649c0c6124d6375404a0cd756ae))
+* make generated metadata reproducible (drop wall-clock defaults) ([4691ae0](https://github.com/MIT-LCP/croissant-baker/commit/4691ae059a342cd9b0d3c105c9584f3078dcd786))
+* make generated metadata reproducible (drop wall-clock defaults) ([8110a8a](https://github.com/MIT-LCP/croissant-baker/commit/8110a8aa9468b3d015401344dcb53b7fc0886437))
+
+
+### Performance Improvements
+
+* extract file metadata concurrently (thread pool) ([ebe3c58](https://github.com/MIT-LCP/croissant-baker/commit/ebe3c5838e4d31d628a3bdd6c3a2b2534f9c8358))
+* extract file metadata concurrently (thread pool) ([17431be](https://github.com/MIT-LCP/croissant-baker/commit/17431bec542368633bcb51107cef22a82835ba49))
+
+
+### Build System
+
+* **deps:** bump actions/checkout from 6 to 7 ([261d32c](https://github.com/MIT-LCP/croissant-baker/commit/261d32c1c2a56b24b4214b122907ffaffe88dd2b))
+* **deps:** bump actions/checkout from 6 to 7 ([b5ec2fa](https://github.com/MIT-LCP/croissant-baker/commit/b5ec2fa11f34e34e3948f99f7bc437b5292e7060))
+
 ## [0.3.1](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.3.0...croissant-baker-v0.3.1) (2026-05-18)
 
 
