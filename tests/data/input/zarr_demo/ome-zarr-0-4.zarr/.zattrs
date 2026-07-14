@@ -1,0 +1,518 @@
+{
+    "multiscales": [
+        {
+            "axes": [
+                {
+                    "name": "t",
+                    "type": "time"
+                },
+                {
+                    "name": "c",
+                    "type": "channel"
+                },
+                {
+                    "name": "z",
+                    "type": "space"
+                },
+                {
+                    "name": "y",
+                    "type": "space"
+                },
+                {
+                    "name": "x",
+                    "type": "space"
+                }
+            ],
+            "datasets": [
+                {
+                    "coordinateTransformations": [
+                        {
+                            "scale": [
+                                1.0,
+                                1.0,
+                                1.0,
+                                1.0,
+                                1.0
+                            ],
+                            "type": "scale"
+                        }
+                    ],
+                    "path": "0"
+                },
+                {
+                    "coordinateTransformations": [
+                        {
+                            "scale": [
+                                1.0,
+                                1.0,
+                                1.0,
+                                2.0029498525073746,
+                                2.0
+                            ],
+                            "type": "scale"
+                        }
+                    ],
+                    "path": "1"
+                },
+                {
+                    "coordinateTransformations": [
+                        {
+                            "scale": [
+                                1.0,
+                                1.0,
+                                1.0,
+                                4.017751479289941,
+                                4.0
+                            ],
+                            "type": "scale"
+                        }
+                    ],
+                    "path": "2"
+                },
+                {
+                    "coordinateTransformations": [
+                        {
+                            "scale": [
+                                1.0,
+                                1.0,
+                                1.0,
+                                8.083333333333334,
+                                8.048192771084338
+                            ],
+                            "type": "scale"
+                        }
+                    ],
+                    "path": "3"
+                },
+                {
+                    "coordinateTransformations": [
+                        {
+                            "scale": [
+                                1.0,
+                                1.0,
+                                1.0,
+                                16.166666666666668,
+                                16.29268292682927
+                            ],
+                            "type": "scale"
+                        }
+                    ],
+                    "path": "4"
+                }
+            ],
+            "name": "/",
+            "version": "0.4"
+        }
+    ],
+    "omero": {
+        "channels": [
+            {
+                "active": true,
+                "color": "#D72B85",
+                "label": "Pr141_aSMA",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#367CBE",
+                "label": "Nd142_CD11c",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#5893FC",
+                "label": "Nd143_MHC-II",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#47FE59",
+                "label": "Nd144_MHC-I",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#03E5EA",
+                "label": "Nd145_NCAM",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#09048B",
+                "label": "Nd146_ASCL1_EpCAM",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#D10341",
+                "label": "Sm147_CD45",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#A22318",
+                "label": "Nd148_CD11b",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#2A528A",
+                "label": "Sm149_CD31",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#D4B264",
+                "label": "Nd150_CD44",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#64B9C5",
+                "label": "Eu151_Ly-6G",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#F9A64D",
+                "label": "Sm152_CD73",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#0B3E8B",
+                "label": "Eu153_PD-L1",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#78DA9D",
+                "label": "Sm154_CTLA-4",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#34DD5A",
+                "label": "Gd155_FasL",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#EF408B",
+                "label": "Gd156_PD-L2",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#866E5E",
+                "label": "Gd158_Foxp3",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#C43EE9",
+                "label": "Tb159_F4.80",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#9ED0D3",
+                "label": "Gd160_IFNgamma",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#32E54A",
+                "label": "Dy161_TIM-3",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#A33D32",
+                "label": "Dy162_Ly-6C",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#AD986F",
+                "label": "Dy163_TCRgd",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#8BF3DD",
+                "label": "Dy164_OX-40",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#AF2BCB",
+                "label": "Ho165_PD-1",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#B26269",
+                "label": "Er166_CD19",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#EBF144",
+                "label": "Er167_Nk-1.1",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#DCB054",
+                "label": "Er168_CD8",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#D251BB",
+                "label": "Tm169_MMR",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#FA6250",
+                "label": "Er170_HIF-1a",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#92CE19",
+                "label": "Yb171_CD4",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#C68E7D",
+                "label": "Yb172_Cl.cas3",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#F6BDBA",
+                "label": "Yb173_Ki-67",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#339FF6",
+                "label": "Yb174_Lag-3",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#00EC7E",
+                "label": "Lu175_Perforin",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#4E3569",
+                "label": "Yb176_GrB",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#CF81F0",
+                "label": "Ir191_DNA1",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            },
+            {
+                "active": true,
+                "color": "#8E93E1",
+                "label": "Ir193_DNA2",
+                "window": {
+                    "end": 1500.0,
+                    "max": 65535.0,
+                    "min": 0.0,
+                    "start": 0.0
+                }
+            }
+        ]
+    }
+}
