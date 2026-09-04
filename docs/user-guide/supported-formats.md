@@ -168,6 +168,50 @@ Extracted metadata: spatial dimensions (x, y, z), number of timepoints for 4D vo
 
 All NIfTI files in a dataset are grouped into one `cr:FileSet` with a summary `cr:RecordSet`. The `tr_seconds` field is only added when at least one 4D volume is present.
 
+## GEO SOFT
+
+SOFT is the native metadata export of the NCBI Gene Expression Omnibus, and a `.soft` family export is where a deposit's sample-level fields live: `!Sample_characteristics_ch1 = gender: female` is how GEO records sex, age, treatment, tissue and diagnosis, and there is no other machine-readable place in a deposit that holds them. The grammar is the same whatever the assay — microarray, RNA-seq, ChIP-seq, methylation, single-cell, spatial.
+
+"GEO support" here means the **`.soft` family export** and nothing else. `GSE*_series_matrix.txt` is a different grammar that only looks similar — no `^` entity lines, tab-separated rather than ` = `, quoted values, and `!Sample_*` transposed to one value per sample — and is not read. Neither are `GSM*.txt` or `GPL*.annot`.
+
+Three kinds of record set come out of one file:
+
+| Record set | One row per | Fields |
+|------------|-------------|--------|
+| `<stem>_series`, `<stem>_samples`, `<stem>_platforms` | one entity of that kind | each attribute name the deposit uses, with its `Series_` / `Sample_` / `Platform_` prefix removed |
+| `<stem>_sample_characteristics` | one sample | one field per distinct `!Sample_characteristics_ch*` key |
+| `<stem>_sample_table`, `<stem>_platform_table` | one row of a data table | the table's columns |
+
+`^DATABASE` is GEO boilerplate and is not described. An entity kind with no fields produces no record set rather than an empty one.
+
+**The characteristics stand apart from the attributes** because they are different things: `!Sample_*` is a closed GEO vocabulary, while the characteristics are whatever the submitter typed — and it is the submitter's keys a mapping step has to reconcile. It also keeps `!Sample_title` and a characteristic `title:` from becoming two fields called `title` in one record set.
+
+**Data tables group on their exact column signature**, one record set per signature, with the number of entities sharing it in the description. GEO's GSE1000, for example, yields three: the platform's 16-column annotation table, `(ID_REF, VALUE, SIG_LOG2)` for one of its ten samples, and `(ID_REF, VALUE, SIGNAL_Log2)` for the other nine. Ten near-identical record sets would be noise; a 9-against-1 split is information. Row counts come from `!*_data_row_count`, so no table body is counted, and only a bounded sample of rows is buffered — a 50 MB export is read in one forward pass at constant memory.
+
+### Names, not values
+
+**No value is emitted.** Every field is a *name*: an attribute name, a characteristic key, or a column header. Two deposits of the same assay family sharing no characteristic key is exactly what a mapping step has to reconcile, and the values are the deposit's own.
+
+Table cells are the one thing that is *read*: a bounded sample of rows goes to PyArrow so the columns can be typed, and the buffer is released as soon as it has. Nothing from it reaches the document. Every record set — the table ones included, where the question is sharpest — ends its description with `No value is emitted.`, so a consumer reading one in isolation knows what it is holding.
+
+Attribute and characteristic fields are all `sc:Text`. SOFT is untyped text and declares nothing, and coercing before typing turns `dbgap_subject_id: 27278` into a measurement a downstream step would then trust. Table columns *are* typed, through the same PyArrow path a `.csv` takes: a column is thousands of values under a declared header, which is a different thing from one free-text value per entity. A column's description carries the deposit's own `#COLUMN` line verbatim — `Column 'VALUE'. #VALUE = Intensity calculated by "affy" package in R` — so its provenance is visible.
+
+Fields carry `source: {fileObject: …}` and **no `extract`**. Croissant 1.1's extract grammar offers `column`, `fileProperty` and `jsonPath`, none of which addresses a repeated `!Sample_characteristics_ch1` key, and `mlcroissant` cannot read this format at all — its reader dispatches on `encodingFormat` over a fixed list that SOFT is not on. An `extract` here would be a promise nobody can keep. The record sets are descriptive, as every Parquet, JSONL and DICOM record set already is.
+
+The grammar a consumer needs in order to read the values itself is `!Sample_characteristics_ch1 = <key>: <value>`, scoped to the open `^SAMPLE` entity.
+
+One file yields several record sets, so their identifiers are derived from its stem: `GSE1_family.soft` gives `GSE1_family_series`, `GSE1_family_samples` and so on. Where a derived identifier collides with one another *format* produces — a `GSE1_family_samples.csv` in the same directory — both are suffixed with their format, exactly as `sample.csv` and `sample.tsv` become `sample_csv` and `sample_tsv`. Neither side keeps the bare name.
+
+`encodingFormat` is `text/x-geo-soft`. GEO SOFT has no IANA registration; the `x-` form follows `application/x-nifti`.
+
+### When a file does not read cleanly
+
+A `.soft` carrying no `^ENTITY` line is reported with reason `extract_failed`, which is accurate — the file really could not be read as SOFT.
+
+A file that *does* parse but runs out part-way says so in every record set description it produced, and logs a warning. Two conditions can fire: a data table still open at end of file, and a line that could not be decoded. A file that simply ends after a complete attribute line is **not** partial — an attribute block has no closing marker, so that is how every SOFT file ends.
+
+GEO declares no encoding. Every export tested decodes cleanly as strict UTF-8 — the `37ºC` in a 2004 deposit is `0xC2 0xBA`, and reading the file as latin-1 is what corrupts it to `37ÂºC` — but the format guarantees nothing, so a line that does not decode costs that line's fidelity and nothing more.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.

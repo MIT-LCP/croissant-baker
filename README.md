@@ -78,6 +78,7 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | Images | `.png`, `.jpg`, `.tiff`, `.bmp`, `.gif`, `.webp` | Dimensions and format via Pillow |
 | DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only) |
 | NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
+| GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly
