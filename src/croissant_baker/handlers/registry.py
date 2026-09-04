@@ -140,7 +140,7 @@ class HandlerRegistry:
 def builtin_handlers() -> List[FileTypeHandler]:
     """The handlers the baker ships with, in dispatch order."""
     # Imported here so that importing the registry does not pull in pydicom,
-    # nibabel and Pillow.
+    # nibabel, Pillow and h5py.
     from croissant_baker.handlers.csv_handler import CSVHandler
     from croissant_baker.handlers.tsv_handler import TSVHandler
     from croissant_baker.handlers.fhir_handler import FHIRHandler
@@ -151,6 +151,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.dicom_handler import DICOMHandler
     from croissant_baker.handlers.nifti_handler import NIfTIHandler
     from croissant_baker.handlers.soft_handler import SOFTHandler
+    from croissant_baker.handlers.hdf5_handler import HDF5Handler
 
     return [
         CSVHandler(),
@@ -165,6 +166,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
         DICOMHandler(),
         NIfTIHandler(),
         SOFTHandler(),
+        HDF5Handler(),
     ]
 
 

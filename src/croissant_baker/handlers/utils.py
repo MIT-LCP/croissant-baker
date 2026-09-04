@@ -720,8 +720,21 @@ def get_clean_record_name(file_name: str) -> str:
 
     name = file_name.strip()
 
-    # Remove common data file extensions
-    extensions = [".csv", ".tsv", ".ndjson", ".json", ".parquet", ".txt", ".dat"]
+    # Remove common data file extensions. Every handler whose record sets are
+    # named after their files needs its own listed here — image, DICOM and
+    # NIfTI are absent because theirs are named for the format instead.
+    extensions = [
+        ".csv",
+        ".tsv",
+        ".ndjson",
+        ".json",
+        ".parquet",
+        ".txt",
+        ".dat",
+        ".h5ad",
+        ".hdf5",
+        ".h5",
+    ]
     for ext in extensions:
         if name.endswith(ext):
             name = name[: -len(ext)]
