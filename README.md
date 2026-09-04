@@ -79,6 +79,7 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only) |
 | NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
 | GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
+| HDF5 | `.h5`, `.h5ad`, `.hdf5` | Dataset paths, dtypes and shapes via h5py (structure only); AnnData and 10x table columns where the layout is recognised |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly
