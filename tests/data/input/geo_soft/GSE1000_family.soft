@@ -1,0 +1,572 @@
+^DATABASE = GeoMiame
+!Database_name = Gene Expression Omnibus (GEO)
+!Database_institute = NCBI NLM NIH
+!Database_web_link = http://www.ncbi.nlm.nih.gov/geo
+!Database_email = geo@ncbi.nlm.nih.gov
+^SERIES = GSE1000
+!Series_title = Osteosarcoma TE85 cell tissue culture study
+!Series_geo_accession = GSE1000
+!Series_status = Public on Jan 28 2004
+!Series_submission_date = Jan 27 2004
+!Series_last_update_date = Aug 10 2018
+!Series_summary = Amino acid conjugated surfaces and controls at 6 and 32 hours
+!Series_summary = Keywords: other
+!Series_type = Expression profiling by array
+!Series_contributor = Catherine,M,Klapperich
+!Series_contributor = Jie,,Song
+!Series_contributor = Carolyn,R,Bertozzi
+!Series_sample_id = GSM15785
+!Series_sample_id = GSM15786
+!Series_sample_id = GSM15787
+!Series_sample_id = GSM15788
+!Series_sample_id = GSM15789
+!Series_sample_id = GSM15790
+!Series_sample_id = GSM15791
+!Series_sample_id = GSM15792
+!Series_sample_id = GSM15794
+!Series_sample_id = GSM15795
+!Series_contact_name = Catherine,,Klapperich
+!Series_contact_email = catherin@bu.edu
+!Series_contact_phone = 617-358-0253
+!Series_contact_laboratory = Laboratory for Biomedical Materials Research
+!Series_contact_department = Biomedical and Manufacturing Engineering
+!Series_contact_institute = Boston University
+!Series_contact_address = 44 Cummington St. 7th Floor
+!Series_contact_city = Boston
+!Series_contact_state = MA
+!Series_contact_zip/postal_code = 02215
+!Series_contact_country = USA
+!Series_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE1nnn/GSE1000/suppl/GSE1000_RAW.tar
+!Series_platform_id = GPL96
+!Series_platform_taxid = 9606
+!Series_sample_taxid = 9606
+!Series_relation = BioProject: https://www.ncbi.nlm.nih.gov/bioproject/PRJNA87053
+^PLATFORM = GPL96
+!Platform_title = [HG-U133A] Affymetrix Human Genome U133A Array
+!Platform_geo_accession = GPL96
+!Platform_status = Public on Mar 11 2002
+!Platform_submission_date = Feb 19 2002
+!Platform_last_update_date = Mar 09 2021
+!Platform_technology = in situ oligonucleotide
+!Platform_distribution = commercial
+!Platform_organism = Homo sapiens
+!Platform_taxid = 9606
+!Platform_manufacturer = Affymetrix
+!Platform_manufacture_protocol = see manufacturer's web site
+!Platform_manufacture_protocol = 
+!Platform_manufacture_protocol = The U133 set includes 2 arrays with a total of 44928 entries and was indexed 29-Jan-2002.
+!Platform_manufacture_protocol = The set includes over 1,000,000 unique oligonucleotide features covering more than 39,000 transcript variants, which in turn represent greater than 33,000 of the best characterized human genes.
+!Platform_manufacture_protocol = Sequences were selected from GenBank, dbEST, and RefSeq. Sequence clusters were created from Build 133 of UniGene (April 20, 2001) and refined by analysis and comparison with a number of other publicly available databases including the Washington University EST trace repository and the University of California, Santa Cruz golden-path human genome database (April 2001 release). In addition, ESTs were analyzed for untrimmed low-quality sequence information, correct orientation, false priming, false clustering, alternative splicing and alternative polyadenylation.
+!Platform_manufacture_protocol = 
+!Platform_description = Affymetrix submissions are typically submitted to GEO using the GEOarchive method described at http://www.ncbi.nlm.nih.gov/projects/geo/info/geo_affy.html
+!Platform_description = 
+!Platform_description = June 03, 2009: annotation table updated with netaffx build 28
+!Platform_description = June 08, 2012: annotation table updated with netaffx build 32
+!Platform_description = June 24, 2016: annotation table updated with netaffx build 35
+!Platform_web_link = http://www.affymetrix.com/support/technical/byproduct.affx?product=hgu133
+!Platform_web_link = http://www.affymetrix.com/analysis/index.affx
+!Platform_contact_name =  ,,Affymetrix, Inc.
+!Platform_contact_email = geo@ncbi.nlm.nih.gov, support@affymetrix.com
+!Platform_contact_phone = 888-362-2447
+!Platform_contact_institute = Affymetrix, Inc.
+!Platform_contact_address =  
+!Platform_contact_city = Santa Clara
+!Platform_contact_state = CA
+!Platform_contact_zip/postal_code = 95051
+!Platform_contact_country = USA
+!Platform_contact_web_link = http://www.affymetrix.com/index.affx
+!Platform_relation = Alternative to: GPL4557 (Alternative CDF)
+!Platform_relation = Alternative to: GPL7566 (Alternative CDF)
+!Platform_relation = Alternative to: GPL9021 (Alternative CDF)
+!Platform_relation = Alternative to: GPL9741 (Alternative CDF)
+!Platform_relation = Alternative to: GPL10553 (Alternative CDF: ncilpg_U133Agb)
+!Platform_relation = Alternative to: GPL14663 (Alternative CDF)
+!Platform_relation = Alternative to: GPL16212 (Alternative CDF)
+!Platform_relation = Alternative to: GPL17027 (Alternative CDF)
+!Platform_relation = Alternative to: GPL17662 (alternative CDF)
+!Platform_relation = Alternative to: GPL19184 (CDF: v18 ENTREZG)
+!Platform_relation = Alternative to: GPL29829 (gene name)
+!Platform_data_row_count = 22283
+#ID = Affymetrix Probe Set ID LINK_PRE:"https://www.affymetrix.com/LinkServlet?array=U133&probeset="
+#GB_ACC = GenBank Accession Number LINK_PRE:"http://www.ncbi.nlm.nih.gov/nuccore/?term="
+#SPOT_ID = identifies controls
+#Species Scientific Name = The genus and species of the organism represented by the probe set.
+#Annotation Date = The date that the annotations for this probe array were last updated. It will generally be earlier than the date when the annotations were posted on the Affymetrix web site.
+#Sequence Type = 
+#Sequence Source = The database from which the sequence used to design this probe set was taken.
+#Target Description = 
+#Representative Public ID = The accession number of a representative sequence. Note that for consensus-based probe sets, the representative sequence is only one of several sequences (sequence sub-clusters) used to build the consensus sequence and it is not directly used to derive the probe sequences. The representative sequence is chosen during array design as a sequence that is best associated with the transcribed region being interrogated by the probe set. Refer to the "Sequence Source" field to determine the database used.
+#Gene Title = Title of Gene represented by the probe set.
+#Gene Symbol = A gene symbol, when one is available (from UniGene).
+#ENTREZ_GENE_ID = Entrez Gene Database UID LINK_PRE:"http://www.ncbi.nlm.nih.gov/gene/" DELIMIT:" /// "
+#RefSeq Transcript ID = References to multiple sequences in RefSeq. The field contains the ID and Description for each entry, and there can be multiple entries per ProbeSet.
+#Gene Ontology Biological Process = Gene Ontology Consortium Biological Process derived from LocusLink.  Each annotation consists of three parts: "Accession Number // Description // Evidence". The description corresponds directly to the GO ID. The evidence can be "direct", or "extended".
+#Gene Ontology Cellular Component = Gene Ontology Consortium Cellular Component derived from LocusLink.  Each annotation consists of three parts: "Accession Number // Description // Evidence". The description corresponds directly to the GO ID. The evidence can be "direct", or "extended".
+#Gene Ontology Molecular Function = Gene Ontology Consortium Molecular Function derived from LocusLink.  Each annotation consists of three parts: "Accession Number // Description // Evidence". The description corresponds directly to the GO ID. The evidence can be "direct", or "extended".
+!platform_table_begin
+ID	GB_ACC	SPOT_ID	Species Scientific Name	Annotation Date	Sequence Type	Sequence Source	Target Description	Representative Public ID	Gene Title	Gene Symbol	ENTREZ_GENE_ID	RefSeq Transcript ID	Gene Ontology Biological Process	Gene Ontology Cellular Component	Gene Ontology Molecular Function
+1007_s_at	U48705		Homo sapiens	Oct 6, 2014	Exemplar sequence	Affymetrix Proprietary Database	U48705 /FEATURE=mRNA /DEFINITION=HSU48705 Human receptor tyrosine kinase DDR gene, complete cds	U48705	discoidin domain receptor tyrosine kinase 1 /// microRNA 4640	DDR1 /// MIR4640	780 /// 100616237	NM_001202521 /// NM_001202522 /// NM_001202523 /// NM_001954 /// NM_013993 /// NM_013994 /// NR_039783 /// XM_005249385 /// XM_005249386 /// XM_005249387 /// XM_005249389 /// XM_005272873 /// XM_005272874 /// XM_005272875 /// XM_005272877 /// XM_005275027 /// XM_005275028 /// XM_005275030 /// XM_005275031 /// XM_005275162 /// XM_005275163 /// XM_005275164 /// XM_005275166 /// XM_005275457 /// XM_005275458 /// XM_005275459 /// XM_005275461 /// XM_006715185 /// XM_006715186 /// XM_006715187 /// XM_006715188 /// XM_006715189 /// XM_006715190 /// XM_006725501 /// XM_006725502 /// XM_006725503 /// XM_006725504 /// XM_006725505 /// XM_006725506 /// XM_006725714 /// XM_006725715 /// XM_006725716 /// XM_006725717 /// XM_006725718 /// XM_006725719 /// XM_006725720 /// XM_006725721 /// XM_006725722 /// XM_006725827 /// XM_006725828 /// XM_006725829 /// XM_006725830 /// XM_006725831 /// XM_006725832 /// XM_006726017 /// XM_006726018 /// XM_006726019 /// XM_006726020 /// XM_006726021 /// XM_006726022 /// XR_427836 /// XR_430858 /// XR_430938 /// XR_430974 /// XR_431015	0001558 // regulation of cell growth // inferred from electronic annotation /// 0001952 // regulation of cell-matrix adhesion // inferred from electronic annotation /// 0006468 // protein phosphorylation // inferred from electronic annotation /// 0007155 // cell adhesion // traceable author statement /// 0007169 // transmembrane receptor protein tyrosine kinase signaling pathway // inferred from electronic annotation /// 0007565 // female pregnancy // inferred from electronic annotation /// 0007566 // embryo implantation // inferred from electronic annotation /// 0007595 // lactation // inferred from electronic annotation /// 0008285 // negative regulation of cell proliferation // inferred from electronic annotation /// 0010715 // regulation of extracellular matrix disassembly // inferred from mutant phenotype /// 0014909 // smooth muscle cell migration // inferred from mutant phenotype /// 0016310 // phosphorylation // inferred from electronic annotation /// 0018108 // peptidyl-tyrosine phosphorylation // inferred from electronic annotation /// 0030198 // extracellular matrix organization // traceable author statement /// 0038063 // collagen-activated tyrosine kinase receptor signaling pathway // inferred from direct assay /// 0038063 // collagen-activated tyrosine kinase receptor signaling pathway // inferred from mutant phenotype /// 0038083 // peptidyl-tyrosine autophosphorylation // inferred from direct assay /// 0043583 // ear development // inferred from electronic annotation /// 0044319 // wound healing, spreading of cells // inferred from mutant phenotype /// 0046777 // protein autophosphorylation // inferred from direct assay /// 0060444 // branching involved in mammary gland duct morphogenesis // inferred from electronic annotation /// 0060749 // mammary gland alveolus development // inferred from electronic annotation /// 0061302 // smooth muscle cell-matrix adhesion // inferred from mutant phenotype	0005576 // extracellular region // inferred from electronic annotation /// 0005615 // extracellular space // inferred from direct assay /// 0005886 // plasma membrane // traceable author statement /// 0005887 // integral component of plasma membrane // traceable author statement /// 0016020 // membrane // inferred from electronic annotation /// 0016021 // integral component of membrane // inferred from electronic annotation /// 0043235 // receptor complex // inferred from direct assay /// 0070062 // extracellular vesicular exosome // inferred from direct assay	0000166 // nucleotide binding // inferred from electronic annotation /// 0004672 // protein kinase activity // inferred from electronic annotation /// 0004713 // protein tyrosine kinase activity // inferred from electronic annotation /// 0004714 // transmembrane receptor protein tyrosine kinase activity // traceable author statement /// 0005515 // protein binding // inferred from physical interaction /// 0005518 // collagen binding // inferred from direct assay /// 0005518 // collagen binding // inferred from mutant phenotype /// 0005524 // ATP binding // inferred from electronic annotation /// 0016301 // kinase activity // inferred from electronic annotation /// 0016740 // transferase activity // inferred from electronic annotation /// 0016772 // transferase activity, transferring phosphorus-containing groups // inferred from electronic annotation /// 0038062 // protein tyrosine kinase collagen receptor activity // inferred from direct assay /// 0046872 // metal ion binding // inferred from electronic annotation
+1053_at	M87338		Homo sapiens	Oct 6, 2014	Exemplar sequence	GenBank	M87338 /FEATURE= /DEFINITION=HUMA1SBU Human replication factor C, 40-kDa subunit (A1) mRNA, complete cds	M87338	replication factor C (activator 1) 2, 40kDa	RFC2	5982	NM_001278791 /// NM_001278792 /// NM_001278793 /// NM_002914 /// NM_181471 /// XM_006716080	0000278 // mitotic cell cycle // traceable author statement /// 0000722 // telomere maintenance via recombination // traceable author statement /// 0000723 // telomere maintenance // traceable author statement /// 0006260 // DNA replication // traceable author statement /// 0006271 // DNA strand elongation involved in DNA replication // traceable author statement /// 0006281 // DNA repair // traceable author statement /// 0006283 // transcription-coupled nucleotide-excision repair // traceable author statement /// 0006289 // nucleotide-excision repair // traceable author statement /// 0006297 // nucleotide-excision repair, DNA gap filling // traceable author statement /// 0015979 // photosynthesis // inferred from electronic annotation /// 0015995 // chlorophyll biosynthetic process // inferred from electronic annotation /// 0032201 // telomere maintenance via semi-conservative replication // traceable author statement	0005634 // nucleus // inferred from electronic annotation /// 0005654 // nucleoplasm // traceable author statement /// 0005663 // DNA replication factor C complex // inferred from direct assay	0000166 // nucleotide binding // inferred from electronic annotation /// 0003677 // DNA binding // inferred from electronic annotation /// 0005515 // protein binding // inferred from physical interaction /// 0005524 // ATP binding // inferred from electronic annotation /// 0016851 // magnesium chelatase activity // inferred from electronic annotation /// 0017111 // nucleoside-triphosphatase activity // inferred from electronic annotation
+117_at	X51757		Homo sapiens	Oct 6, 2014	Exemplar sequence	Affymetrix Proprietary Database	X51757 /FEATURE=cds /DEFINITION=HSP70B Human heat-shock protein HSP70B' gene	X51757	heat shock 70kDa protein 6 (HSP70B')	HSPA6	3310	NM_002155	0000902 // cell morphogenesis // inferred from electronic annotation /// 0006200 // ATP catabolic process // inferred from direct assay /// 0006950 // response to stress // inferred from electronic annotation /// 0006986 // response to unfolded protein // traceable author statement /// 0034605 // cellular response to heat // inferred from direct assay /// 0042026 // protein refolding // inferred from direct assay /// 0070370 // cellular heat acclimation // inferred from mutant phenotype	0005737 // cytoplasm // inferred from direct assay /// 0005814 // centriole // inferred from direct assay /// 0005829 // cytosol // inferred from direct assay /// 0008180 // COP9 signalosome // inferred from direct assay /// 0070062 // extracellular vesicular exosome // inferred from direct assay /// 0072562 // blood microparticle // inferred from direct assay	0000166 // nucleotide binding // inferred from electronic annotation /// 0005524 // ATP binding // inferred from electronic annotation /// 0019899 // enzyme binding // inferred from physical interaction /// 0031072 // heat shock protein binding // inferred from physical interaction /// 0042623 // ATPase activity, coupled // inferred from direct assay /// 0051082 // unfolded protein binding // inferred from direct assay
+121_at	X69699		Homo sapiens	Oct 6, 2014	Exemplar sequence	GenBank	X69699 /FEATURE= /DEFINITION=HSPAX8A H.sapiens Pax8 mRNA	X69699	paired box 8	PAX8	7849	NM_003466 /// NM_013951 /// NM_013952 /// NM_013953 /// NM_013992	0001655 // urogenital system development // inferred from sequence or structural similarity /// 0001656 // metanephros development // inferred from electronic annotation /// 0001658 // branching involved in ureteric bud morphogenesis // inferred from expression pattern /// 0001822 // kidney development // inferred from expression pattern /// 0001823 // mesonephros development // inferred from sequence or structural similarity /// 0003337 // mesenchymal to epithelial transition involved in metanephros morphogenesis // inferred from expression pattern /// 0006351 // transcription, DNA-templated // inferred from direct assay /// 0006355 // regulation of transcription, DNA-templated // inferred from electronic annotation /// 0007275 // multicellular organismal development // inferred from electronic annotation /// 0007417 // central nervous system development // inferred from expression pattern /// 0009653 // anatomical structure morphogenesis // traceable author statement /// 0030154 // cell differentiation // inferred from electronic annotation /// 0030878 // thyroid gland development // inferred from expression pattern /// 0030878 // thyroid gland development // inferred from mutant phenotype /// 0038194 // thyroid-stimulating hormone signaling pathway // traceable author statement /// 0039003 // pronephric field specification // inferred from sequence or structural similarity /// 0042472 // inner ear morphogenesis // inferred from sequence or structural similarity /// 0042981 // regulation of apoptotic process // inferred from sequence or structural similarity /// 0045893 // positive regulation of transcription, DNA-templated // inferred from direct assay /// 0045893 // positive regulation of transcription, DNA-templated // inferred from sequence or structural similarity /// 0045944 // positive regulation of transcription from RNA polymerase II promoter // inferred from direct assay /// 0048793 // pronephros development // inferred from sequence or structural similarity /// 0071371 // cellular response to gonadotropin stimulus // inferred from direct assay /// 0071599 // otic vesicle development // inferred from expression pattern /// 0072050 // S-shaped body morphogenesis // inferred from electronic annotation /// 0072073 // kidney epithelium development // inferred from electronic annotation /// 0072108 // positive regulation of mesenchymal to epithelial transition involved in metanephros morphogenesis // inferred from sequence or structural similarity /// 0072164 // mesonephric tubule development // inferred from electronic annotation /// 0072207 // metanephric epithelium development // inferred from expression pattern /// 0072221 // metanephric distal convoluted tubule development // inferred from sequence or structural similarity /// 0072278 // metanephric comma-shaped body morphogenesis // inferred from expression pattern /// 0072284 // metanephric S-shaped body morphogenesis // inferred from expression pattern /// 0072289 // metanephric nephron tubule formation // inferred from sequence or structural similarity /// 0072305 // negative regulation of mesenchymal cell apoptotic process involved in metanephric nephron morphogenesis // inferred from sequence or structural similarity /// 0072307 // regulation of metanephric nephron tubule epithelial cell differentiation // inferred from sequence or structural similarity /// 0090190 // positive regulation of branching involved in ureteric bud morphogenesis // inferred from sequence or structural similarity /// 1900212 // negative regulation of mesenchymal cell apoptotic process involved in metanephros development // inferred from sequence or structural similarity /// 1900215 // negative regulation of apoptotic process involved in metanephric collecting duct development // inferred from sequence or structural similarity /// 1900218 // negative regulation of apoptotic process involved in metanephric nephron tubule development // inferred from sequence or structural similarity /// 2000594 // positive regulation of metanephric DCT cell differentiation // inferred from sequence or structural similarity /// 2000611 // positive regulation of thyroid hormone generation // inferred from mutant phenotype /// 2000612 // regulation of thyroid-stimulating hormone secretion // inferred from mutant phenotype	0005634 // nucleus // inferred from direct assay /// 0005654 // nucleoplasm // inferred from sequence or structural similarity /// 0005730 // nucleolus // inferred from direct assay	0000979 // RNA polymerase II core promoter sequence-specific DNA binding // inferred from direct assay /// 0003677 // DNA binding // inferred from direct assay /// 0003677 // DNA binding // inferred from mutant phenotype /// 0003700 // sequence-specific DNA binding transcription factor activity // inferred from direct assay /// 0004996 // thyroid-stimulating hormone receptor activity // traceable author statement /// 0005515 // protein binding // inferred from physical interaction /// 0044212 // transcription regulatory region DNA binding // inferred from direct assay
+1255_g_at	L36861		Homo sapiens	Oct 6, 2014	Exemplar sequence	Affymetrix Proprietary Database	L36861 /FEATURE=expanded_cds /DEFINITION=HUMGCAPB Homo sapiens guanylate cyclase activating protein (GCAP) gene exons 1-4, complete cds	L36861	guanylate cyclase activator 1A (retina)	GUCA1A	2978	NM_000409 /// XM_006715073	0007165 // signal transduction // non-traceable author statement /// 0007601 // visual perception // inferred from electronic annotation /// 0007602 // phototransduction // inferred from electronic annotation /// 0007603 // phototransduction, visible light // traceable author statement /// 0016056 // rhodopsin mediated signaling pathway // traceable author statement /// 0022400 // regulation of rhodopsin mediated signaling pathway // traceable author statement /// 0030828 // positive regulation of cGMP biosynthetic process // inferred from electronic annotation /// 0031282 // regulation of guanylate cyclase activity // inferred from electronic annotation /// 0031284 // positive regulation of guanylate cyclase activity // inferred from electronic annotation /// 0050896 // response to stimulus // inferred from electronic annotation	0001750 // photoreceptor outer segment // inferred from electronic annotation /// 0001917 // photoreceptor inner segment // inferred from electronic annotation /// 0005578 // proteinaceous extracellular matrix // inferred from electronic annotation /// 0005886 // plasma membrane // inferred from direct assay /// 0016020 // membrane // inferred from electronic annotation /// 0097381 // photoreceptor disc membrane // traceable author statement	0005509 // calcium ion binding // inferred from electronic annotation /// 0008048 // calcium sensitive guanylate cyclase activator activity // inferred from electronic annotation /// 0030249 // guanylate cyclase regulator activity // inferred from electronic annotation /// 0046872 // metal ion binding // inferred from electronic annotation
+1294_at	L13852		Homo sapiens	Oct 6, 2014	Exemplar sequence	GenBank	L13852 /FEATURE= /DEFINITION=HUME1URP Homo sapiens ubiquitin-activating enzyme E1 related protein mRNA, complete cds	L13852	microRNA 5193 /// ubiquitin-like modifier activating enzyme 7	MIR5193 /// UBA7	7318 /// 100847079	NM_003335 /// NR_049825 /// XM_005265430 /// XM_006713321	0006464 // cellular protein modification process // inferred from direct assay /// 0016567 // protein ubiquitination // not recorded /// 0016567 // protein ubiquitination // inferred from electronic annotation /// 0019221 // cytokine-mediated signaling pathway // traceable author statement /// 0019941 // modification-dependent protein catabolic process // not recorded /// 0032020 // ISG15-protein conjugation // inferred from direct assay /// 0032480 // negative regulation of type I interferon production // traceable author statement /// 0045087 // innate immune response // traceable author statement	0005634 // nucleus // not recorded /// 0005829 // cytosol // not recorded /// 0005829 // cytosol // traceable author statement	0000166 // nucleotide binding // inferred from electronic annotation /// 0003824 // catalytic activity // inferred from electronic annotation /// 0004839 // ubiquitin activating enzyme activity // not recorded /// 0004842 // ubiquitin-protein transferase activity // not recorded /// 0005524 // ATP binding // inferred from electronic annotation /// 0008641 // small protein activating enzyme activity // inferred from electronic annotation /// 0016874 // ligase activity // inferred from electronic annotation /// 0019782 // ISG15 activating enzyme activity // inferred from direct assay
+1316_at	X55005		Homo sapiens	Oct 6, 2014	Exemplar sequence	Affymetrix Proprietary Database	X55005 /FEATURE=mRNA /DEFINITION=HSCERBAR Homo sapiens mRNA for thyroid hormone receptor alpha 1 THRA1, (c-erbA-1 gene)	X55005	thyroid hormone receptor, alpha	THRA	7067	NM_001190918 /// NM_001190919 /// NM_003250 /// NM_199334	0000122 // negative regulation of transcription from RNA polymerase II promoter // inferred from direct assay /// 0000122 // negative regulation of transcription from RNA polymerase II promoter // inferred from mutant phenotype /// 0001502 // cartilage condensation // inferred from electronic annotation /// 0001503 // ossification // inferred from electronic annotation /// 0002155 // regulation of thyroid hormone mediated signaling pathway // inferred from electronic annotation /// 0005978 // glycogen biosynthetic process // inferred from sequence or structural similarity /// 0006351 // transcription, DNA-templated // inferred from electronic annotation /// 0006355 // regulation of transcription, DNA-templated // inferred from electronic annotation /// 0006357 // regulation of transcription from RNA polymerase II promoter // inferred from direct assay /// 0006366 // transcription from RNA polymerase II promoter // inferred from direct assay /// 0006367 // transcription initiation from RNA polymerase II promoter // traceable author statement /// 0007611 // learning or memory // inferred from electronic annotation /// 0007623 // circadian rhythm // inferred from electronic annotation /// 0008016 // regulation of heart contraction // inferred from electronic annotation /// 0008050 // female courtship behavior // inferred from electronic annotation /// 0009409 // response to cold // inferred from electronic annotation /// 0009755 // hormone-mediated signaling pathway // inferred from direct assay /// 0009887 // organ morphogenesis // inferred from electronic annotation /// 0010467 // gene expression // traceable author statement /// 0010498 // proteasomal protein catabolic process // inferred from sequence or structural similarity /// 0010831 // positive regulation of myotube differentiation // inferred from electronic annotation /// 0010871 // negative regulation of receptor biosynthetic process // inferred from mutant phenotype /// 0017055 // negative regulation of RNA polymerase II transcriptional preinitiation complex assembly // inferred from direct assay /// 0019216 // regulation of lipid metabolic process // inferred from sequence or structural similarity /// 0030154 // cell differentiation // inferred from electronic annotation /// 0030218 // erythrocyte differentiation // inferred from electronic annotation /// 0030522 // intracellular receptor signaling pathway // inferred from electronic annotation /// 0030878 // thyroid gland development // inferred from electronic annotation /// 0032922 // circadian regulation of gene expression // inferred from sequence or structural similarity /// 0033032 // regulation of myeloid cell apoptotic process // inferred from electronic annotation /// 0034144 // negative regulation of toll-like receptor 4 signaling pathway // inferred from mutant phenotype /// 0035947 // regulation of gluconeogenesis by regulation of transcription from RNA polymerase II promoter // inferred from mutant phenotype /// 0042752 // regulation of circadian rhythm // inferred from sequence or structural similarity /// 0042994 // cytoplasmic sequestering of transcription factor // inferred from electronic annotation /// 0043401 // steroid hormone mediated signaling pathway // inferred from electronic annotation /// 0044321 // response to leptin // inferred from sequence or structural similarity /// 0045598 // regulation of fat cell differentiation // inferred from sequence or structural similarity /// 0045892 // negative regulation of transcription, DNA-templated // inferred from direct assay /// 0045893 // positive regulation of transcription, DNA-templated // inferred from sequence or structural similarity /// 0045925 // positive regulation of female receptivity // inferred from electronic annotation /// 0045944 // positive regulation of transcription from RNA polymerase II promoter // inferred from electronic annotation /// 0048511 // rhythmic process // inferred from electronic annotation /// 0050994 // regulation of lipid catabolic process // inferred from electronic annotation /// 0060086 // circadian temperature homeostasis // inferred from sequence or structural similarity /// 0060509 // Type I pneumocyte differentiation // inferred from electronic annotation /// 0061178 // regulation of insulin secretion involved in cellular response to glucose stimulus // inferred from sequence or structural similarity /// 0061469 // regulation of type B pancreatic cell proliferation // inferred from sequence or structural similarity /// 0070859 // positive regulation of bile acid biosynthetic process // inferred from sequence or structural similarity /// 0071222 // cellular response to lipopolysaccharide // inferred from mutant phenotype /// 2000143 // negative regulation of DNA-templated transcription, initiation // inferred from direct assay /// 2000188 // regulation of cholesterol homeostasis // inferred from sequence or structural similarity /// 2000189 // positive regulation of cholesterol homeostasis // inferred from direct assay	0000790 // nuclear chromatin // inferred from direct assay /// 0005634 // nucleus // inferred from direct assay /// 0005654 // nucleoplasm // traceable author statement /// 0005737 // cytoplasm // inferred from electronic annotation /// 0005737 // cytoplasm // inferred from sequence or structural similarity /// 0005829 // cytosol // inferred from direct assay /// 0030425 // dendrite // inferred from electronic annotation /// 0030425 // dendrite // inferred from sequence or structural similarity /// 0042995 // cell projection // inferred from electronic annotation /// 0043197 // dendritic spine // inferred from electronic annotation /// 0043197 // dendritic spine // inferred from sequence or structural similarity	0000978 // RNA polymerase II core promoter proximal region sequence-specific DNA binding // inferred from mutant phenotype /// 0001046 // core promoter sequence-specific DNA binding // inferred from direct assay /// 0001078 // RNA polymerase II core promoter proximal region sequence-specific DNA binding transcription factor activity involved in negative regulation of transcription // inferred from direct assay /// 0001222 // transcription corepressor binding // inferred from direct assay /// 0001222 // transcription corepressor binding // inferred from mutant phenotype /// 0002153 // steroid receptor RNA activator RNA binding // inferred from electronic annotation /// 0003677 // DNA binding // inferred from electronic annotation /// 0003700 // sequence-specific DNA binding transcription factor activity // inferred from direct assay /// 0003707 // steroid hormone receptor activity // inferred from electronic annotation /// 0003714 // transcription corepressor activity // traceable author statement /// 0003727 // single-stranded RNA binding // inferred from electronic annotation /// 0004879 // ligand-activated sequence-specific DNA binding RNA polymerase II transcription factor activity // traceable author statement /// 0004879 // ligand-activated sequence-specific DNA binding RNA polymerase II transcription factor activity // inferred from electronic annotation /// 0004887 // thyroid hormone receptor activity // inferred from direct assay /// 0005515 // protein binding // inferred from physical interaction /// 0008134 // transcription factor binding // inferred from physical interaction /// 0008270 // zinc ion binding // inferred from electronic annotation /// 0017025 // TBP-class protein binding // inferred from direct assay /// 0019904 // protein domain specific binding // inferred from physical interaction /// 0020037 // heme binding // inferred from direct assay /// 0031490 // chromatin DNA binding // inferred from electronic annotation /// 0032403 // protein complex binding // inferred from electronic annotation /// 0043565 // sequence-specific DNA binding // inferred from electronic annotation /// 0044212 // transcription regulatory region DNA binding // inferred from direct assay /// 0046872 // metal ion binding // inferred from electronic annotation /// 0070324 // thyroid hormone binding // inferred from direct assay /// 0070324 // thyroid hormone binding // inferred from physical interaction
+1320_at	X79510		Homo sapiens	Oct 6, 2014	Exemplar sequence	Affymetrix Proprietary Database	X79510 /FEATURE=cds /DEFINITION=HSPTPD1 H.sapiens mRNA for protein-tyrosine-phosphatase D1	X79510	protein tyrosine phosphatase, non-receptor type 21	PTPN21	11099	NM_007039 /// XM_005267287 /// XM_006720011	0006470 // protein dephosphorylation // traceable author statement /// 0016311 // dephosphorylation // inferred from electronic annotation /// 0035335 // peptidyl-tyrosine dephosphorylation // inferred from electronic annotation /// 0035335 // peptidyl-tyrosine dephosphorylation // traceable author statement	0005737 // cytoplasm // inferred from electronic annotation /// 0005856 // cytoskeleton // inferred from electronic annotation	0004721 // phosphoprotein phosphatase activity // inferred from electronic annotation /// 0004725 // protein tyrosine phosphatase activity // inferred from electronic annotation /// 0005515 // protein binding // inferred from physical interaction /// 0016787 // hydrolase activity // inferred from electronic annotation /// 0016791 // phosphatase activity // inferred from electronic annotation
+1405_i_at	M21121		Homo sapiens	Oct 6, 2014	Exemplar sequence	GenBank	M21121 /FEATURE= /DEFINITION=HUMTCSM Human T cell-specific protein (RANTES) mRNA, complete cds	M21121	chemokine (C-C motif) ligand 5	CCL5	6352	NM_001278736 /// NM_002985	0000165 // MAPK cascade // inferred from mutant phenotype /// 0002407 // dendritic cell chemotaxis // traceable author statement /// 0002548 // monocyte chemotaxis // inferred by curator /// 0002676 // regulation of chronic inflammatory response // traceable author statement /// 0006468 // protein phosphorylation // inferred from direct assay /// 0006816 // calcium ion transport // inferred from direct assay /// 0006874 // cellular calcium ion homeostasis // inferred from direct assay /// 0006887 // exocytosis // inferred from direct assay /// 0006935 // chemotaxis // non-traceable author statement /// 0006954 // inflammatory response // inferred from direct assay /// 0006955 // immune response // inferred from electronic annotation /// 0007159 // leukocyte cell-cell adhesion // inferred from direct assay /// 0007267 // cell-cell signaling // inferred from direct assay /// 0009615 // response to virus // traceable author statement /// 0009636 // response to toxic substance // inferred from direct assay /// 0010535 // positive regulation of activation of JAK2 kinase activity // traceable author statement /// 0010759 // positive regulation of macrophage chemotaxis // inferred from direct assay /// 0010820 // positive regulation of T cell chemotaxis // inferred from direct assay /// 0014068 // positive regulation of phosphatidylinositol 3-kinase signaling // inferred from direct assay /// 0014911 // positive regulation of smooth muscle cell migration // inferred from direct assay /// 0030335 // positive regulation of cell migration // inferred from direct assay /// 0031328 // positive regulation of cellular biosynthetic process // inferred from direct assay /// 0031584 // activation of phospholipase D activity // inferred from direct assay /// 0031663 // lipopolysaccharide-mediated signaling pathway // inferred from direct assay /// 0033634 // positive regulation of cell-cell adhesion mediated by integrin // inferred from direct assay /// 0034097 // response to cytokine // inferred from electronic annotation /// 0034112 // positive regulation of homotypic cell-cell adhesion // inferred from direct assay /// 0034612 // response to tumor necrosis factor // inferred from electronic annotation /// 0042102 // positive regulation of T cell proliferation // inferred from direct assay /// 0042119 // neutrophil activation // inferred from direct assay /// 0042327 // positive regulation of phosphorylation // inferred from direct assay /// 0042531 // positive regulation of tyrosine phosphorylation of STAT protein // inferred from direct assay /// 0043491 // protein kinase B signaling // inferred from mutant phenotype /// 0043623 // cellular protein complex assembly // inferred from direct assay /// 0043922 // negative regulation by host of viral transcription // inferred from direct assay /// 0044344 // cellular response to fibroblast growth factor stimulus // inferred from expression pattern /// 0045070 // positive regulation of viral genome replication // traceable author statement /// 0045071 // negative regulation of viral genome replication // inferred from direct assay /// 0045089 // positive regulation of innate immune response // traceable author statement /// 0045744 // negative regulation of G-protein coupled receptor protein signaling pathway // inferred from direct assay /// 0045785 // positive regulation of cell adhesion // inferred from direct assay /// 0045948 // positive regulation of translational initiation // non-traceable author statement /// 0046427 // positive regulation of JAK-STAT cascade // traceable author statement /// 0048245 // eosinophil chemotaxis // inferred from direct assay /// 0048246 // macrophage chemotaxis // traceable author statement /// 0048661 // positive regulation of smooth muscle cell proliferation // inferred from direct assay /// 0050679 // positive regulation of epithelial cell proliferation // inferred from electronic annotation /// 0050863 // regulation of T cell activation // inferred from direct assay /// 0050918 // positive chemotaxis // inferred from direct assay /// 0051262 // protein tetramerization // inferred from direct assay /// 0051928 // positive regulation of calcium ion transport // inferred from direct assay /// 0060326 // cell chemotaxis // inferred from electronic annotation /// 0061098 // positive regulation of protein tyrosine kinase activity // inferred from direct assay /// 0070098 // chemokine-mediated signaling pathway // traceable author statement /// 0070100 // negative regulation of chemokine-mediated signaling pathway // inferred from direct assay /// 0070233 // negative regulation of T cell apoptotic process // inferred from direct assay /// 0070234 // positive regulation of T cell apoptotic process // inferred from direct assay /// 0071346 // cellular response to interferon-gamma // inferred from expression pattern /// 0071347 // cellular response to interleukin-1 // inferred from expression pattern /// 0071356 // cellular response to tumor necrosis factor // inferred from expression pattern /// 0071407 // cellular response to organic cyclic compound // inferred from direct assay /// 0090026 // positive regulation of monocyte chemotaxis // inferred from direct assay /// 2000110 // negative regulation of macrophage apoptotic process // inferred from electronic annotation /// 2000406 // positive regulation of T cell migration // inferred from direct assay /// 2000503 // positive regulation of natural killer cell chemotaxis // inferred from direct assay	0005576 // extracellular region // traceable author statement /// 0005615 // extracellular space // inferred from electronic annotation /// 0005737 // cytoplasm // inferred from electronic annotation	0004435 // phosphatidylinositol phospholipase C activity // inferred from direct assay /// 0004672 // protein kinase activity // inferred from direct assay /// 0005125 // cytokine activity // inferred from electronic annotation /// 0005515 // protein binding // inferred from physical interaction /// 0008009 // chemokine activity // inferred from direct assay /// 0008009 // chemokine activity // non-traceable author statement /// 0016004 // phospholipase activator activity // inferred from direct assay /// 0030298 // receptor signaling protein tyrosine kinase activator activity // inferred from direct assay /// 0031726 // CCR1 chemokine receptor binding // inferred from direct assay /// 0031726 // CCR1 chemokine receptor binding // inferred from physical interaction /// 0031726 // CCR1 chemokine receptor binding // traceable author statement /// 0031729 // CCR4 chemokine receptor binding // traceable author statement /// 0031730 // CCR5 chemokine receptor binding // inferred from physical interaction /// 0042056 // chemoattractant activity // inferred from direct assay /// 0042379 // chemokine receptor binding // inferred from physical interaction /// 0042803 // protein homodimerization activity // inferred from direct assay /// 0043621 // protein self-association // inferred from direct assay /// 0046817 // chemokine receptor antagonist activity // inferred from direct assay
+1431_at	J02843		Homo sapiens	Oct 6, 2014	Exemplar sequence	Affymetrix Proprietary Database	J02843 /FEATURE=cds /DEFINITION=HUMCYPIIE Human cytochrome P450IIE1 (ethanol-inducible) gene, complete cds	J02843	cytochrome P450, family 2, subfamily E, polypeptide 1	CYP2E1	1571	NM_000773	0006641 // triglyceride metabolic process // inferred from electronic annotation /// 0006805 // xenobiotic metabolic process // traceable author statement /// 0008202 // steroid metabolic process // inferred from mutant phenotype /// 0010193 // response to ozone // inferred from electronic annotation /// 0010243 // response to organonitrogen compound // inferred from electronic annotation /// 0016098 // monoterpenoid metabolic process // inferred from direct assay /// 0017144 // drug metabolic process // inferred from direct assay /// 0017144 // drug metabolic process // inferred from mutant phenotype /// 0042493 // response to drug // inferred from electronic annotation /// 0044281 // small molecule metabolic process // traceable author statement /// 0045471 // response to ethanol // inferred from electronic annotation /// 0046483 // heterocycle metabolic process // inferred from direct assay /// 0055114 // oxidation-reduction process // inferred from direct assay	0000139 // Golgi membrane // inferred from electronic annotation /// 0005739 // mitochondrion // inferred from electronic annotation /// 0005783 // endoplasmic reticulum // inferred from electronic annotation /// 0005789 // endoplasmic reticulum membrane // traceable author statement /// 0016020 // membrane // inferred from electronic annotation /// 0031090 // organelle membrane // inferred from electronic annotation /// 0031227 // intrinsic component of endoplasmic reticulum membrane // inferred from electronic annotation /// 0043231 // intracellular membrane-bounded organelle // inferred from electronic annotation	0004497 // monooxygenase activity // inferred from direct assay /// 0005506 // iron ion binding // inferred from electronic annotation /// 0009055 // electron carrier activity // inferred from electronic annotation /// 0016491 // oxidoreductase activity // inferred from direct assay /// 0016705 // oxidoreductase activity, acting on paired donors, with incorporation or reduction of molecular oxygen // inferred from electronic annotation /// 0016709 // oxidoreductase activity, acting on paired donors, with incorporation or reduction of molecular oxygen, NAD(P)H as one donor, and incorporation of one atom of oxygen // traceable author statement /// 0016712 // oxidoreductase activity, acting on paired donors, with incorporation or reduction of molecular oxygen, reduced flavin or flavoprotein as one donor, and incorporation of one atom of oxygen // inferred from electronic annotation /// 0019825 // oxygen binding // traceable author statement /// 0019899 // enzyme binding // inferred from physical interaction /// 0020037 // heme binding // inferred from direct assay /// 0046872 // metal ion binding // inferred from electronic annotation /// 0070330 // aromatase activity // inferred from electronic annotation
+!platform_table_end
+^SAMPLE = GSM15785
+!Sample_title = Aspartic Acid Conjugated Surface 6 hours
+!Sample_geo_accession = GSM15785
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_description = Cells plated on sample surfaces.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15785/suppl/GSM15785.cel.gz
+!Sample_series_id = GSE998
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Intensity calculated by "affy" package in R
+#SIG_LOG2 = log2 of the value
+!sample_table_begin
+ID_REF	VALUE	SIG_LOG2
+1007_s_at	320.4648708	8.324022408
+1053_at	388.4570282	8.601611204
+117_at	65.47251742	6.032817547
+121_at	512.2466824	9.000694925
+1255_g_at	23.00564945	4.523916279
+1294_at	130.1563251	7.024101612
+1316_at	41.89464472	5.388693935
+1320_at	39.17078691	5.291706206
+1405_i_at	23.5557134	4.55800512
+1431_at	23.01077703	4.524237796
+!sample_table_end
+^SAMPLE = GSM15786
+!Sample_title = Tissue Culture Polystyrene 32 hours
+!Sample_geo_accession = GSM15786
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15786/suppl/GSM15786.cel.gz
+!Sample_series_id = GSE999
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expresssion value calculated in "affy" using R
+#SIGNAL_Log2 = Log2 of the Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	232.9942945	7.864150817
+1053_at	422.9093542	8.724204661
+117_at	64.10611396	6.002390052
+121_at	439.1625349	8.778611173
+1255_g_at	22.93034872	4.51918639
+1294_at	133.8530785	7.06450651
+1316_at	41.33481317	5.369285461
+1320_at	42.82076753	5.42023875
+1405_i_at	24.73695315	4.628595909
+1431_at	24.77790948	4.630982567
+!sample_table_end
+^SAMPLE = GSM15787
+!Sample_title = Glutamic Acid Surface 6 hours
+!Sample_geo_accession = GSM15787
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15787/suppl/GSM15787.cel.gz
+!Sample_series_id = GSE998
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expression valuve calculated by "affy" in R
+#SIGNAL_Log2 = log2 of the Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	321.1989997	8.32732359
+1053_at	369.8441957	8.530773824
+117_at	68.17089422	6.091084002
+121_at	518.2708088	9.017562327
+1255_g_at	23.53590967	4.55679171
+1294_at	116.7900185	6.867773168
+1316_at	37.93614667	5.245501241
+1320_at	45.19421848	5.498066321
+1405_i_at	22.76984618	4.50905264
+1431_at	22.28811343	4.4782026
+!sample_table_end
+^SAMPLE = GSM15788
+!Sample_title = Serine Surface 6 hours
+!Sample_geo_accession = GSM15788
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15788/suppl/GSM15788.cel.gz
+!Sample_series_id = GSE998
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expression value calculated by "affy" in R
+#SIGNAL_Log2 = log2 of Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	299.2894447	8.225397589
+1053_at	348.2636943	8.444036273
+117_at	62.67997335	5.969932661
+121_at	455.0033648	8.829733404
+1255_g_at	22.12608904	4.467676561
+1294_at	122.7252924	6.939288794
+1316_at	42.99748923	5.426180513
+1320_at	40.13631599	5.326836296
+1405_i_at	23.03893151	4.526001905
+1431_at	25.66231443	4.681579385
+!sample_table_end
+^SAMPLE = GSM15789
+!Sample_title = Amino terminated Surface 6 hours
+!Sample_geo_accession = GSM15789
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15789/suppl/GSM15789.cel.gz
+!Sample_series_id = GSE998
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expression value calculated by "affy" in R
+#SIGNAL_Log2 = log2 of Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	292.0158744	8.189902988
+1053_at	384.6797086	8.587513921
+117_at	66.1750872	6.048216286
+121_at	493.7479397	8.947630918
+1255_g_at	21.92042386	4.45420379
+1294_at	126.3779047	6.981600441
+1316_at	43.06711637	5.428514824
+1320_at	43.81375565	5.453311981
+1405_i_at	21.2300563	4.408036292
+1431_at	24.39376945	4.608440803
+!sample_table_end
+^SAMPLE = GSM15790
+!Sample_title = Aspartic Acid Conjugated Surface 32 hours
+!Sample_geo_accession = GSM15790
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15790/suppl/GSM15790.cel.gz
+!Sample_series_id = GSE999
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expression value calculated bu "affy" in R
+#SIGNAL_Log2 = log2 of Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	247.2142626	7.949618169
+1053_at	375.4117411	8.552329961
+117_at	52.31132627	5.709051442
+121_at	513.9687769	9.005536909
+1255_g_at	19.79299639	4.306918128
+1294_at	108.0699941	6.755822201
+1316_at	43.41777686	5.440213952
+1320_at	41.01158141	5.35795947
+1405_i_at	23.24209679	4.538668322
+1431_at	22.37926394	4.484090682
+!sample_table_end
+^SAMPLE = GSM15791
+!Sample_title = Glutamic Acid Conjugated Surface 32 hours
+!Sample_geo_accession = GSM15791
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15791/suppl/GSM15791.cel.gz
+!Sample_series_id = GSE999
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expression value calculated by "affy" in R
+#SIGNAL_Log2 = log2 of Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	245.7803605	7.941225829
+1053_at	363.9898893	8.507754566
+117_at	59.67616474	5.899082914
+121_at	499.749209	8.965060473
+1255_g_at	21.17560209	4.404331085
+1294_at	121.7464012	6.927735317
+1316_at	43.71923578	5.450196278
+1320_at	40.19741793	5.329030928
+1405_i_at	23.83239159	4.574851828
+1431_at	23.35459646	4.545634612
+!sample_table_end
+^SAMPLE = GSM15792
+!Sample_title = Serine Conjugated Surface 32 hours
+!Sample_geo_accession = GSM15792
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15792/suppl/GSM15792.cel.gz
+!Sample_series_id = GSE999
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expression value calculated by "affy" in R
+#SIGNAL_Log2 = log2 of Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	222.2537593	7.796064011
+1053_at	382.8768359	8.580736569
+117_at	71.36348486	6.157114162
+121_at	461.6982917	8.850806584
+1255_g_at	22.05063869	4.462748538
+1294_at	147.4330616	7.203916272
+1316_at	45.20088873	5.498279234
+1320_at	43.12489883	5.430449167
+1405_i_at	24.42103776	4.610052603
+1431_at	27.91701934	4.80307301
+!sample_table_end
+^SAMPLE = GSM15794
+!Sample_title = Amino Terminated surface 32 hours
+!Sample_geo_accession = GSM15794
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml). Media changed every other day. 37ºC, 5% CO2.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15794/suppl/GSM15794.cel.gz
+!Sample_series_id = GSE999
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expression value calculated in "affy" in R
+#SIGNAL_Log2 = log2 of Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	239.0416401	7.901118142
+1053_at	390.2117945	8.608113575
+117_at	52.21510692	5.706395364
+121_at	441.9870046	8.787860141
+1255_g_at	22.35930264	4.482803288
+1294_at	102.8398709	6.684255895
+1316_at	42.36682871	5.404863237
+1320_at	40.10511328	5.325714282
+1405_i_at	22.6133955	4.49910573
+1431_at	22.70936858	4.505215688
+!sample_table_end
+^SAMPLE = GSM15795
+!Sample_title = Tissue Culture Polystyrene 6 hours
+!Sample_geo_accession = GSM15795
+!Sample_status = Public on Jan 28 2004
+!Sample_submission_date = Jan 26 2004
+!Sample_last_update_date = Oct 28 2005
+!Sample_type = RNA
+!Sample_channel_count = 1
+!Sample_source_name_ch1 = Human Osteosarcoma TE85 cells
+!Sample_organism_ch1 = Homo sapiens
+!Sample_taxid_ch1 = 9606
+!Sample_molecule_ch1 = total RNA
+!Sample_description = Cultured in DMEM with 10% FBS and penicillin (100U/ml)/streptomycin (100ug/ml).
+!Sample_description = Media changed every other day.
+!Sample_description = 37ºC, 5% CO2.
+!Sample_description = Cells plated on sample surfaces.
+!Sample_platform_id = GPL96
+!Sample_contact_name = Catherine,,Klapperich
+!Sample_contact_email = catherin@bu.edu
+!Sample_contact_phone = 617-358-0253
+!Sample_contact_laboratory = Laboratory for Biomedical Materials Research
+!Sample_contact_department = Biomedical and Manufacturing Engineering
+!Sample_contact_institute = Boston University
+!Sample_contact_address = 44 Cummington St. 7th Floor
+!Sample_contact_city = Boston
+!Sample_contact_state = MA
+!Sample_contact_zip/postal_code = 02215
+!Sample_contact_country = USA
+!Sample_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM15nnn/GSM15795/suppl/GSM15795.cel.gz
+!Sample_series_id = GSE998
+!Sample_series_id = GSE1000
+!Sample_data_row_count = 22283
+#ID_REF =  
+#VALUE = Expression Value calculated by "affy" in R
+#SIGNAL_Log2 = log2 of Value
+!sample_table_begin
+ID_REF	VALUE	SIGNAL_Log2
+1007_s_at	305.3781325	8.254452947
+1053_at	339.2314569	8.406126147
+117_at	64.44750168	6.010052528
+121_at	495.7990653	8.953611741
+1255_g_at	22.24714292	4.475548166
+1294_at	132.2294986	7.046900248
+1316_at	47.50835392	5.570109316
+1320_at	43.48528496	5.442455383
+1405_i_at	25.66883753	4.681946056
+1431_at	25.59187883	4.677614161
+!sample_table_end
