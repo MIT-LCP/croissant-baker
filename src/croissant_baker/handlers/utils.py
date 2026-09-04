@@ -4,7 +4,7 @@ import logging
 import re
 import warnings
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 
 import mlcroissant as mlc
@@ -165,6 +165,74 @@ def make_record_set_ids(file_metas: list) -> list:
         for meta in file_metas
     ]
     return _disambiguate_ids(items)
+
+
+def allocate_record_set_ids(
+    file_metas: list, suffixes: Sequence[str]
+) -> List[Dict[str, str]]:
+    """One RecordSet @id per (file, suffix), unique across the whole batch.
+
+    A handler that emits several record sets per file cannot use
+    :func:`make_record_set_ids`, which returns one id per file and knows
+    nothing about the names derived from it. Three steps, and the middle one
+    is what a local implementation forgets:
+
+    1. A base per file, from ``Path(file_name).stem`` plus parent components
+       through :func:`_disambiguate_ids`, so two files with the same basename
+       in different directories stay apart.
+    2. **Every base is reserved**, so a real file named ``x_samples.csv`` keeps
+       the bare ``x_samples`` and a record set derived from ``x.soft`` does not
+       displace it.
+    3. Each ``f"{base}_{suffix}"`` is allocated against that one set, so the
+       derived ids cannot collide with each other either.
+
+    ``Path.stem`` rather than :func:`get_clean_record_name`, whose extension
+    list is hardcoded and holds neither ``.soft`` nor ``.jsonl``.
+
+    Args:
+        file_metas: One handler batch, in the handler's own order.
+        suffixes: The suffixes to derive, applied to every file. A handler
+            whose files need different subsets passes their union in a
+            deterministic order and reads back only the ids it emits; a
+            reserved id nothing uses costs a string and changes no other id,
+            because every candidate is already prefixed by its own file's base.
+
+    Returns:
+        One ``{suffix: @id}`` dict per file, parallel to ``file_metas``.
+    """
+    paths = [
+        str(Path(meta.get("relative_path", meta["file_name"]))) for meta in file_metas
+    ]
+    items = [
+        (
+            sanitize_id(Path(meta["file_name"]).stem),
+            list(Path(path).parts[:-1]),
+        )
+        for meta, path in zip(file_metas, paths)
+    ]
+
+    # Allocated in path order, not batch order. Batch order is rglob order, and
+    # where parents cannot separate two stems — ``a b`` and ``a@b`` sanitize
+    # alike — a numeric suffix settles it, so without this which file takes the
+    # suffix would depend on which was discovered first.
+    order = sorted(range(len(items)), key=lambda i: paths[i])
+    bases = [""] * len(items)
+    for base, i in zip(_disambiguate_ids([items[i] for i in order]), order):
+        bases[i] = base
+
+    taken = set(bases)
+    allocated: List[Dict[str, str]] = [{} for _ in items]
+    for i in order:
+        for suffix in suffixes:
+            candidate = f"{bases[i]}_{sanitize_id(suffix)}"
+            if candidate in taken:
+                n = 2
+                while f"{candidate}__{n}" in taken:
+                    n += 1
+                candidate = f"{candidate}__{n}"
+            taken.add(candidate)
+            allocated[i][suffix] = candidate
+    return allocated
 
 
 DIGIT_MASK = "<N>"

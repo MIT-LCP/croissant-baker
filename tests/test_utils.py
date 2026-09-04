@@ -3,10 +3,15 @@
 from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
     _disambiguate_ids,
+    allocate_record_set_ids,
     make_field_id,
     normalize_array_shape,
     shard_template,
 )
+
+
+def metas(*paths: str) -> list:
+    return [{"file_name": p.rsplit("/", 1)[-1], "relative_path": p} for p in paths]
 
 
 def test_disambiguate_ids_no_collisions_keeps_bare_stems() -> None:
@@ -112,3 +117,66 @@ def test_a_lone_index_is_still_masked() -> None:
     assert shard_template("part-00001-abc.parquet") == "part-<N>-abc.parquet"
     assert shard_template("000.parquet") == "<N>.parquet"
     assert shard_template("readings.parquet") is None
+
+
+def test_allocate_record_set_ids_derives_one_id_per_suffix() -> None:
+    """A handler emitting several record sets per file needs all of them
+    unique, not just the file's own base. The stem comes from ``Path.stem``,
+    not from ``get_clean_record_name``, whose hardcoded extension list carries
+    neither ``.soft`` nor ``.jsonl``."""
+    allocated = allocate_record_set_ids(
+        metas("GSE1_family.soft"), ["series", "samples"]
+    )
+
+    assert allocated == [
+        {"series": "GSE1_family_series", "samples": "GSE1_family_samples"}
+    ]
+
+
+def test_allocate_record_set_ids_separates_the_same_basename_by_parent() -> None:
+    allocated = allocate_record_set_ids(metas("a/data.soft", "b/data.soft"), ["series"])
+
+    assert allocated == [{"series": "a__data_series"}, {"series": "b__data_series"}]
+
+
+def test_a_real_file_keeps_the_bare_name_over_a_derived_one() -> None:
+    """Every base is reserved before any suffix is allocated, so the file
+    genuinely named ``x_series`` wins it whichever order the batch arrives in."""
+    allocated = allocate_record_set_ids(metas("x.soft", "x_series.soft"), ["series"])
+
+    assert allocated == [{"series": "x_series__2"}, {"series": "x_series_series"}]
+
+
+def test_two_derived_ids_cannot_collide_and_the_winner_is_not_batch_order() -> None:
+    """``x.soft`` derives ``x_a``, which is also ``x_a.soft``'s base, and both
+    files derive ``x_a_a``. Every collision is settled, and which file keeps
+    the contested id follows from the paths — batch order is rglob order, so
+    allocating in it would make the ids depend on discovery."""
+    forward = allocate_record_set_ids(metas("x.soft", "x_a.soft"), ["a", "a_a"])
+    backward = allocate_record_set_ids(metas("x_a.soft", "x.soft"), ["a", "a_a"])
+
+    ids = [rs_id for per_file in forward for rs_id in per_file.values()]
+    assert len(ids) == len(set(ids)) == 4
+    assert forward == list(reversed(backward))
+
+
+def test_allocate_record_set_ids_sanitizes_what_it_is_given() -> None:
+    allocated = allocate_record_set_ids(metas("a file.soft"), ["sample table"])
+
+    assert allocated == [{"sample table": "a_file_sample_table"}]
+
+
+def test_allocation_does_not_depend_on_batch_order() -> None:
+    """Batch order is rglob order, which is fixed within a process — so no
+    determinism test elsewhere would catch an id that depends on it.
+
+    ``a b`` and ``a@b`` sanitize to the same thing, so parent components cannot
+    separate these two and a numeric suffix has to. Which file takes it must
+    follow from the paths, not from which was discovered first.
+    """
+    forward = allocate_record_set_ids(metas("a b/GSE.soft", "a@b/GSE.soft"), ["series"])
+    reversed_ = allocate_record_set_ids(
+        metas("a@b/GSE.soft", "a b/GSE.soft"), ["series"]
+    )
+
+    assert forward == list(reversed(reversed_))

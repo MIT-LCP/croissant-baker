@@ -150,6 +150,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.image_handler import ImageHandler
     from croissant_baker.handlers.dicom_handler import DICOMHandler
     from croissant_baker.handlers.nifti_handler import NIfTIHandler
+    from croissant_baker.handlers.soft_handler import SOFTHandler
 
     return [
         CSVHandler(),
@@ -163,6 +164,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
         ImageHandler(),
         DICOMHandler(),
         NIfTIHandler(),
+        SOFTHandler(),
     ]
 
 

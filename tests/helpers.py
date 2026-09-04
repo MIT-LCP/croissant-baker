@@ -74,6 +74,55 @@ def _dicom() -> list:
     return [("scan.dcm", source.read_bytes())]
 
 
+def _soft() -> list:
+    """A miniature GEO family export: one series, one platform, two samples.
+
+    Small, but not degenerate. The platform and both samples carry inline
+    tables, the samples carry characteristics, and ``!Series_sample_id``
+    repeats — so the sweep sees the shapes a real deposit has rather than an
+    attribute block on its own.
+    """
+    return [
+        (
+            "GSE1_family.soft",
+            b"^DATABASE = GeoMiame\n"
+            b"!Database_name = Gene Expression Omnibus (GEO)\n"
+            b"^SERIES = GSE1\n"
+            b"!Series_title = A miniature series\n"
+            b"!Series_sample_id = GSM1\n"
+            b"!Series_sample_id = GSM2\n"
+            b"^PLATFORM = GPL1\n"
+            b"!Platform_title = A miniature platform\n"
+            b"!Platform_data_row_count = 2\n"
+            b"#ID = Probe set identifier\n"
+            b"!platform_table_begin\n"
+            b"ID\tGB_ACC\n"
+            b"1_at\tU48705\n"
+            b"2_at\tM87338\n"
+            b"!platform_table_end\n"
+            b"^SAMPLE = GSM1\n"
+            b"!Sample_title = First sample\n"
+            b"!Sample_characteristics_ch1 = tissue: liver\n"
+            b"!Sample_data_row_count = 2\n"
+            b"#VALUE = Intensity\n"
+            b"!sample_table_begin\n"
+            b"ID_REF\tVALUE\n"
+            b"1_at\t320.5\n"
+            b"2_at\t388.4\n"
+            b"!sample_table_end\n"
+            b"^SAMPLE = GSM2\n"
+            b"!Sample_title = Second sample\n"
+            b"!Sample_characteristics_ch1 = tissue: kidney\n"
+            b"!Sample_data_row_count = 2\n"
+            b"!sample_table_begin\n"
+            b"ID_REF\tVALUE\n"
+            b"1_at\t305.4\n"
+            b"2_at\t339.2\n"
+            b"!sample_table_end\n",
+        )
+    ]
+
+
 def _nifti() -> list:
     source = next(_SPECT.rglob("*.nii.gz"), None)
     assert source is not None, f"tracked NIfTI fixture missing under {_SPECT}"
@@ -93,6 +142,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "ImageHandler": _png,
     "DICOMHandler": _dicom,
     "NIfTIHandler": _nifti,
+    "SOFTHandler": _soft,
 }
 
 #: Handlers with no sample, and why.
