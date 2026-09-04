@@ -1532,3 +1532,62 @@ def test_ome_tiff_generation(ome_dataset: Path, tmp_path: Path) -> None:
         "*.tif",
     ]
     assert file_sets["image-files"]["cr:excludes"] == "morphology.ome.tif"
+
+
+# ---------------------------------------------------------------------------
+# HDF5 (AnnData, two 10x feature matrices, and one file matching no layout)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def hdf5_demo_path() -> Path:
+    """Path to the HDF5 demo dataset, which this repository tracks.
+
+    A hard failure rather than a skip: the fixture is committed, so it can only
+    go missing by accident, and skipping would hide the loss.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "hdf5_demo"
+    assert dataset_path.is_dir(), f"tracked HDF5 fixture missing at {dataset_path}"
+    return dataset_path
+
+
+def test_hdf5_demo_generation(hdf5_demo_path: Path, tmp_path: Path) -> None:
+    """The whole CLI over HDF5, compared against the committed document.
+
+    The only end-to-end case that reads its golden rather than overwriting it,
+    which is what makes the golden worth committing: both the input fixture and
+    the output are frozen bytes, so any change to what this handler emits shows
+    up here as a diff rather than as a silently rewritten file. The input's
+    README says how to regenerate both.
+    """
+    output_file = tmp_path / "hdf5_demo_croissant.jsonld"
+    golden = Path(__file__).parent / "data" / "output" / "hdf5_demo_croissant.jsonld"
+    assert golden.is_file(), f"tracked HDF5 golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(hdf5_demo_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "HDF5 demo (synthetic single-cell series)",
+            "--description",
+            "Two 10x feature matrices, an integrated AnnData object, and a NetCDF4 file",
+            "--url",
+            "https://example.org/hdf5-demo",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--dataset-version",
+            "1.0.0",
+            "--date-published",
+            "2026-01-01",
+            "--creator",
+            "croissant-baker test suite",
+        ],
+    )
+
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "Scanned 5 file(s): 4 described, 1 not described" in result.stdout
+    assert output_file.read_text() == golden.read_text()

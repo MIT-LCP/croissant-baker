@@ -1,0 +1,538 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/",
+    "citeAs": "cr:citeAs",
+    "column": "cr:column",
+    "conformsTo": "dct:conformsTo",
+    "cr": "http://mlcommons.org/croissant/",
+    "rai": "http://mlcommons.org/croissant/RAI/",
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
+    "dct": "http://purl.org/dc/terms/",
+    "equivalentProperty": "cr:equivalentProperty",
+    "examples": {
+      "@id": "cr:examples",
+      "@type": "@json"
+    },
+    "extract": "cr:extract",
+    "field": "cr:field",
+    "fileProperty": "cr:fileProperty",
+    "fileObject": "cr:fileObject",
+    "fileSet": "cr:fileSet",
+    "format": "cr:format",
+    "includes": "cr:includes",
+    "isLiveDataset": "cr:isLiveDataset",
+    "jsonPath": "cr:jsonPath",
+    "key": "cr:key",
+    "md5": "cr:md5",
+    "parentField": "cr:parentField",
+    "path": "cr:path",
+    "recordSet": "cr:recordSet",
+    "references": "cr:references",
+    "regex": "cr:regex",
+    "repeated": "cr:repeated",
+    "replace": "cr:replace",
+    "samplingRate": "cr:samplingRate",
+    "sc": "https://schema.org/",
+    "separator": "cr:separator",
+    "source": "cr:source",
+    "subField": "cr:subField",
+    "transform": "cr:transform"
+  },
+  "@type": "sc:Dataset",
+  "name": "HDF5 demo (synthetic single-cell series)",
+  "description": "Two 10x feature matrices, an integrated AnnData object, and a NetCDF4 file",
+  "conformsTo": "http://mlcommons.org/croissant/1.1",
+  "citeAs": "croissant-baker test suite. (2026). HDF5 demo (synthetic single-cell series) [Data set].",
+  "creator": {
+    "@type": "sc:Person",
+    "name": "croissant-baker test suite"
+  },
+  "datePublished": "2026-01-01",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "url": "https://example.org/hdf5-demo",
+  "version": "1.0.0",
+  "distribution": [
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_0",
+      "name": "environment.hdf5",
+      "contentSize": "8464",
+      "contentUrl": "environment.hdf5",
+      "encodingFormat": "application/x-hdf5",
+      "sha256": "2cacdcb61fe3818a0c804113ef233c8842f59a75688e5a2560ff9ca21f94fe04"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_1",
+      "name": "integrated.h5ad",
+      "contentSize": "130808",
+      "contentUrl": "integrated.h5ad",
+      "encodingFormat": "application/x-hdf5",
+      "sha256": "bce9445d0762bb2969f4396d143b96fe7e46dbba687cc1b82e59c7576d31bb93"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_2",
+      "name": "filtered_feature_bc_matrix.h5",
+      "contentSize": "39344",
+      "contentUrl": "GSM000001/filtered_feature_bc_matrix.h5",
+      "encodingFormat": "application/x-hdf5",
+      "sha256": "08aca88d61e5b7b9448c3479cb8a203cd8ca675948293ea3de004e04dfac1429"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_3",
+      "name": "filtered_feature_bc_matrix.h5",
+      "contentSize": "39344",
+      "contentUrl": "GSM000002/filtered_feature_bc_matrix.h5",
+      "encodingFormat": "application/x-hdf5",
+      "sha256": "08aca88d61e5b7b9448c3479cb8a203cd8ca675948293ea3de004e04dfac1429"
+    }
+  ],
+  "recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "@id": "environment",
+      "name": "environment",
+      "description": "HDF5 structure of environment.hdf5 — 4 dataset(s) in 0 group(s), each field named by its HDF5 path. One record, the file itself: the datasets share no row axis.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "environment/lat",
+          "name": "lat",
+          "description": "HDF5 dataset /lat in environment.hdf5",
+          "cr:arrayShape": "5",
+          "cr:isArray": true,
+          "dataType": "cr:Float32",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "environment/lon",
+          "name": "lon",
+          "description": "HDF5 dataset /lon in environment.hdf5",
+          "cr:arrayShape": "7",
+          "cr:isArray": true,
+          "dataType": "cr:Float32",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "environment/tas",
+          "name": "tas",
+          "description": "HDF5 dataset /tas in environment.hdf5",
+          "cr:arrayShape": "12,5,7",
+          "cr:isArray": true,
+          "dataType": "cr:Float32",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "environment/time",
+          "name": "time",
+          "description": "HDF5 dataset /time in environment.hdf5",
+          "cr:arrayShape": "12",
+          "cr:isArray": true,
+          "dataType": "cr:Float64",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "integrated_obs",
+      "name": "integrated_obs",
+      "description": "AnnData obs table from integrated.h5ad — 120 row(s), one row per observation, 11 field(s), columns at /obs. Present in the file and not described: obsp, raw, uns, varp.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/cell_id",
+          "name": "cell_id",
+          "description": "Column 'cell_id' at /obs/cell_id in integrated.h5ad",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/cell_type",
+          "name": "cell_type",
+          "description": "Column 'cell_type' at /obs/cell_type in integrated.h5ad",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/sex",
+          "name": "sex",
+          "description": "Column 'sex' at /obs/sex in integrated.h5ad",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/n_counts",
+          "name": "n_counts",
+          "description": "Column 'n_counts' at /obs/n_counts in integrated.h5ad",
+          "dataType": "cr:Int64",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/pct_mito",
+          "name": "pct_mito",
+          "description": "Column 'pct_mito' at /obs/pct_mito in integrated.h5ad",
+          "dataType": "cr:Float32",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/is_doublet",
+          "name": "is_doublet",
+          "description": "Column 'is_doublet' at /obs/is_doublet in integrated.h5ad",
+          "dataType": "sc:Boolean",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/nullable",
+          "name": "nullable",
+          "description": "Column 'nullable' at /obs/nullable in integrated.h5ad",
+          "dataType": "cr:Int64",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/nullable_b",
+          "name": "nullable_b",
+          "description": "Column 'nullable_b' at /obs/nullable_b in integrated.h5ad",
+          "dataType": "sc:Boolean",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/X",
+          "name": "X",
+          "description": "Array /X, indexed by the obs axis, in integrated.h5ad",
+          "cr:arrayShape": "20",
+          "cr:isArray": true,
+          "dataType": "cr:Float32",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/layers_counts",
+          "name": "layers/counts",
+          "description": "Array /layers/counts, indexed by the obs axis, in integrated.h5ad",
+          "cr:arrayShape": "20",
+          "cr:isArray": true,
+          "dataType": "cr:Int32",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/obsm_X_pca",
+          "name": "obsm/X_pca",
+          "description": "Array /obsm/X_pca, indexed by the obs axis, in integrated.h5ad",
+          "cr:arrayShape": "10",
+          "cr:isArray": true,
+          "dataType": "cr:Float32",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "integrated_var",
+      "name": "integrated_var",
+      "description": "AnnData var table from integrated.h5ad — 20 row(s), one row per variable, 3 field(s), columns at /var.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_var/gene_symbol",
+          "name": "gene_symbol",
+          "description": "Column 'gene_symbol' at /var/gene_symbol in integrated.h5ad",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_var/highly_variable",
+          "name": "highly_variable",
+          "description": "Column 'highly_variable' at /var/highly_variable in integrated.h5ad",
+          "dataType": "sc:Boolean",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_var/varm_PCs",
+          "name": "varm/PCs",
+          "description": "Array /varm/PCs, indexed by the var axis, in integrated.h5ad",
+          "cr:arrayShape": "10",
+          "cr:isArray": true,
+          "dataType": "cr:Float32",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSM000001__filtered_feature_bc_matrix_features",
+      "name": "GSM000001__filtered_feature_bc_matrix_features",
+      "description": "10x feature-barcode matrix features table from filtered_feature_bc_matrix.h5 — 40 row(s), one row per feature, 5 field(s), columns at /matrix/features.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000001__filtered_feature_bc_matrix_features/id",
+          "name": "id",
+          "description": "Column 'id' at /matrix/features/id in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000001__filtered_feature_bc_matrix_features/name",
+          "name": "name",
+          "description": "Column 'name' at /matrix/features/name in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000001__filtered_feature_bc_matrix_features/feature_type",
+          "name": "feature_type",
+          "description": "Column 'feature_type' at /matrix/features/feature_type in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000001__filtered_feature_bc_matrix_features/genome",
+          "name": "genome",
+          "description": "Column 'genome' at /matrix/features/genome in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000001__filtered_feature_bc_matrix_features/matrix",
+          "name": "matrix",
+          "description": "Array /matrix, indexed by the features axis, in filtered_feature_bc_matrix.h5",
+          "cr:arrayShape": "300",
+          "cr:isArray": true,
+          "dataType": "cr:Int32",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSM000001__filtered_feature_bc_matrix_barcodes",
+      "name": "GSM000001__filtered_feature_bc_matrix_barcodes",
+      "description": "10x feature-barcode matrix barcodes table from filtered_feature_bc_matrix.h5 — 300 row(s), one row per barcode, 1 field(s), columns at /matrix.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000001__filtered_feature_bc_matrix_barcodes/barcodes",
+          "name": "barcodes",
+          "description": "Column 'barcodes' at /matrix/barcodes in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSM000002__filtered_feature_bc_matrix_features",
+      "name": "GSM000002__filtered_feature_bc_matrix_features",
+      "description": "10x feature-barcode matrix features table from filtered_feature_bc_matrix.h5 — 40 row(s), one row per feature, 5 field(s), columns at /matrix/features.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000002__filtered_feature_bc_matrix_features/id",
+          "name": "id",
+          "description": "Column 'id' at /matrix/features/id in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000002__filtered_feature_bc_matrix_features/name",
+          "name": "name",
+          "description": "Column 'name' at /matrix/features/name in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000002__filtered_feature_bc_matrix_features/feature_type",
+          "name": "feature_type",
+          "description": "Column 'feature_type' at /matrix/features/feature_type in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000002__filtered_feature_bc_matrix_features/genome",
+          "name": "genome",
+          "description": "Column 'genome' at /matrix/features/genome in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000002__filtered_feature_bc_matrix_features/matrix",
+          "name": "matrix",
+          "description": "Array /matrix, indexed by the features axis, in filtered_feature_bc_matrix.h5",
+          "cr:arrayShape": "300",
+          "cr:isArray": true,
+          "dataType": "cr:Int32",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSM000002__filtered_feature_bc_matrix_barcodes",
+      "name": "GSM000002__filtered_feature_bc_matrix_barcodes",
+      "description": "10x feature-barcode matrix barcodes table from filtered_feature_bc_matrix.h5 — 300 row(s), one row per barcode, 1 field(s), columns at /matrix.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSM000002__filtered_feature_bc_matrix_barcodes/barcodes",
+          "name": "barcodes",
+          "description": "Column 'barcodes' at /matrix/barcodes in filtered_feature_bc_matrix.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
