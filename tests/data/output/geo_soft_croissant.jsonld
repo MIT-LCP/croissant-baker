@@ -1,0 +1,3511 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/",
+    "citeAs": "cr:citeAs",
+    "column": "cr:column",
+    "conformsTo": "dct:conformsTo",
+    "cr": "http://mlcommons.org/croissant/",
+    "rai": "http://mlcommons.org/croissant/RAI/",
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
+    "dct": "http://purl.org/dc/terms/",
+    "equivalentProperty": "cr:equivalentProperty",
+    "examples": {
+      "@id": "cr:examples",
+      "@type": "@json"
+    },
+    "extract": "cr:extract",
+    "field": "cr:field",
+    "fileProperty": "cr:fileProperty",
+    "fileObject": "cr:fileObject",
+    "fileSet": "cr:fileSet",
+    "format": "cr:format",
+    "includes": "cr:includes",
+    "isLiveDataset": "cr:isLiveDataset",
+    "jsonPath": "cr:jsonPath",
+    "key": "cr:key",
+    "md5": "cr:md5",
+    "parentField": "cr:parentField",
+    "path": "cr:path",
+    "recordSet": "cr:recordSet",
+    "references": "cr:references",
+    "regex": "cr:regex",
+    "repeated": "cr:repeated",
+    "replace": "cr:replace",
+    "samplingRate": "cr:samplingRate",
+    "sc": "https://schema.org/",
+    "separator": "cr:separator",
+    "source": "cr:source",
+    "subField": "cr:subField",
+    "transform": "cr:transform"
+  },
+  "@type": "sc:Dataset",
+  "name": "GEO SOFT family exports (demo)",
+  "description": "Three NCBI GEO family exports: two modern tableless deposits and one classic series with data tables",
+  "conformsTo": "http://mlcommons.org/croissant/1.1",
+  "citeAs": "NCBI Gene Expression Omnibus. (2026). GEO SOFT family exports (demo) [Data set].",
+  "creator": {
+    "@type": "sc:Person",
+    "name": "NCBI Gene Expression Omnibus"
+  },
+  "datePublished": "2026-08-31",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "url": "https://www.ncbi.nlm.nih.gov/geo/",
+  "version": "1.0.0",
+  "distribution": [
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_0",
+      "name": "GSE327347_family.soft.gz",
+      "contentSize": "3303",
+      "contentUrl": "GSE327347_family.soft.gz",
+      "encodingFormat": [
+        "text/x-geo-soft",
+        "application/gzip"
+      ],
+      "sha256": "4b7d1da5858f44d0eae8b828c414430d145c5ea2ffdd7032b4614eb0a60eb143"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_1",
+      "name": "GSE1000_family.soft",
+      "contentSize": "62893",
+      "contentUrl": "GSE1000_family.soft",
+      "encodingFormat": "text/x-geo-soft",
+      "sha256": "e2a66df7a983984bf43d5d96687750a7bdf18a2e856c0618538f52215e83415b"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_2",
+      "name": "GSE335275_family.soft.gz",
+      "contentSize": "4097",
+      "contentUrl": "GSE335275_family.soft.gz",
+      "encodingFormat": [
+        "text/x-geo-soft",
+        "application/gzip"
+      ],
+      "sha256": "70c4e22833d06281b1c085a7df8666fcebbde974eb559dcde3b37f001cb550fd"
+    }
+  ],
+  "recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE327347_family_series",
+      "name": "GSE327347_family_series",
+      "description": "Series-level attributes in GSE327347_family.soft.gz (1 series, 28 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/title",
+          "name": "title",
+          "description": "Series attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/geo_accession",
+          "name": "geo_accession",
+          "description": "Series attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/status",
+          "name": "status",
+          "description": "Series attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/submission_date",
+          "name": "submission_date",
+          "description": "Series attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/last_update_date",
+          "name": "last_update_date",
+          "description": "Series attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/pubmed_id",
+          "name": "pubmed_id",
+          "description": "Series attribute 'pubmed_id'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/web_link",
+          "name": "web_link",
+          "description": "Series attribute 'web_link'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/summary",
+          "name": "summary",
+          "description": "Series attribute 'summary'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/overall_design",
+          "name": "overall_design",
+          "description": "Series attribute 'overall_design'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/type",
+          "name": "type",
+          "description": "Series attribute 'type'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contributor",
+          "name": "contributor",
+          "description": "Series attribute 'contributor'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/sample_id",
+          "name": "sample_id",
+          "description": "Series attribute 'sample_id'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_name",
+          "name": "contact_name",
+          "description": "Series attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_email",
+          "name": "contact_email",
+          "description": "Series attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_phone",
+          "name": "contact_phone",
+          "description": "Series attribute 'contact_phone'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_laboratory",
+          "name": "contact_laboratory",
+          "description": "Series attribute 'contact_laboratory'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_department",
+          "name": "contact_department",
+          "description": "Series attribute 'contact_department'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_institute",
+          "name": "contact_institute",
+          "description": "Series attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_address",
+          "name": "contact_address",
+          "description": "Series attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_city",
+          "name": "contact_city",
+          "description": "Series attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_state",
+          "name": "contact_state",
+          "description": "Series attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Series attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/contact_country",
+          "name": "contact_country",
+          "description": "Series attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/supplementary_file",
+          "name": "supplementary_file",
+          "description": "Series attribute 'supplementary_file'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/platform_id",
+          "name": "platform_id",
+          "description": "Series attribute 'platform_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/platform_taxid",
+          "name": "platform_taxid",
+          "description": "Series attribute 'platform_taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/sample_taxid",
+          "name": "sample_taxid",
+          "description": "Series attribute 'sample_taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_series/relation",
+          "name": "relation",
+          "description": "Series attribute 'relation'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE327347_family_samples",
+      "name": "GSE327347_family_samples",
+      "description": "Sample-level attributes in GSE327347_family.soft.gz (7 samples, 35 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/title",
+          "name": "title",
+          "description": "Sample attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/geo_accession",
+          "name": "geo_accession",
+          "description": "Sample attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/status",
+          "name": "status",
+          "description": "Sample attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/submission_date",
+          "name": "submission_date",
+          "description": "Sample attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/last_update_date",
+          "name": "last_update_date",
+          "description": "Sample attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/type",
+          "name": "type",
+          "description": "Sample attribute 'type'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/channel_count",
+          "name": "channel_count",
+          "description": "Sample attribute 'channel_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/source_name_ch1",
+          "name": "source_name_ch1",
+          "description": "Sample attribute 'source_name_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/organism_ch1",
+          "name": "organism_ch1",
+          "description": "Sample attribute 'organism_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/taxid_ch1",
+          "name": "taxid_ch1",
+          "description": "Sample attribute 'taxid_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/treatment_protocol_ch1",
+          "name": "treatment_protocol_ch1",
+          "description": "Sample attribute 'treatment_protocol_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/growth_protocol_ch1",
+          "name": "growth_protocol_ch1",
+          "description": "Sample attribute 'growth_protocol_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/molecule_ch1",
+          "name": "molecule_ch1",
+          "description": "Sample attribute 'molecule_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/extract_protocol_ch1",
+          "name": "extract_protocol_ch1",
+          "description": "Sample attribute 'extract_protocol_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/label_ch1",
+          "name": "label_ch1",
+          "description": "Sample attribute 'label_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/label_protocol_ch1",
+          "name": "label_protocol_ch1",
+          "description": "Sample attribute 'label_protocol_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/hyb_protocol",
+          "name": "hyb_protocol",
+          "description": "Sample attribute 'hyb_protocol'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/scan_protocol",
+          "name": "scan_protocol",
+          "description": "Sample attribute 'scan_protocol'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/description",
+          "name": "description",
+          "description": "Sample attribute 'description'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/data_processing",
+          "name": "data_processing",
+          "description": "Sample attribute 'data_processing'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/platform_id",
+          "name": "platform_id",
+          "description": "Sample attribute 'platform_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_name",
+          "name": "contact_name",
+          "description": "Sample attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_email",
+          "name": "contact_email",
+          "description": "Sample attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_phone",
+          "name": "contact_phone",
+          "description": "Sample attribute 'contact_phone'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_laboratory",
+          "name": "contact_laboratory",
+          "description": "Sample attribute 'contact_laboratory'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_department",
+          "name": "contact_department",
+          "description": "Sample attribute 'contact_department'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_institute",
+          "name": "contact_institute",
+          "description": "Sample attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_address",
+          "name": "contact_address",
+          "description": "Sample attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_city",
+          "name": "contact_city",
+          "description": "Sample attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_state",
+          "name": "contact_state",
+          "description": "Sample attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Sample attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/contact_country",
+          "name": "contact_country",
+          "description": "Sample attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/supplementary_file",
+          "name": "supplementary_file",
+          "description": "Sample attribute 'supplementary_file'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/series_id",
+          "name": "series_id",
+          "description": "Sample attribute 'series_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_samples/data_row_count",
+          "name": "data_row_count",
+          "description": "Sample attribute 'data_row_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE327347_family_platforms",
+      "name": "GSE327347_family_platforms",
+      "description": "Platform-level attributes in GSE327347_family.soft.gz (1 platform, 20 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/title",
+          "name": "title",
+          "description": "Platform attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/geo_accession",
+          "name": "geo_accession",
+          "description": "Platform attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/status",
+          "name": "status",
+          "description": "Platform attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/submission_date",
+          "name": "submission_date",
+          "description": "Platform attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/last_update_date",
+          "name": "last_update_date",
+          "description": "Platform attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/technology",
+          "name": "technology",
+          "description": "Platform attribute 'technology'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/distribution",
+          "name": "distribution",
+          "description": "Platform attribute 'distribution'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/organism",
+          "name": "organism",
+          "description": "Platform attribute 'organism'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/taxid",
+          "name": "taxid",
+          "description": "Platform attribute 'taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/manufacturer",
+          "name": "manufacturer",
+          "description": "Platform attribute 'manufacturer'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/manufacture_protocol",
+          "name": "manufacture_protocol",
+          "description": "Platform attribute 'manufacture_protocol'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/contact_name",
+          "name": "contact_name",
+          "description": "Platform attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/contact_email",
+          "name": "contact_email",
+          "description": "Platform attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/contact_institute",
+          "name": "contact_institute",
+          "description": "Platform attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/contact_address",
+          "name": "contact_address",
+          "description": "Platform attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/contact_city",
+          "name": "contact_city",
+          "description": "Platform attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/contact_state",
+          "name": "contact_state",
+          "description": "Platform attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Platform attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/contact_country",
+          "name": "contact_country",
+          "description": "Platform attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_platforms/data_row_count",
+          "name": "data_row_count",
+          "description": "Platform attribute 'data_row_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE327347_family_sample_characteristics",
+      "name": "GSE327347_family_sample_characteristics",
+      "description": "Submitter-defined sample characteristics in GSE327347_family.soft.gz (7 samples, 6 keys). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_sample_characteristics/tissue",
+          "name": "tissue",
+          "description": "Characteristic 'tissue'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_sample_characteristics/tissue_preservation_method",
+          "name": "tissue preservation method",
+          "description": "Characteristic 'tissue preservation method'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_sample_characteristics/treatment",
+          "name": "treatment",
+          "description": "Characteristic 'treatment'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_sample_characteristics/dbgap_subject_id",
+          "name": "dbgap_subject_id",
+          "description": "Characteristic 'dbgap_subject_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_sample_characteristics/case_diagnosis",
+          "name": "case_diagnosis",
+          "description": "Characteristic 'case_diagnosis'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE327347_family_sample_characteristics/genotype",
+          "name": "genotype",
+          "description": "Characteristic 'genotype'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE1000_family_series",
+      "name": "GSE1000_family_series",
+      "description": "Series-level attributes in GSE1000_family.soft (1 series, 25 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/title",
+          "name": "title",
+          "description": "Series attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/geo_accession",
+          "name": "geo_accession",
+          "description": "Series attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/status",
+          "name": "status",
+          "description": "Series attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/submission_date",
+          "name": "submission_date",
+          "description": "Series attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/last_update_date",
+          "name": "last_update_date",
+          "description": "Series attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/summary",
+          "name": "summary",
+          "description": "Series attribute 'summary'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/type",
+          "name": "type",
+          "description": "Series attribute 'type'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contributor",
+          "name": "contributor",
+          "description": "Series attribute 'contributor'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/sample_id",
+          "name": "sample_id",
+          "description": "Series attribute 'sample_id'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_name",
+          "name": "contact_name",
+          "description": "Series attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_email",
+          "name": "contact_email",
+          "description": "Series attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_phone",
+          "name": "contact_phone",
+          "description": "Series attribute 'contact_phone'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_laboratory",
+          "name": "contact_laboratory",
+          "description": "Series attribute 'contact_laboratory'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_department",
+          "name": "contact_department",
+          "description": "Series attribute 'contact_department'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_institute",
+          "name": "contact_institute",
+          "description": "Series attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_address",
+          "name": "contact_address",
+          "description": "Series attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_city",
+          "name": "contact_city",
+          "description": "Series attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_state",
+          "name": "contact_state",
+          "description": "Series attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Series attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/contact_country",
+          "name": "contact_country",
+          "description": "Series attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/supplementary_file",
+          "name": "supplementary_file",
+          "description": "Series attribute 'supplementary_file'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/platform_id",
+          "name": "platform_id",
+          "description": "Series attribute 'platform_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/platform_taxid",
+          "name": "platform_taxid",
+          "description": "Series attribute 'platform_taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/sample_taxid",
+          "name": "sample_taxid",
+          "description": "Series attribute 'sample_taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_series/relation",
+          "name": "relation",
+          "description": "Series attribute 'relation'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE1000_family_samples",
+      "name": "GSE1000_family_samples",
+      "description": "Sample-level attributes in GSE1000_family.soft (10 samples, 27 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/title",
+          "name": "title",
+          "description": "Sample attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/geo_accession",
+          "name": "geo_accession",
+          "description": "Sample attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/status",
+          "name": "status",
+          "description": "Sample attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/submission_date",
+          "name": "submission_date",
+          "description": "Sample attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/last_update_date",
+          "name": "last_update_date",
+          "description": "Sample attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/type",
+          "name": "type",
+          "description": "Sample attribute 'type'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/channel_count",
+          "name": "channel_count",
+          "description": "Sample attribute 'channel_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/source_name_ch1",
+          "name": "source_name_ch1",
+          "description": "Sample attribute 'source_name_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/organism_ch1",
+          "name": "organism_ch1",
+          "description": "Sample attribute 'organism_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/taxid_ch1",
+          "name": "taxid_ch1",
+          "description": "Sample attribute 'taxid_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/molecule_ch1",
+          "name": "molecule_ch1",
+          "description": "Sample attribute 'molecule_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/description",
+          "name": "description",
+          "description": "Sample attribute 'description'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/platform_id",
+          "name": "platform_id",
+          "description": "Sample attribute 'platform_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_name",
+          "name": "contact_name",
+          "description": "Sample attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_email",
+          "name": "contact_email",
+          "description": "Sample attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_phone",
+          "name": "contact_phone",
+          "description": "Sample attribute 'contact_phone'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_laboratory",
+          "name": "contact_laboratory",
+          "description": "Sample attribute 'contact_laboratory'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_department",
+          "name": "contact_department",
+          "description": "Sample attribute 'contact_department'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_institute",
+          "name": "contact_institute",
+          "description": "Sample attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_address",
+          "name": "contact_address",
+          "description": "Sample attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_city",
+          "name": "contact_city",
+          "description": "Sample attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_state",
+          "name": "contact_state",
+          "description": "Sample attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Sample attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/contact_country",
+          "name": "contact_country",
+          "description": "Sample attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/supplementary_file",
+          "name": "supplementary_file",
+          "description": "Sample attribute 'supplementary_file'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/series_id",
+          "name": "series_id",
+          "description": "Sample attribute 'series_id'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_samples/data_row_count",
+          "name": "data_row_count",
+          "description": "Sample attribute 'data_row_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE1000_family_platforms",
+      "name": "GSE1000_family_platforms",
+      "description": "Platform-level attributes in GSE1000_family.soft (1 platform, 25 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/title",
+          "name": "title",
+          "description": "Platform attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/geo_accession",
+          "name": "geo_accession",
+          "description": "Platform attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/status",
+          "name": "status",
+          "description": "Platform attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/submission_date",
+          "name": "submission_date",
+          "description": "Platform attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/last_update_date",
+          "name": "last_update_date",
+          "description": "Platform attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/technology",
+          "name": "technology",
+          "description": "Platform attribute 'technology'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/distribution",
+          "name": "distribution",
+          "description": "Platform attribute 'distribution'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/organism",
+          "name": "organism",
+          "description": "Platform attribute 'organism'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/taxid",
+          "name": "taxid",
+          "description": "Platform attribute 'taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/manufacturer",
+          "name": "manufacturer",
+          "description": "Platform attribute 'manufacturer'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/manufacture_protocol",
+          "name": "manufacture_protocol",
+          "description": "Platform attribute 'manufacture_protocol'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/description",
+          "name": "description",
+          "description": "Platform attribute 'description'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/web_link",
+          "name": "web_link",
+          "description": "Platform attribute 'web_link'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_name",
+          "name": "contact_name",
+          "description": "Platform attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_email",
+          "name": "contact_email",
+          "description": "Platform attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_phone",
+          "name": "contact_phone",
+          "description": "Platform attribute 'contact_phone'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_institute",
+          "name": "contact_institute",
+          "description": "Platform attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_address",
+          "name": "contact_address",
+          "description": "Platform attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_city",
+          "name": "contact_city",
+          "description": "Platform attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_state",
+          "name": "contact_state",
+          "description": "Platform attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Platform attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_country",
+          "name": "contact_country",
+          "description": "Platform attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/contact_web_link",
+          "name": "contact_web_link",
+          "description": "Platform attribute 'contact_web_link'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/relation",
+          "name": "relation",
+          "description": "Platform attribute 'relation'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platforms/data_row_count",
+          "name": "data_row_count",
+          "description": "Platform attribute 'data_row_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE1000_family_platform_table",
+      "name": "GSE1000_family_platform_table",
+      "description": "Inline data table of 1 platform in GSE1000_family.soft (16 columns, 22283 rows declared). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/ID",
+          "name": "ID",
+          "description": "Column 'ID'. #ID = Affymetrix Probe Set ID LINK_PRE:\"https://www.affymetrix.com/LinkServlet?array=U133&probeset=\"",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/GB_ACC",
+          "name": "GB_ACC",
+          "description": "Column 'GB_ACC'. #GB_ACC = GenBank Accession Number LINK_PRE:\"http://www.ncbi.nlm.nih.gov/nuccore/?term=\"",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/SPOT_ID",
+          "name": "SPOT_ID",
+          "description": "Column 'SPOT_ID'. #SPOT_ID = identifies controls",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Species_Scientific_Name",
+          "name": "Species Scientific Name",
+          "description": "Column 'Species Scientific Name'. #Species Scientific Name = The genus and species of the organism represented by the probe set.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Annotation_Date",
+          "name": "Annotation Date",
+          "description": "Column 'Annotation Date'. #Annotation Date = The date that the annotations for this probe array were last updated. It will generally be earlier than the date when the annotations were posted on the Affymetrix web site.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Sequence_Type",
+          "name": "Sequence Type",
+          "description": "Column 'Sequence Type'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Sequence_Source",
+          "name": "Sequence Source",
+          "description": "Column 'Sequence Source'. #Sequence Source = The database from which the sequence used to design this probe set was taken.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Target_Description",
+          "name": "Target Description",
+          "description": "Column 'Target Description'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Representative_Public_ID",
+          "name": "Representative Public ID",
+          "description": "Column 'Representative Public ID'. #Representative Public ID = The accession number of a representative sequence. Note that for consensus-based probe sets, the representative sequence is only one of several sequences (sequence sub-clusters) used to build the consensus sequence and it is not directly used to derive the probe sequences. The representative sequence is chosen during array design as a sequence that is best associated with the transcribed region being interrogated by the probe set. Refer to the \"Sequence Source\" field to determine the database used.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Gene_Title",
+          "name": "Gene Title",
+          "description": "Column 'Gene Title'. #Gene Title = Title of Gene represented by the probe set.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Gene_Symbol",
+          "name": "Gene Symbol",
+          "description": "Column 'Gene Symbol'. #Gene Symbol = A gene symbol, when one is available (from UniGene).",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/ENTREZ_GENE_ID",
+          "name": "ENTREZ_GENE_ID",
+          "description": "Column 'ENTREZ_GENE_ID'. #ENTREZ_GENE_ID = Entrez Gene Database UID LINK_PRE:\"http://www.ncbi.nlm.nih.gov/gene/\" DELIMIT:\" /// \"",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/RefSeq_Transcript_ID",
+          "name": "RefSeq Transcript ID",
+          "description": "Column 'RefSeq Transcript ID'. #RefSeq Transcript ID = References to multiple sequences in RefSeq. The field contains the ID and Description for each entry, and there can be multiple entries per ProbeSet.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Gene_Ontology_Biological_Process",
+          "name": "Gene Ontology Biological Process",
+          "description": "Column 'Gene Ontology Biological Process'. #Gene Ontology Biological Process = Gene Ontology Consortium Biological Process derived from LocusLink.  Each annotation consists of three parts: \"Accession Number // Description // Evidence\". The description corresponds directly to the GO ID. The evidence can be \"direct\", or \"extended\".",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Gene_Ontology_Cellular_Component",
+          "name": "Gene Ontology Cellular Component",
+          "description": "Column 'Gene Ontology Cellular Component'. #Gene Ontology Cellular Component = Gene Ontology Consortium Cellular Component derived from LocusLink.  Each annotation consists of three parts: \"Accession Number // Description // Evidence\". The description corresponds directly to the GO ID. The evidence can be \"direct\", or \"extended\".",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_platform_table/Gene_Ontology_Molecular_Function",
+          "name": "Gene Ontology Molecular Function",
+          "description": "Column 'Gene Ontology Molecular Function'. #Gene Ontology Molecular Function = Gene Ontology Consortium Molecular Function derived from LocusLink.  Each annotation consists of three parts: \"Accession Number // Description // Evidence\". The description corresponds directly to the GO ID. The evidence can be \"direct\", or \"extended\".",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE1000_family_sample_table",
+      "name": "GSE1000_family_sample_table",
+      "description": "Inline data table of 1 sample in GSE1000_family.soft (3 columns, 22283 rows declared). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_sample_table/ID_REF",
+          "name": "ID_REF",
+          "description": "Column 'ID_REF'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_sample_table/VALUE",
+          "name": "VALUE",
+          "description": "Column 'VALUE'. #VALUE = Intensity calculated by \"affy\" package in R",
+          "dataType": "cr:Float64",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_sample_table/SIG_LOG2",
+          "name": "SIG_LOG2",
+          "description": "Column 'SIG_LOG2'. #SIG_LOG2 = log2 of the value",
+          "dataType": "cr:Float64",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE1000_family_sample_table_2",
+      "name": "GSE1000_family_sample_table_2",
+      "description": "Inline data table of 9 samples in GSE1000_family.soft (3 columns, 200547 rows declared). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_sample_table_2/ID_REF",
+          "name": "ID_REF",
+          "description": "Column 'ID_REF'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_sample_table_2/VALUE",
+          "name": "VALUE",
+          "description": "Column 'VALUE'. #VALUE = Expresssion value calculated in \"affy\" using R",
+          "dataType": "cr:Float64",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE1000_family_sample_table_2/SIGNAL_Log2",
+          "name": "SIGNAL_Log2",
+          "description": "Column 'SIGNAL_Log2'. #SIGNAL_Log2 = Log2 of the Value",
+          "dataType": "cr:Float64",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE335275_family_series",
+      "name": "GSE335275_family_series",
+      "description": "Series-level attributes in GSE335275_family.soft.gz (1 series, 25 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/title",
+          "name": "title",
+          "description": "Series attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/geo_accession",
+          "name": "geo_accession",
+          "description": "Series attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/status",
+          "name": "status",
+          "description": "Series attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/submission_date",
+          "name": "submission_date",
+          "description": "Series attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/last_update_date",
+          "name": "last_update_date",
+          "description": "Series attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/summary",
+          "name": "summary",
+          "description": "Series attribute 'summary'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/overall_design",
+          "name": "overall_design",
+          "description": "Series attribute 'overall_design'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/type",
+          "name": "type",
+          "description": "Series attribute 'type'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contributor",
+          "name": "contributor",
+          "description": "Series attribute 'contributor'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/sample_id",
+          "name": "sample_id",
+          "description": "Series attribute 'sample_id'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_name",
+          "name": "contact_name",
+          "description": "Series attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_email",
+          "name": "contact_email",
+          "description": "Series attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_laboratory",
+          "name": "contact_laboratory",
+          "description": "Series attribute 'contact_laboratory'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_department",
+          "name": "contact_department",
+          "description": "Series attribute 'contact_department'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_institute",
+          "name": "contact_institute",
+          "description": "Series attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_address",
+          "name": "contact_address",
+          "description": "Series attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_city",
+          "name": "contact_city",
+          "description": "Series attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_state",
+          "name": "contact_state",
+          "description": "Series attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Series attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/contact_country",
+          "name": "contact_country",
+          "description": "Series attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/supplementary_file",
+          "name": "supplementary_file",
+          "description": "Series attribute 'supplementary_file'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/platform_id",
+          "name": "platform_id",
+          "description": "Series attribute 'platform_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/platform_taxid",
+          "name": "platform_taxid",
+          "description": "Series attribute 'platform_taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/sample_taxid",
+          "name": "sample_taxid",
+          "description": "Series attribute 'sample_taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_series/relation",
+          "name": "relation",
+          "description": "Series attribute 'relation'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE335275_family_samples",
+      "name": "GSE335275_family_samples",
+      "description": "Sample-level attributes in GSE335275_family.soft.gz (6 samples, 32 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/title",
+          "name": "title",
+          "description": "Sample attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/geo_accession",
+          "name": "geo_accession",
+          "description": "Sample attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/status",
+          "name": "status",
+          "description": "Sample attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/submission_date",
+          "name": "submission_date",
+          "description": "Sample attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/last_update_date",
+          "name": "last_update_date",
+          "description": "Sample attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/type",
+          "name": "type",
+          "description": "Sample attribute 'type'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/channel_count",
+          "name": "channel_count",
+          "description": "Sample attribute 'channel_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/source_name_ch1",
+          "name": "source_name_ch1",
+          "description": "Sample attribute 'source_name_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/organism_ch1",
+          "name": "organism_ch1",
+          "description": "Sample attribute 'organism_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/taxid_ch1",
+          "name": "taxid_ch1",
+          "description": "Sample attribute 'taxid_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/molecule_ch1",
+          "name": "molecule_ch1",
+          "description": "Sample attribute 'molecule_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/extract_protocol_ch1",
+          "name": "extract_protocol_ch1",
+          "description": "Sample attribute 'extract_protocol_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/label_ch1",
+          "name": "label_ch1",
+          "description": "Sample attribute 'label_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/label_protocol_ch1",
+          "name": "label_protocol_ch1",
+          "description": "Sample attribute 'label_protocol_ch1'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/hyb_protocol",
+          "name": "hyb_protocol",
+          "description": "Sample attribute 'hyb_protocol'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/scan_protocol",
+          "name": "scan_protocol",
+          "description": "Sample attribute 'scan_protocol'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/description",
+          "name": "description",
+          "description": "Sample attribute 'description'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/data_processing",
+          "name": "data_processing",
+          "description": "Sample attribute 'data_processing'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/platform_id",
+          "name": "platform_id",
+          "description": "Sample attribute 'platform_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_name",
+          "name": "contact_name",
+          "description": "Sample attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_email",
+          "name": "contact_email",
+          "description": "Sample attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_laboratory",
+          "name": "contact_laboratory",
+          "description": "Sample attribute 'contact_laboratory'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_department",
+          "name": "contact_department",
+          "description": "Sample attribute 'contact_department'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_institute",
+          "name": "contact_institute",
+          "description": "Sample attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_address",
+          "name": "contact_address",
+          "description": "Sample attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_city",
+          "name": "contact_city",
+          "description": "Sample attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_state",
+          "name": "contact_state",
+          "description": "Sample attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Sample attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/contact_country",
+          "name": "contact_country",
+          "description": "Sample attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/supplementary_file",
+          "name": "supplementary_file",
+          "description": "Sample attribute 'supplementary_file'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/series_id",
+          "name": "series_id",
+          "description": "Sample attribute 'series_id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_samples/data_row_count",
+          "name": "data_row_count",
+          "description": "Sample attribute 'data_row_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE335275_family_platforms",
+      "name": "GSE335275_family_platforms",
+      "description": "Platform-level attributes in GSE335275_family.soft.gz (1 platform, 20 attribute names). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/title",
+          "name": "title",
+          "description": "Platform attribute 'title'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/geo_accession",
+          "name": "geo_accession",
+          "description": "Platform attribute 'geo_accession'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/status",
+          "name": "status",
+          "description": "Platform attribute 'status'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/submission_date",
+          "name": "submission_date",
+          "description": "Platform attribute 'submission_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/last_update_date",
+          "name": "last_update_date",
+          "description": "Platform attribute 'last_update_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/technology",
+          "name": "technology",
+          "description": "Platform attribute 'technology'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/distribution",
+          "name": "distribution",
+          "description": "Platform attribute 'distribution'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/organism",
+          "name": "organism",
+          "description": "Platform attribute 'organism'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/taxid",
+          "name": "taxid",
+          "description": "Platform attribute 'taxid'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/manufacturer",
+          "name": "manufacturer",
+          "description": "Platform attribute 'manufacturer'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/manufacture_protocol",
+          "name": "manufacture_protocol",
+          "description": "Platform attribute 'manufacture_protocol'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/contact_name",
+          "name": "contact_name",
+          "description": "Platform attribute 'contact_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/contact_email",
+          "name": "contact_email",
+          "description": "Platform attribute 'contact_email'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/contact_institute",
+          "name": "contact_institute",
+          "description": "Platform attribute 'contact_institute'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/contact_address",
+          "name": "contact_address",
+          "description": "Platform attribute 'contact_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/contact_city",
+          "name": "contact_city",
+          "description": "Platform attribute 'contact_city'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/contact_state",
+          "name": "contact_state",
+          "description": "Platform attribute 'contact_state'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/contact_zip_postal_code",
+          "name": "contact_zip/postal_code",
+          "description": "Platform attribute 'contact_zip/postal_code'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/contact_country",
+          "name": "contact_country",
+          "description": "Platform attribute 'contact_country'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_platforms/data_row_count",
+          "name": "data_row_count",
+          "description": "Platform attribute 'data_row_count'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "GSE335275_family_sample_characteristics",
+      "name": "GSE335275_family_sample_characteristics",
+      "description": "Submitter-defined sample characteristics in GSE335275_family.soft.gz (6 samples, 7 keys). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_sample_characteristics/gender",
+          "name": "gender",
+          "description": "Characteristic 'gender'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_sample_characteristics/age",
+          "name": "age",
+          "description": "Characteristic 'age'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_sample_characteristics/tumor_location",
+          "name": "tumor location",
+          "description": "Characteristic 'tumor location'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_sample_characteristics/tumor_size",
+          "name": "tumor size",
+          "description": "Characteristic 'tumor size'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_sample_characteristics/mgmt_methylation",
+          "name": "mgmt methylation",
+          "description": "Characteristic 'mgmt methylation'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_sample_characteristics/egfr_methylation",
+          "name": "egfr methylation",
+          "description": "Characteristic 'egfr methylation'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "GSE335275_family_sample_characteristics/patient_id",
+          "name": "patient id",
+          "description": "Characteristic 'patient id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_2"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
