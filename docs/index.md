@@ -38,7 +38,7 @@ See the [Getting Started](getting-started.md) guide for a full walkthrough.
 
 ## Features
 
-- **Automatic type inference** — reads CSV/TSV, Parquet, FHIR NDJSON, JSON/JSONL, WFDB, and images; maps column and field types to the Croissant schema
+- **Automatic type inference** — reads CSV/TSV, Parquet, spreadsheets, FHIR NDJSON, JSON/JSONL, WFDB, images, DICOM and NIfTI; maps column and field types to the Croissant schema
 - **Metadata overrides** — sensible defaults for every field; use flags to set name, description, license, creators, citation, and more
 - **RAI metadata** — document responsible AI fields (data collection, biases, limitations, sensitive information) via CLI flags or a YAML config
 - **Validation built-in** — validates against the Croissant spec via `mlcroissant` before writing; use `--no-validate` to skip

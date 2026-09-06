@@ -72,6 +72,7 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 |--------|------------|-------|
 | CSV / TSV | `.csv`, `.tsv` | Streaming with automatic type inference |
 | Parquet | `.parquet` | Partitioned datasets supported |
+| Spreadsheets | `.xlsx`, `.xlsm`, `.xls` | One record set per sheet, where the sheet is one table |
 | FHIR | `.ndjson`, `.json` (Bundle) | NDJSON bulk export and JSON Bundle |
 | JSON / JSONL | `.json`, `.jsonl` | Arrays, single objects, and JSON Lines |
 | WFDB | `.hea` + `.dat` / `.atr` | PhysioNet waveform data |
