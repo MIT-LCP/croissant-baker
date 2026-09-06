@@ -8,6 +8,7 @@ import io
 from pathlib import Path
 from typing import Callable, Iterable
 
+import openpyxl
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -22,6 +23,7 @@ from croissant_baker.scan import ScanReport
 
 DATA = Path(__file__).parent / "data" / "input"
 _SPECT = DATA / "spect_demo"
+_SPREADSHEETS = DATA / "spreadsheets"
 
 
 def _csv() -> list:
@@ -80,6 +82,22 @@ def _nifti() -> list:
     return [("scan.nii", gzip.decompress(source.read_bytes()))]
 
 
+def _spreadsheet() -> list:
+    """One workbook written here, and the committed .xls no library can write."""
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.title = "manifest"
+    sheet.append(["sample_id", "tissue", "rin"])
+    sheet.append(["S1", "lung", 9.1])
+    sheet.append(["S2", "liver", 8.4])
+    buffer = io.BytesIO()
+    book.save(buffer)
+
+    legacy = _SPREADSHEETS / "manifest.xls"
+    assert legacy.exists(), f"tracked .xls fixture missing at {legacy}"
+    return [("book.xlsx", buffer.getvalue()), ("legacy.xls", legacy.read_bytes())]
+
+
 #: Handler class name -> builder returning ``[(logical name, plain bytes)]``.
 #: A list rather than one pair so a handler whose FileSets span several files
 #: can say so: FHIR chunks are the shape that produced the phantom ``.gz.gz``
@@ -93,6 +111,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "ImageHandler": _png,
     "DICOMHandler": _dicom,
     "NIfTIHandler": _nifti,
+    "SpreadsheetHandler": _spreadsheet,
 }
 
 #: Handlers with no sample, and why.

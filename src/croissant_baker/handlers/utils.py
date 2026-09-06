@@ -1,5 +1,6 @@
 """Shared utilities for file handlers."""
 
+import datetime
 import logging
 import re
 import warnings
@@ -434,9 +435,11 @@ _URL_PREFIXES = ("http://", "https://", "urn:")
 
 
 def infer_croissant_type(value) -> str:
-    """Map a scalar JSON value to a Croissant type string.
+    """Map a scalar value to a Croissant type string.
 
     Only handles primitives. Callers must unwrap dicts/lists before calling.
+    A JSON reader spells a date as an ISO string and a spreadsheet reader as a
+    real object, so both spellings are recognised here.
     """
     if isinstance(value, bool):
         return "sc:Boolean"
@@ -444,6 +447,13 @@ def infer_croissant_type(value) -> str:
         return "cr:Int64"
     if isinstance(value, float):
         return "cr:Float64"
+    # datetime subclasses date, so it has to be asked first.
+    if isinstance(value, datetime.datetime):
+        return "sc:DateTime"
+    if isinstance(value, datetime.date):
+        return "sc:Date"
+    if isinstance(value, datetime.time):
+        return "sc:Time"
     if isinstance(value, str):
         if _DATETIME_RE.match(value):
             return "sc:DateTime"
@@ -654,7 +664,18 @@ def get_clean_record_name(file_name: str) -> str:
     name = file_name.strip()
 
     # Remove common data file extensions
-    extensions = [".csv", ".tsv", ".ndjson", ".json", ".parquet", ".txt", ".dat"]
+    extensions = [
+        ".csv",
+        ".tsv",
+        ".ndjson",
+        ".json",
+        ".parquet",
+        ".txt",
+        ".dat",
+        ".xlsx",
+        ".xlsm",
+        ".xls",
+    ]
     for ext in extensions:
         if name.endswith(ext):
             name = name[: -len(ext)]

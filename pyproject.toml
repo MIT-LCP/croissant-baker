@@ -32,6 +32,11 @@ dependencies = [
     "pyyaml>=6.0",
     "pydicom>=2.4",
     "nibabel>=5.0",
+    "openpyxl>=3.1",
+    # xlrd 2.0 dropped .xlsx and reads only the legacy .xls (OLE2/BIFF) format.
+    # The floor is load-bearing: on 1.x, open_workbook also accepts .xlsx and
+    # the handler's suffix branch would stop being the thing that picks a reader.
+    "xlrd>=2.0",
 ]
 
 [project.scripts]

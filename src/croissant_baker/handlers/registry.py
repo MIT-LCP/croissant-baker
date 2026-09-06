@@ -147,6 +147,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.json_handler import JSONHandler
     from croissant_baker.handlers.wfdb_handler import WFDBHandler
     from croissant_baker.handlers.parquet_handler import ParquetHandler
+    from croissant_baker.handlers.spreadsheet_handler import SpreadsheetHandler
     from croissant_baker.handlers.image_handler import ImageHandler
     from croissant_baker.handlers.dicom_handler import DICOMHandler
     from croissant_baker.handlers.nifti_handler import NIfTIHandler
@@ -154,6 +155,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
     return [
         CSVHandler(),
         TSVHandler(),
+        SpreadsheetHandler(),
         # FHIR first, as the narrower claim. Both sniff the content, so neither
         # order misroutes; this is convention, not a dependency.
         FHIRHandler(),
