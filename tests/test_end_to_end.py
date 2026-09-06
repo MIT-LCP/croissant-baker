@@ -1312,3 +1312,57 @@ def test_spect_demo_generation(spect_demo_path: Path, output_dir: Path) -> None:
         "nifti_version",
     } <= nifti_fields
     assert "tr_seconds" not in nifti_fields  # no 4D file in this fixture
+
+
+@pytest.fixture
+def spreadsheets_path() -> Path:
+    p = Path(__file__).parent / "data" / "input" / "spreadsheets"
+    if not p.exists():
+        pytest.skip("spreadsheet fixtures not found")
+    return p
+
+
+def test_spreadsheets_bake_to_the_committed_document(
+    spreadsheets_path: Path, tmp_path: Path
+) -> None:
+    """A golden that is read rather than overwritten: baked to a temporary path
+    and compared against the committed answer.
+
+    The fixture's sheets are one of each outcome the handler distinguishes — a
+    table under a preamble, a table at A1, two tables side by side, and an empty
+    sheet — so the answer pins which of them reach the document and which do
+    not. Validation is left on, which is where mlcroissant gets a say. The
+    fixture README carries the command that regenerates the workbooks.
+    """
+    baked = tmp_path / "spreadsheets_croissant.jsonld"
+    answer = Path(__file__).parent / "data" / "output" / "spreadsheets_croissant.jsonld"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(spreadsheets_path),
+            "-o",
+            str(baked),
+            "--name",
+            "Spreadsheet fixtures",
+            "--description",
+            "Two workbooks covering every sheet shape the handler distinguishes",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--creator",
+            "Croissant Baker tests",
+            "--date-published",
+            "2026-09-06",
+        ],
+    )
+
+    assert result.exit_code == 0, f"CLI failed:\n{result.output}"
+    document = json.loads(baked.read_text())
+
+    assert [record_set["name"] for record_set in document["recordSet"]] == [
+        "manifest",
+        "samples",
+        "platforms",
+    ]
+    assert document == json.loads(answer.read_text())
