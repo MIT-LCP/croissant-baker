@@ -1472,3 +1472,64 @@ def test_geo_review_exports_validate_through_the_cli(
         for rs in document["recordSet"]
         for field in rs["field"]
     )
+
+
+@pytest.fixture
+def ome_dataset(tmp_path: Path) -> Path:
+    """A microscopy tree in the shape a deposit has: OME beside plain images.
+
+    Synthetic. The repository carries no microscopy corpus, and the smallest
+    real OME-TIFF worth committing is megabytes. What a synthetic fixture
+    cannot prove is that a real writer's file opens — Bio-Formats', a
+    scanner's and tifffile's headers differ in tag layout, not in magic, so
+    the risk is low, but it is not nothing.
+    """
+    from tests.helpers import OME_TIFF, PNG_1X1, tiff_bytes
+
+    dataset = tmp_path / "microscopy"
+    dataset.mkdir()
+    (dataset / "morphology.ome.tif").write_bytes(OME_TIFF)
+    (dataset / "overview.tif").write_bytes(tiff_bytes())
+    (dataset / "thumbnail.png").write_bytes(PNG_1X1)
+    return dataset
+
+
+def test_ome_tiff_generation(ome_dataset: Path, tmp_path: Path) -> None:
+    """The one thing no unit test can show: the nodes pass mlcroissant.
+
+    A record set whose fields carry a ``fileSet`` source and no ``extract`` is
+    new here, and so is an unknown-length array field beside an
+    ``sc:ImageObject`` in one record set.
+    """
+    output_file = tmp_path / "out" / "ome_croissant.jsonld"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(ome_dataset),
+            "-o",
+            str(output_file),
+            "--name",
+            "OME-TIFF sample",
+            "--description",
+            "Synthetic OME-TIFF beside a plain TIFF and a PNG",
+            "--creator",
+            "Tester",
+        ],
+    )
+
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    metadata = json.loads(output_file.read_text())
+
+    record_sets = {r["name"]: r for r in metadata["recordSet"]}
+    assert set(record_sets) == {"images", "ome_images"}
+
+    ome_fields = {f["name"]: f for f in record_sets["ome_images"]["field"]}
+    assert ome_fields["size_c"]["description"].endswith("(3)")
+    assert "DAPI" in ome_fields["channel_names"]["description"]
+    assert {f["name"] for f in record_sets["images"]["field"]} == {"image"}
+
+    file_sets = {n["@id"]: n for n in metadata["distribution"] if "includes" in n}
+    assert file_sets["ome-image-files"]["includes"] == "morphology.ome.tif"
+    assert sorted(file_sets["image-files"]["includes"]) == ["**/*.png", "overview.tif"]

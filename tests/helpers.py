@@ -158,8 +158,13 @@ def ome_bomb(levels: int = 6) -> str:
 OME_TIFF = tiff_bytes(ome_xml(ome_image()), planes=3)
 
 
-def _png() -> list:
-    return [("pixel.png", PNG_1X1)]
+def _images() -> list:
+    """A PNG and a three-channel OME-TIFF: the two collections the handler splits.
+
+    The TIFF is appended rather than prepended, because ``probe_name()`` and the
+    exclusive-format sweep both read element 0.
+    """
+    return [("pixel.png", PNG_1X1), ("sample.ome.tif", OME_TIFF)]
 
 
 def _dicom() -> list:
@@ -233,7 +238,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "JSONHandler": _jsonl,
     "FHIRHandler": _ndjson,
     "ParquetHandler": _parquet,
-    "ImageHandler": _png,
+    "ImageHandler": _images,
     "DICOMHandler": _dicom,
     "NIfTIHandler": _nifti,
     "SOFTHandler": _soft,
