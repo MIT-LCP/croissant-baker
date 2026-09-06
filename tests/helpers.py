@@ -6,10 +6,12 @@ import base64
 import gzip
 import io
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
+import tifffile
 
 from typer.testing import CliRunner
 
@@ -62,6 +64,98 @@ PNG_1X1 = base64.b64decode(
     b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQD"
     b"wAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 )
+
+
+#: The namespace of the current OME schema. It is versioned, so nothing in
+#: the source matches this constant — the version is read off the root element.
+OME_NAMESPACE = "http://www.openmicroscopy.org/Schemas/OME/2016-06"
+
+
+def ome_xml(body: str, *, namespace: str = OME_NAMESPACE, attrs: str = "") -> str:
+    """An OME-XML document wrapping ``body``, shaped the way a writer emits one."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<OME xmlns="{namespace}"{attrs}>{body}</OME>'
+    )
+
+
+def tiff_bytes(
+    description: Optional[str] = None, *, planes: int = 1, size: int = 8, **kwargs
+) -> bytes:
+    """A TIFF in memory, with ``description`` written verbatim to tag 270.
+
+    Encoded as UTF-8 because tag 270 is nominally 7-bit ASCII and every OME
+    writer puts ``µm`` in it regardless.
+    """
+    shape = (planes, size, size) if planes > 1 else (size, size)
+    buffer = io.BytesIO()
+    tifffile.imwrite(
+        buffer,
+        np.zeros(shape, np.uint16),
+        photometric="minisblack",
+        description=None if description is None else description.encode("utf-8"),
+        # Otherwise tifffile writes its own shape note into tag 270, and a
+        # fixture meant to carry no description carries one.
+        metadata=None,
+        **kwargs,
+    )
+    return buffer.getvalue()
+
+
+#: The ``<Pixels>`` attributes a microscope writes, on an 8x8 fixture.
+#:
+#: Every pair the handler could confuse holds two different values: SizeZ
+#: against SizeT, PhysicalSizeX against Y, and the X unit against the Y unit,
+#: which the handler is meant to read in preference to it. With the pairs equal
+#: — as a symmetric fixture makes them — a field reading its neighbour is
+#: invisible, and three such swaps went unnoticed.
+OME_PIXELS = (
+    'DimensionOrder="XYCZT" Type="uint16" SizeX="8" SizeY="8"'
+    ' SizeC="3" SizeZ="1" SizeT="5"'
+    ' PhysicalSizeX="0.2125" PhysicalSizeXUnit="µm"'
+    ' PhysicalSizeY="0.425" PhysicalSizeYUnit="mm"'
+)
+
+
+def ome_image(
+    *,
+    identifier: str = "Image:0",
+    attrs: str = "",
+    pixels: str = OME_PIXELS,
+    channels: tuple = ("DAPI", "ATP1A1", "18S"),
+    trailing: str = "",
+) -> str:
+    """One ``<Image>`` element, the shape Bio-Formats and tifffile both write."""
+    inner = "".join(
+        f'<Channel ID="Channel:0:{i}" SamplesPerPixel="1" Name="{name}"/>'
+        for i, name in enumerate(channels)
+    )
+    return (
+        f'<Image ID="{identifier}"{attrs}>'
+        f'<Pixels ID="Pixels:0" {pixels}>{inner}{trailing}</Pixels>'
+        "</Image>"
+    )
+
+
+def ome_bomb(levels: int = 6) -> str:
+    """A billion-laughs OME-XML document of ``levels`` entity generations.
+
+    Six is deliberate. Expat 2.4+ caps input amplification, so a nine-level
+    bomb raises ``ParseError`` unaided — a parser with no declaration check at
+    all would survive one and prove nothing. Six still expands.
+    """
+    entities = ['<!ENTITY a0 "lol">']
+    entities += [f'<!ENTITY a{i} "{"&a%d;" % (i - 1) * 10}">' for i in range(1, levels)]
+    return (
+        '<?xml version="1.0"?>\n<!DOCTYPE OME [\n'
+        + "\n".join(entities)
+        + f']>\n<OME xmlns="{OME_NAMESPACE}"><Image ID="&a{levels - 1};"/></OME>'
+    )
+
+
+#: A three-channel OME-TIFF, written by hand rather than by ``imwrite(ome=True)``
+#: so the bytes are the same on every run — that writer stamps a fresh UUID.
+OME_TIFF = tiff_bytes(ome_xml(ome_image()), planes=3)
 
 
 def _png() -> list:
@@ -249,6 +343,9 @@ WRAPPER_SUFFIXES = [c.suffix for c in compression.BUILTIN_COMPRESSIONS]
 __all__ = [
     "DATA",
     "EXEMPT",
+    "OME_NAMESPACE",
+    "OME_PIXELS",
+    "OME_TIFF",
     "PNG_1X1",
     "SAMPLES",
     "WRAPPER_SUFFIXES",
@@ -260,7 +357,11 @@ __all__ = [
     "file_objects",
     "file_sets",
     "includes",
+    "ome_bomb",
+    "ome_image",
+    "ome_xml",
     "record_sets",
+    "tiff_bytes",
     "runner",
     "write_all",
     "write_wrapped",
