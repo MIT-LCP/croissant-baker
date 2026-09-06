@@ -28,7 +28,9 @@ def discover_files(
         exclude_patterns: Optional list of glob patterns to exclude.
 
     Returns:
-        List of relative file paths found in the directory.
+        List of relative file paths found in the directory, sorted. Node
+        identifiers are assigned in this order, so an unsorted walk would let
+        one dataset bake two ways on two filesystems.
 
     Raises:
         FileNotFoundError: If the directory does not exist or is not a directory.
@@ -70,7 +72,7 @@ def discover_files(
         if exclude_patterns:
             files = [f for f in files if not any(f.match(p) for p in exclude_patterns)]
 
-        return files
+        return sorted(files)
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Directory not found: {e}")
     except PermissionError as e:

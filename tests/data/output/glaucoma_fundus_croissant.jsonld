@@ -63,60 +63,15 @@
     {
       "@type": "cr:FileObject",
       "@id": "file_0",
-      "name": "Labels.csv",
-      "contentSize": "336",
-      "contentUrl": "Labels.csv",
-      "encodingFormat": "text/csv",
-      "sha256": "42f00217ba4add8ec6915fc1197b9e994befee805f5edc1d0aa74ff5c9e7cf43"
+      "name": "0_0.jpg",
+      "contentSize": "129766",
+      "contentUrl": "Images/0_0.jpg",
+      "encodingFormat": "image/jpeg",
+      "sha256": "c3820cfdc49b1e5286a9f111f5e10a0ab4d31393c65cf4e082a7e0d6301ff174"
     },
     {
       "@type": "cr:FileObject",
       "@id": "file_1",
-      "name": "101_0.jpg",
-      "contentSize": "114350",
-      "contentUrl": "Images/101_0.jpg",
-      "encodingFormat": "image/jpeg",
-      "sha256": "de80817337c57da16e57728866c00b32564059b1e7ff055f28d90c8e8ffc1df0"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_2",
-      "name": "103_0.jpg",
-      "contentSize": "119263",
-      "contentUrl": "Images/103_0.jpg",
-      "encodingFormat": "image/jpeg",
-      "sha256": "d0eb4e03a466888349fb26f51407b8ae070182e36c1f4f71e7f5f9e319bb5f55"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_3",
-      "name": "105_0.jpg",
-      "contentSize": "140696",
-      "contentUrl": "Images/105_0.jpg",
-      "encodingFormat": "image/jpeg",
-      "sha256": "bb71a0537e8424383c7c1e853633ffeb2cb40c8196d1bebdc74e6f572a7032e0"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_4",
-      "name": "187_0.jpg",
-      "contentSize": "130710",
-      "contentUrl": "Images/187_0.jpg",
-      "encodingFormat": "image/jpeg",
-      "sha256": "2cebc8a350e2334b156338dfb829430182728748a163cb1d1d6bcf426d79ff8b"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_5",
-      "name": "102_0.jpg",
-      "contentSize": "113014",
-      "contentUrl": "Images/102_0.jpg",
-      "encodingFormat": "image/jpeg",
-      "sha256": "ce934d84a70f0b85b24e0dc6be88b76d285d5b431fb1c2c8f67cca2940be1a89"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_6",
       "name": "100_0.jpg",
       "contentSize": "141007",
       "contentUrl": "Images/100_0.jpg",
@@ -125,7 +80,34 @@
     },
     {
       "@type": "cr:FileObject",
-      "@id": "file_7",
+      "@id": "file_2",
+      "name": "101_0.jpg",
+      "contentSize": "114350",
+      "contentUrl": "Images/101_0.jpg",
+      "encodingFormat": "image/jpeg",
+      "sha256": "de80817337c57da16e57728866c00b32564059b1e7ff055f28d90c8e8ffc1df0"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_3",
+      "name": "102_0.jpg",
+      "contentSize": "113014",
+      "contentUrl": "Images/102_0.jpg",
+      "encodingFormat": "image/jpeg",
+      "sha256": "ce934d84a70f0b85b24e0dc6be88b76d285d5b431fb1c2c8f67cca2940be1a89"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_4",
+      "name": "103_0.jpg",
+      "contentSize": "119263",
+      "contentUrl": "Images/103_0.jpg",
+      "encodingFormat": "image/jpeg",
+      "sha256": "d0eb4e03a466888349fb26f51407b8ae070182e36c1f4f71e7f5f9e319bb5f55"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_5",
       "name": "104_0.jpg",
       "contentSize": "107388",
       "contentUrl": "Images/104_0.jpg",
@@ -134,7 +116,16 @@
     },
     {
       "@type": "cr:FileObject",
-      "@id": "file_8",
+      "@id": "file_6",
+      "name": "105_0.jpg",
+      "contentSize": "140696",
+      "contentUrl": "Images/105_0.jpg",
+      "encodingFormat": "image/jpeg",
+      "sha256": "bb71a0537e8424383c7c1e853633ffeb2cb40c8196d1bebdc74e6f572a7032e0"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_7",
       "name": "106_0.jpg",
       "contentSize": "104051",
       "contentUrl": "Images/106_0.jpg",
@@ -143,12 +134,21 @@
     },
     {
       "@type": "cr:FileObject",
-      "@id": "file_9",
-      "name": "189_1.jpg",
-      "contentSize": "118245",
-      "contentUrl": "Images/189_1.jpg",
+      "@id": "file_8",
+      "name": "187_0.jpg",
+      "contentSize": "130710",
+      "contentUrl": "Images/187_0.jpg",
       "encodingFormat": "image/jpeg",
-      "sha256": "d29156512d119a6701618ef1f3df1163a4cb62743b8b1ffddf519a4a19e097b0"
+      "sha256": "2cebc8a350e2334b156338dfb829430182728748a163cb1d1d6bcf426d79ff8b"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_9",
+      "name": "188_0.jpg",
+      "contentSize": "126287",
+      "contentUrl": "Images/188_0.jpg",
+      "encodingFormat": "image/jpeg",
+      "sha256": "2c09cc3def69924e01e8ecd28aaaed94ca95cd7cdb4b268a9d1c306f8cb99afe"
     },
     {
       "@type": "cr:FileObject",
@@ -162,20 +162,20 @@
     {
       "@type": "cr:FileObject",
       "@id": "file_11",
-      "name": "0_0.jpg",
-      "contentSize": "129766",
-      "contentUrl": "Images/0_0.jpg",
+      "name": "189_1.jpg",
+      "contentSize": "118245",
+      "contentUrl": "Images/189_1.jpg",
       "encodingFormat": "image/jpeg",
-      "sha256": "c3820cfdc49b1e5286a9f111f5e10a0ab4d31393c65cf4e082a7e0d6301ff174"
+      "sha256": "d29156512d119a6701618ef1f3df1163a4cb62743b8b1ffddf519a4a19e097b0"
     },
     {
       "@type": "cr:FileObject",
       "@id": "file_12",
-      "name": "188_0.jpg",
-      "contentSize": "126287",
-      "contentUrl": "Images/188_0.jpg",
-      "encodingFormat": "image/jpeg",
-      "sha256": "2c09cc3def69924e01e8ecd28aaaed94ca95cd7cdb4b268a9d1c306f8cb99afe"
+      "name": "Labels.csv",
+      "contentSize": "336",
+      "contentUrl": "Labels.csv",
+      "encodingFormat": "text/csv",
+      "sha256": "42f00217ba4add8ec6915fc1197b9e994befee805f5edc1d0aa74ff5c9e7cf43"
     },
     {
       "@type": "cr:FileSet",
@@ -187,74 +187,6 @@
     }
   ],
   "recordSet": [
-    {
-      "@type": "cr:RecordSet",
-      "@id": "Labels",
-      "name": "Labels",
-      "description": "Records from Labels.csv",
-      "field": [
-        {
-          "@type": "cr:Field",
-          "@id": "Labels/Image_Name",
-          "name": "Image Name",
-          "description": "Column 'Image Name' from Labels.csv",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_0"
-            },
-            "extract": {
-              "column": "Image Name"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "Labels/Patient",
-          "name": "Patient",
-          "description": "Column 'Patient' from Labels.csv",
-          "dataType": "cr:Int64",
-          "source": {
-            "fileObject": {
-              "@id": "file_0"
-            },
-            "extract": {
-              "column": "Patient"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "Labels/Label",
-          "name": "Label",
-          "description": "Column 'Label' from Labels.csv",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_0"
-            },
-            "extract": {
-              "column": "Label"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "Labels/Quality_Score",
-          "name": "Quality Score",
-          "description": "Column 'Quality Score' from Labels.csv",
-          "dataType": "cr:Float64",
-          "source": {
-            "fileObject": {
-              "@id": "file_0"
-            },
-            "extract": {
-              "column": "Quality Score"
-            }
-          }
-        }
-      ]
-    },
     {
       "@type": "cr:RecordSet",
       "@id": "images",
@@ -273,6 +205,74 @@
             },
             "extract": {
               "fileProperty": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "Labels",
+      "name": "Labels",
+      "description": "Records from Labels.csv",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "Labels/Image_Name",
+          "name": "Image Name",
+          "description": "Column 'Image Name' from Labels.csv",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            },
+            "extract": {
+              "column": "Image Name"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "Labels/Patient",
+          "name": "Patient",
+          "description": "Column 'Patient' from Labels.csv",
+          "dataType": "cr:Int64",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            },
+            "extract": {
+              "column": "Patient"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "Labels/Label",
+          "name": "Label",
+          "description": "Column 'Label' from Labels.csv",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            },
+            "extract": {
+              "column": "Label"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "Labels/Quality_Score",
+          "name": "Quality Score",
+          "description": "Column 'Quality Score' from Labels.csv",
+          "dataType": "cr:Float64",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            },
+            "extract": {
+              "column": "Quality Score"
             }
           }
         }

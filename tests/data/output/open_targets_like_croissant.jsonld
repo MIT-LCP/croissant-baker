@@ -66,19 +66,19 @@
       "@type": "cr:FileObject",
       "@id": "file_0",
       "name": "part-00000.parquet",
-      "contentSize": "1336",
-      "contentUrl": "targets/part-00000.parquet",
+      "contentSize": "1754",
+      "contentUrl": "association_by_datatype_direct/part-00000.parquet",
       "encodingFormat": "application/vnd.apache.parquet",
-      "sha256": "479f51386b8561aa66b282023f012413c497eef809a2b8d0d72d1f6af6fb35ff"
+      "sha256": "d22ec081c4a45addd57398ba5e79d2370e19d8892d71b7af389d4ea4129cf097"
     },
     {
       "@type": "cr:FileObject",
       "@id": "file_1",
       "name": "part-00001.parquet",
-      "contentSize": "1340",
-      "contentUrl": "targets/part-00001.parquet",
+      "contentSize": "1758",
+      "contentUrl": "association_by_datatype_direct/part-00001.parquet",
       "encodingFormat": "application/vnd.apache.parquet",
-      "sha256": "6815c545575449d5a06653a0c8cdb3cd69bfa71b4089212ef31e5e540462f67f"
+      "sha256": "7c4bd73af4d4bc599062790ea6aaff62b1f1ded21c885a62064fcab759ee1d33"
     },
     {
       "@type": "cr:FileObject",
@@ -102,24 +102,6 @@
       "@type": "cr:FileObject",
       "@id": "file_4",
       "name": "part-00000.parquet",
-      "contentSize": "1754",
-      "contentUrl": "association_by_datatype_direct/part-00000.parquet",
-      "encodingFormat": "application/vnd.apache.parquet",
-      "sha256": "d22ec081c4a45addd57398ba5e79d2370e19d8892d71b7af389d4ea4129cf097"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_5",
-      "name": "part-00001.parquet",
-      "contentSize": "1758",
-      "contentUrl": "association_by_datatype_direct/part-00001.parquet",
-      "encodingFormat": "application/vnd.apache.parquet",
-      "sha256": "7c4bd73af4d4bc599062790ea6aaff62b1f1ded21c885a62064fcab759ee1d33"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_6",
-      "name": "part-00000.parquet",
       "contentSize": "1228",
       "contentUrl": "diseases/part-00000.parquet",
       "encodingFormat": "application/vnd.apache.parquet",
@@ -127,7 +109,7 @@
     },
     {
       "@type": "cr:FileObject",
-      "@id": "file_7",
+      "@id": "file_5",
       "name": "part-00001.parquet",
       "contentSize": "1228",
       "contentUrl": "diseases/part-00001.parquet",
@@ -136,12 +118,30 @@
     },
     {
       "@type": "cr:FileObject",
-      "@id": "file_8",
+      "@id": "file_6",
       "name": "part-00000.parquet",
       "contentSize": "1588",
       "contentUrl": "drug_molecule/part-00000.parquet",
       "encodingFormat": "application/vnd.apache.parquet",
       "sha256": "57152f67233267521c04c7f21551300299ebc34f4992f58c5e4415cdc49410dc"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_7",
+      "name": "part-00000.parquet",
+      "contentSize": "1336",
+      "contentUrl": "targets/part-00000.parquet",
+      "encodingFormat": "application/vnd.apache.parquet",
+      "sha256": "479f51386b8561aa66b282023f012413c497eef809a2b8d0d72d1f6af6fb35ff"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_8",
+      "name": "part-00001.parquet",
+      "contentSize": "1340",
+      "contentUrl": "targets/part-00001.parquet",
+      "encodingFormat": "application/vnd.apache.parquet",
+      "sha256": "6815c545575449d5a06653a0c8cdb3cd69bfa71b4089212ef31e5e540462f67f"
     },
     {
       "@type": "cr:FileSet",
@@ -506,7 +506,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_8"
+              "@id": "file_6"
             },
             "extract": {
               "column": "id"
@@ -521,7 +521,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_8"
+              "@id": "file_6"
             },
             "extract": {
               "column": "name"
@@ -536,7 +536,7 @@
           "dataType": "cr:Float32",
           "source": {
             "fileObject": {
-              "@id": "file_8"
+              "@id": "file_6"
             },
             "extract": {
               "column": "maxClinicalTrialPhase"
@@ -551,7 +551,7 @@
           "dataType": "cr:Int16",
           "source": {
             "fileObject": {
-              "@id": "file_8"
+              "@id": "file_6"
             },
             "extract": {
               "column": "yearOfFirstApproval"
@@ -566,7 +566,7 @@
           "dataType": "sc:Boolean",
           "source": {
             "fileObject": {
-              "@id": "file_8"
+              "@id": "file_6"
             },
             "extract": {
               "column": "hasBeenWithdrawn"
