@@ -826,6 +826,22 @@ def test_collect_image_summary() -> None:
     assert summary["format_counts"] == {"JPEG": 2, "TIFF": 1}
 
 
+def test_the_format_breakdown_does_not_follow_discovery_order() -> None:
+    """Read into a description verbatim, and discovery order is rglob's, so a
+    dataset and the same dataset compressed would describe one batch two ways.
+    Every committed image corpus holds a single format, so no golden can catch
+    this; only a mixed batch, which is what an OME dataset is.
+    """
+    tiff_first = [_img_meta("a.tif", fmt="TIFF"), _img_meta("b.png", fmt="PNG")]
+    png_first = list(reversed(tiff_first))
+
+    assert (
+        list(collect_image_summary(tiff_first)["format_counts"])
+        == list(collect_image_summary(png_first)["format_counts"])
+        == ["PNG", "TIFF"]
+    )
+
+
 def _img_meta(name, fmt="JPEG", mime="image/jpeg", w=100, h=100, bands=3):
     return {
         "file_name": name,

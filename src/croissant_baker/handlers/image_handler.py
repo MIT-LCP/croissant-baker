@@ -595,5 +595,9 @@ def collect_image_summary(image_metadata_list: List[Dict]) -> Dict:
         "width_range": (min(widths), max(widths)) if widths else (0, 0),
         "height_range": (min(heights), max(heights)) if heights else (0, 0),
         "num_bands_range": (min(bands), max(bands)) if bands else (0, 0),
-        "format_counts": formats,
+        # Sorted, because this dict is read out into a description verbatim and
+        # insertion order is discovery order. Two directories holding the same
+        # images yield different rglob orders, so an unsorted breakdown makes a
+        # mixed-format batch describe itself differently on each bake.
+        "format_counts": dict(sorted(formats.items())),
     }

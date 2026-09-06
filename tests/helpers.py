@@ -164,7 +164,11 @@ def _images() -> list:
     The TIFF is appended rather than prepended, because ``probe_name()`` and the
     exclusive-format sweep both read element 0.
     """
-    return [("pixel.png", PNG_1X1), ("sample.ome.tif", OME_TIFF)]
+    return [
+        ("pixel.png", PNG_1X1),
+        ("sample.ome.tif", OME_TIFF),
+        ("plain.tif", tiff_bytes()),
+    ]
 
 
 def _dicom() -> list:
