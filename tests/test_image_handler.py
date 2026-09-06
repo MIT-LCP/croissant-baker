@@ -205,19 +205,19 @@ def test_every_supported_extension_is_declared_typed_and_sniffed() -> None:
 
 
 @pytest.mark.parametrize(
-    ("label", "name", "payload", "claimed"),
+    ("name", "payload", "claimed"),
     [
-        ("the .btf spelling", "tissue.btf", BIGTIFF, True),
+        ("tissue.btf", BIGTIFF, True),
         # #93: a writer that crosses 4 GiB keeps the .tiff name, so the magic
         # check is the only thing that can rescue the file.
-        ("a BigTIFF named .tiff", "tissue.tiff", BIGTIFF, True),
-        ("PNG bytes under a .btf name", "impostor.btf", PNG_1X1, False),
+        ("tissue.tiff", BIGTIFF, True),
+        ("impostor.btf", PNG_1X1, False),
     ],
+    ids=["the .btf spelling", "a BigTIFF named .tiff", "PNG bytes under .btf"],
 )
 def test_a_bigtiff_is_claimed_by_its_magic_not_its_name(
     handler: ImageHandler,
     tmp_path: Path,
-    label: str,
     name: str,
     payload: bytes,
     claimed: bool,
@@ -287,6 +287,7 @@ PLAIN_TIFF = tiff_bytes()
         ("scan.tif", PLAIN_TIFF, "_read_with_pillow"),
         ("pixel.png", PNG_1X1, "_read_with_tifffile"),
     ],
+    ids=["a TIFF never reaches Pillow", "a PNG never reaches tifffile"],
 )
 def test_each_format_reaches_only_its_own_backend(
     handler: ImageHandler,
@@ -416,30 +417,27 @@ def test_an_ome_tiff_keeps_its_tiff_tags_alongside_its_header(
 
 
 BOMB_TIFF = tiff_bytes(ome_bomb())
+OVERSIZED_TIFF = tiff_bytes(ome_xml(f"<!--{'x' * (ome.MAX_DESCRIPTION_BYTES + 1)}-->"))
 
 
 @pytest.mark.parametrize(
-    ("label", "payload", "warnings"),
+    ("payload", "warnings"),
     [
-        ("entity declaration", BOMB_TIFF, 1),
-        (
-            "oversized",
-            tiff_bytes(ome_xml(f"<!--{'x' * (ome.MAX_DESCRIPTION_BYTES + 1)}-->")),
-            1,
-        ),
+        (BOMB_TIFF, 1),
+        (OVERSIZED_TIFF, 1),
         # Closed at the root, so tifffile still calls it OME, but not
         # well-formed. A description truncated before ``</OME>`` is a different
         # case: nothing identifies it as OME, so it is not refused.
-        ("malformed", tiff_bytes(ome_xml("<Image>")), 1),
+        (tiff_bytes(ome_xml("<Image>")), 1),
         # Or every microscopy bake would warn on every file.
-        ("sound", OME_TIFF, 0),
+        (OME_TIFF, 0),
     ],
+    ids=["entity declaration", "oversized", "malformed", "sound"],
 )
 def test_only_a_refused_description_is_warned_about(
     handler: ImageHandler,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
-    label: str,
     payload: bytes,
     warnings: int,
 ) -> None:
@@ -702,15 +700,14 @@ def test_a_field_no_file_declares_is_not_emitted(
 
 
 @pytest.mark.parametrize(
-    ("label", "files", "images_declared"),
+    ("files", "images_declared"),
     [
         # One document may declare several images: a multi-position acquisition
         # does.
-        ("two images in one file", {"a.ome.tif": OME_TWO_IMAGES}, "2"),
+        ({"a.ome.tif": OME_TWO_IMAGES}, "2"),
         # And one logical image may be spread over several files. Grouping
         # those is a separate change; reporting rows as images is not.
         (
-            "two files cross-referencing",
             {
                 "a.ome.tif": ome_partner("b.ome.tif"),
                 "b.ome.tif": ome_partner("a.ome.tif"),
@@ -718,11 +715,11 @@ def test_a_field_no_file_declares_is_not_emitted(
             "1",
         ),
     ],
+    ids=["two images in one file", "two files cross-referencing"],
 )
 def test_the_record_set_says_its_rows_are_files(
     handler: ImageHandler,
     dataset: Path,
-    label: str,
     files: dict,
     images_declared: str,
 ) -> None:

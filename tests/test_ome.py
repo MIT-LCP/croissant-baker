@@ -46,13 +46,12 @@ READ = {
 
 
 @pytest.mark.parametrize(
-    ("label", "pixels", "expected"),
+    ("pixels", "expected"),
     [
-        ("every attribute", OME_PIXELS, READ),
+        (OME_PIXELS, READ),
         # PhysicalSizeX is optional in the schema, and a default would be a
         # made-up measurement.
         (
-            "absent",
             'DimensionOrder="XYCZT" Type="uint8" SizeC="1"',
             {
                 **READ,
@@ -67,7 +66,6 @@ READ = {
         ),
         # One malformed attribute costs that attribute, not the whole header.
         (
-            "unreadable",
             'SizeC="lots" SizeZ="2" PhysicalSizeX="wide"',
             {
                 **READ,
@@ -82,9 +80,10 @@ READ = {
             },
         ),
     ],
+    ids=["every attribute", "absent", "unreadable"],
 )
 def test_what_the_pixels_element_says_reaches_the_header(
-    label: str, pixels: str, expected: dict
+    pixels: str, expected: dict
 ) -> None:
     header = ome.parse(ome_xml(image(pixels=pixels)))
 
@@ -153,15 +152,16 @@ def test_the_pixels_fields_describe_the_first_image() -> None:
 
 
 @pytest.mark.parametrize(
-    ("label", "document"),
+    "document",
     [
-        ("entity bomb", bomb(6)),
-        ("bare doctype", f'<!DOCTYPE OME><OME xmlns="{OME_NAMESPACE}"/>'),
-        ("not well-formed", f'<OME xmlns="{OME_NAMESPACE}"><Image'),
+        bomb(6),
+        f'<!DOCTYPE OME><OME xmlns="{OME_NAMESPACE}"/>',
+        f'<OME xmlns="{OME_NAMESPACE}"><Image',
     ],
+    ids=["entity bomb", "bare doctype", "not well-formed"],
 )
 def test_a_document_that_cannot_be_trusted_is_refused_not_raised(
-    label: str, document: str
+    document: str,
 ) -> None:
     """OME-XML carries no DTD — its root is ``<OME xmlns=…>`` behind at most an
     XML declaration — so refusing one loses nothing legitimate, and it does not
@@ -192,9 +192,10 @@ def test_an_oversized_description_is_not_parsed(monkeypatch) -> None:
         raise AssertionError("the document was parsed despite exceeding the cap")
 
     monkeypatch.setattr(ome.ET, "fromstring", fail)
-    oversized = ome_xml(f"<!--{'x' * (ome.MAX_DESCRIPTION_BYTES + 1)}-->")
 
-    header = read_bytes(tiff_bytes(oversized))
+    header = read_bytes(
+        tiff_bytes(ome_xml(f"<!--{'x' * (ome.MAX_DESCRIPTION_BYTES + 1)}-->"))
+    )
 
     assert header is not None
     assert header.refusal
@@ -207,16 +208,17 @@ def test_an_oversized_description_is_not_parsed(monkeypatch) -> None:
 
 
 @pytest.mark.parametrize(
-    ("label", "description", "reads_ome"),
+    ("description", "reads_ome"),
     [
-        ("no description at all", None, False),
-        ("ImageJ", "ImageJ=1.53t\nimages=1\nslices=1\n", False),
-        ("XML that is not OME", "<MetaData><PlaneInfo/></MetaData>", False),
-        ("OME-XML", ome_xml(image()), True),
+        (None, False),
+        ("ImageJ=1.53t\nimages=1\nslices=1\n", False),
+        ("<MetaData><PlaneInfo/></MetaData>", False),
+        (ome_xml(image()), True),
     ],
+    ids=["no description at all", "ImageJ", "XML that is not OME", "OME-XML"],
 )
 def test_only_an_ome_tiff_yields_a_header(
-    label: str, description: str | None, reads_ome: bool
+    description: str | None, reads_ome: bool
 ) -> None:
     """None rather than a refusal for the rest: those files are described as
     plain TIFFs, and nothing about them was declined."""
