@@ -148,7 +148,39 @@ Because a record spans several files located by path, this is the one handler th
 
 ## Images
 
-Standard images are read with Pillow. Multi-band or scientific TIFFs fall back to `tifffile`. All images in a dataset are grouped into one `cr:FileSet` with a single summary `cr:RecordSet` covering width, height, color mode, and encoding format.
+Standard images (`.png`, `.jpg`, `.gif`, `.bmp`, `.webp`, `.ico`) are read with Pillow. Every TIFF — `.tif`, `.tiff` and the BigTIFF spelling `.btf` — is read with `tifffile`. Pillow opens some TIFFs too, but reports one band for a three-channel image, decodes the ImageDescription tag as latin-1 so `µm` comes back mojibake, and opens none of the twelve-band rasters this repository carries.
+
+BigTIFF is not a separate format but classic TIFF's 64-bit offset field, which any writer switches to at 4 GiB — the size whole-slide imaging, electron-microscopy volumes and large rasters all cross. `image_format` stays `TIFF` for a `.btf` and `encodingFormat` stays `image/tiff`: BigTIFF has no registration of its own.
+
+Images are grouped into one `cr:FileSet` and one summary `cr:RecordSet` covering width, height, band count and encoding format. Only the header is read, at any file size.
+
+!!! note
+    Reading a wrapped TIFF costs more than reading a wrapped file of any other format. A backward seek on a compressed stream is a decompression from offset 0, and `tifffile` seeks to the end of the file once and rewinds two or three times — so a `.tif.gz` is decompressed two to three times over. `.bz2` and `.xz` are far dearer again. An uncompressed TIFF pays none of this.
+
+### OME-TIFF
+
+OME-TIFF is the interchange format of light microscopy: what Bio-Formats writes, and what OMERO and the Image Data Resource serve. Its TIFF header carries an OME-XML document describing the image, and those files get a collection of their own:
+
+| Node | Content |
+|------|---------|
+| `cr:FileSet` `ome-image-files` | the OME files, listed individually |
+| `cr:RecordSet` `ome_images` | one row per OME **file**, with the fields below |
+
+`ome_version`, `ome_image_count`, `size_c`, `size_z`, `size_t`, `dimension_order`, `pixel_type`, `physical_size_x`, `physical_size_y`, `physical_size_unit`, and `channel_names` as one array field. A field whose OME attribute no file in the batch declares is not emitted.
+
+**The OME files leave the `images` collection.** Ten OME fields on the shared record set would attribute a pixel size to every PNG in the same directory, so the two collections partition the batch instead: every image is in exactly one. A consumer reading only `images` stops seeing the OME files. The `ome-image-files` FileSet lists its files rather than globbing, because a `**/*.tif` pattern would re-admit the plain TIFFs beside them; for the same reason, `images` lists any file whose extension an OME file also uses, and keeps a glob for every other extension.
+
+**Rows are files, not images.** One OME-XML document may declare several `<Image>` elements, and one logical image may be spread over several `.ome.tif` files linked by `TiffData/UUID/@FileName`. Neither is grouped here. So the Pixels fields describe `Image[0]` of each file, `ome_image_count` says how many the file declared, and the record-set description states both. `num_bands` keeps its meaning — TIFF `SamplesPerPixel`, genuinely 1 for a three-channel OME stored as three IFDs — and `size_c` is the channel count.
+
+**No `Field.value` is emitted.** The per-file numbers stay in the files; what each field's description carries is the range or the set the batch was observed to hold. Channel names are emitted this way, because the OME schema defines `Channel/@Name` as the label of an acquisition channel — an antibody, a probe, a fluorophore — which is what makes an imaging dataset findable. `Image/@Name` is not, and neither are `Creator` or the file `UUID`: the schema says nothing about what they contain, and in practice they hold slide labels and operator notes. Where the format guarantees the semantics the vocabulary may be described; where it guarantees nothing it may not.
+
+Only the `image` field carries `extract: {fileProperty: content}`, because its content *is* the file's content. mlcroissant reads `image/tiff` content as the decoded pixels, so the same extract on `size_c` would ask a consumer to cast an image to an integer. Every header field is sourced `{fileSet}` and nothing more.
+
+The OME-XML is parsed with `xml.etree.ElementTree` and no new dependency. A document that declares a DTD or an entity is not parsed, and neither is one over 8 MiB. The file is still described, as a plain TIFF; the refusal is counted in the record-set description, which is the only place it can live: a described file has no entry in the scan report to carry a reason. A WARNING naming the file is logged as well, for an application that configures logging — croissant-baker owns no terminal and configures none itself.
+
+A `BinaryOnly` document is a place-holder: the schema forbids it any content beyond a pointer to a companion `.companion.ome` file. The companion is named in the description and not read, and the place-holder contributes no header fields — not even the zero images it declares, which describes the stub rather than the image the file holds.
+
+Not read: `Plane`, `Objective`, `TimeIncrement`, plate and well metadata, pyramid levels, and the vendor TIFF dialects (`.svs`, `.ndpi`, `.scn`, `.qptiff`).
 
 ## DICOM
 
