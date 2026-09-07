@@ -101,6 +101,7 @@ def test_a_user_block_past_the_peek_is_not_claimed(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "prefix",
     [b"", b"\x89HDF", b"not hdf5 at all", b"\x00" * 512 + b"\x89HDF\r\n\x1a\x00"],
+    ids=["empty", "half a signature", "unrelated bytes", "corrupt at offset 512"],
 )
 def test_bytes_that_are_not_hdf5_are_not_claimed(prefix: bytes) -> None:
     assert not hdf5.looks_like_hdf5(prefix)
