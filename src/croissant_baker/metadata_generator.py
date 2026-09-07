@@ -21,6 +21,10 @@ from croissant_baker.identifiers import (
     _disambiguate_record_sets,
     serialize_datetime,
 )
+from croissant_baker.references import (
+    ReferenceReport,
+    detect_foreign_keys,
+)
 
 from croissant_baker import compression
 from croissant_baker.handlers.base_handler import BuildResult
@@ -116,6 +120,19 @@ def _apply_field_mappings(
                 count,
                 name,
             )
+
+
+def _field_named(record_set, column: str):
+    """The Field of ``record_set`` whose name is ``column``.
+
+    Raises rather than returning None: the caller looks these up by names the
+    detector copied out of descriptors built from these very Field objects, so
+    a miss is a broken invariant and not an input a link should be dropped over.
+    """
+    for candidate in record_set.fields or []:
+        if candidate.name == column:
+            return candidate
+    raise KeyError(f"record set {record_set.id!r} has no field named {column!r}")
 
 
 class MetadataGenerator:
@@ -252,6 +269,8 @@ class MetadataGenerator:
         # One entry per file the last generate_metadata() call scanned, each
         # carrying what became of it. Empty until then.
         self._scan_entries: list[ScanEntry] = []
+        # What the foreign-key pass found, or None when it did not run.
+        self._reference_report: Optional[ReferenceReport] = None
 
     @property
     def scan_report(self) -> ScanReport:
@@ -263,6 +282,17 @@ class MetadataGenerator:
         error can still ask why. Empty before the first call.
         """
         return ScanReport(self._scan_entries)
+
+    @property
+    def reference_report(self) -> Optional[ReferenceReport]:
+        """What foreign-key detection found, or None when it did not run.
+
+        Three states, because they mean different things to a reader: None
+        for a bake that never ran the pass (``detect_references`` off, or
+        assembly raised before it), an empty report for one that ran and
+        found nothing, and a populated one otherwise.
+        """
+        return self._reference_report
 
     def generate_metadata(self, progress_callback=None) -> dict:
         """Generate complete Croissant metadata for the dataset.
@@ -286,6 +316,7 @@ class MetadataGenerator:
             exclude_patterns=self.excludes,
         )
         self._scan_entries = entries
+        self._reference_report = None
         total_files = len(entries)
 
         # Each worker touches only its own entry, and entries are read back in
@@ -374,8 +405,6 @@ class MetadataGenerator:
                 dependants[entry.duplicate_of].append(entry)
 
         # TODO: future improvements per handler:
-        #   - references: detect foreign-key columns (e.g. subject_id) and emit
-        #     cr:references links between RecordSets — high-impact for EHR data.
         #   - enumerations: for low-cardinality categorical columns, emit
         #     sc:Enumeration RecordSets.
         by_handler: dict = defaultdict(list)
@@ -470,7 +499,7 @@ class MetadataGenerator:
         # batch is visible at once.
         record_sets = _disambiguate_record_sets(batches)
 
-        if self.detect_references and len(record_sets) >= 2:
+        if self.detect_references:
             self._apply_reference_detection(record_sets)
 
         described_metas = [
@@ -628,11 +657,13 @@ class MetadataGenerator:
         Opt-in via ``detect_references``. Delegates the (pure) detection to
         ``references.detect_foreign_keys`` and maps its result back onto the real
         Field objects. Conservative: a child field's ``references`` is set only
-        when a shared key column has a parent RecordSet identifiable by name;
-        unresolved shared keys are logged, not linked.
-        """
-        from croissant_baker.references import detect_foreign_keys
+        when a shared key column has a parent RecordSet identifiable by name.
 
+        What it found is stored on :attr:`reference_report` rather than logged.
+        Nothing configures logging for this package — ``__init__`` attaches a
+        NullHandler — so a log record here reaches nobody, and the CLI owns
+        terminal output.
+        """
         descriptors = [
             {
                 "id": rs.id,
@@ -642,40 +673,15 @@ class MetadataGenerator:
             for rs in record_sets
         ]
         links, unresolved = detect_foreign_keys(descriptors)
+        self._reference_report = ReferenceReport(links=links, unresolved=unresolved)
 
         rs_by_id = {rs.id: rs for rs in record_sets}
-        applied = 0
         for link in links:
-            parent_rs = rs_by_id.get(link["parent_rs"])
-            child_rs = rs_by_id.get(link["child_rs"])
-            if parent_rs is None or child_rs is None:
-                continue
-            parent_field = next(
-                (f for f in parent_rs.fields if f.name == link["parent_column"]),
-                None,
+            parent_field = _field_named(
+                rs_by_id[link["parent_rs"]], link["parent_column"]
             )
-            child_field = next(
-                (f for f in child_rs.fields if f.name == link["column"]), None
-            )
-            if parent_field is None or child_field is None:
-                continue
+            child_field = _field_named(rs_by_id[link["child_rs"]], link["column"])
             child_field.references = mlc.Source(field=parent_field.id)
-            applied += 1
-
-        if applied or unresolved:
-            logger.info(
-                "reference detection: linked %d foreign key(s); %d shared key(s) "
-                "had no name-identifiable parent",
-                applied,
-                len(unresolved),
-            )
-        for unresolved_key in unresolved:
-            logger.info(
-                "  shared key '%s' across %d record sets — no parent table named "
-                "after it; not linked",
-                unresolved_key["column"],
-                len(unresolved_key["record_sets"]),
-            )
 
     def _build_description(self, file_metadata: list) -> str:
         if self.description:

@@ -178,6 +178,25 @@ def _echo_scan_coverage(
         )
 
 
+def _echo_reference_summary(
+    generator: Optional["MetadataGenerator"], verbose: bool
+) -> None:
+    """Print what foreign-key detection linked, and what it declined to link.
+
+    Silent unless ``--detect-references`` ran: the report is ``None`` otherwise,
+    so a default bake says nothing about a pass it never made. Like the coverage
+    section, the default is one line whatever the dataset, and only ``--verbose``
+    names a column per line.
+    """
+    if generator is None:
+        return
+    report = generator.reference_report
+    if report is None:
+        return
+    for line in report.summary_lines(verbose=verbose):
+        typer.echo(line)
+
+
 def _warn_missing_spec_fields(**provided: object) -> None:
     """Warn about spec-required fields that were not explicitly provided."""
     missing = [
@@ -554,7 +573,7 @@ def main(
     detect_references: bool = typer.Option(
         False,
         "--detect-references",
-        help="Detect foreign keys between tables that share a key column (e.g. subject_id) and emit cr:references links. Conservative: links only when a parent table is identifiable by name.",
+        help="Detect foreign keys between tables that share a key column (e.g. subject_id) and emit cr:references links. Conservative: links only when a parent table is identifiable by name; shared keys it will not link are reported, and named under --verbose.",
     ),
     # Native mlcroissant RAI fields exposed directly as CLI flags.
     rai_data_collection: Optional[str] = typer.Option(
@@ -961,6 +980,7 @@ def main(
         _echo_file_counts(file_count, file_set_count)
         typer.echo(f"Record sets: {record_count}")
         _echo_scan_coverage(generator, report, verbose)
+        _echo_reference_summary(generator, verbose)
         typer.echo(f"Saved to: {output}")
 
         if not validate:

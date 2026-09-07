@@ -40,6 +40,7 @@ $ croissant-baker [OPTIONS] COMMAND [ARGS]...
 * `--field-mapping TEXT`: Link one column to an external vocabulary URI. Format: 'COLUMN=URI'. Example: --field-mapping 'age=http://www.wikidata.org/entity/Q11464'. Matches by bare column name across all RecordSets; a warning prints if a name resolves to multiple fields. Repeatable; combine with --field-mappings (flags override YAML).
 * `--count-csv-rows`: Count exact row numbers for CSV files (slow for large datasets)
 * `-j, --jobs INTEGER`: Worker threads for file extraction. 0 = auto (from CPU count), 1 = serial. Output is identical regardless of this value.  [default: 0]
+* `--detect-references`: Detect foreign keys between tables that share a key column (e.g. subject_id) and emit cr:references links. Conservative: links only when a parent table is identifiable by name; shared keys it will not link are reported, and named under --verbose.
 * `--rai-data-collection TEXT`: How and where the data was gathered.
 * `--rai-data-collection-type TEXT`: Collection type, e.g. 'observational'. Can be used multiple times.
 * `--rai-data-collection-missing-data TEXT`: How missing data was handled during collection.
