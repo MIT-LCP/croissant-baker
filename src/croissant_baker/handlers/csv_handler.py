@@ -162,24 +162,46 @@ class CSVHandler(FileTypeHandler):
     #: exports lead with one; PyArrow has no comment option, so the rows are
     #: counted and skipped instead. Bounded, because a file that is entirely
     #: comments has no header to find and is not a preamble at all.
+    #: A ``#`` line is a comment only when it has fewer delimiters than the
+    #: first nonempty non-``#`` row, so headers like ``#,name,age`` stay.
     _COMMENT_PREFIX = "#"
     _MAX_PREAMBLE_ROWS = 100
 
     @classmethod
     def _preamble_rows(cls, source: FileSource) -> int:
-        """How many leading comment lines precede the header row."""
-        rows = 0
+        """How many leading comment lines precede the header row.
+
+        A ``#`` line is a comment only when it has fewer delimiters than the
+        first nonempty non-``#`` row. Headers like ``#,name,age`` and
+        ``#chrom,start,end`` match the row shape and are kept.
+        """
+        delim = cls._delimiter()
+        hashes: list[int] = []
+        in_preamble = True
+        ref: int | None = None
         try:
             with source.open_text() as fh:
                 for line in fh:
-                    if not line.startswith(cls._COMMENT_PREFIX):
-                        return rows
-                    rows += 1
-                    if rows > cls._MAX_PREAMBLE_ROWS:
-                        return 0
+                    if in_preamble and line.startswith(cls._COMMENT_PREFIX):
+                        hashes.append(line.count(delim))
+                        if len(hashes) > cls._MAX_PREAMBLE_ROWS:
+                            return 0
+                        continue
+                    in_preamble = False
+                    if line.startswith(cls._COMMENT_PREFIX) or not line.strip():
+                        continue
+                    ref = line.count(delim)
+                    break
         except (OSError, UnicodeDecodeError, EOFError):
             return 0
-        return 0
+        if ref is None:
+            return 0
+        skip = 0
+        for n in hashes:
+            if n >= ref:
+                break
+            skip += 1
+        return skip
 
     @staticmethod
     def _read_streaming(

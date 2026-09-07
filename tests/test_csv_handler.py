@@ -177,14 +177,27 @@ _PROBE_SET = (
 _HEADER_AND_ROWS = "id,note\n1,#1 ranked\n2,plain\n"
 
 
+_HASH_HEADER = "#,name,age\n1,Ann,30\n2,Bob,40\n"
+_CHROM_HEADER = "#chrom,start,end\nchr1,100,200\nchr2,300,400\n"
+_MIXED_PREAMBLE_AND_HASH_HEADER = "#meta\n" + _HASH_HEADER
+
+
 @pytest.mark.parametrize(
     "text, columns",
     [
         (_PROBE_SET, ["gene_id", "probe_seq", "included"]),
         (_HEADER_AND_ROWS, ["id", "note"]),
         ("#c\n" * 100 + _HEADER_AND_ROWS, ["id", "note"]),
+        (_CHROM_HEADER, ["#chrom", "start", "end"]),
+        (_MIXED_PREAMBLE_AND_HASH_HEADER, ["#", "name", "age"]),
     ],
-    ids=["10x-probe-set", "hash-inside-data", "at-the-preamble-bound"],
+    ids=[
+        "10x-probe-set",
+        "hash-inside-data",
+        "at-the-preamble-bound",
+        "hash-chrom-header",
+        "comment-then-hash-header",
+    ],
 )
 def test_a_leading_comment_run_is_skipped_and_nothing_else_is(
     tmp_path: Path, text: str, columns: list
@@ -210,3 +223,23 @@ def test_a_preamble_past_the_bound_is_not_skipped(tmp_path: Path) -> None:
     path.write_text("#c\n" * 101 + _HEADER_AND_ROWS, encoding="utf-8")
 
     assert CSVHandler()._preamble_rows(make_source(path, Path("all_comments.csv"))) == 0
+
+
+def test_a_hash_header_is_not_a_preamble(tmp_path: Path) -> None:
+    """A header that starts with ``#`` is a column name, not a comment.
+
+    Skipping it makes the first data row the header: names go missing, types
+    infer as Text, and a loader keyed on those names returns garbage.
+    """
+    path = tmp_path / "numbered.csv"
+    path.write_text(_HASH_HEADER, encoding="utf-8")
+
+    meta = CSVHandler().extract(
+        make_source(path, Path("numbered.csv")), count_rows=True
+    )
+
+    assert meta["columns"] == ["#", "name", "age"]
+    assert meta["column_types"]["#"] == "cr:Int64"
+    assert meta["column_types"]["name"] == "sc:Text"
+    assert meta["column_types"]["age"] == "cr:Int64"
+    assert meta["num_rows"] == 2
