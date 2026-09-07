@@ -66,7 +66,10 @@
       "name": "2023-01-01-0.jsonl.gz",
       "contentSize": "60622",
       "contentUrl": "2023-01-01-0.jsonl.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/jsonl",
+        "application/gzip"
+      ],
       "sha256": "43551235ffd6f79d52bf4fa5372efa9efedc9559d91717ffc625234ba9a1c7c1"
     }
   ],

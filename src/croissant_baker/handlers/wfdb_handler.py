@@ -5,7 +5,12 @@ import wfdb
 
 import mlcroissant as mlc
 
-from croissant_baker.handlers.base_handler import FileTypeHandler
+from croissant_baker.handlers.base_handler import (
+    BuildResult,
+    FileTypeHandler,
+    InputKind,
+)
+from croissant_baker.sources import FileSource, PathSource
 from croissant_baker.handlers.utils import (
     _disambiguate_ids,
     compute_file_hash,
@@ -34,10 +39,15 @@ class WFDBHandler(FileTypeHandler):
     FORMAT_NAME = "WFDB"
     FORMAT_DESCRIPTION = "Signal names, sampling frequency, duration, number of signals"
 
-    def can_handle(self, file_path: Path) -> bool:
-        return file_path.suffix.lower() == ".hea"
+    #: A WFDB record is a header read together with its sibling .dat and .atr
+    #: files, located by path; no single stream carries all three.
+    INPUT_KIND = InputKind.PATH
 
-    def extract_metadata(self, file_path: Path, **kwargs) -> dict:
+    def claims(self, source: FileSource) -> bool:
+        return source.suffix == ".hea"
+
+    def extract(self, source: PathSource, **kwargs) -> dict:
+        file_path = source.path
         if not file_path.exists():
             raise FileNotFoundError(f"WFDB header file not found: {file_path}")
 
@@ -81,10 +91,11 @@ class WFDBHandler(FileTypeHandler):
         duration_seconds = record.sig_len / record.fs if record.fs > 0 else 0
 
         metadata = {
-            "file_path": str(file_path),
-            "file_name": file_path.name,
-            "file_size": file_path.stat().st_size,
-            "sha256": compute_file_hash(file_path),
+            # The siblings are this handler's to measure: nothing else in the
+            # pipeline knows they belong to this record.
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
             "encoding_format": "application/x-wfdb-header",
             "record_name": record.record_name,
             "related_files": related_files,
@@ -171,4 +182,4 @@ class WFDBHandler(FileTypeHandler):
                 )
             )
 
-        return [], record_sets
+        return BuildResult([], record_sets)

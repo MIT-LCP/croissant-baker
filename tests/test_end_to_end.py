@@ -797,8 +797,15 @@ def test_open_targets_like_generation(
         "credible_set",
     }
 
-    # FileSets should carry directory-scoped glob patterns
-    includes_patterns = {fs["includes"] for fs in file_sets}
+    # FileSets carry directory-scoped glob patterns, widened by the generator to
+    # cover every registered compression, so includes is a list.
+    includes_patterns = {
+        pattern
+        for fs in file_sets
+        for pattern in (
+            fs["includes"] if isinstance(fs["includes"], list) else [fs["includes"]]
+        )
+    }
     assert "diseases/*.parquet" in includes_patterns
     assert "targets/*.parquet" in includes_patterns
     assert "association_by_datatype_direct/*.parquet" in includes_patterns
@@ -1262,18 +1269,22 @@ def test_spect_demo_generation(spect_demo_path: Path, output_dir: Path) -> None:
     if not isinstance(distribution, list):
         distribution = [distribution]
     file_objects = [d for d in distribution if d.get("@type") == "cr:FileObject"]
-    file_sets_by_format = {
-        d["encodingFormat"]: d for d in distribution if d.get("@type") == "cr:FileSet"
+    file_sets_by_id = {
+        d["@id"]: d for d in distribution if d.get("@type") == "cr:FileSet"
     }
 
-    # 3 DICOM + 3 NIfTI = 6 FileObjects, 2 FileSets keyed by encoding format.
+    # 3 DICOM + 3 NIfTI = 6 FileObjects, one FileSet each.
     assert len(file_objects) == 6
-    assert set(file_sets_by_format) == {
-        "application/dicom",
-        "application/x-nifti+gzip",
-    }
-    assert "NM (3)" in file_sets_by_format["application/dicom"]["description"]
-    assert "70x70x50" in file_sets_by_format["application/x-nifti+gzip"]["description"]
+    assert set(file_sets_by_id) == {"dicom-files", "nifti-files"}
+    # The handler reports its own format; the generator adds the wrapper, so the
+    # gzipped NIfTI set carries both rather than the fused x-nifti+gzip.
+    assert file_sets_by_id["dicom-files"]["encodingFormat"] == "application/dicom"
+    assert file_sets_by_id["nifti-files"]["encodingFormat"] == [
+        "application/x-nifti",
+        "application/gzip",
+    ]
+    assert "NM (3)" in file_sets_by_id["dicom-files"]["description"]
+    assert "70x70x50" in file_sets_by_id["nifti-files"]["description"]
 
     record_sets = metadata.get("recordSet", [])
     if not isinstance(record_sets, list):

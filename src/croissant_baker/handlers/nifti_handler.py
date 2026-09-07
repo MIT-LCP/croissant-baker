@@ -1,127 +1,139 @@
 """NIfTI file handler for neuroimaging datasets."""
 
 import logging
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import mlcroissant as mlc
 import nibabel as nib
 
-from croissant_baker.handlers.base_handler import FileTypeHandler
-from croissant_baker.handlers.utils import compute_file_hash
+from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".nii", ".nii.gz"}
-
 MIME_TYPE = "application/x-nifti"
 
+#: sizeof_hdr distinguishes the two NIfTI versions.
+_NIFTI1_HDR_SIZE = 348
+_NIFTI2_HDR_SIZE = 540
 
-def _read_nifti_properties(file_path: Path) -> Dict:
+
+def _image_class(header: bytes):
+    """Pick the nibabel image class from the first four header bytes.
+
+    ``sizeof_hdr`` is 348 for NIfTI-1 and 540 for NIfTI-2, in the file's own
+    endianness.
     """
-    Read NIfTI metadata using nibabel (header only, data array never loaded).
+    size = int.from_bytes(header, "little")
+    if size not in (_NIFTI1_HDR_SIZE, _NIFTI2_HDR_SIZE):
+        size = int.from_bytes(header, "big")
+    return nib.Nifti2Image if size == _NIFTI2_HDR_SIZE else nib.Nifti1Image
+
+
+def _read_nifti_properties(source: FileSource) -> Dict:
+    """
+    Read NIfTI metadata from a stream (header only, data array never loaded).
 
     Extracts spatial dimensions, voxel spacing, data type, and TR for 4D volumes.
-    Works for both NIfTI-1 (.nii, .nii.gz) and NIfTI-2 formats.
+    Works for both NIfTI-1 and NIfTI-2. Read from the stream rather than by
+    path, because ``nib.load`` carries an opener table of its own.
     """
-    img = nib.load(str(file_path))
-    hdr = img.header
+    with source.open() as stream:
+        klass = _image_class(stream.read(4))
+        stream.seek(0)
+        holder = nib.FileHolder(fileobj=stream)
+        img = klass.from_file_map({"header": holder, "image": holder})
+        hdr = img.header
 
-    props: Dict = {}
+        props: Dict = {}
 
-    # NIfTI-1 and NIfTI-2 both expose get_data_shape() and get_zooms().
-    shape = img.shape
-    ndim = len(shape)
+        # NIfTI-1 and NIfTI-2 both expose get_data_shape() and get_zooms().
+        shape = img.shape
+        ndim = len(shape)
 
-    if ndim >= 1:
-        props["dim_x"] = int(shape[0])
-    if ndim >= 2:
-        props["dim_y"] = int(shape[1])
-    if ndim >= 3:
-        props["dim_z"] = int(shape[2])
-    if ndim >= 4:
-        props["dim_t"] = int(shape[3])
+        if ndim >= 1:
+            props["dim_x"] = int(shape[0])
+        if ndim >= 2:
+            props["dim_y"] = int(shape[1])
+        if ndim >= 3:
+            props["dim_z"] = int(shape[2])
+        if ndim >= 4:
+            props["dim_t"] = int(shape[3])
 
-    props["ndim"] = ndim
+        props["ndim"] = ndim
 
-    # Voxel spacing in mm (pixdim[1:4] for spatial dims).
-    zooms = hdr.get_zooms()
-    if len(zooms) >= 1:
-        props["voxel_spacing_x"] = float(zooms[0])
-    if len(zooms) >= 2:
-        props["voxel_spacing_y"] = float(zooms[1])
-    if len(zooms) >= 3:
-        props["voxel_spacing_z"] = float(zooms[2])
+        # Voxel spacing in mm (pixdim[1:4] for spatial dims).
+        zooms = hdr.get_zooms()
+        if len(zooms) >= 1:
+            props["voxel_spacing_x"] = float(zooms[0])
+        if len(zooms) >= 2:
+            props["voxel_spacing_y"] = float(zooms[1])
+        if len(zooms) >= 3:
+            props["voxel_spacing_z"] = float(zooms[2])
 
-    # TR (repetition time in seconds) — only meaningful for 4D fMRI data.
-    if ndim >= 4 and len(zooms) >= 4:
-        tr = float(zooms[3])
-        if tr > 0:
-            props["tr_seconds"] = tr
+        # TR (repetition time in seconds) — only meaningful for 4D fMRI data.
+        if ndim >= 4 and len(zooms) >= 4:
+            tr = float(zooms[3])
+            if tr > 0:
+                props["tr_seconds"] = tr
 
-    # Data type stored in the file.
-    try:
-        props["data_dtype"] = str(hdr.get_data_dtype())
-    except Exception:
-        pass
+        # Data type stored in the file.
+        try:
+            props["data_dtype"] = str(hdr.get_data_dtype())
+        except Exception:
+            pass
 
-    # NIfTI version: NIfTI2Header has sizeof_hdr == 540; NIfTI1 == 348.
-    try:
-        sizeof_hdr = int(hdr["sizeof_hdr"])
-        props["nifti_version"] = 2 if sizeof_hdr == 540 else 1
-    except Exception:
-        props["nifti_version"] = 1
+        props["nifti_version"] = 2 if klass is nib.Nifti2Image else 1
 
-    return props
+        return props
 
 
 class NIfTIHandler(FileTypeHandler):
     """
-    Handler for NIfTI neuroimaging files (.nii, .nii.gz).
+    Handler for NIfTI neuroimaging files (.nii).
 
-    - Detects files by extension (.nii or .nii.gz)
+    - Detects files by extension (.nii)
     - Extracts spatial dimensions, voxel spacing, data type, TR (for fMRI),
       and NIfTI version using nibabel (header only — data array never loaded)
     - Computes SHA256 for reproducibility
     """
 
-    EXTENSIONS = (".nii", ".nii.gz")
+    EXTENSIONS = (".nii",)
     FORMAT_NAME = "NIfTI"
     FORMAT_DESCRIPTION = (
         "Spatial dimensions, voxel spacing, data type, TR for fMRI volumes"
     )
 
-    def can_handle(self, file_path: Path) -> bool:
-        name = file_path.name.lower()
-        return name.endswith(".nii.gz") or name.endswith(".nii")
+    def claims(self, source: FileSource) -> bool:
+        return source.suffix == ".nii"
 
-    def extract_metadata(self, file_path: Path, **kwargs) -> dict:
-        if not file_path.exists():
-            raise FileNotFoundError(f"NIfTI file not found: {file_path}")
+    def extract(self, source: FileSource, **kwargs) -> dict:
+        if not source.exists:
+            raise FileNotFoundError(f"NIfTI file not found: {source.relative_path}")
 
         try:
-            props = _read_nifti_properties(file_path)
+            props = _read_nifti_properties(source)
         except Exception as e:
-            raise ValueError(f"Failed to read NIfTI file {file_path}: {e}") from e
-
-        mime = (
-            "application/x-nifti+gzip"
-            if file_path.name.lower().endswith(".gz")
-            else MIME_TYPE
-        )
+            raise ValueError(
+                f"Failed to read NIfTI file {source.relative_path}: {e}"
+            ) from e
 
         return {
-            "file_path": str(file_path),
-            "file_name": file_path.name,
-            "file_size": file_path.stat().st_size,
-            "sha256": compute_file_hash(file_path),
-            "encoding_format": mime,
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
+            "encoding_format": MIME_TYPE,
             "nifti_properties": props,
         }
 
     def build_croissant(
         self, file_metas: list[dict], file_ids: list[str]
     ) -> tuple[list, list]:
+        # An empty batch has nothing to summarise; emitting a FileSet over
+        # zero files would describe data that is not there.
+        if not file_metas:
+            return BuildResult([], [])
+
         summary = collect_nifti_summary(file_metas)
 
         num_files = summary.get("num_files", len(file_metas))
@@ -153,7 +165,7 @@ class NIfTIHandler(FileTypeHandler):
         dtypes_str = ", ".join(dtype_counts.keys()) if dtype_counts else "unknown dtype"
 
         mime_types = {meta["encoding_format"] for meta in file_metas}
-        includes = ["**/*.nii", "**/*.nii.gz"]
+        includes = ["**/*.nii"]
 
         fileset_id = "nifti-files"
         nifti_fileset = mlc.FileSet(
@@ -249,7 +261,7 @@ class NIfTIHandler(FileTypeHandler):
             fields=fields,
         )
 
-        return [nifti_fileset], [nifti_record_set]
+        return BuildResult([nifti_fileset], [nifti_record_set])
 
 
 def collect_nifti_summary(nifti_metadata_list: List[Dict]) -> Dict:

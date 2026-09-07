@@ -2,17 +2,17 @@
 
 import logging
 import re
-from pathlib import Path
 
 import mlcroissant as mlc
 import pyarrow as pa
 import pyarrow.csv as pa_csv
 
-from croissant_baker.handlers.base_handler import FileTypeHandler
+from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.sources import FileSource
 from croissant_baker.handlers.utils import (
-    compute_file_hash,
     get_clean_record_name,
     infer_column_types_from_arrow_schema,
+    display_name,
     make_field_id,
     make_record_set_ids,
 )
@@ -24,16 +24,9 @@ logger = logging.getLogger(__name__)
 # (verified PyArrow 19.0.1: only .args, .add_note, .with_traceback), so the
 # message string is the only source of column information.
 #
-# Two alternatives were evaluated and ruled out:
-#   DuckDB  — automatic type promotion with no regex, but does not support
-#             .csv.bz2 or .csv.xz (upstream issue duckdb/duckdb#12232, open
-#             as of 2026-04). Keeping both libraries would add ~40 MB for a
-#             net capability regression.
-#   Polars  — structured Schema object, no message parsing. However,
-#             collect_schema() on a 35 MB .csv.gz uses ~200 MB RSS vs ~11 MB
-#             for PyArrow's block-based streaming reader. Unacceptable at
-#             MIMIC-IV scale. If .bz2/.xz support is ever dropped, DuckDB's
-#             read_csv_auto is the right long-term replacement.
+# DuckDB and Polars were evaluated as replacements: DuckDB reads from a path
+# rather than a stream, and Polars' collect_schema() uses ~200 MB RSS on a 35 MB
+# table against PyArrow's ~11 MB.
 _ARROW_COL_RE = re.compile(r"In CSV column #(\d+): CSV conversion error to (\w+)")
 
 # Max promotions before falling back to all-string types. One retry per conflicting
@@ -43,18 +36,14 @@ _MAX_TYPE_CONFLICT_RETRIES = 50
 
 class CSVHandler(FileTypeHandler):
     """
-    Handler for CSV and compressed CSV files with automatic type inference.
+    Handler for CSV files with automatic type inference.
 
     Supports:
-    - Standard CSV files (.csv)
-    - Gzip-compressed CSV files (.csv.gz)
-    - Bzip2-compressed CSV files (.csv.bz2)
-    - XZ-compressed CSV files (.csv.xz)
     - Automatic column type detection using PyArrow
     - SHA256 hash computation for file integrity
 
-    Uses PyArrow's streaming CSV reader (open_csv) which:
-    - Auto-detects compressed formats from filename extension
+    Uses PyArrow's streaming CSV reader (open_csv), given the decompressed
+    stream the source provides, which:
     - Infers precise types (timestamp[s], date32, int64, float64, etc.)
     - Streams data for constant memory usage regardless of file size
 
@@ -69,10 +58,10 @@ class CSVHandler(FileTypeHandler):
        file falls back to all-string types to preserve correctness.
 
     Subclass this to support other delimiter-separated formats — override
-    can_handle(), _delimiter(), and _encoding_format(). See TSVHandler.
+    _suffix(), _delimiter() and _encoding_format(). See TSVHandler.
     """
 
-    EXTENSIONS = (".csv", ".csv.gz", ".csv.bz2", ".csv.xz")
+    EXTENSIONS = (".csv",)
     FORMAT_NAME = "CSV"
     FORMAT_DESCRIPTION = "Column names, inferred types, optional row count"
 
@@ -92,11 +81,12 @@ class CSVHandler(FileTypeHandler):
     # Streaming with per-column type promotion
     # ------------------------------------------------------------------
 
-    def _stream_csv(self, file_path: Path, count_rows: bool = False):
+    def _stream_csv(self, source: FileSource, count_rows: bool = False):
         """Return (column_types, columns, num_rows) by streaming the CSV."""
         overrides: dict = {}
         col_names: list | None = None
-        delimiter = self._delimiter(file_path)
+        delimiter = self._delimiter()
+        skip_rows = self._preamble_rows(source)
 
         for _ in range(_MAX_TYPE_CONFLICT_RETRIES):
             opts = pa_csv.ConvertOptions(
@@ -105,18 +95,24 @@ class CSVHandler(FileTypeHandler):
             )
             try:
                 result = self._read_streaming(
-                    file_path, opts, count_rows=count_rows, delimiter=delimiter
+                    source,
+                    opts,
+                    count_rows=count_rows,
+                    delimiter=delimiter,
+                    skip_rows=skip_rows,
                 )
                 if overrides:
                     logger.info(
                         "%s: promoted %d column(s) due to type conflicts",
-                        file_path.name,
+                        source.relative_path,
                         len(overrides),
                     )
                 return result
             except pa.lib.ArrowInvalid as exc:
                 if col_names is None:
-                    col_names = self._header(file_path, delimiter=delimiter)
+                    col_names = self._header(
+                        source, delimiter=delimiter, skip_rows=skip_rows
+                    )
 
                 idx, inferred = self._parse_conflict(str(exc))
 
@@ -130,7 +126,7 @@ class CSVHandler(FileTypeHandler):
                         overrides[name] = pa.string()
                     logger.debug(
                         "%s: promoted column '%s' to %s",
-                        file_path.name,
+                        source.relative_path,
                         name,
                         overrides[name],
                     )
@@ -139,31 +135,81 @@ class CSVHandler(FileTypeHandler):
 
         # Last resort: read everything as strings.
         if col_names is None:
-            col_names = self._header(file_path, delimiter=delimiter)
+            col_names = self._header(source, delimiter=delimiter, skip_rows=skip_rows)
         if len(overrides) >= _MAX_TYPE_CONFLICT_RETRIES:
             logger.warning(
                 "%s: hit type conflict limit (%d), falling back to all-string types",
-                file_path.name,
+                source.relative_path,
                 _MAX_TYPE_CONFLICT_RETRIES,
             )
         else:
             logger.warning(
                 "%s: falling back to all-string types (could not parse type conflict)",
-                file_path.name,
+                source.relative_path,
             )
         opts = pa_csv.ConvertOptions(
             column_types={n: pa.string() for n in col_names},
         )
         return self._read_streaming(
-            file_path, opts, count_rows=count_rows, delimiter=delimiter
+            source,
+            opts,
+            count_rows=count_rows,
+            delimiter=delimiter,
+            skip_rows=skip_rows,
         )
+
+    #: A leading ``#`` block is a metadata preamble, not data. 10x probe-set
+    #: exports lead with one; PyArrow has no comment option, so the rows are
+    #: counted and skipped instead. Bounded, because a file that is entirely
+    #: comments has no header to find and is not a preamble at all.
+    #: A ``#`` line is a comment only when it has fewer delimiters than the
+    #: first nonempty non-``#`` row, so headers like ``#,name,age`` stay.
+    _COMMENT_PREFIX = "#"
+    _MAX_PREAMBLE_ROWS = 100
+
+    @classmethod
+    def _preamble_rows(cls, source: FileSource) -> int:
+        """How many leading comment lines precede the header row.
+
+        A ``#`` line is a comment only when it has fewer delimiters than the
+        first nonempty non-``#`` row. Headers like ``#,name,age`` and
+        ``#chrom,start,end`` match the row shape and are kept.
+        """
+        delim = cls._delimiter()
+        hashes: list[int] = []
+        in_preamble = True
+        ref: int | None = None
+        try:
+            with source.open_text() as fh:
+                for line in fh:
+                    if in_preamble and line.startswith(cls._COMMENT_PREFIX):
+                        hashes.append(line.count(delim))
+                        if len(hashes) > cls._MAX_PREAMBLE_ROWS:
+                            return 0
+                        continue
+                    in_preamble = False
+                    if line.startswith(cls._COMMENT_PREFIX) or not line.strip():
+                        continue
+                    ref = line.count(delim)
+                    break
+        except (OSError, UnicodeDecodeError, EOFError):
+            return 0
+        if ref is None:
+            return 0
+        skip = 0
+        for n in hashes:
+            if n >= ref:
+                break
+            skip += 1
+        return skip
 
     @staticmethod
     def _read_streaming(
-        file_path: Path,
+        source: FileSource,
         convert_options,
         count_rows: bool = False,
         delimiter: str = ",",
+        skip_rows: int = 0,
     ):
         """Open a streaming reader, extract schema, and optionally count rows.
 
@@ -176,19 +222,27 @@ class CSVHandler(FileTypeHandler):
         """
         parse_options = pa_csv.ParseOptions(delimiter=delimiter)
         try:
-            reader_cm = pa_csv.open_csv(
-                str(file_path),
-                convert_options=convert_options,
-                parse_options=parse_options,
-            )
-        except UnicodeDecodeError as exc:
-            raise ValueError(f"Encoding error in {file_path}: {exc}")
+            stream = source.open()
+        except OSError as exc:
+            raise ValueError(f"Cannot open {source.relative_path}: {exc}")
 
-        with reader_cm as reader:
-            schema = reader.schema
-            column_types = infer_column_types_from_arrow_schema(schema)
-            columns = schema.names
-            num_rows = sum(batch.num_rows for batch in reader) if count_rows else None
+        try:
+            with stream:
+                reader_cm = pa_csv.open_csv(
+                    stream,
+                    read_options=pa_csv.ReadOptions(skip_rows=skip_rows),
+                    convert_options=convert_options,
+                    parse_options=parse_options,
+                )
+                with reader_cm as reader:
+                    schema = reader.schema
+                    column_types = infer_column_types_from_arrow_schema(schema)
+                    columns = schema.names
+                    num_rows = (
+                        sum(batch.num_rows for batch in reader) if count_rows else None
+                    )
+        except UnicodeDecodeError as exc:
+            raise ValueError(f"Encoding error in {source.relative_path}: {exc}")
 
         return column_types, columns, num_rows
 
@@ -203,55 +257,46 @@ class CSVHandler(FileTypeHandler):
         return (int(m.group(1)), m.group(2)) if m else (None, None)
 
     @staticmethod
-    def _header(file_path: Path, delimiter: str = ",") -> list[str]:
-        with pa_csv.open_csv(
-            str(file_path),
-            parse_options=pa_csv.ParseOptions(delimiter=delimiter),
-        ) as reader:
+    def _header(
+        source: FileSource, delimiter: str = ",", skip_rows: int = 0
+    ) -> list[str]:
+        with (
+            source.open() as stream,
+            pa_csv.open_csv(
+                stream,
+                read_options=pa_csv.ReadOptions(skip_rows=skip_rows),
+                parse_options=pa_csv.ParseOptions(delimiter=delimiter),
+            ) as reader,
+        ):
             return reader.schema.names
 
     @staticmethod
-    def _delimiter(file_path: Path) -> str:  # noqa: ARG004
-        """Return the field delimiter for this file. Override in subclasses."""
+    def _delimiter() -> str:
+        """Return the field delimiter for this format. Override in subclasses."""
         return ","
 
     @staticmethod
-    def _encoding_format(file_path: Path) -> str:
-        """Return the IANA media type for this file. Override in subclasses."""
-        name_lower = file_path.name.lower()
-        if name_lower.endswith(".csv.gz"):
-            return "application/gzip"
-        if name_lower.endswith(".csv.bz2"):
-            return "application/x-bzip2"
-        if name_lower.endswith(".csv.xz"):
-            return "application/x-xz"
+    def _suffix() -> str:
+        """Return the logical suffix this handler claims. Override in subclasses."""
+        return ".csv"
+
+    @staticmethod
+    def _encoding_format() -> str:
+        """Return this format's own media type. Override in subclasses.
+
+        The compression media type, if any, is added by the generator.
+        """
         return "text/csv"
 
     # ------------------------------------------------------------------
     # FileTypeHandler interface
     # ------------------------------------------------------------------
 
-    def can_handle(self, file_path: Path) -> bool:
-        """
-        Check if the file is a CSV or compressed CSV file.
+    def claims(self, source: FileSource) -> bool:
+        """Claim any CSV, wrapped or not — ``source.suffix`` is logical."""
+        return source.suffix == self._suffix()
 
-        Args:
-            file_path: Path to check
-
-        Returns:
-            True if file has supported CSV extension
-        """
-        name_lower = file_path.name.lower()
-        return (
-            file_path.suffix.lower() == ".csv"
-            or name_lower.endswith(".csv.gz")
-            or name_lower.endswith(".csv.bz2")
-            or name_lower.endswith(".csv.xz")
-        )
-
-    def extract_metadata(
-        self, file_path: Path, count_rows: bool = False, **kwargs
-    ) -> dict:
+    def extract(self, source: FileSource, count_rows: bool = False, **kwargs) -> dict:
         """
         Extract comprehensive metadata from a CSV file.
 
@@ -259,7 +304,7 @@ class CSVHandler(FileTypeHandler):
         including timestamp detection and precise numeric types.
 
         Args:
-            file_path: Path to the CSV file
+            source: The CSV file, compression already resolved
             count_rows: If True, scan entire file for exact row count.
                         Defaults to False for performance (returns num_rows=None).
 
@@ -273,29 +318,30 @@ class CSVHandler(FileTypeHandler):
             ValueError: If the CSV file cannot be read or processed
             FileNotFoundError: If the file doesn't exist
         """
-        if not file_path.exists():
-            raise FileNotFoundError(f"CSV file not found: {file_path}")
+        if not source.exists:
+            raise FileNotFoundError(
+                f"{self.FORMAT_NAME} file not found: {source.relative_path}"
+            )
 
-        column_types, columns, num_rows = self._stream_csv(
-            file_path, count_rows=count_rows
-        )
+        try:
+            column_types, columns, num_rows = self._stream_csv(
+                source, count_rows=count_rows
+            )
+        except pa.lib.ArrowInvalid as exc:
+            # ArrowInvalid is a ValueError subclass, so without this the scan
+            # report would carry a raw parser message naming no file.
+            raise ValueError(
+                f"Failed to read {self.FORMAT_NAME} file {source.relative_path}: {exc}"
+            ) from exc
 
         if count_rows and num_rows == 0:
-            raise ValueError(f"CSV file is empty: {file_path}")
-
-        # Extract file properties
-        file_size = file_path.stat().st_size
-        sha256_hash = compute_file_hash(file_path)
-
-        # Determine encoding format based on file extension
-        encoding_format = self._encoding_format(file_path)
+            raise ValueError(f"CSV file is empty: {source.relative_path}")
 
         return {
-            "file_path": str(file_path),
-            "file_name": file_path.name,
-            "file_size": file_size,
-            "sha256": sha256_hash,
-            "encoding_format": encoding_format,
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
+            "encoding_format": self._encoding_format(),
             "column_types": column_types,
             "num_rows": num_rows,
             "num_columns": len(columns),
@@ -307,6 +353,7 @@ class CSVHandler(FileTypeHandler):
         rs_ids = make_record_set_ids(file_metas)
         for file_id, file_meta, rs_id in zip(file_ids, file_metas, rs_ids):
             rs_name = get_clean_record_name(file_meta["file_name"])
+            shown = display_name(file_meta)
 
             used_field_ids: set = set()
             fields = []
@@ -315,7 +362,7 @@ class CSVHandler(FileTypeHandler):
                 field = mlc.Field(
                     id=field_id,
                     name=col_name,
-                    description=f"Column '{col_name}' from {file_meta['file_name']}",
+                    description=f"Column '{col_name}' from {shown}",
                     data_types=[col_type],
                     source=mlc.Source(
                         file_object=file_id,
@@ -330,9 +377,9 @@ class CSVHandler(FileTypeHandler):
                 mlc.RecordSet(
                     id=rs_id,
                     name=rs_name,
-                    description=f"Records from {file_meta['file_name']}{row_desc}",
+                    description=f"Records from {shown}{row_desc}",
                     fields=fields,
                 )
             )
 
-        return [], record_sets
+        return BuildResult([], record_sets)

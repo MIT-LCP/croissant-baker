@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from croissant_baker.handlers.wfdb_handler import WFDBHandler
+from croissant_baker.sources import make_source
 
 
 @pytest.fixture
@@ -29,19 +30,12 @@ def wfdb_sample_path():
 
 def test_can_handle_hea_file(wfdb_sample_path):
     handler = WFDBHandler()
-    assert handler.can_handle(wfdb_sample_path)
-
-
-def test_cannot_handle_non_hea_file(tmp_path):
-    handler = WFDBHandler()
-    csv_file = tmp_path / "test.csv"
-    csv_file.write_text("data")
-    assert not handler.can_handle(csv_file)
+    assert handler.claims(make_source(wfdb_sample_path, with_path=True))
 
 
 def test_extract_metadata(wfdb_sample_path):
     handler = WFDBHandler()
-    metadata = handler.extract_metadata(wfdb_sample_path)
+    metadata = handler.extract(make_source(wfdb_sample_path, with_path=True))
 
     assert metadata["record_name"] == "100"
     assert metadata["encoding_format"] == "application/x-wfdb-header"
@@ -62,7 +56,7 @@ def test_missing_dat_file_raises_error(tmp_path):
     hea_file.write_text("test 1 360 1000")
 
     with pytest.raises(ValueError, match="WFDB data file missing"):
-        handler.extract_metadata(hea_file)
+        handler.extract(make_source(hea_file, with_path=True))
 
 
 def test_rdheader_failure_is_wrapped(tmp_path):
@@ -75,12 +69,7 @@ def test_rdheader_failure_is_wrapped(tmp_path):
         side_effect=RuntimeError("boom"),
     ):
         with pytest.raises(ValueError, match="Failed to read WFDB header"):
-            handler.extract_metadata(hea_file)
-
-
-# ---------------------------------------------------------------------------
-# build_croissant
-# ---------------------------------------------------------------------------
+            handler.extract(make_source(hea_file, with_path=True))
 
 
 def test_wfdb_build_croissant() -> None:

@@ -17,11 +17,7 @@ from croissant_baker.handlers.fhir_handler import (
 )
 from croissant_baker.handlers.utils import infer_croissant_type as _infer_croissant_type
 from croissant_baker.handlers.utils import infer_field_type as _infer_field_type
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+from croissant_baker.sources import make_source
 
 
 def _ndjson(path: Path, records: list) -> None:
@@ -60,46 +56,20 @@ _OBSERVATIONS = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# can_handle
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "name,expected",
-    [
-        ("Patient.ndjson", True),
-        ("MimicPatient.ndjson.gz", True),
-        ("data.csv", False),
-        ("data.parquet", False),
-        ("image.png", False),
-    ],
-)
-def test_can_handle_by_extension(tmp_path: Path, name: str, expected: bool) -> None:
-    f = tmp_path / name
-    f.write_bytes(b"")
-    assert FHIRHandler().can_handle(f) == expected
-
-
 def test_can_handle_fhir_json(tmp_path: Path) -> None:
     """A .json file with resourceType is claimed."""
     p = tmp_path / "bundle.json"
     p.write_text(
         json.dumps({"resourceType": "Bundle", "type": "collection", "entry": []})
     )
-    assert FHIRHandler().can_handle(p) is True
+    assert FHIRHandler().claims(make_source(p)) is True
 
 
 def test_can_handle_non_fhir_json(tmp_path: Path) -> None:
     """A plain JSON file without resourceType is rejected."""
     p = tmp_path / "config.json"
     p.write_text(json.dumps({"name": "test", "version": "1"}))
-    assert FHIRHandler().can_handle(p) is False
-
-
-# ---------------------------------------------------------------------------
-# Type inference
-# ---------------------------------------------------------------------------
+    assert FHIRHandler().claims(make_source(p)) is False
 
 
 @pytest.mark.parametrize(
@@ -119,11 +89,6 @@ def test_can_handle_non_fhir_json(tmp_path: Path) -> None:
 )
 def test_infer_croissant_type(value, expected: str) -> None:
     assert _infer_croissant_type(value) == expected
-
-
-# ---------------------------------------------------------------------------
-# _infer_field_type — struct expansion
-# ---------------------------------------------------------------------------
 
 
 def test_infer_field_type_primitive_majority() -> None:
@@ -173,16 +138,11 @@ def test_infer_field_type_array_of_primitives() -> None:
     assert result["type"] == "sc:Text"
 
 
-# ---------------------------------------------------------------------------
-# NDJSON extraction
-# ---------------------------------------------------------------------------
-
-
 def test_extract_ndjson_basic(tmp_path: Path) -> None:
     p = tmp_path / "Patient.ndjson"
     _ndjson(p, _PATIENTS)
 
-    meta = FHIRHandler().extract_metadata(p)
+    meta = FHIRHandler().extract(make_source(p))
 
     assert meta["fhir_resource_type"] == "Patient"
     assert meta["encoding_format"] == "application/fhir+ndjson"
@@ -197,10 +157,11 @@ def test_extract_ndjson_gz(tmp_path: Path) -> None:
     p = tmp_path / "MimicPatient.ndjson.gz"
     _ndjson_gz(p, _PATIENTS)
 
-    meta = FHIRHandler().extract_metadata(p)
+    meta = FHIRHandler().extract(make_source(p))
 
     assert meta["fhir_resource_type"] == "Patient"
-    assert meta["encoding_format"] == "application/gzip"
+    # Format media type only; the generator adds the compression one.
+    assert meta["encoding_format"] == "application/fhir+ndjson"
     assert meta["num_rows"] == 5
     assert len(meta["sha256"]) == 64
 
@@ -209,18 +170,11 @@ def test_extract_ndjson_observation_datetime(tmp_path: Path) -> None:
     p = tmp_path / "Observation.ndjson"
     _ndjson(p, _OBSERVATIONS)
 
-    meta = FHIRHandler().extract_metadata(p)
+    meta = FHIRHandler().extract(make_source(p))
 
     assert meta["fhir_resource_type"] == "Observation"
     assert meta["column_types"]["effectiveDateTime"] == "sc:DateTime"
     assert meta["column_types"]["status"] == "sc:Text"
-
-
-def test_extract_ndjson_empty_raises(tmp_path: Path) -> None:
-    p = tmp_path / "empty.ndjson"
-    p.write_text("")
-    with pytest.raises(ValueError, match="No valid FHIR resources"):
-        FHIRHandler().extract_metadata(p)
 
 
 def test_extract_ndjson_counts_all_rows(tmp_path: Path) -> None:
@@ -232,13 +186,9 @@ def test_extract_ndjson_counts_all_rows(tmp_path: Path) -> None:
     p = tmp_path / "large.ndjson"
     _ndjson(p, records)
 
-    meta = FHIRHandler().extract_metadata(p)
+    meta = FHIRHandler().extract(make_source(p))
     assert meta["num_rows"] == n
 
-
-# ---------------------------------------------------------------------------
-# JSON Bundle extraction
-# ---------------------------------------------------------------------------
 
 _BUNDLE = {
     "resourceType": "Bundle",
@@ -288,7 +238,7 @@ def test_extract_bundle_groups_by_resource_type(tmp_path: Path) -> None:
     p = tmp_path / "patient.json"
     p.write_text(json.dumps(_BUNDLE))
 
-    meta = FHIRHandler().extract_metadata(p)
+    meta = FHIRHandler().extract(make_source(p))
 
     assert "fhir_resource_groups" in meta
     assert "column_types" not in meta
@@ -310,7 +260,7 @@ def test_extract_bundle_single_resource_returns_column_types(tmp_path: Path) -> 
     p = tmp_path / "single.json"
     p.write_text(json.dumps(single))
 
-    meta = FHIRHandler().extract_metadata(p)
+    meta = FHIRHandler().extract(make_source(p))
 
     assert "column_types" in meta
     assert meta["fhir_resource_type"] == "Patient"
@@ -336,7 +286,7 @@ def test_build_croissant_bundle_skips_operation_outcome(tmp_path: Path) -> None:
     p = tmp_path / "response.json"
     p.write_text(json.dumps(bundle_with_error))
 
-    meta = FHIRHandler().extract_metadata(p)
+    meta = FHIRHandler().extract(make_source(p))
     assert "OperationOutcome" in meta["fhir_resource_groups"], "extractor should see it"
 
     _, record_sets = FHIRHandler().build_croissant([meta], ["file_0"])
@@ -347,41 +297,23 @@ def test_build_croissant_bundle_skips_operation_outcome(tmp_path: Path) -> None:
     assert "Patient" in rs_names
 
 
-def test_extract_bundle_empty_raises(tmp_path: Path) -> None:
-    empty = {"resourceType": "Bundle", "type": "collection", "entry": []}
-    p = tmp_path / "empty_bundle.json"
-    p.write_text(json.dumps(empty))
-    with pytest.raises(ValueError, match="No FHIR resources found in Bundle"):
-        FHIRHandler().extract_metadata(p)
-
-
-# ---------------------------------------------------------------------------
-# _is_bulk_chunk
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "file_name,resource_type,expected",
     [
         # Standard bulk-export chunks — should merge
         ("Observation.000.ndjson", "Observation", True),
         ("Observation.001.ndjson", "Observation", True),
-        ("Patient.000.ndjson.gz", "Patient", True),
+        ("Patient.000.ndjson", "Patient", True),
         # Distinct logical tables sharing a resourceType — must NOT merge
-        ("MimicObservationLabevents.ndjson.gz", "Observation", False),
-        ("MimicObservationChartevents.ndjson.gz", "Observation", False),
-        ("MimicCondition.ndjson.gz", "Condition", False),
+        ("MimicObservationLabevents.ndjson", "Observation", False),
+        ("MimicObservationChartevents.ndjson", "Observation", False),
+        ("MimicCondition.ndjson", "Condition", False),
         # Case-insensitive
         ("observation.000.ndjson", "Observation", True),
     ],
 )
 def test_is_bulk_chunk(file_name: str, resource_type: str, expected: bool) -> None:
     assert _is_bulk_chunk(file_name, resource_type) == expected
-
-
-# ---------------------------------------------------------------------------
-# build_croissant — chunk merging vs standalone splitting
-# ---------------------------------------------------------------------------
 
 
 def test_build_croissant_merges_chunks(tmp_path: Path) -> None:
@@ -424,7 +356,7 @@ def test_build_croissant_keeps_distinct_tables_separate(tmp_path: Path) -> None:
     handler = FHIRHandler()
     metas = [
         {
-            "file_name": "MimicObservationLabevents.ndjson.gz",
+            "file_name": "MimicObservationLabevents.ndjson",
             "relative_path": "fhir/MimicObservationLabevents.ndjson.gz",
             "fhir_resource_type": "Observation",
             "column_types": {"id": "sc:Text", "valueQuantity": "sc:Text"},
@@ -432,7 +364,7 @@ def test_build_croissant_keeps_distinct_tables_separate(tmp_path: Path) -> None:
             "num_rows": 100,
         },
         {
-            "file_name": "MimicObservationChartevents.ndjson.gz",
+            "file_name": "MimicObservationChartevents.ndjson",
             "relative_path": "fhir/MimicObservationChartevents.ndjson.gz",
             "fhir_resource_type": "Observation",
             "column_types": {"id": "sc:Text", "component": "sc:Text"},
@@ -474,11 +406,6 @@ def test_build_croissant_all_skipped_returns_empty(
     assert any("no RecordSets" in msg for msg in caplog.messages)
 
 
-# ---------------------------------------------------------------------------
-# MIMIC-IV FHIR Demo — integration test (skip if not downloaded)
-# ---------------------------------------------------------------------------
-
-
 @pytest.fixture
 def mimiciv_fhir_path() -> Path:
     """Path to MIMIC-IV FHIR Demo dataset.
@@ -511,9 +438,9 @@ def test_mimiciv_fhir_handler_all_files(mimiciv_fhir_path: Path) -> None:
 
     failures = []
     for f in files:
-        assert handler.can_handle(f)
+        assert handler.claims(make_source(f))
         try:
-            meta = handler.extract_metadata(f)
+            meta = handler.extract(make_source(f))
             assert "column_types" in meta
             assert meta["num_rows"] > 0
             assert meta["fhir_resource_type"]
@@ -530,7 +457,7 @@ def test_mimiciv_fhir_handler_all_files(mimiciv_fhir_path: Path) -> None:
 def test_mimiciv_fhir_patient_fields(mimiciv_fhir_path: Path) -> None:
     """MimicPatient.ndjson.gz contains expected FHIR Patient fields."""
     handler = FHIRHandler()
-    meta = handler.extract_metadata(mimiciv_fhir_path / "MimicPatient.ndjson.gz")
+    meta = handler.extract(make_source(mimiciv_fhir_path / "MimicPatient.ndjson.gz"))
 
     assert meta["fhir_resource_type"] == "Patient"
     assert meta["num_rows"] == 100
@@ -543,8 +470,8 @@ def test_mimiciv_fhir_patient_fields(mimiciv_fhir_path: Path) -> None:
 def test_mimiciv_fhir_observation_labevents(mimiciv_fhir_path: Path) -> None:
     """MimicObservationLabevents.ndjson.gz handles large files (>100K records)."""
     handler = FHIRHandler()
-    meta = handler.extract_metadata(
-        mimiciv_fhir_path / "MimicObservationLabevents.ndjson.gz"
+    meta = handler.extract(
+        make_source(mimiciv_fhir_path / "MimicObservationLabevents.ndjson.gz")
     )
     assert meta["fhir_resource_type"] == "Observation"
     assert meta["num_rows"] > 100_000

@@ -145,11 +145,11 @@
     },
     {
       "@type": "cr:FileSet",
-      "@id": "targets-fileset",
-      "name": "targets partition files",
-      "description": "2 Parquet partition files for table 'targets'",
+      "@id": "association_by_datatype_direct-fileset",
+      "name": "association_by_datatype_direct partition files",
+      "description": "2 Parquet partition files for table 'association_by_datatype_direct'",
       "encodingFormat": "application/vnd.apache.parquet",
-      "includes": "targets/*.parquet"
+      "includes": "association_by_datatype_direct/*.parquet"
     },
     {
       "@type": "cr:FileSet",
@@ -161,85 +161,100 @@
     },
     {
       "@type": "cr:FileSet",
-      "@id": "association_by_datatype_direct-fileset",
-      "name": "association_by_datatype_direct partition files",
-      "description": "2 Parquet partition files for table 'association_by_datatype_direct'",
-      "encodingFormat": "application/vnd.apache.parquet",
-      "includes": "association_by_datatype_direct/*.parquet"
-    },
-    {
-      "@type": "cr:FileSet",
       "@id": "diseases-fileset",
       "name": "diseases partition files",
       "description": "2 Parquet partition files for table 'diseases'",
       "encodingFormat": "application/vnd.apache.parquet",
       "includes": "diseases/*.parquet"
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "targets-fileset",
+      "name": "targets partition files",
+      "description": "2 Parquet partition files for table 'targets'",
+      "encodingFormat": "application/vnd.apache.parquet",
+      "includes": "targets/*.parquet"
     }
   ],
   "recordSet": [
     {
       "@type": "cr:RecordSet",
-      "@id": "targets",
-      "name": "targets",
-      "description": "Partitioned table 'targets' (2 Parquet files, 10 total rows)",
+      "@id": "association_by_datatype_direct",
+      "name": "association_by_datatype_direct",
+      "description": "Partitioned table 'association_by_datatype_direct' (2 Parquet files, 10 total rows)",
       "field": [
         {
           "@type": "cr:Field",
-          "@id": "targets/id",
-          "name": "id",
-          "description": "Column 'id'",
+          "@id": "association_by_datatype_direct/targetId",
+          "name": "targetId",
+          "description": "Column 'targetId'",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
-              "@id": "targets-fileset"
+              "@id": "association_by_datatype_direct-fileset"
             },
             "extract": {
-              "column": "id"
+              "column": "targetId"
             }
           }
         },
         {
           "@type": "cr:Field",
-          "@id": "targets/approvedSymbol",
-          "name": "approvedSymbol",
-          "description": "Column 'approvedSymbol'",
+          "@id": "association_by_datatype_direct/diseaseId",
+          "name": "diseaseId",
+          "description": "Column 'diseaseId'",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
-              "@id": "targets-fileset"
+              "@id": "association_by_datatype_direct-fileset"
             },
             "extract": {
-              "column": "approvedSymbol"
+              "column": "diseaseId"
             }
           }
         },
         {
           "@type": "cr:Field",
-          "@id": "targets/tractabilityScore",
-          "name": "tractabilityScore",
-          "description": "Column 'tractabilityScore'",
+          "@id": "association_by_datatype_direct/datatypeId",
+          "name": "datatypeId",
+          "description": "Column 'datatypeId'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "association_by_datatype_direct-fileset"
+            },
+            "extract": {
+              "column": "datatypeId"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "association_by_datatype_direct/score",
+          "name": "score",
+          "description": "Column 'score'",
           "dataType": "cr:Float64",
           "source": {
             "fileSet": {
-              "@id": "targets-fileset"
+              "@id": "association_by_datatype_direct-fileset"
             },
             "extract": {
-              "column": "tractabilityScore"
+              "column": "score"
             }
           }
         },
         {
           "@type": "cr:Field",
-          "@id": "targets/isDriver",
-          "name": "isDriver",
-          "description": "Column 'isDriver'",
-          "dataType": "sc:Boolean",
+          "@id": "association_by_datatype_direct/evidenceCount",
+          "name": "evidenceCount",
+          "description": "Column 'evidenceCount'",
+          "dataType": "cr:Int32",
           "source": {
             "fileSet": {
-              "@id": "targets-fileset"
+              "@id": "association_by_datatype_direct-fileset"
             },
             "extract": {
-              "column": "isDriver"
+              "column": "evidenceCount"
             }
           }
         }
@@ -411,89 +426,6 @@
     },
     {
       "@type": "cr:RecordSet",
-      "@id": "association_by_datatype_direct",
-      "name": "association_by_datatype_direct",
-      "description": "Partitioned table 'association_by_datatype_direct' (2 Parquet files, 10 total rows)",
-      "field": [
-        {
-          "@type": "cr:Field",
-          "@id": "association_by_datatype_direct/targetId",
-          "name": "targetId",
-          "description": "Column 'targetId'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileSet": {
-              "@id": "association_by_datatype_direct-fileset"
-            },
-            "extract": {
-              "column": "targetId"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "association_by_datatype_direct/diseaseId",
-          "name": "diseaseId",
-          "description": "Column 'diseaseId'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileSet": {
-              "@id": "association_by_datatype_direct-fileset"
-            },
-            "extract": {
-              "column": "diseaseId"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "association_by_datatype_direct/datatypeId",
-          "name": "datatypeId",
-          "description": "Column 'datatypeId'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileSet": {
-              "@id": "association_by_datatype_direct-fileset"
-            },
-            "extract": {
-              "column": "datatypeId"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "association_by_datatype_direct/score",
-          "name": "score",
-          "description": "Column 'score'",
-          "dataType": "cr:Float64",
-          "source": {
-            "fileSet": {
-              "@id": "association_by_datatype_direct-fileset"
-            },
-            "extract": {
-              "column": "score"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "association_by_datatype_direct/evidenceCount",
-          "name": "evidenceCount",
-          "description": "Column 'evidenceCount'",
-          "dataType": "cr:Int32",
-          "source": {
-            "fileSet": {
-              "@id": "association_by_datatype_direct-fileset"
-            },
-            "extract": {
-              "column": "evidenceCount"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "@type": "cr:RecordSet",
       "@id": "diseases",
       "name": "diseases",
       "description": "Partitioned table 'diseases' (2 Parquet files, 10 total rows)",
@@ -638,6 +570,74 @@
             },
             "extract": {
               "column": "hasBeenWithdrawn"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "targets",
+      "name": "targets",
+      "description": "Partitioned table 'targets' (2 Parquet files, 10 total rows)",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "targets/id",
+          "name": "id",
+          "description": "Column 'id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "targets-fileset"
+            },
+            "extract": {
+              "column": "id"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "targets/approvedSymbol",
+          "name": "approvedSymbol",
+          "description": "Column 'approvedSymbol'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "targets-fileset"
+            },
+            "extract": {
+              "column": "approvedSymbol"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "targets/tractabilityScore",
+          "name": "tractabilityScore",
+          "description": "Column 'tractabilityScore'",
+          "dataType": "cr:Float64",
+          "source": {
+            "fileSet": {
+              "@id": "targets-fileset"
+            },
+            "extract": {
+              "column": "tractabilityScore"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "targets/isDriver",
+          "name": "isDriver",
+          "description": "Column 'isDriver'",
+          "dataType": "sc:Boolean",
+          "source": {
+            "fileSet": {
+              "@id": "targets-fileset"
+            },
+            "extract": {
+              "column": "isDriver"
             }
           }
         }

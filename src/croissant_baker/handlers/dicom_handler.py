@@ -1,14 +1,13 @@
 """DICOM file handler for medical imaging datasets."""
 
 import logging
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import mlcroissant as mlc
 import pydicom
 
-from croissant_baker.handlers.base_handler import FileTypeHandler
-from croissant_baker.handlers.utils import compute_file_hash
+from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +19,9 @@ _DICOM_MAGIC_OFFSET = 128
 _DICOM_MAGIC = b"DICM"
 
 
-def _has_dicom_magic(file_path: Path) -> bool:
-    try:
-        with open(file_path, "rb") as f:
-            f.seek(_DICOM_MAGIC_OFFSET)
-            return f.read(4) == _DICOM_MAGIC
-    except (IOError, OSError):
-        return False
+def _has_dicom_magic(source: FileSource) -> bool:
+    head = source.peek(_DICOM_MAGIC_OFFSET + 4)
+    return head[_DICOM_MAGIC_OFFSET : _DICOM_MAGIC_OFFSET + 4] == _DICOM_MAGIC
 
 
 def _safe_get(ds, keyword: str, default=None):
@@ -41,8 +36,9 @@ def _safe_get(ds, keyword: str, default=None):
         return default
 
 
-def _read_dicom_properties(file_path: Path) -> Dict:
-    ds = pydicom.dcmread(str(file_path), stop_before_pixels=True)
+def _read_dicom_properties(source: FileSource) -> Dict:
+    with source.open() as stream:
+        ds = pydicom.dcmread(stream, stop_before_pixels=True)
 
     props: Dict = {}
 
@@ -133,32 +129,31 @@ class DICOMHandler(FileTypeHandler):
         "Image geometry, modality, pixel encoding, acquisition parameters"
     )
 
-    def can_handle(self, file_path: Path) -> bool:
-        suffix = file_path.suffix.lower()
-        # For all candidates (by extension or extensionless), verify the DICM
-        # preamble when the file is present. Files without it are DICOMDIR
-        # fragment references, not standalone DICOM — skip them rather than
-        # letting extract_metadata raise later.
-        if suffix in SUPPORTED_EXTENSIONS or (not suffix and file_path.is_file()):
-            if file_path.is_file():
-                return _has_dicom_magic(file_path)
-            return True  # path-only check (e.g. registry lookup before file exists)
+    def claims(self, source: FileSource) -> bool:
+        # Files without the DICM preamble are DICOMDIR fragment references, not
+        # standalone DICOM. Absent the file, this is a path-only lookup and the
+        # extension is all there is to go on.
+        if source.suffix in SUPPORTED_EXTENSIONS:
+            return _has_dicom_magic(source) if source.exists else True
+        if not source.suffix and source.exists:
+            return _has_dicom_magic(source)
         return False
 
-    def extract_metadata(self, file_path: Path, **kwargs) -> dict:
-        if not file_path.exists():
-            raise FileNotFoundError(f"DICOM file not found: {file_path}")
+    def extract(self, source: FileSource, **kwargs) -> dict:
+        if not source.exists:
+            raise FileNotFoundError(f"DICOM file not found: {source.relative_path}")
 
         try:
-            props = _read_dicom_properties(file_path)
+            props = _read_dicom_properties(source)
         except Exception as e:
-            raise ValueError(f"Failed to read DICOM file {file_path}: {e}") from e
+            raise ValueError(
+                f"Failed to read DICOM file {source.relative_path}: {e}"
+            ) from e
 
         return {
-            "file_path": str(file_path),
-            "file_name": file_path.name,
-            "file_size": file_path.stat().st_size,
-            "sha256": compute_file_hash(file_path),
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
             "encoding_format": MIME_TYPE,
             "dicom_properties": props,
         }
@@ -166,6 +161,11 @@ class DICOMHandler(FileTypeHandler):
     def build_croissant(
         self, file_metas: list[dict], file_ids: list[str]
     ) -> tuple[list, list]:
+        # An empty batch has nothing to summarise; emitting a FileSet over
+        # zero files would describe data that is not there.
+        if not file_metas:
+            return BuildResult([], [])
+
         summary = collect_dicom_summary(file_metas)
 
         num_files = summary.get("num_files", len(file_metas))
@@ -287,7 +287,7 @@ class DICOMHandler(FileTypeHandler):
             fields=fields,
         )
 
-        return [dicom_fileset], [dicom_record_set]
+        return BuildResult([dicom_fileset], [dicom_record_set])
 
 
 def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:

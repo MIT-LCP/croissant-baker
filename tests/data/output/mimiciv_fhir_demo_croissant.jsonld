@@ -75,7 +75,10 @@
       "name": "MimicEncounterICU.ndjson.gz",
       "contentSize": "15607",
       "contentUrl": "MimicEncounterICU.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "ce9b1e04dce0806f5c36965e7d4057e46a9cb15b82c551660a2ed81c220ba38d"
     },
     {
@@ -84,7 +87,10 @@
       "name": "MimicMedicationAdministrationICU.ndjson.gz",
       "contentSize": "1187560",
       "contentUrl": "MimicMedicationAdministrationICU.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "e42c8a36d5b4f55d00fd2e6cebbb5bd510536efd44343fc25ab0fc7dc622a301"
     },
     {
@@ -93,7 +99,10 @@
       "name": "MimicMedicationRequest.ndjson.gz",
       "contentSize": "1321916",
       "contentUrl": "MimicMedicationRequest.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "3f446cd92a820dff3623c674f4d1f13ea6cc7f3c157f3584e9c17d8502f33456"
     },
     {
@@ -102,7 +111,10 @@
       "name": "MimicOrganization.ndjson.gz",
       "contentSize": "345",
       "contentUrl": "MimicOrganization.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "71a995c7e2a7937ce4b02d8392fd912ea590bb89e10649955479006002e438ca"
     },
     {
@@ -111,7 +123,10 @@
       "name": "MimicSpecimenLab.ndjson.gz",
       "contentSize": "423593",
       "contentUrl": "MimicSpecimenLab.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "e0b9e36e3723a1a28755278f44cb75decd328082bf5b6945a167c9c209c0228d"
     },
     {
@@ -120,7 +135,10 @@
       "name": "MimicLocation.ndjson.gz",
       "contentSize": "1454",
       "contentUrl": "MimicLocation.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "e474e95a0b0061d92e00aad38b29caf3652386366de79a5ffed390b3f2c0627d"
     },
     {
@@ -129,7 +147,10 @@
       "name": "MimicObservationVitalSignsED.ndjson.gz",
       "contentSize": "296595",
       "contentUrl": "MimicObservationVitalSignsED.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "389451325750c1aacde2fca67c8501ca959855640ae1a007358a67120500b19b"
     },
     {
@@ -138,7 +159,10 @@
       "name": "MimicMedicationDispense.ndjson.gz",
       "contentSize": "1076538",
       "contentUrl": "MimicMedicationDispense.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "b0a93fb9f929f09c48f0b996131d6a56fd646d5b9d44d73f9efb3a004b239c52"
     },
     {
@@ -147,7 +171,10 @@
       "name": "MimicMedicationDispenseED.ndjson.gz",
       "contentSize": "51210",
       "contentUrl": "MimicMedicationDispenseED.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "c8e6e1514a068b9896f644352f514f4e51ec43e24810a64fc4a532ae4c082dd6"
     },
     {
@@ -156,7 +183,10 @@
       "name": "MimicSpecimen.ndjson.gz",
       "contentSize": "60057",
       "contentUrl": "MimicSpecimen.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "3429ad1ced3672be4597636fd925130717192efc917be6ab405d76ab1867c24d"
     },
     {
@@ -165,7 +195,10 @@
       "name": "MimicConditionED.ndjson.gz",
       "contentSize": "34167",
       "contentUrl": "MimicConditionED.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "82e0ef0f68b53aa92a9d8d0ff47cbad630751ef361becb904610eecca1b58eed"
     },
     {
@@ -174,7 +207,10 @@
       "name": "MimicEncounter.ndjson.gz",
       "contentSize": "38527",
       "contentUrl": "MimicEncounter.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "01d3583e4c8b9fbfde87baa8a6cf1cc6bf53c1db45c0b64120fcb80c34e6b17b"
     },
     {
@@ -183,7 +219,10 @@
       "name": "MimicObservationMicroTest.ndjson.gz",
       "contentSize": "156629",
       "contentUrl": "MimicObservationMicroTest.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "7b37da4326c09ccb90f135b26c9603b61c404547682dad2da9e2c415f668bbce"
     },
     {
@@ -192,7 +231,10 @@
       "name": "MimicProcedureED.ndjson.gz",
       "contentSize": "49029",
       "contentUrl": "MimicProcedureED.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "4e08331a4942456af66bbe5687859f23e3f51065cb2b59bbd5e4b6bca00e0792"
     },
     {
@@ -201,7 +243,10 @@
       "name": "MimicCondition.ndjson.gz",
       "contentSize": "228796",
       "contentUrl": "MimicCondition.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "6be462199daf68c7ffc72f3a6f71eae803e5b69c2ecdb2c6c82c5f52aec08ec8"
     },
     {
@@ -210,7 +255,10 @@
       "name": "MimicObservationMicroOrg.ndjson.gz",
       "contentSize": "49523",
       "contentUrl": "MimicObservationMicroOrg.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "a58c90beb665b7a73775771d2d7b445f5180e45b4ecb20a16401226fef4fa0ef"
     },
     {
@@ -219,7 +267,10 @@
       "name": "MimicEncounterED.ndjson.gz",
       "contentSize": "19443",
       "contentUrl": "MimicEncounterED.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "4652aad7121ee1e5cdcc559017518437611d16a4b021e91d540796ad96c270dc"
     },
     {
@@ -228,7 +279,10 @@
       "name": "MimicObservationLabevents.ndjson.gz",
       "contentSize": "7762824",
       "contentUrl": "MimicObservationLabevents.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "89dcedb9bcddd6e2dff442bb1b4ed84c2a4b21e64cd3bbecb070a263acb154cb"
     },
     {
@@ -237,7 +291,10 @@
       "name": "MimicProcedureICU.ndjson.gz",
       "contentSize": "77270",
       "contentUrl": "MimicProcedureICU.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "0491ea7c87f8e1d45633477353e34e850700d73c8a716a52efcf200ce28b2db8"
     },
     {
@@ -246,7 +303,10 @@
       "name": "MimicObservationMicroSusc.ndjson.gz",
       "contentSize": "54079",
       "contentUrl": "MimicObservationMicroSusc.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "b33e1a207c5b499869503767edeb13233076c77b9bd49a4b4dc09098c4d2a511"
     },
     {
@@ -255,7 +315,10 @@
       "name": "MimicObservationED.ndjson.gz",
       "contentSize": "144134",
       "contentUrl": "MimicObservationED.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "fb5bfc78fa8022e538f33d65f0aa1235f607e4c73ead8c1fad8de07f354f3f22"
     },
     {
@@ -264,7 +327,10 @@
       "name": "MimicObservationOutputevents.ndjson.gz",
       "contentSize": "384951",
       "contentUrl": "MimicObservationOutputevents.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "ffbe0f6dccdf8551225e45452837ecd64a154a4bf4c87e5285aa8876fe7faf96"
     },
     {
@@ -273,7 +339,10 @@
       "name": "MimicMedicationStatementED.ndjson.gz",
       "contentSize": "151766",
       "contentUrl": "MimicMedicationStatementED.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "eb71a0393a1bef626a5192b4bae3293d37fb6e51baf91ad944e8d15803802898"
     },
     {
@@ -282,7 +351,10 @@
       "name": "MimicObservationDatetimeevents.ndjson.gz",
       "contentSize": "590894",
       "contentUrl": "MimicObservationDatetimeevents.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "675c78a67b8872b54bcc9bb74f2bc4beee254a8931ca35f7a0851a1947602a01"
     },
     {
@@ -291,7 +363,10 @@
       "name": "MimicProcedure.ndjson.gz",
       "contentSize": "42903",
       "contentUrl": "MimicProcedure.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "1b24c38a3ad87ab4c1706a5c4848bffb0c64091c1ce0eeffdb88d157e9ee3f98"
     },
     {
@@ -300,7 +375,10 @@
       "name": "MimicPatient.ndjson.gz",
       "contentSize": "6220",
       "contentUrl": "MimicPatient.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "f64c61f64aaed317ddb013276515deaf9ca69815d5c0d70ca372f2a75284ce16"
     },
     {
@@ -309,7 +387,10 @@
       "name": "MimicMedication.ndjson.gz",
       "contentSize": "84187",
       "contentUrl": "MimicMedication.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "dd9373fb1fd55d66696f23753225f7b442de849cdd4c10f87a51804f14148d6a"
     },
     {
@@ -318,7 +399,10 @@
       "name": "MimicMedicationMix.ndjson.gz",
       "contentSize": "28165",
       "contentUrl": "MimicMedicationMix.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "2d211a9bcb0c08072c56921db88e57c1adb93837def3535fe8ef16f482c4c35b"
     },
     {
@@ -327,7 +411,10 @@
       "name": "MimicObservationChartevents.ndjson.gz",
       "contentSize": "35295711",
       "contentUrl": "MimicObservationChartevents.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "8222f1cbd5f62b9568c5efa69fa7890be1d604bb503699c82d69fd1fd59c4887"
     },
     {
@@ -336,7 +423,10 @@
       "name": "MimicMedicationAdministration.ndjson.gz",
       "contentSize": "2219722",
       "contentUrl": "MimicMedicationAdministration.ndjson.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "application/fhir+ndjson",
+        "application/gzip"
+      ],
       "sha256": "79c5e5a25c307a23883b6fadc6fcd2b082f7e1e1a2244ffcbce2fd7436a207c9"
     }
   ],

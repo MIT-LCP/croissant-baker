@@ -1,15 +1,17 @@
 """Shared utilities for file handlers."""
 
-import gzip
-import hashlib
 import logging
 import re
+import warnings
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Optional, Union
+
 
 import mlcroissant as mlc
 import pyarrow as pa
 import pyarrow.types as patypes
+
+from croissant_baker.sources import hash_file
 
 logger = logging.getLogger(__name__)
 
@@ -45,18 +47,29 @@ def normalize_array_shape(shape: str) -> str:
 
 
 def open_text_file(file_path: Path):
-    """Return a text file handle, transparently decompressing gzip files."""
-    if file_path.name.lower().endswith(".gz"):
-        return gzip.open(file_path, "rt", encoding="utf-8-sig")
-    return open(file_path, "r", encoding="utf-8-sig")
+    """Deprecated. Read through :meth:`FileSource.open_text` instead.
+
+    Kept so a handler written against the previous contract still imports and
+    runs. It resolves compression the same way the pipeline does.
+    """
+    from croissant_baker import compression
+
+    warnings.warn(
+        "croissant_baker.handlers.utils.open_text_file is deprecated; read "
+        "through FileSource.open_text(), which is already decompressed.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    path = Path(file_path)
+    comp = compression.compression_for(path.name)
+    if comp is None:
+        return open(path, "r", encoding=compression.DEFAULT_TEXT_ENCODING)
+    return comp.opener(path, "rt", encoding=compression.DEFAULT_TEXT_ENCODING)
 
 
 # Characters that are invalid in Croissant @id values.
 # mlcroissant rejects whitespace and URI-unsafe characters like >, (, ), %.
 _INVALID_ID_CHARS = re.compile(r"[^A-Za-z0-9_.\-]")
-
-# Read files in 64 KB chunks for hashing — power-of-2 aligns with OS page cache.
-_HASH_CHUNK_SIZE = 64 * 1024
 
 
 def sanitize_id(raw: str) -> str:
@@ -79,8 +92,9 @@ def _disambiguate_ids(items: list) -> list:
     minimum number of trailing parent components is prepended (joined
     with ``__``) until every member of the colliding group is unique.
 
-    Filesystem paths are unique by construction, so the loop is
-    guaranteed to converge for items derived from real file metadata.
+    Parents cannot separate stems that collide under one parent — two
+    groupings of one directory, say — so a numeric suffix settles whatever
+    survives. Uniqueness is the contract; callers assemble @ids from it.
     """
     from collections import defaultdict
 
@@ -111,14 +125,21 @@ def _disambiguate_ids(items: list) -> list:
                 chosen = candidates
                 break
         if not chosen:
-            # Fallback: every available parent component included. Filesystem
-            # paths are unique, so this branch should not fire on real inputs;
-            # kept as a safety net for synthetic / pathological cases.
             chosen = {
                 i: sanitize_id("__".join([*parents_per[i], stem])) for i in indices
             }
         for i, value in chosen.items():
             out[i] = value
+
+    used: set = set()
+    for i, value in enumerate(out):
+        if value in used:
+            n = 1
+            while f"{value}__{n}" in used:
+                n += 1
+            value = f"{value}__{n}"
+        used.add(value)
+        out[i] = value
     return out
 
 
@@ -146,19 +167,25 @@ def make_record_set_ids(file_metas: list) -> list:
     return _disambiguate_ids(items)
 
 
-def make_partition_record_set_ids(dir_paths: list) -> list:
-    """Return a unique RecordSet @id for each partitioned-table directory.
+DIGIT_MASK = "<N>"
 
-    Same algorithm as ``make_record_set_ids``, but the source of the
-    identifier is the trailing directory name rather than a file
-    basename. Used by the Parquet handler when grouping shards into a
-    single logical table.
+# A shard index stands on its own: it is either the whole stem or introduced by
+# a separator. Digits fused to letters belong to a word instead — ``assay1`` and
+# ``assay2`` are two tables, where ``part-00001`` is one table's shard.
+_SHARD_INDEX = re.compile(r"(?:^|(?<=[-_.]))\d+")
+
+
+def shard_template(file_name: str) -> Optional[str]:
+    """The name with digit runs masked, or None if it carries no shard index.
+
+    Shards of one table differ only in that index, so the masked name is the
+    key they share. Only separated runs are masked: digits fused to letters
+    name the table, so ``assay1-part-000`` and ``assay2-part-001`` stay two
+    tables rather than collapsing into one.
     """
-    items = [
-        (sanitize_id(Path(dir_path).name), list(Path(dir_path).parts[:-1]))
-        for dir_path in dir_paths
-    ]
-    return _disambiguate_ids(items)
+    if not _SHARD_INDEX.search(file_name):
+        return None
+    return _SHARD_INDEX.sub(DIGIT_MASK, file_name)
 
 
 def make_field_id(record_set_id: str, column_name: str, used_field_ids: set) -> str:
@@ -306,6 +333,10 @@ def compute_file_hash(file_path: Union[str, Path]) -> str:
     Reads the file as-is on disk (compressed bytes included) rather than
     decompressing first. This matches what users download and verify.
 
+    Handlers take their own file's digest from ``source.sha256``. This stays
+    for files a handler discovers itself, such as WFDB's sibling ``.dat`` and
+    ``.atr``.
+
     Args:
         file_path: Path to the file (str or Path object)
 
@@ -316,9 +347,7 @@ def compute_file_hash(file_path: Union[str, Path]) -> str:
         FileNotFoundError: If the file doesn't exist
         PermissionError: If the file cannot be read
     """
-    # Convert to Path only if needed
-    if isinstance(file_path, str):
-        file_path = Path(file_path)
+    file_path = Path(file_path)
 
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -327,17 +356,9 @@ def compute_file_hash(file_path: Union[str, Path]) -> str:
         raise ValueError(f"Path is not a file: {file_path}")
 
     try:
-        sha256_hash = hashlib.sha256()
-        # Hash the file as-is on disk (compressed bytes). This matches what users
-        # download and verify, and avoids decompressing gigabytes just for hashing.
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(_HASH_CHUNK_SIZE), b""):
-                sha256_hash.update(chunk)
-
-        return sha256_hash.hexdigest()
-
-    except (IOError, OSError) as e:
-        raise PermissionError(f"Cannot read file {file_path}: {e}")
+        return hash_file(file_path)
+    except PermissionError as e:
+        raise PermissionError(f"Cannot read file {file_path}: {e}") from e
 
 
 def _build_fields(
@@ -602,6 +623,17 @@ def build_fields_from_json_schema(
     return fields
 
 
+def display_name(meta: dict) -> str:
+    """What a description should call this file: its name as stored on disk.
+
+    Identifiers come from the logical name, so ``sample.csv`` and
+    ``sample.csv.gz`` describe one table; prose names the file the reader can
+    find. The generator supplies ``stored_name``; ``file_name`` is the fallback
+    for a handler invoked outside the pipeline.
+    """
+    return meta.get("stored_name") or meta.get("file_name", "unknown")
+
+
 def get_clean_record_name(file_name: str) -> str:
     """
     Generate a clean record set name from a file name.
@@ -620,16 +652,6 @@ def get_clean_record_name(file_name: str) -> str:
         return str(file_name) if file_name else "unknown"
 
     name = file_name.strip()
-
-    # Remove common compression extensions first
-    if name.endswith(".gz"):
-        name = name[:-3]
-    elif name.endswith(".bz2"):
-        name = name[:-4]
-    elif name.endswith(".xz"):
-        name = name[:-3]
-    elif name.endswith(".zip"):
-        name = name[:-4]
 
     # Remove common data file extensions
     extensions = [".csv", ".tsv", ".ndjson", ".json", ".parquet", ".txt", ".dat"]

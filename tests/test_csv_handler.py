@@ -3,16 +3,7 @@
 from pathlib import Path
 import pytest
 from croissant_baker.handlers.csv_handler import CSVHandler
-
-
-def test_csv_handler_can_handle() -> None:
-    """Test CSV handler file type detection."""
-    handler = CSVHandler()
-
-    assert handler.can_handle(Path("test.csv"))
-    assert handler.can_handle(Path("data.CSV"))
-    assert handler.can_handle(Path("data.csv.gz"))
-    assert not handler.can_handle(Path("test.txt"))
+from croissant_baker.sources import make_source
 
 
 def test_csv_handler_extract_metadata(tmp_path: Path) -> None:
@@ -22,7 +13,7 @@ def test_csv_handler_extract_metadata(tmp_path: Path) -> None:
     csv_file.write_text(csv_content)
 
     handler = CSVHandler()
-    metadata = handler.extract_metadata(csv_file)
+    metadata = handler.extract(make_source(csv_file))
 
     assert metadata["encoding_format"] == "text/csv"
     assert metadata["file_name"] == "test.csv"
@@ -43,7 +34,7 @@ def test_csv_handler_count_rows(tmp_path: Path) -> None:
     csv_file.write_text(csv_content)
 
     handler = CSVHandler()
-    metadata = handler.extract_metadata(csv_file, count_rows=True)
+    metadata = handler.extract(make_source(csv_file), count_rows=True)
 
     assert metadata["num_rows"] == 2
 
@@ -55,7 +46,7 @@ def test_csv_handler_empty_file(tmp_path: Path) -> None:
 
     handler = CSVHandler()
     with pytest.raises(ValueError):
-        handler.extract_metadata(empty_csv)
+        handler.extract(make_source(empty_csv))
 
 
 def test_csv_handler_data_types(tmp_path: Path) -> None:
@@ -65,17 +56,12 @@ def test_csv_handler_data_types(tmp_path: Path) -> None:
     csv_file.write_text(csv_content)
 
     handler = CSVHandler()
-    metadata = handler.extract_metadata(csv_file)
+    metadata = handler.extract(make_source(csv_file))
 
     column_types = metadata["column_types"]
     assert column_types["bool_col"] == "sc:Boolean"
     assert column_types["float_col"] == "cr:Float64"
     assert column_types["text_col"] == "sc:Text"
-
-
-# ---------------------------------------------------------------------------
-# build_croissant
-# ---------------------------------------------------------------------------
 
 
 def test_csv_build_croissant_single_file() -> None:
@@ -117,11 +103,6 @@ def test_csv_build_croissant_multiple_files() -> None:
     assert {rs.name for rs in record_sets} == {"a", "b"}
 
 
-# ---------------------------------------------------------------------------
-# _parse_conflict and probe fallback (#48)
-# ---------------------------------------------------------------------------
-
-
 def test_parse_conflict_known_format() -> None:
     idx, inferred = CSVHandler._parse_conflict(
         "In CSV column #2: CSV conversion error to int64"
@@ -146,7 +127,9 @@ def test_parse_conflict_unknown_falls_back_to_all_string(tmp_path: Path) -> None
     csv_file.write_text("a,b,c\n1,2,3\n")
     seen_overrides = []
 
-    def fake_read(file_path, convert_options, count_rows=False, delimiter=","):
+    def fake_read(
+        file_path, convert_options, count_rows=False, delimiter=",", skip_rows=0
+    ):
         overrides = {k: str(v) for k, v in (convert_options.column_types or {}).items()}
         seen_overrides.append(overrides)
         if overrides == {"a": "string", "b": "string", "c": "string"}:
@@ -160,7 +143,7 @@ def test_parse_conflict_unknown_falls_back_to_all_string(tmp_path: Path) -> None
     with patch.object(CSVHandler, "_parse_conflict", return_value=(None, None)):
         with patch.object(CSVHandler, "_header", return_value=["a", "b", "c"]):
             with patch.object(CSVHandler, "_read_streaming", side_effect=fake_read):
-                meta = CSVHandler().extract_metadata(csv_file)
+                meta = CSVHandler().extract(make_source(csv_file))
 
     assert meta["column_types"] == {"a": "sc:Text", "b": "sc:Text", "c": "sc:Text"}
     assert seen_overrides == [{}, {"a": "string", "b": "string", "c": "string"}]
@@ -179,4 +162,84 @@ def test_no_fd_leak_on_schema_only_reads(tmp_path: Path) -> None:
 
     handler = CSVHandler()
     for f in files:
-        handler.extract_metadata(f, count_rows=False)
+        handler.extract(make_source(f), count_rows=False)
+
+
+_PROBE_SET = (
+    "#probe_set_file_format=2.0\n"
+    "#panel_name=Visium Human Transcriptome Probe Set v2.0\n"
+    "#reference_genome=GRCh38\n"
+    "gene_id,probe_seq,included\n"
+    "ENSG00000000003,GGTGACACC,TRUE\n"
+    "ENSG00000000005,TCTGCATCT,TRUE\n"
+)
+
+_HEADER_AND_ROWS = "id,note\n1,#1 ranked\n2,plain\n"
+
+
+_HASH_HEADER = "#,name,age\n1,Ann,30\n2,Bob,40\n"
+_CHROM_HEADER = "#chrom,start,end\nchr1,100,200\nchr2,300,400\n"
+_MIXED_PREAMBLE_AND_HASH_HEADER = "#meta\n" + _HASH_HEADER
+
+
+@pytest.mark.parametrize(
+    "text, columns",
+    [
+        (_PROBE_SET, ["gene_id", "probe_seq", "included"]),
+        (_HEADER_AND_ROWS, ["id", "note"]),
+        ("#c\n" * 100 + _HEADER_AND_ROWS, ["id", "note"]),
+        (_CHROM_HEADER, ["#chrom", "start", "end"]),
+        (_MIXED_PREAMBLE_AND_HASH_HEADER, ["#", "name", "age"]),
+    ],
+    ids=[
+        "10x-probe-set",
+        "hash-inside-data",
+        "at-the-preamble-bound",
+        "hash-chrom-header",
+        "comment-then-hash-header",
+    ],
+)
+def test_a_leading_comment_run_is_skipped_and_nothing_else_is(
+    tmp_path: Path, text: str, columns: list
+) -> None:
+    """PyArrow read a ``#`` preamble as a one-column table and then rejected
+    the real header. Row counts are asserted too: skipping one row too many
+    silently drops data instead of failing."""
+    path = tmp_path / "probe.csv"
+    path.write_text(text, encoding="utf-8")
+
+    meta = CSVHandler().extract(make_source(path, Path("probe.csv")), count_rows=True)
+
+    assert meta["columns"] == columns
+    assert meta["num_columns"] == len(columns)
+    assert meta["num_rows"] == 2
+
+
+def test_a_preamble_past_the_bound_is_not_skipped(tmp_path: Path) -> None:
+    """The scan is bounded, so a file that is comments all the way down cannot
+    cost an unbounded read. Past the bound the handler stops claiming a
+    preamble at all, and the read fails rather than silently mis-parsing."""
+    path = tmp_path / "all_comments.csv"
+    path.write_text("#c\n" * 101 + _HEADER_AND_ROWS, encoding="utf-8")
+
+    assert CSVHandler()._preamble_rows(make_source(path, Path("all_comments.csv"))) == 0
+
+
+def test_a_hash_header_is_not_a_preamble(tmp_path: Path) -> None:
+    """A header that starts with ``#`` is a column name, not a comment.
+
+    Skipping it makes the first data row the header: names go missing, types
+    infer as Text, and a loader keyed on those names returns garbage.
+    """
+    path = tmp_path / "numbered.csv"
+    path.write_text(_HASH_HEADER, encoding="utf-8")
+
+    meta = CSVHandler().extract(
+        make_source(path, Path("numbered.csv")), count_rows=True
+    )
+
+    assert meta["columns"] == ["#", "name", "age"]
+    assert meta["column_types"]["#"] == "cr:Int64"
+    assert meta["column_types"]["name"] == "sc:Text"
+    assert meta["column_types"]["age"] == "cr:Int64"
+    assert meta["num_rows"] == 2

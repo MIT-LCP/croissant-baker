@@ -80,7 +80,10 @@
       "name": "diagnosis.csv.gz",
       "contentSize": "360548",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/diagnosis.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "c99770c25fdeaee1eb34e490f982bd17459bc8902f951a2ae23adef65e7b1b52"
     },
     {
@@ -89,7 +92,10 @@
       "name": "vitalAperiodic.csv.gz",
       "contentSize": "2619980",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/vitalAperiodic.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "c294f46647990cb648b3ebfa589e83f330bdc0c2c922b5e8f23aa0ef99954635"
     },
     {
@@ -98,7 +104,10 @@
       "name": "admissionDx.csv.gz",
       "contentSize": "95877",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/admissionDx.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "607020180f1c7fbbc994a23552d6a4fdc70b86d4abc8e1b36f3ee28e96f15c42"
     },
     {
@@ -107,7 +116,10 @@
       "name": "respiratoryCare.csv.gz",
       "contentSize": "58474",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/respiratoryCare.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "9e260512866498995b49d0f0676795b62115fc1045de3f7daf2e356769259de7"
     },
     {
@@ -116,7 +128,10 @@
       "name": "nurseAssessment.csv.gz",
       "contentSize": "1099631",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/nurseAssessment.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "1664d3a7a0f9f535a15e2d032c270cfd64bab2d5a08b6bec1b31133893934d09"
     },
     {
@@ -125,7 +140,10 @@
       "name": "hospital.csv.gz",
       "contentSize": "759",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/hospital.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "4ed356f9c4e7c8ce80e89241697e94b77f21c2f325cd6ad126794b1e92805ef4"
     },
     {
@@ -134,7 +152,10 @@
       "name": "vitalPeriodic.csv.gz",
       "contentSize": "19391070",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/vitalPeriodic.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "04dc093a2e77cd4c52ac7f2a47a8356fbb7456c7f15deb20d5abb1ca4303231d"
     },
     {
@@ -143,7 +164,10 @@
       "name": "carePlanGeneral.csv.gz",
       "contentSize": "360368",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/carePlanGeneral.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "f095258743a05717dda031b9a4f00061cffe82e06ae793c0e51f2890e1dcd44e"
     },
     {
@@ -152,7 +176,10 @@
       "name": "patient.csv.gz",
       "contentSize": "136791",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/patient.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "15e1eb52169828e3cfff3b67132a087298de4d0365bbb31bb294f6043bffd474"
     },
     {
@@ -161,7 +188,10 @@
       "name": "carePlanGoal.csv.gz",
       "contentSize": "31115",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/carePlanGoal.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "b56d3443683b1b6a29d64da1ffd1de2662aac87b1f49560af720c1bd1325558e"
     },
     {
@@ -170,7 +200,10 @@
       "name": "treatment.csv.gz",
       "contentSize": "460899",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/treatment.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "daefee030fa1ad29593dce880ad86bdfbdbb1e33fcb3e78fa21d71cb01a08628"
     },
     {
@@ -179,7 +212,10 @@
       "name": "apacheApsVar.csv.gz",
       "contentSize": "68194",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/apacheApsVar.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "2dc6d63f9807c7e663ffa253998691605d527b702ac1db8cc5dda92308061e78"
     },
     {
@@ -188,7 +224,10 @@
       "name": "carePlanEOL.csv.gz",
       "contentSize": "289",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/carePlanEOL.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "dfb5eafc8cb6d0c96f6ac289dd49998939df353d919ca0451d74542fd13a2f7f"
     },
     {
@@ -197,7 +236,10 @@
       "name": "infusiondrug.csv.gz",
       "contentSize": "403703",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/infusiondrug.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "3b9f024d28682884a820763ac516ae68b247ebf17903fee4f38240c04886d527"
     },
     {
@@ -206,7 +248,10 @@
       "name": "carePlanCareProvider.csv.gz",
       "contentSize": "57790",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/carePlanCareProvider.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "af0dff697752a0d98200abdbf054a935a577319b26969a27a5287b18790d633e"
     },
     {
@@ -215,7 +260,10 @@
       "name": "microLab.csv.gz",
       "contentSize": "3580",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/microLab.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "0250a23d70033f27e1954ced50935cefedaaf3fddd5a5cf5bda2d5a6927eb94d"
     },
     {
@@ -224,7 +272,10 @@
       "name": "nurseCare.csv.gz",
       "contentSize": "499807",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/nurseCare.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "3cfde5dc14cc324e68c9af0807c5572e71fd7e167c5315e6b68cc241e0ff8d47"
     },
     {
@@ -233,7 +284,10 @@
       "name": "physicalExam.csv.gz",
       "contentSize": "777258",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/physicalExam.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "7c11cae91ce2828964b9212bb49e601a0e48911ef7df5480b547621845c9d73f"
     },
     {
@@ -242,7 +296,10 @@
       "name": "respiratoryCharting.csv.gz",
       "contentSize": "1630167",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/respiratoryCharting.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "21bfe647fea0a229d09ff04c775ec4270d20ae084131a987943da836df534235"
     },
     {
@@ -251,7 +308,10 @@
       "name": "note.csv.gz",
       "contentSize": "265926",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/note.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "ec67b0cd294a555dc39849a15eea2760e4f8696abbb293094b2003662c997ffa"
     },
     {
@@ -260,7 +320,10 @@
       "name": "admissiondrug.csv.gz",
       "contentSize": "114099",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/admissiondrug.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "fcf0af0de0efe18ec932199d2fcb308143886df6d50daea869bea48464ea6d68"
     },
     {
@@ -269,7 +332,10 @@
       "name": "lab.csv.gz",
       "contentSize": "5729763",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/lab.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "e06852850abeb65211bc22ac43f17121ba41b14656fac862396449af84d8273a"
     },
     {
@@ -278,7 +344,10 @@
       "name": "apachePredVar.csv.gz",
       "contentSize": "53627",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/apachePredVar.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "99d5a4ab2c5cd07b6ee0a540c86a576e5975ed3b93df8525e3d287d5babf3eae"
     },
     {
@@ -287,7 +356,10 @@
       "name": "customLab.csv.gz",
       "contentSize": "634",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/customLab.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "58e32f4c0620b22323a46336f9e406d90ce128b4005349b8e40f181f41672617"
     },
     {
@@ -296,7 +368,10 @@
       "name": "apachePatientResult.csv.gz",
       "contentSize": "214122",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/apachePatientResult.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "ce799692737f7a712c59aa8fbb9a302cee7c719887f0638caed3ae144b166821"
     },
     {
@@ -305,7 +380,10 @@
       "name": "carePlanInfectiousDisease.csv.gz",
       "contentSize": "1586",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/carePlanInfectiousDisease.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "413ff454d00a3a5b295f4bbd1d8a697a5657c5ac828cbe757a43cd5e664082a8"
     },
     {
@@ -314,7 +392,10 @@
       "name": "allergy.csv.gz",
       "contentSize": "35475",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/allergy.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "be890a4cfaf7a194596583f882f491ced515f1714e3d07fc59413a83af5dad31"
     },
     {
@@ -323,7 +404,10 @@
       "name": "nurseCharting.csv.gz",
       "contentSize": "16838725",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/nurseCharting.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "475000d63d4ef883b2e891d7197997201300bedc13fcf23e67add1abee11dafe"
     },
     {
@@ -332,7 +416,10 @@
       "name": "pastHistory.csv.gz",
       "contentSize": "142402",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/pastHistory.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "3af6e3101c037347365d81daf73ea487ba12e14a6a10f0b2ed53beed2e30c7d5"
     },
     {
@@ -341,7 +428,10 @@
       "name": "medication.csv.gz",
       "contentSize": "1458011",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/medication.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "480a251570a27932110452f66f248061f712c306663c274f78f90875648cb720"
     },
     {
@@ -350,7 +440,10 @@
       "name": "intakeOutput.csv.gz",
       "contentSize": "1826646",
       "contentUrl": "physionet.org/files/eicu-crd-demo/2.0.1/intakeOutput.csv.gz",
-      "encodingFormat": "application/gzip",
+      "encodingFormat": [
+        "text/csv",
+        "application/gzip"
+      ],
       "sha256": "45db8ee0e64a4e3745284bde5828f740175770c45d00ea0c27daff789d18106e"
     }
   ],

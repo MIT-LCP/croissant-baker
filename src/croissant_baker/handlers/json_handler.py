@@ -1,29 +1,28 @@
 """Generic JSON and JSONL file handler.
 
 Supports four file formats:
-- ``.json`` / ``.json.gz``: a JSON array of objects (each object is one row)
+- ``.json``: a JSON array of objects (each object is one row)
   or a single JSON object (treated as one row).
-- ``.jsonl`` / ``.jsonl.gz``: newline-delimited JSON (one JSON object per line).
+- ``.jsonl``: newline-delimited JSON (one JSON object per line).
 
-FHIR ``.json`` / ``.json.gz`` files (those containing ``"resourceType": "<UpperCase…"``)
+FHIR ``.json`` files (those containing ``"resourceType": "<UpperCase…"``)
 are intentionally excluded — they are claimed by FHIRHandler instead.
 """
 
 import json
 import logging
 import re
-from pathlib import Path
 
 import mlcroissant as mlc
 
-from croissant_baker.handlers.base_handler import FileTypeHandler
+from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.sources import FileSource
 from croissant_baker.handlers.utils import (
     SCHEMA_SAMPLE,
     build_fields_from_json_schema,
-    compute_file_hash,
+    display_name,
     infer_json_schema,
     make_record_set_ids,
-    open_text_file,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,24 +35,24 @@ class JSONHandler(FileTypeHandler):
     """Handler for generic JSON and JSONL datasets.
 
     Detection strategy:
-    - ``.jsonl`` / ``.jsonl.gz``: always accepted (FHIR uses ``.ndjson``, not ``.jsonl``).
-    - ``.json`` / ``.json.gz``: accepted only when the first 4 KB does NOT match the
-      FHIR resourceType pattern and the content starts with ``[`` (array) or ``{`` (object).
+    - ``.jsonl``: always accepted (FHIR uses ``.ndjson``, not ``.jsonl``).
+    - ``.json``: accepted only when the first 4 KB does NOT match the FHIR
+      resourceType pattern and the content starts with ``[`` (array) or ``{`` (object).
     """
 
-    EXTENSIONS = (".json", ".json.gz", ".jsonl", ".jsonl.gz")
+    EXTENSIONS = (".json", ".jsonl")
     FORMAT_NAME = "JSON / JSONL"
     FORMAT_DESCRIPTION = "Schema inferred from a sample of records"
 
-    def can_handle(self, file_path: Path) -> bool:
-        name = file_path.name.lower()
-        if name.endswith(".jsonl") or name.endswith(".jsonl.gz"):
+    def claims(self, source: FileSource) -> bool:
+        name = source.name.lower()
+        if name.endswith(".jsonl"):
             return True
-        if name.endswith(".json") or name.endswith(".json.gz"):
-            return self._sniff_json(file_path)
+        if name.endswith(".json"):
+            return self._sniff_json(source)
         return False
 
-    def _sniff_json(self, file_path: Path) -> bool:
+    def _sniff_json(self, source: FileSource) -> bool:
         """Peek at the first 4 KB to confirm the file is non-FHIR JSON.
 
         FHIR top-level objects always start with ``{``, so the FHIR exclusion
@@ -62,7 +61,7 @@ class JSONHandler(FileTypeHandler):
         not a FHIR document.
         """
         try:
-            with open_text_file(file_path) as fh:
+            with source.open_text() as fh:
                 head = fh.read(4096)
             head = head.strip()
             if head.startswith("{"):
@@ -71,40 +70,35 @@ class JSONHandler(FileTypeHandler):
         except (OSError, UnicodeDecodeError):
             return False
 
-    def extract_metadata(self, file_path: Path, **kwargs) -> dict:
+    def extract(self, source: FileSource, **kwargs) -> dict:
         """Extract metadata from a JSON or JSONL file.
 
         Returns a dict with keys:
-            file_path, file_name, file_size, sha256, encoding_format,
+            file_name, file_size, sha256, encoding_format,
             column_types, columns, num_columns, num_rows.
 
         Raises:
             ValueError: If the file cannot be parsed or contains no records.
         """
-        sha256 = compute_file_hash(file_path)
-        file_size = file_path.stat().st_size
-        file_name = file_path.name
-        name_lower = file_name.lower()
-
-        is_gz = name_lower.endswith(".gz")
-        is_jsonl = name_lower.endswith(".jsonl") or name_lower.endswith(".jsonl.gz")
-
-        if is_jsonl:
-            return self._extract_jsonl(file_path, file_name, sha256, file_size, is_gz)
-        return self._extract_json(file_path, file_name, sha256, file_size, is_gz)
+        if not source.exists:
+            raise FileNotFoundError(f"JSON file not found: {source.relative_path}")
+        try:
+            if source.suffix == ".jsonl":
+                return self._extract_jsonl(source)
+            return self._extract_json(source)
+        except UnicodeDecodeError as exc:
+            # Binary bytes behind a .json name. UnicodeDecodeError is a
+            # ValueError subclass, so it reached the report as a raw codec
+            # message; name the file and the format instead.
+            raise ValueError(
+                f"Failed to read JSON file {source.relative_path}: {exc}"
+            ) from exc
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _extract_jsonl(
-        self,
-        file_path: Path,
-        file_name: str,
-        sha256: str,
-        file_size: int,
-        is_gz: bool,
-    ) -> dict:
+    def _extract_jsonl(self, source: FileSource) -> dict:
         """Stream a JSONL file line-by-line.
 
         Collects up to ``SCHEMA_SAMPLE`` records for schema inference while
@@ -113,7 +107,7 @@ class JSONHandler(FileTypeHandler):
         schema_samples: list = []
         num_rows = 0
 
-        with open_text_file(file_path) as fh:
+        with source.open_text() as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -121,7 +115,9 @@ class JSONHandler(FileTypeHandler):
                 try:
                     obj = json.loads(line)
                 except json.JSONDecodeError:
-                    logger.warning("Skipping malformed JSON line in %s", file_name)
+                    logger.warning(
+                        "Skipping malformed JSON line in %s", source.relative_path
+                    )
                     continue
                 if not isinstance(obj, dict):
                     continue
@@ -130,23 +126,22 @@ class JSONHandler(FileTypeHandler):
                     schema_samples.append(obj)
 
         if num_rows == 0:
-            raise ValueError(f"No valid JSON objects found in {file_name}")
+            raise ValueError(f"No valid JSON objects found in {source.relative_path}")
 
         if num_rows > SCHEMA_SAMPLE:
             logger.warning(
                 "Sampled %d of %d records for schema inference in %s — rare fields may be missing",
                 SCHEMA_SAMPLE,
                 num_rows,
-                file_name,
+                source.relative_path,
             )
 
         column_types = infer_json_schema(schema_samples, _top_level=False)
-        encoding = "application/gzip" if is_gz else "application/jsonl"
+        encoding = "application/jsonl"
         return {
-            "file_path": str(file_path),
-            "file_name": file_name,
-            "file_size": file_size,
-            "sha256": sha256,
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
             "encoding_format": encoding,
             "column_types": column_types,
             "columns": list(column_types.keys()),
@@ -154,34 +149,31 @@ class JSONHandler(FileTypeHandler):
             "num_rows": num_rows,
         }
 
-    def _extract_json(
-        self,
-        file_path: Path,
-        file_name: str,
-        sha256: str,
-        file_size: int,
-        is_gz: bool,
-    ) -> dict:
+    def _extract_json(self, source: FileSource) -> dict:
         """Load a ``.json`` file entirely.
 
         - JSON array  → each element is a row (only dicts are kept).
         - JSON object → treated as a single row.
         """
-        with open_text_file(file_path) as fh:
+        with source.open_text() as fh:
             try:
                 doc = json.load(fh)
             except json.JSONDecodeError as exc:
-                raise ValueError(f"Cannot parse {file_name} as JSON: {exc}") from exc
+                raise ValueError(
+                    f"Cannot parse {source.relative_path} as JSON: {exc}"
+                ) from exc
 
         if isinstance(doc, list):
             rows = [r for r in doc if isinstance(r, dict)]
         elif isinstance(doc, dict):
             rows = [doc]
         else:
-            raise ValueError(f"{file_name} is not a JSON object or array of objects")
+            raise ValueError(
+                f"{source.relative_path} is not a JSON object or array of objects"
+            )
 
         if not rows:
-            raise ValueError(f"No valid JSON objects found in {file_name}")
+            raise ValueError(f"No valid JSON objects found in {source.relative_path}")
 
         num_rows = len(rows)
         schema_samples = rows[:SCHEMA_SAMPLE]
@@ -191,16 +183,15 @@ class JSONHandler(FileTypeHandler):
                 "Sampled %d of %d records for schema inference in %s — rare fields may be missing",
                 SCHEMA_SAMPLE,
                 num_rows,
-                file_name,
+                source.relative_path,
             )
 
         column_types = infer_json_schema(schema_samples, _top_level=False)
-        encoding = "application/gzip" if is_gz else "application/json"
+        encoding = "application/json"
         return {
-            "file_path": str(file_path),
-            "file_name": file_name,
-            "file_size": file_size,
-            "sha256": sha256,
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
             "encoding_format": encoding,
             "column_types": column_types,
             "columns": list(column_types.keys()),
@@ -221,14 +212,14 @@ class JSONHandler(FileTypeHandler):
         rs_ids = make_record_set_ids(file_metas)
 
         for file_id, meta, rs_id in zip(file_ids, file_metas, rs_ids):
-            file_name = meta.get("file_name", "unknown")
+            shown = display_name(meta)
             num_rows = meta.get("num_rows")
             row_desc = f" ({num_rows} rows)" if num_rows is not None else ""
             record_sets.append(
                 mlc.RecordSet(
                     id=rs_id,
                     name=rs_id,
-                    description=f"Records from {file_name}{row_desc}",
+                    description=f"Records from {shown}{row_desc}",
                     fields=build_fields_from_json_schema(
                         meta["column_types"],
                         rs_id,
@@ -238,4 +229,4 @@ class JSONHandler(FileTypeHandler):
                 )
             )
 
-        return [], record_sets
+        return BuildResult([], record_sets)

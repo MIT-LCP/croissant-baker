@@ -76,7 +76,10 @@
       "name": "1.2.840.4267.32.14317549958544601048302357085441453331_mask.nii.gz",
       "contentSize": "1473",
       "contentUrl": "NIfTI/1.2.840.4267.32.14317549958544601048302357085441453331_mask.nii.gz",
-      "encodingFormat": "application/x-nifti+gzip",
+      "encodingFormat": [
+        "application/x-nifti",
+        "application/gzip"
+      ],
       "sha256": "2a55bfbdb86af9a0a380e914a02501908854fad7477a7999790bb09ce4926f55"
     },
     {
@@ -85,7 +88,10 @@
       "name": "1.2.840.4267.32.6282692783898975606278220787719726349_mask.nii.gz",
       "contentSize": "1535",
       "contentUrl": "NIfTI/1.2.840.4267.32.6282692783898975606278220787719726349_mask.nii.gz",
-      "encodingFormat": "application/x-nifti+gzip",
+      "encodingFormat": [
+        "application/x-nifti",
+        "application/gzip"
+      ],
       "sha256": "ea2c9c1ac04eb3645ee21aab350a89846da242855de0da14d3120491b2cfa28a"
     },
     {
@@ -94,7 +100,10 @@
       "name": "1.2.840.4267.32.118564058634314627767242469443335771432_mask.nii.gz",
       "contentSize": "1548",
       "contentUrl": "NIfTI/1.2.840.4267.32.118564058634314627767242469443335771432_mask.nii.gz",
-      "encodingFormat": "application/x-nifti+gzip",
+      "encodingFormat": [
+        "application/x-nifti",
+        "application/gzip"
+      ],
       "sha256": "da30f590fec3732597fc1b97e7e4cbe298c12ac9e8401930c3448b2824aad07e"
     },
     {
@@ -129,7 +138,10 @@
       "@id": "nifti-files",
       "name": "NIfTI files",
       "description": "3 NIfTI file(s) (70x70x50)",
-      "encodingFormat": "application/x-nifti+gzip",
+      "encodingFormat": [
+        "application/x-nifti",
+        "application/gzip"
+      ],
       "includes": [
         "**/*.nii",
         "**/*.nii.gz"

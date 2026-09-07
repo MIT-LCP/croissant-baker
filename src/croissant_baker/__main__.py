@@ -23,8 +23,10 @@ from croissant_baker.metadata_generator import (
     RAI_CONFORMS_TO,
     serialize_datetime,
 )
+from croissant_baker import compression
 from croissant_baker.files import discover_files
-from croissant_baker.handlers.registry import find_handler
+from croissant_baker.handlers.registry import select_handler
+from croissant_baker.scan import Reason, ScanReport, scan_directory
 import mlcroissant as mlc
 
 # Create the Typer application instance
@@ -126,6 +128,54 @@ def _echo_file_counts(file_count: int, file_set_count: int) -> None:
     typer.echo(f"Files: {file_count}")
     if file_set_count:
         typer.echo(f"File sets: {file_set_count}")
+
+
+def _write_scan_report(scan_report: ScanReport, path: Path) -> None:
+    """Write the machine-readable scan report as JSON."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(scan_report.to_dict(), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    typer.echo(f"Scan report: {path}")
+
+
+def _echo_scan_coverage(
+    generator: Optional["MetadataGenerator"],
+    report_path: Optional[Path],
+    verbose: bool,
+) -> None:
+    """Print how much of the dataset was described, and optionally why not.
+
+    The default is a fixed-size summary: a header plus at most one line per
+    reason, so a directory with one undescribed file and one with ten thousand
+    print the same shape. This is the only place a file is named one per line,
+    and only under ``--verbose``; the machine-readable form is ``--report``.
+    Diagnostics a parser emits on its own are outside this.
+
+    Accepts ``None`` so the failure paths can call it unconditionally.
+    """
+    if generator is None:
+        return
+    scan_report = generator.scan_report
+    if not scan_report.total:
+        return
+
+    for line in scan_report.summary_lines():
+        typer.echo(line)
+
+    undescribed = scan_report.undescribed
+    if verbose:
+        for entry in undescribed:
+            typer.echo(f"  {generator.describe_refusal(entry)}")
+
+    if report_path:
+        _write_scan_report(scan_report, report_path)
+    elif undescribed and not verbose:
+        typer.echo(
+            "Tip: re-run with --verbose, or --report FILE, to see which files "
+            "were not described"
+        )
 
 
 def _warn_missing_spec_fields(**provided: object) -> None:
@@ -624,6 +674,17 @@ def main(
         "--dry-run",
         help="Perform a dry run to list matching files without generating metadata.",
     ),
+    report: Optional[Path] = typer.Option(
+        None,
+        "--report",
+        help="Write a JSON scan report naming every file found and its outcome.",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Also list each undescribed file and its reason, not the summary alone.",
+    ),
 ) -> None:
     """🥐 **Croissant Baker** - Generate rich metadata for your datasets"""
 
@@ -670,23 +731,49 @@ def main(
         )
         raise typer.Exit(code=1)
 
-    # Dry run: list files that would be processed, then exit
+    # Listing every file is the point of this mode, so the fixed-size rule
+    # governing the default bake summary does not apply here.
     if dry_run:
         try:
-            all_files = discover_files(
+            entries = scan_directory(
                 input, include_patterns=include, exclude_patterns=exclude
             )
-            matched_files = [f for f in all_files if find_handler(Path(input) / f)]
+            claimed = []
+            unclaimed = []
+            for entry in entries:
+                # Ask the registry for its own reason rather than assuming
+                # one: an archive and a path-only handler differ.
+                selection = select_handler(Path(input) / entry.path, entry.path)
+                if selection.handler is None:
+                    entry.unclaimed(
+                        selection.reason or Reason.NO_HANDLER, selection.refusal
+                    )
+                    unclaimed.append(entry)
+                else:
+                    entry.would_process(selection.handler)
+                    claimed.append(entry)
+
             typer.echo(
-                f"Dry run: {len(matched_files)} file(s) would be processed in '{input}':"
+                f"Dry run: {len(claimed)} file(s) would be processed in '{input}':"
             )
-            for f in matched_files:
-                typer.echo(f"  {f}")
+            for entry in claimed:
+                typer.echo(f"  {entry.path}")
+
+            if unclaimed:
+                typer.echo(
+                    f"{len(unclaimed)} file(s) would not be described in '{input}':"
+                )
+                for entry in unclaimed:
+                    typer.echo(f"  {entry.detail}. File: {entry.path}")
+
+            if report:
+                _write_scan_report(ScanReport(entries), report)
         except Exception as e:
             typer.echo(f"Error: {e}", err=True)
             raise typer.Exit(code=1)
         return
 
+    generator: Optional[MetadataGenerator] = None
     try:
         native_rai_fields = _build_native_rai_fields(
             rai_data_collection=rai_data_collection,
@@ -749,14 +836,16 @@ def main(
 
                 parsed_creators.append(creator_obj)
 
-        # Warn early if --count-csv-rows is set but dataset has no CSV files
+        # Warn early if --count-csv-rows is set but dataset has no CSV files.
+        # Asked of the logical name, so the CLI does not become a second
+        # compression owner.
         if count_csv_rows:
-            csv_extensions = {".csv", ".csv.gz", ".csv.bz2", ".csv.xz"}
             all_files = discover_files(
                 input, include_patterns=include, exclude_patterns=exclude
             )
             has_csv = any(
-                any(str(f).endswith(ext) for ext in csv_extensions) for f in all_files
+                compression.logical_name(Path(f).name).lower().endswith(".csv")
+                for f in all_files
             )
             if not has_csv:
                 typer.echo(
@@ -865,6 +954,7 @@ def main(
         )
         _echo_file_counts(file_count, file_set_count)
         typer.echo(f"Record sets: {record_count}")
+        _echo_scan_coverage(generator, report, verbose)
         typer.echo(f"Saved to: {output}")
 
         if not validate:
@@ -882,9 +972,12 @@ def main(
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
+        # A bake that described nothing is when coverage matters most.
+        _echo_scan_coverage(generator, report, verbose)
         raise typer.Exit(code=1)
     except Exception as e:
         typer.echo(f"Unexpected error: {e}", err=True)
+        _echo_scan_coverage(generator, report, verbose)
         raise typer.Exit(code=1)
 
 

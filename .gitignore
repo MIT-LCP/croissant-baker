@@ -175,6 +175,7 @@ cython_debug/
 
 # AI assistant context files
 CLAUDE.md
+.agents/
 
 # Planning
 .planning/

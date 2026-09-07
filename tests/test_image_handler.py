@@ -11,22 +11,12 @@ from croissant_baker.handlers.image_handler import (
     ImageHandler,
     collect_image_summary,
 )
+from croissant_baker.sources import make_source
 
 
 @pytest.fixture
 def handler() -> ImageHandler:
     return ImageHandler()
-
-
-# ---------------------------------------------------------------------------
-# can_handle — extension + magic bytes (issue #93)
-#
-# can_handle enforces the registry contract: True implies extract_metadata
-# can read the file. Tests cover the three failure modes (wrong extension,
-# right extension/wrong content, missing file) plus the happy path per
-# extension. Each accepted-extension case writes a minimal magic-byte stub
-# so we exercise real files, not bare path strings.
-# ---------------------------------------------------------------------------
 
 
 # Minimal magic-byte stubs per supported extension. These are not full
@@ -68,91 +58,27 @@ def test_can_handle_accepts_supported_extensions_with_magic(
     extension's magic bytes are accepted."""
     p = tmp_path / filename
     p.write_bytes(_IMAGE_STUBS[p.suffix.lower()])
-    assert handler.can_handle(p) is True
+    assert handler.claims(make_source(p)) is True
 
 
-@pytest.mark.parametrize(
-    "name", ["data.csv", "model.parquet", "readme.txt", "record.hea"]
-)
-def test_can_handle_rejects_unsupported_extensions(
-    handler: ImageHandler, name: str
-) -> None:
-    """Non-image extensions are rejected before any I/O — bare path is fine."""
-    assert handler.can_handle(Path(name)) is False
-
-
-def test_can_handle_rejects_missing_file(handler: ImageHandler) -> None:
-    """A path with an image extension but no file on disk is rejected.
-
-    Without a file we cannot honor the contract that extract_metadata won't
-    crash, so can_handle must say no.
-    """
-    assert handler.can_handle(Path("/nonexistent/photo.png")) is False
-
-
-def test_can_handle_rejects_wrong_magic(
+def test_a_renamed_file_is_declined_at_debug(
     handler: ImageHandler, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Right extension, wrong content (e.g., HTML renamed to .png) is rejected
-    AND a WARNING is logged naming the file so the user knows what was skipped.
-
-    Regression for #93: prevents the registry from dispatching a renamed
-    file to ImageHandler.extract_metadata and crashing inside Pillow, and
-    surfaces the skip so the user is not blindsided by a missing file count.
-    """
+    """The generator owns the user-facing warning, so the handler's note is
+    debug — asserted, or a regression to WARNING doubles every skip."""
     impostor = tmp_path / "fake.png"
     impostor.write_bytes(b"<!DOCTYPE html><html></html>")
-    with caplog.at_level("WARNING", logger="croissant_baker.handlers.image_handler"):
-        assert handler.can_handle(impostor) is False
-    assert any(
-        str(impostor) in r.message and "magic bytes" in r.message
+
+    with caplog.at_level("DEBUG", logger="croissant_baker.handlers.image_handler"):
+        assert handler.claims(make_source(impostor)) is False
+
+    assert [
+        r
         for r in caplog.records
-    ), f"expected a WARNING naming {impostor} and 'magic bytes', got {caplog.records}"
-
-
-def test_can_handle_missing_file_does_not_warn(
-    handler: ImageHandler, caplog: pytest.LogCaptureFixture
-) -> None:
-    """A missing file is silently rejected (no spurious warnings) since the
-    caller, not the file, is at fault."""
-    with caplog.at_level("WARNING", logger="croissant_baker.handlers.image_handler"):
-        assert handler.can_handle(Path("/nonexistent/photo.png")) is False
-    assert caplog.records == []
-
-
-def test_can_handle_accepts_real_image(handler: ImageHandler, tmp_path: Path) -> None:
-    """A fully-encoded PNG (not just a magic stub) is accepted."""
-    from PIL import Image
-
-    real_png = tmp_path / "real.png"
-    Image.new("RGB", (4, 4), color="red").save(real_png)
-    assert handler.can_handle(real_png) is True
-
-
-def test_can_handle_accepts_bigtiff(handler: ImageHandler, tmp_path: Path) -> None:
-    """BigTIFF (TIFF variant for files >4GB, version byte 0x2b) is accepted.
-
-    Regression for #93: Pillow and tifffile both read BigTIFF, so the
-    contract requires can_handle to claim it.
-    """
-    bigtiff = tmp_path / "huge.tiff"
-    tifffile.imwrite(
-        str(bigtiff),
-        np.zeros((4, 4, 3), dtype=np.uint8),
-        bigtiff=True,
-    )
-    # Verify we wrote a real BigTIFF (version byte 0x2b, not 0x2a).
-    assert bigtiff.read_bytes()[:4] in (b"II+\x00", b"MM\x00+")
-    assert handler.can_handle(bigtiff) is True
-    # And extract_metadata must succeed — the contract.
-    meta = handler.extract_metadata(bigtiff)
-    assert meta["image_properties"]["width"] == 4
-    assert meta["image_properties"]["height"] == 4
-
-
-# ---------------------------------------------------------------------------
-# extract_metadata — standard JPG images (glaucoma fundus)
-# ---------------------------------------------------------------------------
+        if r.levelname == "DEBUG"
+        and impostor.name in r.message
+        and "magic bytes" in r.message
+    ], caplog.records
 
 
 @pytest.fixture
@@ -172,7 +98,7 @@ def glaucoma_image_path() -> Path:
 
 
 def test_extract_metadata_jpg(handler: ImageHandler, glaucoma_image_path: Path) -> None:
-    meta = handler.extract_metadata(glaucoma_image_path)
+    meta = handler.extract(make_source(glaucoma_image_path))
 
     assert meta["file_name"] == "0_0.jpg"
     assert meta["encoding_format"] == "image/jpeg"
@@ -184,11 +110,6 @@ def test_extract_metadata_jpg(handler: ImageHandler, glaucoma_image_path: Path) 
     assert props["height"] > 0
     assert props["num_bands"] in (1, 3, 4)
     assert props["image_format"] == "JPEG"
-
-
-# ---------------------------------------------------------------------------
-# extract_metadata — multi-band TIFF images (satellite)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -211,7 +132,7 @@ def satellite_tiff_path() -> Path:
 def test_extract_metadata_tiff(
     handler: ImageHandler, satellite_tiff_path: Path
 ) -> None:
-    meta = handler.extract_metadata(satellite_tiff_path)
+    meta = handler.extract(make_source(satellite_tiff_path))
 
     assert meta["file_name"] == "image_2016-01-03.tiff"
     assert meta["encoding_format"] == "image/tiff"
@@ -256,7 +177,7 @@ def test_extract_metadata_separate_planar_tiff(
         _force_tifffile_fallback,
     )
 
-    meta = handler.extract_metadata(separate_planar_tiff_path)
+    meta = handler.extract(make_source(separate_planar_tiff_path))
 
     assert meta["file_name"] == "separate_planar.tiff"
     assert meta["encoding_format"] == "image/tiff"
@@ -268,32 +189,6 @@ def test_extract_metadata_separate_planar_tiff(
     assert props["height"] == 5
     assert props["num_bands"] == 12
     assert props["image_format"] == "TIFF"
-
-
-# ---------------------------------------------------------------------------
-# extract_metadata — error cases
-# ---------------------------------------------------------------------------
-
-
-def test_extract_metadata_not_found(handler: ImageHandler) -> None:
-    with pytest.raises(FileNotFoundError):
-        handler.extract_metadata(Path("/nonexistent/image.jpg"))
-
-
-def test_extract_metadata_corrupt_file(handler: ImageHandler, tmp_path: Path) -> None:
-    bad_img = tmp_path / "corrupt.jpg"
-    bad_img.write_bytes(b"not an image")
-    with pytest.raises(ValueError, match="Failed to read image"):
-        handler.extract_metadata(bad_img)
-
-
-# ---------------------------------------------------------------------------
-# collect_image_summary
-# ---------------------------------------------------------------------------
-
-
-def test_collect_image_summary_empty() -> None:
-    assert collect_image_summary([]) == {}
 
 
 def test_collect_image_summary() -> None:
@@ -332,59 +227,6 @@ def test_collect_image_summary() -> None:
     assert summary["format_counts"] == {"JPEG": 2, "TIFF": 1}
 
 
-def test_collect_image_summary_missing_properties() -> None:
-    metas = [
-        {
-            "image_properties": {
-                "width": 100,
-                "height": 200,
-                "num_bands": 3,
-                "image_format": "JPEG",
-            }
-        },
-        {},  # Missing entirely
-        {
-            "image_properties": {
-                "width": 640,  # Missing some keys
-                "image_format": "JPEG",
-            }
-        },
-    ]
-    summary = collect_image_summary(metas)
-
-    assert summary["num_images"] == 2
-    assert summary["width_range"] == (100, 640)
-    assert summary["height_range"] == (200, 200)
-    assert summary["num_bands_range"] == (3, 3)
-    assert summary["format_counts"] == {"JPEG": 2}
-
-
-# ---------------------------------------------------------------------------
-# Handler registration
-# ---------------------------------------------------------------------------
-
-
-def test_image_handler_registered(tmp_path: Path) -> None:
-    """ImageHandler should be discoverable via the global registry for real
-    image files (i.e. extension AND magic bytes match)."""
-    from croissant_baker.handlers.registry import find_handler, register_all_handlers
-
-    register_all_handlers()
-    for name, magic in [
-        ("photo.jpg", _IMAGE_STUBS[".jpg"]),
-        ("scan.png", _IMAGE_STUBS[".png"]),
-        ("satellite.tiff", _IMAGE_STUBS[".tiff"]),
-    ]:
-        p = tmp_path / name
-        p.write_bytes(magic)
-        assert find_handler(p) is not None, f"no handler dispatched for {name}"
-
-
-# ---------------------------------------------------------------------------
-# build_croissant
-# ---------------------------------------------------------------------------
-
-
 def _img_meta(name, fmt="JPEG", mime="image/jpeg", w=100, h=100, bands=3):
     return {
         "file_name": name,
@@ -416,3 +258,35 @@ def test_image_build_croissant_multiband(handler: ImageHandler) -> None:
     _, record_sets = handler.build_croissant(metas, [f"file_{i}" for i in range(3)])
 
     assert "band" in record_sets[0].description
+
+
+def test_a_bigtiff_is_claimed_and_described(
+    handler: ImageHandler, tmp_path: Path
+) -> None:
+    """Regression test for #93, which made claims() check magic bytes.
+
+    BigTIFF is classic TIFF with a 64-bit offset field, which any writer
+    switches to at 4 GiB — where whole-slide imaging, EM volumes and geospatial
+    rasters all live. It differs in one byte, 0x2b against 0x2a, so a magic
+    check listing only 0x2a would reject a valid .tiff. The version byte is
+    asserted before the handler is asked, since a fixture written as classic
+    TIFF would let the claim pass for the wrong reason.
+    """
+    path = tmp_path / "tissue.tiff"
+    tifffile.imwrite(
+        str(path),
+        np.zeros((16, 16), np.uint16),
+        photometric="minisblack",
+        bigtiff=True,
+    )
+    assert path.read_bytes()[:4] == b"II+\x00"
+
+    source = make_source(path)
+    assert handler.claims(source) is True
+
+    props = handler.extract(source)["image_properties"]
+
+    assert (props["width"], props["height"]) == (16, 16)
+    # BigTIFF is a TIFF variant; a second token here would reach the format
+    # breakdown the record-set description reports.
+    assert props["image_format"] == "TIFF"

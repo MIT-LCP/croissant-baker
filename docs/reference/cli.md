@@ -39,6 +39,7 @@ $ croissant-baker [OPTIONS] COMMAND [ARGS]...
 * `--field-mappings FILE`: YAML file mapping columns to external vocabularies (Wikidata, SNOMED, LOINC). Schema: 'fields:\n  <col>:\n    equivalent_property: <URI>\n    data_types: [<URI>, ...]'. Note: column names match across ALL RecordSets, so 'id' applies to every 'id' column in the dataset.
 * `--field-mapping TEXT`: Link one column to an external vocabulary URI. Format: 'COLUMN=URI'. Example: --field-mapping 'age=http://www.wikidata.org/entity/Q11464'. Matches by bare column name across all RecordSets; a warning prints if a name resolves to multiple fields. Repeatable; combine with --field-mappings (flags override YAML).
 * `--count-csv-rows`: Count exact row numbers for CSV files (slow for large datasets)
+* `-j, --jobs INTEGER`: Worker threads for file extraction. 0 = auto (from CPU count), 1 = serial. Output is identical regardless of this value.  [default: 0]
 * `--rai-data-collection TEXT`: How and where the data was gathered.
 * `--rai-data-collection-type TEXT`: Collection type, e.g. 'observational'. Can be used multiple times.
 * `--rai-data-collection-missing-data TEXT`: How missing data was handled during collection.
@@ -63,6 +64,8 @@ $ croissant-baker [OPTIONS] COMMAND [ARGS]...
 * `-I, --include TEXT`: Glob pattern to include (e.g., '*.csv'). Can be used multiple times.
 * `-E, --exclude TEXT`: Glob pattern to exclude (e.g., '*.tmp'). Can be used multiple times.
 * `--dry-run`: Perform a dry run to list matching files without generating metadata.
+* `--report PATH`: Write a JSON scan report naming every file found and its outcome.
+* `-v, --verbose`: Also list each undescribed file and its reason, not the summary alone.
 * `--help`: Show this message and exit.
 
 **Commands**:

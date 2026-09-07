@@ -65,7 +65,7 @@ uv run --group docs mkdocs serve  # preview at http://127.0.0.1:8000
 The `docs/generate.py` script produces:
 
 - `docs/reference/cli.md` — from typer introspection
-- `docs/_generated/formats-table.md` — from handler `EXTENSIONS`/`FORMAT_NAME` class attributes
+- `docs/_generated/formats-table.md` — from handler `EXTENSIONS`/`FORMAT_NAME`/`INPUT_KIND` and the compression registry
 - `docs/_generated/rai-flags-table.md` — from typer parameter inspection
 
 Re-run `uv run python docs/generate.py` after changing CLI flags or adding/modifying handlers.
@@ -121,8 +121,26 @@ The wheel build is already configured — `uv build` produces a clean wheel cont
 ## Adding a new file handler
 
 1. Create `src/croissant_baker/handlers/your_handler.py`
-2. Subclass `FileTypeHandler` and implement `can_handle`, `extract_metadata`, `build_croissant`
+2. Subclass `FileTypeHandler` and implement `claims`, `extract`, `build_croissant`
 3. Set class attributes: `EXTENSIONS`, `FORMAT_NAME`, `FORMAT_DESCRIPTION`
-4. Register the instance in `registry.py` → `register_all_handlers()`
-5. Add tests in `tests/`
-6. Run `python docs/generate.py` — the supported formats table updates automatically
+4. Add the instance to `registry.py` → `builtin_handlers()`
+5. Add a sample to `tests/helpers.py` → `SAMPLES`. A handler with neither a
+   sample nor a recorded exemption fails the suite; that one entry drives the
+   contract sweep (`tests/test_handler_contract.py`) and the compression matrix
+   (`tests/test_compression_matrix.py`)
+6. Add what the sweep cannot express — magic bytes, tolerant parsing, resource
+   handling — to `tests/test_<format>_handler.py`
+7. Run `python docs/generate.py` — the supported formats table updates automatically
+
+Shared test vocabulary is in `tests/helpers.py` (`bake`, `write_wrapped`,
+`record_sets`, …) and `tests/conftest.py`, whose autouse `clean_globals` fixture
+restores every process-wide registry between tests.
+
+`claims` and `extract` are given a `FileSource`, already decompressed. List
+format suffixes only in `EXTENSIONS`, never `.csv.gz`. A handler needing a real
+file on disk declares `INPUT_KIND = InputKind.PATH` and is never offered a
+compressed one.
+
+`can_handle(Path)` and `extract_metadata(Path)` are the previous contract. They
+still work and warn once, so third-party handlers keep running; new handlers
+should not use them.

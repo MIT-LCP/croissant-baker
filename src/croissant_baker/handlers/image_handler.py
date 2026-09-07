@@ -6,8 +6,8 @@ from typing import Dict, List
 
 import mlcroissant as mlc
 
-from croissant_baker.handlers.base_handler import FileTypeHandler
-from croissant_baker.handlers.utils import compute_file_hash
+from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
 
@@ -74,41 +74,40 @@ _IMAGE_MAGIC_CHECKS = {
 }
 
 
-def _has_image_magic(file_path: Path) -> bool:
-    """Return True iff ``file_path``'s leading bytes match the magic for its extension.
+def _has_image_magic(source: FileSource) -> bool:
+    """Return True iff the leading bytes match the magic for the extension.
 
-    Used by :meth:`ImageHandler.can_handle` to enforce the registry contract:
+    Enforces the registry contract for :meth:`ImageHandler.claims`:
     if a handler claims a file, ``extract_metadata`` must be able to read it.
     A file with an image extension but non-image content (e.g. a renamed HTML
     page saved as ``.png``) is rejected and a WARNING is logged so the user
     can see which files were skipped and why. Missing or unreadable files
     return False without logging (those are caller errors, not impostors).
     """
-    suffix = file_path.suffix.lower()
-    check = _IMAGE_MAGIC_CHECKS.get(suffix)
+    check = _IMAGE_MAGIC_CHECKS.get(source.suffix)
     if check is None:
         return False
-    try:
-        with open(file_path, "rb") as f:
-            head = f.read(_IMAGE_MAGIC_PREFIX_BYTES)
-    except OSError:
+    head = source.peek(_IMAGE_MAGIC_PREFIX_BYTES)
+    if not head:
         return False
     if check(head):
         return True
-    logger.warning(
+    # Debug, not warning: the generator names every undescribed file once
+    # through a capped path, so warning here doubles it and escapes the cap.
+    logger.debug(
         "Skipping %s: extension is %s but file content does not match the "
         "expected image magic bytes",
-        file_path,
-        suffix,
+        source.relative_path,
+        source.suffix,
     )
     return False
 
 
-def _read_with_pillow(file_path: Path) -> Dict:
+def _read_with_pillow(source: FileSource) -> Dict:
     """Read image metadata using Pillow (standard RGB/grayscale images)."""
     from PIL import Image
 
-    with Image.open(file_path) as img:
+    with source.open() as stream, Image.open(stream) as img:
         width, height = img.size
         # mode → number of bands: L=1, LA=2, RGB=3, RGBA=4, CMYK=4, etc.
         num_bands = len(img.getbands())
@@ -116,15 +115,15 @@ def _read_with_pillow(file_path: Path) -> Dict:
             "width": width,
             "height": height,
             "num_bands": num_bands,
-            "image_format": img.format or file_path.suffix.lstrip(".").upper(),
+            "image_format": img.format or source.suffix.lstrip(".").upper(),
         }
 
 
-def _read_with_tifffile(file_path: Path) -> Dict:
+def _read_with_tifffile(source: FileSource) -> Dict:
     """Read image metadata using tifffile (multi-band / scientific TIFFs)."""
     import tifffile
 
-    with tifffile.TiffFile(str(file_path)) as tif:
+    with source.open() as stream, tifffile.TiffFile(stream) as tif:
         page = tif.pages[0]
         # Prefer the TIFF tags, which describe the logical image dimensions
         # directly and are not affected by planar storage order.
@@ -146,7 +145,9 @@ def _read_with_tifffile(file_path: Path) -> Dict:
                 num_bands = shape_map.get("S")
 
         if width is None or height is None:
-            raise ValueError(f"Unable to determine TIFF dimensions for {file_path}")
+            raise ValueError(
+                f"Unable to determine TIFF dimensions for {source.relative_path}"
+            )
 
         if num_bands is None:
             num_bands = 1
@@ -159,27 +160,25 @@ def _read_with_tifffile(file_path: Path) -> Dict:
         }
 
 
-def _read_image_metadata(file_path: Path) -> Dict:
+def _read_image_metadata(source: FileSource) -> Dict:
     """
     Read image dimensions and band count, choosing the right backend.
 
     Tries Pillow first for standard formats. Falls back to tifffile for
     multi-band TIFFs that Pillow cannot decode (e.g., 12-band Sentinel-2).
     """
-    suffix = file_path.suffix.lower()
-
-    if suffix in _PILLOW_EXTENSIONS:
-        return _read_with_pillow(file_path)
+    if source.suffix in _PILLOW_EXTENSIONS:
+        return _read_with_pillow(source)
 
     # For TIFF files, try Pillow first (works for standard 1/3/4-band TIFFs),
     # then fall back to tifffile for multi-band scientific imagery.
-    if suffix in _TIFF_EXTENSIONS:
+    if source.suffix in _TIFF_EXTENSIONS:
         try:
-            return _read_with_pillow(file_path)
+            return _read_with_pillow(source)
         except Exception:
-            return _read_with_tifffile(file_path)
+            return _read_with_tifffile(source)
 
-    return _read_with_pillow(file_path)
+    return _read_with_pillow(source)
 
 
 class ImageHandler(FileTypeHandler):
@@ -206,31 +205,26 @@ class ImageHandler(FileTypeHandler):
     FORMAT_NAME = "Images"
     FORMAT_DESCRIPTION = "Dimensions, color mode, encoding format"
 
-    def can_handle(self, file_path: Path) -> bool:
-        if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+    def claims(self, source: FileSource) -> bool:
+        if source.suffix not in SUPPORTED_EXTENSIONS:
             return False
-        return _has_image_magic(file_path)
+        return _has_image_magic(source)
 
-    def extract_metadata(self, file_path: Path, **kwargs) -> dict:
-        if not file_path.exists():
-            raise FileNotFoundError(f"Image file not found: {file_path}")
+    def extract(self, source: FileSource, **kwargs) -> dict:
+        if not source.exists:
+            raise FileNotFoundError(f"Image file not found: {source.relative_path}")
 
         try:
-            img_meta = _read_image_metadata(file_path)
+            img_meta = _read_image_metadata(source)
         except Exception as e:
-            raise ValueError(f"Failed to read image {file_path}: {e}") from e
+            raise ValueError(f"Failed to read image {source.relative_path}: {e}") from e
 
-        suffix = file_path.suffix.lower()
-        mime_type = _MIME_TYPES.get(suffix, "application/octet-stream")
-
-        file_size = file_path.stat().st_size
-        sha256 = compute_file_hash(file_path)
+        mime_type = _MIME_TYPES.get(source.suffix, "application/octet-stream")
 
         return {
-            "file_path": str(file_path),
-            "file_name": file_path.name,
-            "file_size": file_size,
-            "sha256": sha256,
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
             "encoding_format": mime_type,
             "image_properties": {
                 "width": img_meta["width"],
@@ -241,6 +235,11 @@ class ImageHandler(FileTypeHandler):
         }
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
+        # An empty batch has nothing to summarise; emitting a FileSet over
+        # zero files would describe data that is not there.
+        if not file_metas:
+            return BuildResult([], [])
+
         summary = collect_image_summary(file_metas)
         w_lo, w_hi = summary["width_range"]
         h_lo, h_hi = summary["height_range"]
@@ -294,7 +293,7 @@ class ImageHandler(FileTypeHandler):
             fields=image_fields,
         )
 
-        return [image_fileset], [image_record_set]
+        return BuildResult([image_fileset], [image_record_set])
 
 
 def collect_image_summary(image_metadata_list: List[Dict]) -> Dict:

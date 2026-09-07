@@ -91,6 +91,110 @@
   "recordSet": [
     {
       "@type": "cr:RecordSet",
+      "@id": "disease_hpo",
+      "name": "disease_hpo",
+      "description": "Records from disease_hpo.parquet (31529 rows)",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "disease_hpo/id",
+          "name": "id",
+          "description": "Column 'id'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            },
+            "extract": {
+              "column": "id"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "disease_hpo/name",
+          "name": "name",
+          "description": "Column 'name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            },
+            "extract": {
+              "column": "name"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "disease_hpo/description",
+          "name": "description",
+          "description": "Column 'description'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            },
+            "extract": {
+              "column": "description"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "disease_hpo/dbXRefs",
+          "name": "dbXRefs",
+          "description": "Column 'dbXRefs'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            },
+            "extract": {
+              "column": "dbXRefs"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "disease_hpo/parents",
+          "name": "parents",
+          "description": "Column 'parents'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            },
+            "extract": {
+              "column": "parents"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "disease_hpo/obsoleteTerms",
+          "name": "obsoleteTerms",
+          "description": "Column 'obsoleteTerms'",
+          "cr:arrayShape": "-1",
+          "cr:isArray": true,
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            },
+            "extract": {
+              "column": "obsoleteTerms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
       "@id": "drug_warning",
       "name": "drug_warning",
       "description": "Records from part-00000-0e5e2e74-5319-4e43-a413-36908cb023be-c000.snappy.parquet (2302 rows)",
@@ -307,110 +411,6 @@
             },
             "extract": {
               "column": "efoIdForWarningClass"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "@type": "cr:RecordSet",
-      "@id": "disease_hpo",
-      "name": "disease_hpo",
-      "description": "Records from disease_hpo.parquet (31529 rows)",
-      "field": [
-        {
-          "@type": "cr:Field",
-          "@id": "disease_hpo/id",
-          "name": "id",
-          "description": "Column 'id'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            },
-            "extract": {
-              "column": "id"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "disease_hpo/name",
-          "name": "name",
-          "description": "Column 'name'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            },
-            "extract": {
-              "column": "name"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "disease_hpo/description",
-          "name": "description",
-          "description": "Column 'description'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            },
-            "extract": {
-              "column": "description"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "disease_hpo/dbXRefs",
-          "name": "dbXRefs",
-          "description": "Column 'dbXRefs'",
-          "cr:arrayShape": "-1",
-          "cr:isArray": true,
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            },
-            "extract": {
-              "column": "dbXRefs"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "disease_hpo/parents",
-          "name": "parents",
-          "description": "Column 'parents'",
-          "cr:arrayShape": "-1",
-          "cr:isArray": true,
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            },
-            "extract": {
-              "column": "parents"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "disease_hpo/obsoleteTerms",
-          "name": "obsoleteTerms",
-          "description": "Column 'obsoleteTerms'",
-          "cr:arrayShape": "-1",
-          "cr:isArray": true,
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            },
-            "extract": {
-              "column": "obsoleteTerms"
             }
           }
         }

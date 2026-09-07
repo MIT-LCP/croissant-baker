@@ -70,14 +70,21 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 
 | Format | Extensions | Notes |
 |--------|------------|-------|
-| CSV / TSV | `.csv`, `.tsv` + `.gz`, `.bz2`, `.xz` | Streaming with automatic type inference |
+| CSV / TSV | `.csv`, `.tsv` | Streaming with automatic type inference |
 | Parquet | `.parquet` | Partitioned datasets supported |
-| FHIR | `.ndjson`, `.ndjson.gz`, `.json` (Bundle) | NDJSON bulk export and JSON Bundle |
-| JSON / JSONL | `.json`, `.jsonl` + `.gz` | Arrays, single objects, and JSON Lines |
+| FHIR | `.ndjson`, `.json` (Bundle) | NDJSON bulk export and JSON Bundle |
+| JSON / JSONL | `.json`, `.jsonl` | Arrays, single objects, and JSON Lines |
 | WFDB | `.hea` + `.dat` / `.atr` | PhysioNet waveform data |
 | Images | `.png`, `.jpg`, `.tiff`, `.bmp`, `.gif`, `.webp` | Dimensions and format via Pillow |
 | DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only) |
-| NIfTI | `.nii`, `.nii.gz` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
+| NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
+
+Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
+resolved before the format is read, so `cells.parquet.gz` is described exactly
+as `cells.parquet` is. WFDB is the exception: a record spans several files
+located by path, so a compressed `.hea` is reported rather than described.
+`.zip`, `.tar` and `.tgz` are reported as archives, not opened. Files nothing
+describes are reported with a reason rather than skipped in silence.
 
 ## Key features
 

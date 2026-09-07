@@ -2,10 +2,10 @@
 
 Supports two FHIR serialisation formats found in clinical research datasets:
 
-- NDJSON bulk export (.ndjson, .ndjson.gz): one resource per line, all of the
+- NDJSON bulk export (.ndjson): one resource per line, all of the
   same resourceType (FHIR Bulk Data spec §3.1).
 
-- JSON Bundle (.json, .json.gz): a single Bundle resource whose entry[] array
+- JSON Bundle (.json): a single Bundle resource whose entry[] array
   may contain mixed resourceTypes.
 """
 
@@ -13,19 +13,18 @@ import json
 import logging
 import re
 from collections import defaultdict
-from pathlib import Path
 from typing import Optional
 
 import mlcroissant as mlc
 
-from croissant_baker.handlers.base_handler import FileTypeHandler
+from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.sources import FileSource
 from croissant_baker.handlers.utils import (
     SCHEMA_SAMPLE,
     build_fields_from_json_schema,
-    compute_file_hash,
+    display_name,
     infer_json_schema,
     make_record_set_ids,
-    open_text_file,
     sanitize_id,
 )
 
@@ -90,15 +89,17 @@ def merge_fhir_column_types(all_schemas: list) -> dict:
 def _is_bulk_chunk(file_name: str, resource_type: str) -> bool:
     """Return True when file_name follows the FHIR bulk-export chunk convention.
 
-    The FHIR Bulk Data spec names chunks ``{ResourceType}.{NNN}.ndjson[.gz]``
+    The FHIR Bulk Data spec names chunks ``{ResourceType}.{NNN}.ndjson``
     (e.g. ``Observation.000.ndjson``).  Files whose stem does not match the
     resourceType exactly are distinct logical tables that happen to share a
-    resourceType string (e.g. ``MimicObservationLabevents.ndjson.gz``).
+    resourceType string (e.g. ``MimicObservationLabevents.ndjson``).
+
+    ``file_name`` is the logical name, so any compression wrapper has already
+    been removed by the time this sees it.
     """
     stem = file_name.lower()
-    for ext in (".gz", ".ndjson"):
-        if stem.endswith(ext):
-            stem = stem[: -len(ext)]
+    if stem.endswith(".ndjson"):
+        stem = stem[: -len(".ndjson")]
     stem = re.sub(r"\.\d+$", "", stem)
     return stem == resource_type.lower()
 
@@ -112,28 +113,27 @@ class FHIRHandler(FileTypeHandler):
     """Handler for FHIR datasets in NDJSON bulk-export or JSON Bundle format.
 
     Detection strategy:
-    - ``.ndjson`` / ``.ndjson.gz``: accepted without content sniffing.
-    - ``.json`` / ``.json.gz``: accepted only after peeking at the file to
+    - ``.ndjson``: accepted without content sniffing.
+    - ``.json``: accepted only after peeking at the file to
       confirm the presence of a ``resourceType`` key. This ensures non-FHIR
       JSON files (e.g. a future OMOP JSON handler) are not claimed here.
     """
 
-    EXTENSIONS = (".ndjson", ".ndjson.gz", ".json", ".json.gz")
+    EXTENSIONS = (".ndjson", ".json")
     FORMAT_NAME = "FHIR"
     FORMAT_DESCRIPTION = "Resource types, field names and types per resource"
 
-    def can_handle(self, file_path: Path) -> bool:
-        name = file_path.name.lower()
-        if name.endswith(".ndjson") or name.endswith(".ndjson.gz"):
+    def claims(self, source: FileSource) -> bool:
+        if source.suffix == ".ndjson":
             return True
-        if name.endswith(".json") or name.endswith(".json.gz"):
-            return self._sniff_fhir_json(file_path)
+        if source.suffix == ".json":
+            return self._sniff_fhir_json(source)
         return False
 
-    def _sniff_fhir_json(self, file_path: Path) -> bool:
+    def _sniff_fhir_json(self, source: FileSource) -> bool:
         """Peek at the first 4 KB of a JSON file to confirm it is FHIR."""
         try:
-            with open_text_file(file_path) as fh:
+            with source.open_text() as fh:
                 head = fh.read(4096)
             head = head.strip()
             if not head.startswith("{"):
@@ -146,7 +146,7 @@ class FHIRHandler(FileTypeHandler):
         except (OSError, UnicodeDecodeError):
             return False
 
-    def extract_metadata(self, file_path: Path, **kwargs) -> dict:
+    def extract(self, source: FileSource, **kwargs) -> dict:
         """Extract FHIR metadata from a NDJSON or JSON Bundle file.
 
         Returns:
@@ -156,21 +156,25 @@ class FHIRHandler(FileTypeHandler):
         Raises:
             ValueError: If the file contains no valid FHIR resources.
         """
-        sha256 = compute_file_hash(file_path)
-        file_size = file_path.stat().st_size
-        file_name = file_path.name
-        name_lower = file_name.lower()
-        if name_lower.endswith(".ndjson") or name_lower.endswith(".ndjson.gz"):
-            return self._extract_ndjson(file_path, file_name, sha256, file_size)
-        return self._extract_bundle(file_path, file_name, sha256, file_size)
+        if not source.exists:
+            raise FileNotFoundError(f"FHIR file not found: {source.relative_path}")
+        try:
+            if source.suffix == ".ndjson":
+                return self._extract_ndjson(source)
+            return self._extract_bundle(source)
+        except UnicodeDecodeError as exc:
+            # Binary bytes behind a .json name. UnicodeDecodeError is a
+            # ValueError subclass, so it reached the report as a raw codec
+            # message; name the file and the format instead.
+            raise ValueError(
+                f"Failed to read FHIR file {source.relative_path}: {exc}"
+            ) from exc
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _extract_ndjson(
-        self, file_path: Path, file_name: str, sha256: str, file_size: int
-    ) -> dict:
+    def _extract_ndjson(self, source: FileSource) -> dict:
         """Extract metadata from a FHIR NDJSON (bulk-export) file.
 
         Streams line by line. The first ``SCHEMA_SAMPLE`` records are
@@ -188,7 +192,7 @@ class FHIRHandler(FileTypeHandler):
         resource_type: Optional[str] = None
         num_rows = 0
 
-        with open_text_file(file_path) as fh:
+        with source.open_text() as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -196,7 +200,9 @@ class FHIRHandler(FileTypeHandler):
                 try:
                     obj = json.loads(line)
                 except json.JSONDecodeError:
-                    logger.warning("Skipping malformed JSON line in %s", file_name)
+                    logger.warning(
+                        "Skipping malformed JSON line in %s", source.relative_path
+                    )
                     continue
                 if not _is_fhir_object(obj):
                     continue
@@ -205,7 +211,9 @@ class FHIRHandler(FileTypeHandler):
                 if resource_type is None:
                     resource_type = row_type
                 elif row_type != resource_type:
-                    logger.debug("Skipping inline %s row in %s", row_type, file_name)
+                    logger.debug(
+                        "Skipping inline %s row in %s", row_type, source.relative_path
+                    )
                     continue
 
                 num_rows += 1
@@ -213,27 +221,22 @@ class FHIRHandler(FileTypeHandler):
                     schema_samples.append(obj)
 
         if resource_type is None:
-            raise ValueError(f"No valid FHIR resources found in {file_name}")
+            raise ValueError(f"No valid FHIR resources found in {source.relative_path}")
 
         if num_rows > SCHEMA_SAMPLE:
             logger.warning(
                 "Sampled %d of %d records for schema inference in %s — rare fields may be missing",
                 SCHEMA_SAMPLE,
                 num_rows,
-                file_name,
+                source.relative_path,
             )
 
         column_types = infer_json_schema(schema_samples)
-        encoding = (
-            "application/gzip"
-            if file_path.name.lower().endswith(".gz")
-            else "application/fhir+ndjson"
-        )
+        encoding = "application/fhir+ndjson"
         return {
-            "file_path": str(file_path),
-            "file_name": file_name,
-            "file_size": file_size,
-            "sha256": sha256,
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
             "encoding_format": encoding,
             "fhir_resource_type": resource_type,
             "column_types": column_types,
@@ -242,9 +245,7 @@ class FHIRHandler(FileTypeHandler):
             "num_rows": num_rows,
         }
 
-    def _extract_bundle(
-        self, file_path: Path, file_name: str, sha256: str, file_size: int
-    ) -> dict:
+    def _extract_bundle(self, source: FileSource) -> dict:
         """Extract metadata from a FHIR JSON Bundle or single-resource file.
 
         Loads the entire file into memory (bundles are typically per-patient and
@@ -256,29 +257,26 @@ class FHIRHandler(FileTypeHandler):
         Raises:
             ValueError: If the file cannot be parsed or contains no resources.
         """
-        with open_text_file(file_path) as fh:
+        with source.open_text() as fh:
             try:
                 doc = json.load(fh)
             except json.JSONDecodeError as exc:
-                raise ValueError(f"Cannot parse {file_name} as JSON: {exc}") from exc
+                raise ValueError(
+                    f"Cannot parse {source.relative_path} as JSON: {exc}"
+                ) from exc
 
         if not _is_fhir_object(doc):
-            raise ValueError(f"No FHIR resourceType found in {file_name}")
+            raise ValueError(f"No FHIR resourceType found in {source.relative_path}")
 
-        encoding = (
-            "application/gzip"
-            if file_path.name.lower().endswith(".gz")
-            else "application/fhir+json"
-        )
+        encoding = "application/fhir+json"
 
         if doc.get("resourceType") != "Bundle":
             rt = doc.get("resourceType", "FHIRResource")
             col_types = infer_json_schema([doc])
             return {
-                "file_path": str(file_path),
-                "file_name": file_name,
-                "file_size": file_size,
-                "sha256": sha256,
+                "file_name": source.name,
+                "file_size": source.size,
+                "sha256": source.sha256,
                 "encoding_format": encoding,
                 "fhir_resource_type": rt,
                 "column_types": col_types,
@@ -299,7 +297,9 @@ class FHIRHandler(FileTypeHandler):
                 by_type_resources[rt].append(resource)
 
         if not by_type_counts:
-            raise ValueError(f"No FHIR resources found in Bundle {file_name}")
+            raise ValueError(
+                f"No FHIR resources found in Bundle {source.relative_path}"
+            )
 
         resource_groups = {}
         for rt, records in by_type_resources.items():
@@ -312,10 +312,9 @@ class FHIRHandler(FileTypeHandler):
             }
 
         return {
-            "file_path": str(file_path),
-            "file_name": file_name,
-            "file_size": file_size,
-            "sha256": sha256,
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
             "encoding_format": encoding,
             "fhir_resource_groups": resource_groups,
         }
@@ -372,7 +371,7 @@ class FHIRHandler(FileTypeHandler):
                     mlc.RecordSet(
                         id=rs_id,
                         name=resource_type,
-                        description=f"Records from {meta['file_name']}{row_desc}",
+                        description=f"Records from {display_name(meta)}{row_desc}",
                         fields=self._build_fields(
                             meta["column_types"],
                             rs_id,
@@ -462,7 +461,7 @@ class FHIRHandler(FileTypeHandler):
                 sorted({m.get("fhir_resource_type", "unknown") for m in file_metas}),
             )
 
-        return additional_distributions, record_sets
+        return BuildResult(additional_distributions, record_sets)
 
     def _build_fields(
         self,

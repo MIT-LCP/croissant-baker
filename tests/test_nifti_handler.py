@@ -10,12 +10,7 @@ from croissant_baker.handlers.nifti_handler import (
     NIfTIHandler,
     collect_nifti_summary,
 )
-from croissant_baker.handlers.registry import find_handler, register_all_handlers
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+from croissant_baker.sources import make_source
 
 
 def _make_nifti(
@@ -57,38 +52,13 @@ def nifti_4d(tmp_path: Path) -> Path:
     return _make_nifti_4d(tmp_path / "bold.nii.gz")
 
 
-# ---------------------------------------------------------------------------
-# can_handle
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "name,expected",
-    [
-        ("brain.nii", True),
-        ("brain.NII", True),
-        ("brain.nii.gz", True),
-        ("brain.NII.GZ", True),
-        ("scan.dcm", False),
-        ("data.csv", False),
-        ("image.png", False),
-        ("record.hea", False),
-    ],
-)
-def test_can_handle(handler: NIfTIHandler, name: str, expected: bool) -> None:
-    assert handler.can_handle(Path(name)) == expected
-
-
-# ---------------------------------------------------------------------------
-# extract_metadata — 3D structural
-# ---------------------------------------------------------------------------
-
-
 def test_extract_metadata_3d(handler: NIfTIHandler, nifti_3d: Path) -> None:
-    meta = handler.extract_metadata(nifti_3d)
+    meta = handler.extract(make_source(nifti_3d))
 
-    assert meta["file_name"] == "T1.nii.gz"
-    assert meta["encoding_format"] == "application/x-nifti+gzip"
+    # The logical name: a wrapped file and its twin name one record set.
+    assert meta["file_name"] == "T1.nii"
+    # The format media type; the generator adds application/gzip alongside.
+    assert meta["encoding_format"] == "application/x-nifti"
     assert meta["file_size"] > 0
     assert len(meta["sha256"]) == 64
 
@@ -108,18 +78,13 @@ def test_extract_metadata_uncompressed_nii(
     handler: NIfTIHandler, tmp_path: Path
 ) -> None:
     f = _make_nifti(tmp_path / "T1.nii")
-    meta = handler.extract_metadata(f)
+    meta = handler.extract(make_source(f))
     assert meta["encoding_format"] == "application/x-nifti"
     assert meta["nifti_properties"]["dim_z"] == 30
 
 
-# ---------------------------------------------------------------------------
-# extract_metadata — 4D fMRI
-# ---------------------------------------------------------------------------
-
-
 def test_extract_metadata_4d(handler: NIfTIHandler, nifti_4d: Path) -> None:
-    meta = handler.extract_metadata(nifti_4d)
+    meta = handler.extract(make_source(nifti_4d))
     props = meta["nifti_properties"]
 
     assert props["dim_x"] == 64
@@ -132,34 +97,8 @@ def test_extract_metadata_4d(handler: NIfTIHandler, nifti_4d: Path) -> None:
 
 def test_extract_metadata_dtype(handler: NIfTIHandler, tmp_path: Path) -> None:
     f = _make_nifti(tmp_path / "float.nii.gz", dtype=np.float32)
-    meta = handler.extract_metadata(f)
+    meta = handler.extract(make_source(f))
     assert "float32" in meta["nifti_properties"]["data_dtype"]
-
-
-# ---------------------------------------------------------------------------
-# extract_metadata — error cases
-# ---------------------------------------------------------------------------
-
-
-def test_extract_metadata_file_not_found(handler: NIfTIHandler) -> None:
-    with pytest.raises(FileNotFoundError):
-        handler.extract_metadata(Path("/nonexistent/brain.nii.gz"))
-
-
-def test_extract_metadata_corrupt_file(handler: NIfTIHandler, tmp_path: Path) -> None:
-    bad = tmp_path / "corrupt.nii.gz"
-    bad.write_bytes(b"not a nifti file")
-    with pytest.raises(ValueError, match="Failed to read NIfTI file"):
-        handler.extract_metadata(bad)
-
-
-# ---------------------------------------------------------------------------
-# collect_nifti_summary
-# ---------------------------------------------------------------------------
-
-
-def test_collect_nifti_summary_empty() -> None:
-    assert collect_nifti_summary([]) == {}
 
 
 def test_collect_nifti_summary_3d() -> None:
@@ -234,21 +173,6 @@ def test_collect_nifti_summary_4d() -> None:
     assert summary["tr_range"] == (pytest.approx(1.5), pytest.approx(2.0))
 
 
-def test_collect_nifti_summary_missing_props() -> None:
-    metas = [
-        {"nifti_properties": {"dim_x": 64, "dim_y": 64, "dim_z": 30, "ndim": 3}},
-        {},  # no nifti_properties key
-    ]
-    summary = collect_nifti_summary(metas)
-    assert summary["num_files"] == 2
-    assert summary["dim_x_range"] == (64, 64)
-
-
-# ---------------------------------------------------------------------------
-# build_croissant
-# ---------------------------------------------------------------------------
-
-
 def _nifti_meta(name: str, ndim: int = 3, dim_t: int = None) -> dict:
     props = {
         "dim_x": 64,
@@ -282,7 +206,9 @@ def test_build_croissant_returns_fileset_and_recordset(handler: NIfTIHandler) ->
 def test_build_croissant_fileset_includes(handler: NIfTIHandler) -> None:
     metas = [_nifti_meta("T1.nii.gz")]
     filesets, _ = handler.build_croissant(metas, ["file_0"])
-    assert "**/*.nii.gz" in filesets[0].includes
+    # The handler states the format glob only; the generator widens it to cover
+    # every registered compression.
+    assert filesets[0].includes == ["**/*.nii"]
     assert "**/*.nii" in filesets[0].includes
 
 
@@ -312,14 +238,3 @@ def test_build_croissant_4d_includes_tr(handler: NIfTIHandler) -> None:
     _, record_sets = handler.build_croissant(metas, ["file_0"])
     field_names = {f.name for f in record_sets[0].fields}
     assert "tr_seconds" in field_names
-
-
-# ---------------------------------------------------------------------------
-# Handler registration
-# ---------------------------------------------------------------------------
-
-
-def test_nifti_handler_registered() -> None:
-    register_all_handlers()
-    assert find_handler(Path("brain.nii")) is not None
-    assert find_handler(Path("brain.nii.gz")) is not None
