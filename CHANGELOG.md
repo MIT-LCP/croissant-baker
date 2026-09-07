@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.3.2...croissant-baker-v0.4.0) (2026-09-07)
+
+
+### Features
+
+* give compression one owner, and hand handlers a source instead of a path ([6548007](https://github.com/MIT-LCP/croissant-baker/commit/6548007698247d34eab20d8abc79579a2ed33693))
+
+
+### Bug Fixes
+
+* break the scan/duplicates/report import cycle ([d84263d](https://github.com/MIT-LCP/croissant-baker/commit/d84263dbef65c911b9f90f01ac3258d8c8278b40))
+* claude test bloat refactor ([b788e07](https://github.com/MIT-LCP/croissant-baker/commit/b788e073c2d908917413ae2ca0c04a2215a3a500))
+* close the gaps review found in the Parquet grouping and reporting ([56e0ff2](https://github.com/MIT-LCP/croissant-baker/commit/56e0ff295e948d98919f1348b4786a51d8ef752d))
+* count a file the document carries even when reading it alone failed ([6954a57](https://github.com/MIT-LCP/croissant-baker/commit/6954a57ee2c8b720a1efec11d26a2b6a805b53a7))
+* count coverage by what the document carries ([d9a215f](https://github.com/MIT-LCP/croissant-baker/commit/d9a215f941b04cb862c7ec61ddc615a313a56f6e))
+* derive FileSet wrappers per FileSet, not per handler batch ([315ac57](https://github.com/MIT-LCP/croissant-baker/commit/315ac577f474bfeaa6547a45986aea4914d918fa))
+* group Parquet files on evidence, and say what was skipped as it happens ([de0a25c](https://github.com/MIT-LCP/croissant-baker/commit/de0a25cdc1ecb4bbf664404fbadbed2ecfb54709))
+* quiet by default, and stop the library writing to a terminal ([dc29582](https://github.com/MIT-LCP/croissant-baker/commit/dc29582e792011f25a6c28e4390ec3191584c897))
+* resolve FileSet membership from the files, not from the glob text ([a4b1eab](https://github.com/MIT-LCP/croissant-baker/commit/a4b1eab72b4e1bf71a16dee27f72804fe296b05e))
+* skip a # CSV line only when it has fewer fields than the rows below ([bb5e142](https://github.com/MIT-LCP/croissant-baker/commit/bb5e142c44a16087ef05c15441518ef4be42fdbb))
+
+
+### Documentation
+
+* document the new coverage properties, and tidy what the review found ([26a82c8](https://github.com/MIT-LCP/croissant-baker/commit/26a82c808a71ab1e341a9776a862eb2d99342802))
+* teach the new handler contract and describe the reporting ([5bcf94e](https://github.com/MIT-LCP/croissant-baker/commit/5bcf94ed1e143efcca9f5d83ca3b1cc052bc4690))
+
 ## [0.3.2](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.3.1...croissant-baker-v0.3.2) (2026-07-05)
 
 
