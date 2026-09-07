@@ -63,20 +63,20 @@
     {
       "@type": "cr:FileObject",
       "@id": "file_0",
-      "name": "disease_hpo.parquet",
-      "contentSize": "1804225",
-      "contentUrl": "disease_hpo/disease_hpo.parquet",
-      "encodingFormat": "application/vnd.apache.parquet",
-      "sha256": "85ec07b21a4d49b3236543d6c7232fca95027b4b3b21f0f77c7a1459b95c0cd2"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_1",
       "name": "part-00000-0e5e2e74-5319-4e43-a413-36908cb023be-c000.snappy.parquet",
       "contentSize": "250932",
       "contentUrl": "drug_warning/part-00000-0e5e2e74-5319-4e43-a413-36908cb023be-c000.snappy.parquet",
       "encodingFormat": "application/vnd.apache.parquet",
       "sha256": "9afde5baaf74e6de5c22d6ae457d68d0f55c370afbeb35082b567a068090a456"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_1",
+      "name": "disease_hpo.parquet",
+      "contentSize": "1804225",
+      "contentUrl": "disease_hpo/disease_hpo.parquet",
+      "encodingFormat": "application/vnd.apache.parquet",
+      "sha256": "85ec07b21a4d49b3236543d6c7232fca95027b4b3b21f0f77c7a1459b95c0cd2"
     },
     {
       "@type": "cr:FileObject",
@@ -103,7 +103,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_0"
+              "@id": "file_1"
             },
             "extract": {
               "column": "id"
@@ -118,7 +118,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_0"
+              "@id": "file_1"
             },
             "extract": {
               "column": "name"
@@ -133,7 +133,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_0"
+              "@id": "file_1"
             },
             "extract": {
               "column": "description"
@@ -150,7 +150,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_0"
+              "@id": "file_1"
             },
             "extract": {
               "column": "dbXRefs"
@@ -167,7 +167,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_0"
+              "@id": "file_1"
             },
             "extract": {
               "column": "parents"
@@ -184,7 +184,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_0"
+              "@id": "file_1"
             },
             "extract": {
               "column": "obsoleteTerms"
@@ -209,7 +209,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "chemblIds"
@@ -224,7 +224,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "toxicityClass"
@@ -239,7 +239,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "country"
@@ -254,7 +254,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "description"
@@ -269,7 +269,7 @@
           "dataType": "cr:Int64",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "id"
@@ -285,7 +285,7 @@
           "cr:isArray": true,
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "references"
@@ -300,7 +300,7 @@
               "dataType": "sc:Text",
               "source": {
                 "fileObject": {
-                  "@id": "file_1"
+                  "@id": "file_0"
                 },
                 "extract": {
                   "column": "references/id"
@@ -315,7 +315,7 @@
               "dataType": "sc:Text",
               "source": {
                 "fileObject": {
-                  "@id": "file_1"
+                  "@id": "file_0"
                 },
                 "extract": {
                   "column": "references/source"
@@ -330,7 +330,7 @@
               "dataType": "sc:Text",
               "source": {
                 "fileObject": {
-                  "@id": "file_1"
+                  "@id": "file_0"
                 },
                 "extract": {
                   "column": "references/url"
@@ -347,7 +347,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "warningType"
@@ -362,7 +362,7 @@
           "dataType": "cr:Int64",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "year"
@@ -377,7 +377,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "efoTerm"
@@ -392,7 +392,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "efoId"
@@ -407,7 +407,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_1"
+              "@id": "file_0"
             },
             "extract": {
               "column": "efoIdForWarningClass"

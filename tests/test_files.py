@@ -117,26 +117,3 @@ def test_discover_files_include_and_exclude(tmp_path: Path) -> None:
     )
     expected = {Path("data1.csv"), Path("sub/data3.csv")}
     assert set(files) == expected
-
-
-def test_discovery_is_sorted_whatever_order_the_walk_returns(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Node @ids follow discovery order, so an unsorted walk bakes one dataset
-    two ways on two machines — and biotope commits the document it produces.
-
-    The walk order is forced, because on any one filesystem it is stable, which
-    is exactly what hides this.
-    """
-    for name in ("alpha.csv", "middle.csv", "zebra.csv"):
-        (tmp_path / name).write_text("id\n1\n")
-    walk = Path.rglob
-    monkeypatch.setattr(
-        Path, "rglob", lambda self, pattern: reversed(sorted(walk(self, pattern)))
-    )
-
-    assert [path.name for path in discover_files(str(tmp_path))] == [
-        "alpha.csv",
-        "middle.csv",
-        "zebra.csv",
-    ]

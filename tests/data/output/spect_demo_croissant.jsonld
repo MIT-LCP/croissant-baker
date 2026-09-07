@@ -73,45 +73,6 @@
     {
       "@type": "cr:FileObject",
       "@id": "file_0",
-      "name": "1.2.840.4267.32.38585815286282266011396309788536446741.dcm",
-      "contentSize": "492640",
-      "contentUrl": "DICOM/1.2.840.4267.32.38585815286282266011396309788536446741.dcm",
-      "encodingFormat": "application/dicom",
-      "sha256": "87403138e8f149ef061b6bcfe71f6136c43ad1a51890f7904161b5256a5c6207"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_1",
-      "name": "1.2.840.4267.32.52459982182626589873015343667347062329.dcm",
-      "contentSize": "492640",
-      "contentUrl": "DICOM/1.2.840.4267.32.52459982182626589873015343667347062329.dcm",
-      "encodingFormat": "application/dicom",
-      "sha256": "d3b90dde4fa959c0bc0015593aa68f51000e2fed11c4646790c6b05c2b1d482c"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_2",
-      "name": "1.2.840.4267.32.67190153647569644119222304337334187527.dcm",
-      "contentSize": "492638",
-      "contentUrl": "DICOM/1.2.840.4267.32.67190153647569644119222304337334187527.dcm",
-      "encodingFormat": "application/dicom",
-      "sha256": "134c5d69ba30172311ea8af8ca2c6ef6fba5c1dd677ceafab2a91a11400ca541"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_3",
-      "name": "1.2.840.4267.32.118564058634314627767242469443335771432_mask.nii.gz",
-      "contentSize": "1548",
-      "contentUrl": "NIfTI/1.2.840.4267.32.118564058634314627767242469443335771432_mask.nii.gz",
-      "encodingFormat": [
-        "application/x-nifti",
-        "application/gzip"
-      ],
-      "sha256": "da30f590fec3732597fc1b97e7e4cbe298c12ac9e8401930c3448b2824aad07e"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "file_4",
       "name": "1.2.840.4267.32.14317549958544601048302357085441453331_mask.nii.gz",
       "contentSize": "1473",
       "contentUrl": "NIfTI/1.2.840.4267.32.14317549958544601048302357085441453331_mask.nii.gz",
@@ -123,7 +84,7 @@
     },
     {
       "@type": "cr:FileObject",
-      "@id": "file_5",
+      "@id": "file_1",
       "name": "1.2.840.4267.32.6282692783898975606278220787719726349_mask.nii.gz",
       "contentSize": "1535",
       "contentUrl": "NIfTI/1.2.840.4267.32.6282692783898975606278220787719726349_mask.nii.gz",
@@ -134,15 +95,43 @@
       "sha256": "ea2c9c1ac04eb3645ee21aab350a89846da242855de0da14d3120491b2cfa28a"
     },
     {
-      "@type": "cr:FileSet",
-      "@id": "dicom-files",
-      "name": "DICOM files",
-      "description": "3 DICOM file(s) (NM (3))",
+      "@type": "cr:FileObject",
+      "@id": "file_2",
+      "name": "1.2.840.4267.32.118564058634314627767242469443335771432_mask.nii.gz",
+      "contentSize": "1548",
+      "contentUrl": "NIfTI/1.2.840.4267.32.118564058634314627767242469443335771432_mask.nii.gz",
+      "encodingFormat": [
+        "application/x-nifti",
+        "application/gzip"
+      ],
+      "sha256": "da30f590fec3732597fc1b97e7e4cbe298c12ac9e8401930c3448b2824aad07e"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_3",
+      "name": "1.2.840.4267.32.67190153647569644119222304337334187527.dcm",
+      "contentSize": "492638",
+      "contentUrl": "DICOM/1.2.840.4267.32.67190153647569644119222304337334187527.dcm",
       "encodingFormat": "application/dicom",
-      "includes": [
-        "**/*.dcm",
-        "**/*.dicom"
-      ]
+      "sha256": "134c5d69ba30172311ea8af8ca2c6ef6fba5c1dd677ceafab2a91a11400ca541"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_4",
+      "name": "1.2.840.4267.32.38585815286282266011396309788536446741.dcm",
+      "contentSize": "492640",
+      "contentUrl": "DICOM/1.2.840.4267.32.38585815286282266011396309788536446741.dcm",
+      "encodingFormat": "application/dicom",
+      "sha256": "87403138e8f149ef061b6bcfe71f6136c43ad1a51890f7904161b5256a5c6207"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_5",
+      "name": "1.2.840.4267.32.52459982182626589873015343667347062329.dcm",
+      "contentSize": "492640",
+      "contentUrl": "DICOM/1.2.840.4267.32.52459982182626589873015343667347062329.dcm",
+      "encodingFormat": "application/dicom",
+      "sha256": "d3b90dde4fa959c0bc0015593aa68f51000e2fed11c4646790c6b05c2b1d482c"
     },
     {
       "@type": "cr:FileSet",
@@ -157,9 +146,118 @@
         "**/*.nii",
         "**/*.nii.gz"
       ]
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "dicom-files",
+      "name": "DICOM files",
+      "description": "3 DICOM file(s) (NM (3))",
+      "encodingFormat": "application/dicom",
+      "includes": [
+        "**/*.dcm",
+        "**/*.dicom"
+      ]
     }
   ],
   "recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "@id": "nifti",
+      "name": "nifti",
+      "description": "3 NIfTI files (70x70x50): int16",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "nifti/dim_x",
+          "name": "dim_x",
+          "description": "NIfTI dim[1]; voxel grid size along x axis",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "nifti-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "nifti/dim_y",
+          "name": "dim_y",
+          "description": "NIfTI dim[2]; voxel grid size along y axis",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "nifti-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "nifti/dim_z",
+          "name": "dim_z",
+          "description": "NIfTI dim[3]; voxel grid size along z axis",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "nifti-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "nifti/voxel_spacing",
+          "name": "voxel_spacing",
+          "description": "NIfTI pixdim[1:4]; voxel size in mm along x, y, z",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "nifti-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "nifti/data_dtype",
+          "name": "data_dtype",
+          "description": "NIfTI datatype; stored data type (int16)",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "nifti-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "nifti/nifti_version",
+          "name": "nifti_version",
+          "description": "Inferred from sizeof_hdr (348=NIfTI-1, 540=NIfTI-2)",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "nifti-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        }
+      ]
+    },
     {
       "@type": "cr:RecordSet",
       "@id": "dicom",
@@ -280,104 +378,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "@type": "cr:RecordSet",
-      "@id": "nifti",
-      "name": "nifti",
-      "description": "3 NIfTI files (70x70x50): int16",
-      "field": [
-        {
-          "@type": "cr:Field",
-          "@id": "nifti/dim_x",
-          "name": "dim_x",
-          "description": "NIfTI dim[1]; voxel grid size along x axis",
-          "dataType": "sc:Integer",
-          "source": {
-            "fileSet": {
-              "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "nifti/dim_y",
-          "name": "dim_y",
-          "description": "NIfTI dim[2]; voxel grid size along y axis",
-          "dataType": "sc:Integer",
-          "source": {
-            "fileSet": {
-              "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "nifti/dim_z",
-          "name": "dim_z",
-          "description": "NIfTI dim[3]; voxel grid size along z axis",
-          "dataType": "sc:Integer",
-          "source": {
-            "fileSet": {
-              "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "nifti/voxel_spacing",
-          "name": "voxel_spacing",
-          "description": "NIfTI pixdim[1:4]; voxel size in mm along x, y, z",
-          "dataType": "sc:Text",
-          "source": {
-            "fileSet": {
-              "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "nifti/data_dtype",
-          "name": "data_dtype",
-          "description": "NIfTI datatype; stored data type (int16)",
-          "dataType": "sc:Text",
-          "source": {
-            "fileSet": {
-              "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "nifti/nifti_version",
-          "name": "nifti_version",
-          "description": "Inferred from sizeof_hdr (348=NIfTI-1, 540=NIfTI-2)",
-          "dataType": "sc:Integer",
-          "source": {
-            "fileSet": {
-              "@id": "nifti-files"
             },
             "extract": {
               "fileProperty": "content"

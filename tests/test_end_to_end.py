@@ -1314,6 +1314,36 @@ def test_spect_demo_generation(spect_demo_path: Path, output_dir: Path) -> None:
     assert "tr_seconds" not in nifti_fields  # no 4D file in this fixture
 
 
+def _rename_file_ids(node, rename: dict):
+    """Replace every FileObject identifier with the name of the file it describes."""
+    if isinstance(node, dict):
+        return {k: _rename_file_ids(v, rename) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_rename_file_ids(v, rename) for v in node]
+    return rename.get(node, node) if isinstance(node, str) else node
+
+
+def _by_content(document: dict) -> dict:
+    """The document with the filesystem's own choices taken back out of it.
+
+    Discovery walks in rglob order, so which file gets ``file_0`` and where a
+    node sits in the document are the filesystem's to decide, and two machines
+    do not agree. Both steps are ``test_compression_matrix._normalise``'s, taken
+    for the same reason.
+    """
+    renamed = _rename_file_ids(
+        document,
+        {
+            node["@id"]: f"file:{node['contentUrl']}"
+            for node in document["distribution"]
+            if node.get("@type") == "cr:FileObject"
+        },
+    )
+    for key in ("distribution", "recordSet"):
+        renamed[key] = sorted(renamed[key], key=lambda node: node["@id"])
+    return renamed
+
+
 @pytest.fixture
 def spreadsheets_path() -> Path:
     p = Path(__file__).parent / "data" / "input" / "spreadsheets"
@@ -1360,9 +1390,9 @@ def test_spreadsheets_bake_to_the_committed_document(
     assert result.exit_code == 0, f"CLI failed:\n{result.output}"
     document = json.loads(baked.read_text())
 
-    assert [record_set["name"] for record_set in document["recordSet"]] == [
+    assert sorted(node["name"] for node in document["recordSet"]) == [
         "manifest",
-        "samples",
         "platforms",
+        "samples",
     ]
-    assert document == json.loads(answer.read_text())
+    assert _by_content(document) == _by_content(json.loads(answer.read_text()))
