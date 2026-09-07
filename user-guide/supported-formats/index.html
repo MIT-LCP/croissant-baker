@@ -443,6 +443,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#duplicate-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Duplicate files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#csv-and-tsv" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -766,6 +788,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#duplicate-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Duplicate files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#csv-and-tsv" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -885,7 +929,48 @@
 
 
 <h1 id="supported-formats">Supported Formats</h1>
-<p>croissant-baker detects file types automatically. Unrecognized files are skipped silently. Handlers are checked in the order listed below — the first match wins.</p>
+<p>croissant-baker detects file types automatically. Handlers are checked in the order listed below — the first match wins.</p>
+<p>Nothing is skipped in silence, and nothing is reported one line per file by default. The closing coverage summary counts every file the document does not carry, under the reason it was passed over. The summary is a fixed size — a header plus at most one line per reason — so a directory with one undescribed file and one with ten thousand print the same shape. The full list is under <code>--verbose</code>, or in the machine-readable <code>--report</code> file:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Scanned 8 file(s): 4 described, 1 linked, 1 referenced, 2 not described.
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  no handler: 1
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  archive, not opened: 1
+</span></code></pre></div>
+<p>A file reaches the document three ways, and the header names each one that
+happened. <code>described</code> means a handler read the file and built its record set.
+<code>linked</code> means the file is another described file in a different form — a
+<code>.csv.gz</code> beside its <code>.csv</code> — so its bytes are described and its structure is
+its twin's. <code>referenced</code> means another file's handler put it there: a WFDB
+header is read together with its <code>.dat</code> and <code>.atr</code>, and each gets a FileObject
+though nothing claims a <code>.dat</code> on its own. Only <code>not described</code> counts files the
+document does not carry, and the reason lines account for exactly those.</p>
+<p><code>--report FILE</code> writes one JSON object per run. <code>outcome</code> and <code>reason</code> come from
+fixed vocabularies, so a tool can branch on them without parsing English:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;described&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">&quot;linked&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">&quot;referenced&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">&quot;undescribed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">&quot;by_reason&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;no_handler&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;archive&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">&quot;files&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;notes.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;outcome&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;unclaimed&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;reason&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;no_handler&quot;</span><span class="p">,</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">     </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;no handler for this file type&quot;</span><span class="p">},</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sample.csv.gz&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;outcome&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;linked&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;reason&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;duplicate_by_name&quot;</span><span class="p">,</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">     </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;same logical name as sample.csv; linked by naming convention, content not verified&quot;</span><span class="p">,</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">     </span><span class="nt">&quot;duplicate_of&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sample.csv&quot;</span><span class="p">},</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;100.dat&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;outcome&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;referenced&quot;</span><span class="p">,</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">     </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;described as part of 100.hea&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;part_of&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;100.hea&quot;</span><span class="p">}</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">  </span><span class="p">]</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>described</code>, <code>linked</code>, <code>referenced</code> and <code>undescribed</code> sum to <code>total</code>, so a tool
+can check coverage without reading the file list. <code>by_reason</code> accounts for the
+<code>undescribed</code> alone.</p>
+<p><code>outcome</code> is one of <code>described</code>, <code>linked</code>, <code>referenced</code>, <code>unclaimed</code>, <code>failed</code>,
+or <code>would_process</code> (<code>--dry-run</code> only). <code>reason</code> is one of <code>no_handler</code>,
+<code>archive</code>, <code>unsupported_input</code>, <code>claim_failed</code>, <code>extract_failed</code>,
+<code>build_failed</code>, <code>partition_schema_conflict</code>, <code>duplicate_by_name</code>, or
+<code>probable_duplicate</code>, and is absent on <code>described</code> and <code>referenced</code>.</p>
 <h2 id="file-types">File types</h2>
 <!-- Auto-generated by docs/generate.py — do not edit manually -->
 
@@ -894,66 +979,121 @@
 <tr>
 <th>Format</th>
 <th>Extensions</th>
+<th>Compression</th>
 <th>What's extracted</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>CSV</td>
-<td><code>.csv</code>, <code>.csv.gz</code>, <code>.csv.bz2</code>, <code>.csv.xz</code></td>
+<td><code>.csv</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Column names, inferred types, optional row count</td>
 </tr>
 <tr>
 <td>TSV</td>
-<td><code>.tsv</code>, <code>.tsv.gz</code>, <code>.tsv.bz2</code>, <code>.tsv.xz</code></td>
+<td><code>.tsv</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Column names, inferred types, optional row count</td>
 </tr>
 <tr>
 <td>FHIR</td>
-<td><code>.ndjson</code>, <code>.ndjson.gz</code>, <code>.json</code>, <code>.json.gz</code></td>
+<td><code>.ndjson</code>, <code>.json</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Resource types, field names and types per resource</td>
 </tr>
 <tr>
 <td>JSON / JSONL</td>
-<td><code>.json</code>, <code>.json.gz</code>, <code>.jsonl</code>, <code>.jsonl.gz</code></td>
+<td><code>.json</code>, <code>.jsonl</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Schema inferred from a sample of records</td>
 </tr>
 <tr>
 <td>WFDB</td>
 <td><code>.hea</code></td>
+<td>—</td>
 <td>Signal names, sampling frequency, duration, number of signals</td>
 </tr>
 <tr>
 <td>Parquet</td>
 <td><code>.parquet</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Arrow schema, column names and types, row count</td>
 </tr>
 <tr>
 <td>Images</td>
 <td><code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.gif</code>, <code>.bmp</code>, <code>.webp</code>, <code>.ico</code>, <code>.tiff</code>, <code>.tif</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Dimensions, color mode, encoding format</td>
 </tr>
 <tr>
 <td>DICOM</td>
 <td><code>.dcm</code>, <code>.dicom</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Image geometry, modality, pixel encoding, acquisition parameters</td>
 </tr>
 <tr>
 <td>NIfTI</td>
-<td><code>.nii</code>, <code>.nii.gz</code></td>
+<td><code>.nii</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Spatial dimensions, voxel spacing, data type, TR for fMRI volumes</td>
 </tr>
 </tbody>
 </table>
+<h2 id="compression">Compression</h2>
+<p><code>.gz</code>, <code>.bz2</code> and <code>.xz</code> are transport, not format. They are resolved before any handler is consulted, so every format in the table above is described the same way whether or not it arrived wrapped: <code>cells.parquet.gz</code> produces the record set that <code>cells.parquet</code> produces.</p>
+<p>What the wrapper changes is the distribution entry, which addresses the bytes on disk. <code>encodingFormat</code> carries both media types, and <code>contentUrl</code>, <code>contentSize</code> and <code>sha256</code> are of the file as stored:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">&quot;@type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cr:FileObject&quot;</span><span class="p">,</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cells.parquet.gz&quot;</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">&quot;contentUrl&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cells.parquet.gz&quot;</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">&quot;encodingFormat&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;application/vnd.apache.parquet&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;application/gzip&quot;</span><span class="p">]</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Record set identifiers are derived from the logical file — <code>cells.parquet</code> — so a compressed file and its plain twin describe one table rather than two. Descriptions name the file as stored (<code>Records from cells.parquet.gz</code>), because a description has to name something you can find on disk. FileSet <code>includes</code> are resolved against the files actually present, so a compressed file is covered by the FileSet describing it.</p>
+<p>WFDB is the exception. A WFDB record is a <code>.hea</code> header read together with its sibling <code>.dat</code> and <code>.atr</code> files, so no single stream carries it; a compressed <code>.hea</code> is reported with that as its reason rather than described.</p>
+<p><code>.zip</code>, <code>.tar</code> and <code>.tgz</code> hold several members. They are reported as archives and not opened.</p>
+<p>Registering another compression is a library call and needs no handler change:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">zstandard</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">croissant_baker</span><span class="w"> </span><span class="kn">import</span> <span class="n">compression</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">compression</span><span class="o">.</span><span class="n">register_compression</span><span class="p">(</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">compression</span><span class="o">.</span><span class="n">Compression</span><span class="p">(</span><span class="s2">&quot;zstd&quot;</span><span class="p">,</span> <span class="s2">&quot;.zst&quot;</span><span class="p">,</span> <span class="s2">&quot;application/zstd&quot;</span><span class="p">,</span> <span class="n">zstandard</span><span class="o">.</span><span class="n">open</span><span class="p">)</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="duplicate-files">Duplicate files</h2>
+<p>Two files in one directory can describe the same data, which would otherwise put two record sets under one identifier and abort the bake. One is described and the others link to it with <code>sameAs</code>, keeping their own distribution entries — their bytes, sizes and checksums are their own.</p>
+<table>
+<thead>
+<tr>
+<th>Shape</th>
+<th>How it is decided</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sample.csv</code> and <code>sample.csv.gz</code></td>
+<td>Linked on the naming convention. Contents are not compared, and the reason says so</td>
+</tr>
+<tr>
+<td><code>sample.csv.gz</code> and <code>sample.csv.xz</code></td>
+<td>Linked only if the first 64 KiB decompress identically</td>
+</tr>
+<tr>
+<td><code>sample.csv</code> and <code>sample.tsv</code></td>
+<td>Two plain files of different size are rejected outright; otherwise the same 64 KiB comparison. If they differ, both are described under distinct identifiers (<code>sample_csv</code>, <code>sample_tsv</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The file that keeps its structure is chosen deterministically: uncompressed first, then the order compressions were registered in, then the path.</p>
 <h2 id="csv-and-tsv">CSV and TSV</h2>
 <p>CSV and TSV files are read with PyArrow's streaming reader — memory is constant regardless of file size. Type inference runs in two passes: an initial sweep, then per-column promotion when the first pass hits a type conflict.</p>
 <p>Row counts are omitted by default for speed. Pass <code>--count-csv-rows</code> to do a full scan for exact counts (slow on large datasets).</p>
-<p>Compressed variants (<code>.gz</code>, <code>.bz2</code>, <code>.xz</code>) are handled transparently.</p>
 <h2 id="fhir-ndjson-json-bundle">FHIR (<code>.ndjson</code>, <code>.json</code> Bundle)</h2>
 <p>Two FHIR serialization formats are supported:</p>
 <ul>
-<li><strong>NDJSON bulk export</strong> (<code>.ndjson</code>, <code>.ndjson.gz</code>): one resource per line, all of the same <code>resourceType</code>. Produced by FHIR Bulk Data servers.</li>
-<li><strong>JSON Bundle</strong> (<code>.json</code>, <code>.json.gz</code>): a FHIR Bundle whose <code>entry[]</code> may contain mixed resource types.</li>
+<li><strong>NDJSON bulk export</strong> (<code>.ndjson</code>): one resource per line, all of the same <code>resourceType</code>. Produced by FHIR Bulk Data servers.</li>
+<li><strong>JSON Bundle</strong> (<code>.json</code>): a FHIR Bundle whose <code>entry[]</code> may contain mixed resource types.</li>
 </ul>
 <p>Field names and types are inferred from a sample of resources. <code>OperationOutcome</code> resources (error markers) are skipped.</p>
 <div class="admonition note">
@@ -962,14 +1102,36 @@
 </div>
 <h2 id="json-and-jsonl">JSON and JSONL</h2>
 <ul>
-<li><strong>JSON</strong> (<code>.json</code>, <code>.json.gz</code>): an array of objects (one object per record) or a single object (treated as one record).</li>
-<li><strong>JSONL</strong> (<code>.jsonl</code>, <code>.jsonl.gz</code>): newline-delimited JSON, one object per line.</li>
+<li><strong>JSON</strong> (<code>.json</code>): an array of objects (one object per record) or a single object (treated as one record).</li>
+<li><strong>JSONL</strong> (<code>.jsonl</code>): newline-delimited JSON, one object per line.</li>
 </ul>
 <p>Schema is inferred from a sample of records. FHIR <code>.json</code> files are excluded — they go to the FHIR handler.</p>
 <h2 id="parquet">Parquet</h2>
-<p>Schema is read from Parquet metadata only — the file data is never loaded. Partitioned datasets (a directory containing two or more <code>.parquet</code> files) are grouped into a single logical <code>cr:FileSet</code> and <code>cr:RecordSet</code>.</p>
+<p>Schema is read from Parquet metadata only — the file data is never loaded.</p>
+<p>Spark and Arrow write one table as a directory of <code>part-*.parquet</code>, while a vendor export directory holds several unrelated tables. Directory membership cannot tell those apart, so two files are shards of one logical table — one <code>cr:FileSet</code> and one <code>cr:RecordSet</code> — only when both hold:</p>
+<table>
+<thead>
+<tr>
+<th>Evidence</th>
+<th>What counts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A shard-shaped name</td>
+<td>The names match once digit runs are masked, and at least one of those runs is a name component of its own: the whole stem (<code>0.parquet</code>) or introduced by <code>-</code>, <code>_</code> or <code>.</code> (<code>part-00000.parquet</code>). Digits fused to letters are part of a word, so <code>assay1.parquet</code> and <code>assay2.parquet</code> stay two tables</td>
+</tr>
+<tr>
+<td>An identical Arrow schema</td>
+<td>Compared as Arrow types, not as Croissant types, which collapse timestamp units, nullability, decimal precision and nested structure</td>
+</tr>
+</tbody>
+</table>
+<p>Anything else is described on its own, as CSV and JSON files are. Files at the dataset root never pair.</p>
+<p>Where files agree on the name but not the schema, that is drift inside one table: the majority schema is described and the rest are reported with reason <code>partition_schema_conflict</code> rather than folded in. The <code>cr:FileSet</code> then lists its shards individually — a directory-wide glob would re-admit exactly the files that were kept out.</p>
 <h2 id="wfdb">WFDB</h2>
 <p>WFDB (WaveForm DataBase) is the standard physiological signal format on PhysioNet. The handler reads the <code>.hea</code> header file and records signal channel names, sampling frequency, number of samples, and duration. Associated <code>.dat</code> binary files are listed as related files.</p>
+<p>Because a record spans several files located by path, this is the one handler that needs a real file on disk. A compressed <code>.hea</code> is reported rather than described.</p>
 <h2 id="images">Images</h2>
 <p>Standard images are read with Pillow. Multi-band or scientific TIFFs fall back to <code>tifffile</code>. All images in a dataset are grouped into one <code>cr:FileSet</code> with a single summary <code>cr:RecordSet</code> covering width, height, color mode, and encoding format.</p>
 <h2 id="dicom">DICOM</h2>
@@ -978,11 +1140,11 @@
 <p>Files with no extension are also accepted if they carry the DICOM magic bytes (<code>DICM</code> at byte offset 128), which is common in PACS exports.</p>
 <p>All DICOM files in a dataset are grouped into one <code>cr:FileSet</code> with a summary <code>cr:RecordSet</code> covering modality counts and dimension ranges.</p>
 <h2 id="nifti">NIfTI</h2>
-<p>NIfTI (<code>.nii</code>, <code>.nii.gz</code>) is the standard format for neuroimaging data (structural MRI, fMRI, CT). The handler uses <code>nibabel</code> and reads the header only — the voxel data array is never loaded.</p>
+<p>NIfTI (<code>.nii</code>) is the standard format for neuroimaging data (structural MRI, fMRI, CT). The handler uses <code>nibabel</code> and reads the header only — the voxel data array is never loaded.</p>
 <p>Extracted metadata: spatial dimensions (x, y, z), number of timepoints for 4D volumes, voxel spacing in mm, stored data type, NIfTI version (1 or 2), and repetition time (TR) for fMRI data.</p>
 <p>All NIfTI files in a dataset are grouped into one <code>cr:FileSet</code> with a summary <code>cr:RecordSet</code>. The <code>tr_seconds</code> field is only added when at least one 4D volume is present.</p>
 <h2 id="hidden-files-and-directories">Hidden files and directories</h2>
-<p>Files inside hidden directories (any path component starting with <code>.</code>) are always skipped. Use <code>--include</code> and <code>--exclude</code> glob patterns to further control which files are processed.</p>
+<p>Files inside hidden directories (any path component starting with <code>.</code>) are always skipped, and do not appear in the coverage report. Use <code>--include</code> and <code>--exclude</code> glob patterns to further control which files are processed.</p>
 
 
 
