@@ -21,6 +21,10 @@ from croissant_baker.identifiers import (
     _disambiguate_record_sets,
     serialize_datetime,
 )
+from croissant_baker.references import (
+    ReferenceReport,
+    detect_foreign_keys,
+)
 
 from croissant_baker import compression
 from croissant_baker.handlers.base_handler import BuildResult
@@ -118,6 +122,19 @@ def _apply_field_mappings(
             )
 
 
+def _field_named(record_set, column: str):
+    """The Field of ``record_set`` whose name is ``column``.
+
+    Raises rather than returning None: the caller looks these up by names the
+    detector copied out of descriptors built from these very Field objects, so
+    a miss is a broken invariant and not an input a link should be dropped over.
+    """
+    for candidate in record_set.fields or []:
+        if candidate.name == column:
+            return candidate
+    raise KeyError(f"record set {record_set.id!r} has no field named {column!r}")
+
+
 class MetadataGenerator:
     """
     Generates Croissant metadata for datasets with automatic type inference.
@@ -152,6 +169,7 @@ class MetadataGenerator:
         field_mappings: Optional[Dict[str, Dict[str, object]]] = None,
         count_csv_rows: bool = False,
         max_workers: Optional[int] = None,
+        detect_references: bool = False,
         includes: Optional[List[str]] = None,
         excludes: Optional[List[str]] = None,
         rai_fields: Optional[Dict[str, object]] = None,
@@ -197,6 +215,9 @@ class MetadataGenerator:
             max_workers: Maximum worker threads for per-file metadata
                 extraction. None (default) auto-sizes from the CPU count; 1
                 forces serial. Output is identical regardless of this value.
+            detect_references: If True, run conservative foreign-key detection
+                and emit cr:references links between RecordSets that share a key
+                column with a name-identifiable parent table. Defaults to False.
             includes: Glob patterns to include. Applied before excludes.
             excludes: Glob patterns to exclude. Applied after includes.
             rai_fields: Native mlcroissant RAI metadata fields, passed through
@@ -238,6 +259,7 @@ class MetadataGenerator:
         self.rai_fields = rai_fields or {}
         self.max_workers = max_workers
         self.handlers = handlers if handlers is not None else default_registry()
+        self.detect_references = detect_references
         # Generic options forwarded to every handler via **kwargs.
         # Handlers declare what they use; others ignore the rest.
         # To add a new handler-specific flag: add one key here — the call site never changes.
@@ -247,6 +269,8 @@ class MetadataGenerator:
         # One entry per file the last generate_metadata() call scanned, each
         # carrying what became of it. Empty until then.
         self._scan_entries: list[ScanEntry] = []
+        # What the foreign-key pass found, or None when it did not run.
+        self._reference_report: Optional[ReferenceReport] = None
 
     @property
     def scan_report(self) -> ScanReport:
@@ -258,6 +282,17 @@ class MetadataGenerator:
         error can still ask why. Empty before the first call.
         """
         return ScanReport(self._scan_entries)
+
+    @property
+    def reference_report(self) -> Optional[ReferenceReport]:
+        """What foreign-key detection found, or None when it did not run.
+
+        Three states, because they mean different things to a reader: None
+        for a bake that never ran the pass (``detect_references`` off, or
+        assembly raised before it), an empty report for one that ran and
+        found nothing, and a populated one otherwise.
+        """
+        return self._reference_report
 
     def generate_metadata(self, progress_callback=None) -> dict:
         """Generate complete Croissant metadata for the dataset.
@@ -281,6 +316,7 @@ class MetadataGenerator:
             exclude_patterns=self.excludes,
         )
         self._scan_entries = entries
+        self._reference_report = None
         total_files = len(entries)
 
         # Each worker touches only its own entry, and entries are read back in
@@ -369,8 +405,6 @@ class MetadataGenerator:
                 dependants[entry.duplicate_of].append(entry)
 
         # TODO: future improvements per handler:
-        #   - references: detect foreign-key columns (e.g. subject_id) and emit
-        #     cr:references links between RecordSets — high-impact for EHR data.
         #   - enumerations: for low-cardinality categorical columns, emit
         #     sc:Enumeration RecordSets.
         by_handler: dict = defaultdict(list)
@@ -464,6 +498,9 @@ class MetadataGenerator:
         # A stem shared across two formats only collides here, where every
         # batch is visible at once.
         record_sets = _disambiguate_record_sets(batches)
+
+        if self.detect_references:
+            self._apply_reference_detection(record_sets)
 
         described_metas = [
             (e.handler, e.meta) for e in entries if e.outcome is Outcome.DESCRIBED
@@ -613,6 +650,38 @@ class MetadataGenerator:
             counter += 1
 
         return objects, counter
+
+    def _apply_reference_detection(self, record_sets: list) -> None:
+        """Detect and attach foreign-key cr:references across RecordSets.
+
+        Opt-in via ``detect_references``. Delegates the (pure) detection to
+        ``references.detect_foreign_keys`` and maps its result back onto the real
+        Field objects. Conservative: a child field's ``references`` is set only
+        when a shared key column has a parent RecordSet identifiable by name.
+
+        What it found is stored on :attr:`reference_report` rather than logged.
+        Nothing configures logging for this package — ``__init__`` attaches a
+        NullHandler — so a log record here reaches nobody, and the CLI owns
+        terminal output.
+        """
+        descriptors = [
+            {
+                "id": rs.id,
+                "name": rs.name or rs.id,
+                "columns": [f.name for f in (rs.fields or [])],
+            }
+            for rs in record_sets
+        ]
+        links, unresolved = detect_foreign_keys(descriptors)
+        self._reference_report = ReferenceReport(links=links, unresolved=unresolved)
+
+        rs_by_id = {rs.id: rs for rs in record_sets}
+        for link in links:
+            parent_field = _field_named(
+                rs_by_id[link["parent_rs"]], link["parent_column"]
+            )
+            child_field = _field_named(rs_by_id[link["child_rs"]], link["column"])
+            child_field.references = mlc.Source(field=parent_field.id)
 
     def _build_description(self, file_metadata: list) -> str:
         if self.description:

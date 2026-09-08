@@ -12,6 +12,7 @@ programmatically — without the CLI.
         - generate_metadata
         - save_metadata
         - scan_report
+        - reference_report
 
 ## Scan coverage
 
@@ -34,6 +35,22 @@ still explain itself.
 ::: croissant_baker.entries.Outcome
 
 ::: croissant_baker.entries.Reason
+
+## Foreign-key detection
+
+Opt-in, via `--detect-references` or `detect_references=True`. The report is
+`None` when the pass did not run, so "found nothing" and "never asked" stay
+distinguishable. Shared key columns it declines to link are carried here rather
+than dropped.
+
+::: croissant_baker.references.ReferenceReport
+    options:
+      members:
+        - links
+        - unresolved
+        - summary_lines
+
+::: croissant_baker.references.Unlinkable
 
 ## File Discovery
 
