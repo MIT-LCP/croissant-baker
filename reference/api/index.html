@@ -635,6 +635,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#croissant_baker.metadata_generator.MetadataGenerator.reference_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reference_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#croissant_baker.metadata_generator.MetadataGenerator.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -804,6 +815,78 @@
     <span class="md-ellipsis">
       
         Reason
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#foreign-key-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Foreign-key detection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#croissant_baker.references.ReferenceReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReferenceReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReferenceReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#croissant_baker.references.ReferenceReport.links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        links
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#croissant_baker.references.ReferenceReport.unresolved" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unresolved
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#croissant_baker.references.ReferenceReport.summary_lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        summary_lines
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#croissant_baker.references.Unlinkable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unlinkable
       
     </span>
   </a>
@@ -1268,6 +1351,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#croissant_baker.metadata_generator.MetadataGenerator.reference_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reference_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#croissant_baker.metadata_generator.MetadataGenerator.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1437,6 +1531,78 @@
     <span class="md-ellipsis">
       
         Reason
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#foreign-key-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Foreign-key detection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#croissant_baker.references.ReferenceReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReferenceReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReferenceReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#croissant_baker.references.ReferenceReport.links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        links
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#croissant_baker.references.ReferenceReport.unresolved" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unresolved
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#croissant_baker.references.ReferenceReport.summary_lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        summary_lines
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#croissant_baker.references.Unlinkable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unlinkable
       
     </span>
   </a>
@@ -1913,6 +2079,32 @@ error can still ask why. Empty before the first call.</p>
 
 </div>
 
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="croissant_baker.metadata_generator.MetadataGenerator.reference_report" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">reference_report</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>What foreign-key detection found, or None when it did not run.</p>
+<p>Three states, because they mean different things to a reader: None
+for a bake that never ran the pass (<code>detect_references</code> off, or
+assembly raised before it), an empty report for one that ran and
+found nothing, and a populated one otherwise.</p>
+
+    </div>
+
+</div>
+
 
 
 
@@ -1920,7 +2112,7 @@ error can still ask why. Empty before the first call.</p>
 
 
 <h3 id="croissant_baker.metadata_generator.MetadataGenerator.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">citation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_published</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_created</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_modified</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">creators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">publisher</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_language</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">same_as</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternate_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_live_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temporal_coverage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">usage_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">field_mappings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">count_csv_rows</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">excludes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rai_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">handlers</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">citation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_published</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_created</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_modified</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">creators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">publisher</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_language</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">same_as</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternate_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_live_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temporal_coverage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">usage_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">field_mappings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">count_csv_rows</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">detect_references</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">excludes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rai_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">handlers</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2335,6 +2527,24 @@ forces serial. Output is identical regardless of this value.</p>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>detect_references</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, run conservative foreign-key detection
+and emit cr:references links between RecordSets that share a key
+column with a name-identifiable parent table. Defaults to False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -2898,6 +3108,179 @@ bake leaves none of them behind.</p>
 <p>The entry's <code>detail</code> names the file and the exception; this is what the
 summary counts, so terminal output stays bounded by the number of <em>kinds</em>
 of problem.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="foreign-key-detection">Foreign-key detection</h2>
+<p>Opt-in, via <code>--detect-references</code> or <code>detect_references=True</code>. The report is
+<code>None</code> when the pass did not run, so "found nothing" and "never asked" stay
+distinguishable. Shared key columns it declines to link are carried here rather
+than dropped.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="croissant_baker.references.ReferenceReport" class="doc doc-heading">
+            <code>croissant_baker.references.ReferenceReport</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>What the foreign-key pass linked, and what it declined to link.</p>
+<p>Held by the generator and rendered by the CLI, the way
+:class:<code>croissant_baker.scan.ScanReport</code> is: the library states what it
+found, and only the CLI writes to a terminal. :meth:<code>summary_lines</code> is one
+line by default, whatever the dataset, and names a column per line only
+under <code>verbose</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="croissant_baker.references.ReferenceReport.links" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">links</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="croissant_baker.references.ReferenceReport.unresolved" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">unresolved</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="croissant_baker.references.ReferenceReport.summary_lines" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">summary_lines</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>One line saying what was linked, and under <code>verbose</code> what was not.</p>
+<p>The invitation to re-run is folded into that line rather than added as
+its own <code>Tip:</code>, because the coverage section above may already end in
+one and two competing tips read as noise.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="croissant_baker.references.Unlinkable" class="doc doc-heading">
+            <code>croissant_baker.references.Unlinkable</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="str">str</span></code>, <code><span title="enum.Enum">Enum</span></code></p>
+
+
+
+        <p>Why a shared key column was reported instead of linked.</p>
+<p><code>str</code> mixin so a reason serialises to its own value, as
+:class:<code>croissant_baker.entries.Reason</code> does.</p>
 
 
 
