@@ -605,6 +605,7 @@ source = { editable = "." }
 dependencies = [
     { name = "mlcroissant" },
     { name = "nibabel" },
+    { name = "openpyxl" },
     { name = "pillow" },
     { name = "pyarrow" },
     { name = "pydicom" },
@@ -614,6 +615,7 @@ dependencies = [
     { name = "tifffile", version = "2026.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "typer" },
     { name = "wfdb" },
+    { name = "xlrd" },
 ]
 
 [package.dev-dependencies]
@@ -637,6 +639,7 @@ test = [
 requires-dist = [
     { name = "mlcroissant", specifier = ">=1.1.0,<1.2.0" },
     { name = "nibabel", specifier = ">=5.0" },
+    { name = "openpyxl", specifier = ">=3.1" },
     { name = "pillow", specifier = ">=12.2.0" },
     { name = "pyarrow", specifier = ">=23.0.1" },
     { name = "pydicom", specifier = ">=2.4" },
@@ -645,6 +648,7 @@ requires-dist = [
     { name = "tifffile", specifier = ">=2024.1.0" },
     { name = "typer", specifier = ">=0.9.0" },
     { name = "wfdb", specifier = ">=4.3.1" },
+    { name = "xlrd", specifier = ">=2.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -687,6 +691,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/96/8e/709914eb2b5749865801041647dc7f4e6d00b549cfe88b65ca192995f07c/distlib-0.4.0.tar.gz", hash = "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d", size = 614605, upload-time = "2025-07-17T16:52:00.465Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/6b/e0547afaf41bf2c42e52430072fa5658766e3d65bd4b03a563d1b6336f57/distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16", size = 469047, upload-time = "2025-07-17T16:51:58.613Z" },
+]
+
+[[package]]
+name = "et-xmlfile"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d3/38/af70d7ab1ae9d4da450eeec1fa3918940a5fafb9055e934af8d6eb0c2313/et_xmlfile-2.0.0.tar.gz", hash = "sha256:dab3f4764309081ce75662649be815c4c9081e88f0837825f90fd28317d4da54", size = 17234, upload-time = "2024-10-25T17:25:40.039Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl", hash = "sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa", size = 18059, upload-time = "2024-10-25T17:25:39.051Z" },
 ]
 
 [[package]]
@@ -1871,6 +1884,18 @@ wheels = [
 ]
 
 [[package]]
+name = "openpyxl"
+version = "3.1.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "et-xmlfile" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/f9/88d94a75de065ea32619465d2f77b29a0469500e99012523b91cc4141cd1/openpyxl-3.1.5.tar.gz", hash = "sha256:cf0e3cf56142039133628b5acffe8ef0c12bc902d2aadd3e0fe5878dc08d1050", size = 186464, upload-time = "2024-06-28T14:03:44.161Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl", hash = "sha256:5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2", size = 250910, upload-time = "2024-06-28T14:03:41.161Z" },
+]
+
+[[package]]
 name = "packaging"
 version = "26.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3028,6 +3053,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/45/af/6fff8f3b2c23f58405fb790d0b60a3c61c5837356d9cda9646bcf0d6bf4f/wfdb-4.3.1.tar.gz", hash = "sha256:d33e9b4674da6cf87bcfcdac640eea4fbe4f95e82a8b209bb6db05c345cd68df", size = 163551, upload-time = "2026-02-03T19:22:26.621Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/45/05cc2ecbf61163bbbb18678dcdc7e7e7285f9f50f4dcf96a9ff07633ac52/wfdb-4.3.1-py3-none-any.whl", hash = "sha256:aa1801cf835797b9051ab7955fb900ce6c5f1e1b6cd9cc9979e6c7304e157063", size = 163935, upload-time = "2026-02-03T19:22:28.173Z" },
+]
+
+[[package]]
+name = "xlrd"
+version = "2.0.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/5a/377161c2d3538d1990d7af382c79f3b2372e880b65de21b01b1a2b78691e/xlrd-2.0.2.tar.gz", hash = "sha256:08b5e25de58f21ce71dc7db3b3b8106c1fa776f3024c54e45b45b374e89234c9", size = 100167, upload-time = "2025-06-14T08:46:39.039Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/62/c8d562e7766786ba6587d09c5a8ba9f718ed3fa8af7f4553e8f91c36f302/xlrd-2.0.2-py2.py3-none-any.whl", hash = "sha256:ea762c3d29f4cca48d82df517b6d89fbce4db3107f9d78713e48cd321d5c9aa9", size = 96555, upload-time = "2025-06-14T08:46:37.766Z" },
 ]
 
 [[package]]

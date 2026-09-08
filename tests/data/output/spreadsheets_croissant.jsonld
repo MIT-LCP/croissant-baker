@@ -1,0 +1,263 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/",
+    "citeAs": "cr:citeAs",
+    "column": "cr:column",
+    "conformsTo": "dct:conformsTo",
+    "cr": "http://mlcommons.org/croissant/",
+    "rai": "http://mlcommons.org/croissant/RAI/",
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
+    "dct": "http://purl.org/dc/terms/",
+    "equivalentProperty": "cr:equivalentProperty",
+    "examples": {
+      "@id": "cr:examples",
+      "@type": "@json"
+    },
+    "extract": "cr:extract",
+    "field": "cr:field",
+    "fileProperty": "cr:fileProperty",
+    "fileObject": "cr:fileObject",
+    "fileSet": "cr:fileSet",
+    "format": "cr:format",
+    "includes": "cr:includes",
+    "isLiveDataset": "cr:isLiveDataset",
+    "jsonPath": "cr:jsonPath",
+    "key": "cr:key",
+    "md5": "cr:md5",
+    "parentField": "cr:parentField",
+    "path": "cr:path",
+    "recordSet": "cr:recordSet",
+    "references": "cr:references",
+    "regex": "cr:regex",
+    "repeated": "cr:repeated",
+    "replace": "cr:replace",
+    "samplingRate": "cr:samplingRate",
+    "sc": "https://schema.org/",
+    "separator": "cr:separator",
+    "source": "cr:source",
+    "subField": "cr:subField",
+    "transform": "cr:transform"
+  },
+  "@type": "sc:Dataset",
+  "name": "Spreadsheet fixtures",
+  "description": "Two workbooks covering every sheet shape the handler distinguishes",
+  "conformsTo": "http://mlcommons.org/croissant/1.1",
+  "citeAs": "Croissant Baker tests. (2026). Spreadsheet fixtures [Data set].",
+  "creator": {
+    "@type": "sc:Person",
+    "name": "Croissant Baker tests"
+  },
+  "datePublished": "2026-09-06",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "version": "1.0.0",
+  "distribution": [
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_0",
+      "name": "manifest.xls",
+      "contentSize": "5632",
+      "contentUrl": "manifest.xls",
+      "encodingFormat": "application/vnd.ms-excel",
+      "sha256": "44f9dc57440f6b36108573b07e465f0a04a66ea0ac5f95f5ecfcf81131fc7c31"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_1",
+      "name": "study.xlsx",
+      "contentSize": "6602",
+      "contentUrl": "study.xlsx",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "sha256": "d4dc1c30ae2f1fbc256e0862f8bb88a857e9a188b8567474e2590305d115e6e1"
+    }
+  ],
+  "recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "@id": "manifest_manifest",
+      "name": "manifest",
+      "description": "Sheet 'manifest' of manifest.xls (3 rows)",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "manifest_manifest/sample_id",
+          "name": "sample_id",
+          "description": "Column 'sample_id' of sheet 'manifest' in manifest.xls",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "manifest_manifest/tissue",
+          "name": "tissue",
+          "description": "Column 'tissue' of sheet 'manifest' in manifest.xls",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "manifest_manifest/rin",
+          "name": "rin",
+          "description": "Column 'rin' of sheet 'manifest' in manifest.xls",
+          "dataType": "cr:Float64",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "manifest_manifest/reads",
+          "name": "reads",
+          "description": "Column 'reads' of sheet 'manifest' in manifest.xls",
+          "dataType": "cr:Int64",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "manifest_manifest/passed",
+          "name": "passed",
+          "description": "Column 'passed' of sheet 'manifest' in manifest.xls",
+          "dataType": "sc:Boolean",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "manifest_manifest/collected",
+          "name": "collected",
+          "description": "Column 'collected' of sheet 'manifest' in manifest.xls",
+          "dataType": "sc:DateTime",
+          "source": {
+            "fileObject": {
+              "@id": "file_0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "study_samples",
+      "name": "samples",
+      "description": "Sheet 'samples' of study.xlsx (3 rows)",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "study_samples/sample_id",
+          "name": "sample_id",
+          "description": "Column 'sample_id' of sheet 'samples' in study.xlsx",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "study_samples/tissue",
+          "name": "tissue",
+          "description": "Column 'tissue' of sheet 'samples' in study.xlsx",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "study_samples/rin",
+          "name": "rin",
+          "description": "Column 'rin' of sheet 'samples' in study.xlsx",
+          "dataType": "cr:Float64",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "study_samples/collected",
+          "name": "collected",
+          "description": "Column 'collected' of sheet 'samples' in study.xlsx",
+          "dataType": "sc:DateTime",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "study_platforms",
+      "name": "platforms",
+      "description": "Sheet 'platforms' of study.xlsx (2 rows)",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "study_platforms/platform_id",
+          "name": "platform_id",
+          "description": "Column 'platform_id' of sheet 'platforms' in study.xlsx",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "study_platforms/instrument",
+          "name": "instrument",
+          "description": "Column 'instrument' of sheet 'platforms' in study.xlsx",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "study_platforms/reads",
+          "name": "reads",
+          "description": "Column 'reads' of sheet 'platforms' in study.xlsx",
+          "dataType": "cr:Int64",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

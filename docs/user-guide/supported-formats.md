@@ -106,6 +106,22 @@ CSV and TSV files are read with PyArrow's streaming reader — memory is constan
 
 Row counts are omitted by default for speed. Pass `--count-csv-rows` to do a full scan for exact counts (slow on large datasets).
 
+## Spreadsheets (`.xlsx`, `.xlsm`, `.xls`)
+
+Workbooks are read with `openpyxl`, and the legacy format with `xlrd`. A workbook is a drawing surface rather than a schema, so the handler reads the one layout that carries almost all real data — a single table per sheet — and refuses to guess at anything else.
+
+Each sheet that reads as one table becomes its own `cr:RecordSet`, named for the sheet, with one `cr:Field` per column. The header is the first row that fills the widest row in the sheet's first hundred, which skips the title and contact rows a supplementary table leads with. The table is what follows, up to the first blank row — the region a spreadsheet would select around a cell — so a footnote below a table is not counted into it. The row count is exact, and each column is typed by a majority of its values in the first 500 rows, except that one fraction widens a column of whole numbers.
+
+A sheet where no row fills that width — two tables side by side, say — is named in a warning and left out, and so is one with a header and nothing under it, such as a sheet holding only a note. The workbook's other sheets are still described. One warning per file names all of them. An empty sheet is skipped in silence, because Excel leaves `Sheet2` and `Sheet3` behind on every new workbook. A workbook where no sheet reads as a table is reported as a failure, with a reason, like any other unread file.
+
+Two assumptions are worth knowing, because neither announces itself. A header with a gap in it does not fill the width, so the first complete row below it becomes the header instead: the sheet is described, with the wrong row for its column names. And where a sheet holds two tables, the widest wins — the handler takes one header and stops at the first blank row, so a wider table below a narrower one is described in place of it. Give each table its own sheet, and give every column a name.
+
+Fields carry no `extract`. mlcroissant has no reader for either format and Croissant has no way to name a sheet, so a column reference would point at something no consumer can follow. Formula cells are read at their cached value, which is what Excel last wrote — a workbook produced by a script and never opened in Excel carries no cache, so those cells read as empty.
+
+A `.xls` is a different format rather than an older spelling: it stores whole numbers and booleans as doubles, and dates as serial offsets. All three are converted back before typing, so one table describes the same way whichever format it arrives in.
+
+Files are claimed on their signature, not their name. A `.xls` that is really HTML or TSV is a common lab-system export, and Excel's `~$` lock files carry no leading dot to hide them from discovery.
+
 ## FHIR (`.ndjson`, `.json` Bundle)
 
 Two FHIR serialization formats are supported:

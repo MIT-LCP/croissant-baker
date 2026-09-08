@@ -31,14 +31,19 @@ def _handlers():
 
 
 def _formats(metadata: dict) -> list:
-    """The media types on each FileObject, in document order."""
+    """The media types on each FileObject, sorted.
+
+    Not document order: that is rglob order, which two directories holding the
+    same files under different names do not agree on. The claim here is that
+    each format is paired with the wrapper, not where it sits in the document.
+    """
     out = []
     for node in metadata.get("distribution", []):
         if node.get("@type") != "cr:FileObject":
             continue
         value = node.get("encodingFormat")
         out.append(value if isinstance(value, list) else [value])
-    return out
+    return sorted(out)
 
 
 def _rename_ids(node, rename: dict):
