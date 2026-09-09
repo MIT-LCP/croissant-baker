@@ -46,6 +46,9 @@ dev = [
     "pre-commit>=4.5.1",
     { include-group = "test" },
 ]
+# Optional: the local stdio MCP server (`croissant-baker mcp`).
+# Install with: uv sync --group mcp
+mcp = ["mcp>=2.2"]
 docs = [
     "mkdocs>=1.6,<2",
     "mkdocs-material>=9.7,<10",
