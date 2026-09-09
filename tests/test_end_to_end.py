@@ -1476,14 +1476,7 @@ def test_geo_review_exports_validate_through_the_cli(
 
 @pytest.fixture
 def ome_dataset(tmp_path: Path) -> Path:
-    """A microscopy tree in the shape a deposit has: OME beside plain images.
-
-    Synthetic. The repository carries no microscopy corpus, and the smallest
-    real OME-TIFF worth committing is megabytes. What a synthetic fixture
-    cannot prove is that a real writer's file opens — Bio-Formats', a
-    scanner's and tifffile's headers differ in tag layout, not in magic, so
-    the risk is low, but it is not nothing.
-    """
+    """Synthetic OME beside plain images; published OME fixtures are tested separately."""
     from tests.helpers import OME_TIFF, PNG_1X1, tiff_bytes
 
     dataset = tmp_path / "microscopy"
@@ -1532,4 +1525,5 @@ def test_ome_tiff_generation(ome_dataset: Path, tmp_path: Path) -> None:
 
     file_sets = {n["@id"]: n for n in metadata["distribution"] if "includes" in n}
     assert file_sets["ome-image-files"]["includes"] == "morphology.ome.tif"
-    assert sorted(file_sets["image-files"]["includes"]) == ["**/*.png", "overview.tif"]
+    assert sorted(file_sets["image-files"]["includes"]) == ["**/*.png", "**/*.tif"]
+    assert file_sets["image-files"]["cr:excludes"] == "morphology.ome.tif"

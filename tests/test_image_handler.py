@@ -25,6 +25,7 @@ from tests.helpers import (
     OME_TIFF,
     PNG_1X1,
     WRAPPER_SUFFIXES,
+    file_set_members,
     ome_bomb,
     ome_image,
     ome_xml,
@@ -552,25 +553,13 @@ def test_a_batch_with_no_ome_file_describes_one_collection(
     assert sorted(result.file_sets[0].includes) == ["**/*.btf", "**/*.png", "**/*.tif"]
 
 
-def resolve(includes, directory: Path) -> set:
-    found = set()
-    for pattern in includes:
-        if "*" in pattern:
-            found |= {str(p.relative_to(directory)) for p in directory.glob(pattern)}
-        else:
-            found.add(pattern)
-    return found
-
-
 def test_the_two_collections_partition_the_batch(
     handler: ImageHandler, dataset: Path
 ) -> None:
     """The OME files leave ``images``, an existing public record set, so every
     image must still land in exactly one of the two collections.
 
-    Asserted as exact include lists rather than by membership: the three rules
-    that decide them — list a shared extension, glob every other, name an OME
-    file by its dataset-relative path — are all invisible to a set comparison.
+    Check both compact patterns and actual membership.
     """
     files = {
         "a.ome.tif": OME_TIFF,
@@ -594,17 +583,31 @@ def test_the_two_collections_partition_the_batch(
     assert by_name["Image files"].includes == [
         "**/*.btf",
         "**/*.png",
-        "imagej.tif",
-        "plain.tif",
+        "**/*.tif",
     ]
+    assert by_name["Image files"].excludes == ["a.ome.tif", "nested/b.ome.tif"]
     assert list(fields_of(nodes_by_name(result.record_sets)["images"])) == ["image"]
 
     plain, ome_files = (
-        resolve(by_name[name].includes, dataset)
+        file_set_members(by_name[name].to_json(), dataset)
         for name in ("Image files", "OME-TIFF files")
     )
     assert plain & ome_files == set()
     assert plain | ome_files == set(files)
+
+
+def test_one_ome_file_does_not_expand_thousands_of_plain_tiff_paths(handler):
+    plain = [
+        _img_meta(f"tile_{i}.tif", fmt="TIFF", mime="image/tiff") for i in range(3000)
+    ]
+    microscopy = {
+        **_img_meta("slide.ome.tif", fmt="TIFF", mime="image/tiff"),
+        "ome": ome.OMEHeader(size_c=3),
+    }
+    result = handler.build_croissant([*plain, microscopy], [])
+    ordinary = result.file_sets[0]
+    assert ordinary.includes == ["**/*.tif"]
+    assert ordinary.excludes == ["slide.ome.tif"]
 
 
 def test_every_field_is_typed_and_only_the_image_field_extracts(
@@ -631,7 +634,8 @@ def test_every_field_is_typed_and_only_the_image_field_extracts(
         "pixel_type": "sc:Text",
         "physical_size_x": "sc:Float",
         "physical_size_y": "sc:Float",
-        "physical_size_unit": "sc:Text",
+        "physical_size_x_unit": "sc:Text",
+        "physical_size_y_unit": "sc:Text",
         "channel_names": "sc:Text",
     }
     assert fields["channel_names"]["cr:isArray"] is True
@@ -651,39 +655,48 @@ def test_each_field_describes_what_the_whole_batch_holds(
     """One shared field describes the whole batch, so one file's value would be
     a false statement about the rest.
 
-    Exact, not substring: a range that never collapses reads ``3-3`` and still
-    contains ``3``, and a set joined in hash order still contains every word.
+    Compare the complete observed summary without pinning explanatory prose.
     """
     result = build(handler, dataset, {"a.ome.tif": OME_TIFF, "b.ome.tif": OME_40})
 
     record_set = nodes_by_name(result.record_sets)["ome_images"]
     fields = fields_of(record_set)
-    assert {name: f["description"] for name, f in fields.items()} == {
-        "image": "Image content (2 OME-TIFF file(s))",
-        "ome_version": "OME schema version (2016-06)",
-        "ome_image_count": "OME Image elements the file declares (1)",
-        "size_c": "OME Pixels/@SizeC; channels in Image[0] (3-40)",
-        "size_z": "OME Pixels/@SizeZ; focal planes in Image[0] (1)",
-        "size_t": "OME Pixels/@SizeT; timepoints in Image[0] (1-5)",
-        "dimension_order": (
-            "OME Pixels/@DimensionOrder; plane order in Image[0] (XYCZT)"
-        ),
-        "pixel_type": "OME Pixels/@Type; stored pixel type in Image[0] (uint16, uint8)",
-        "physical_size_x": (
-            "OME Pixels/@PhysicalSizeX; pixel width in Image[0] (0.2125)"
-        ),
-        "physical_size_y": (
-            "OME Pixels/@PhysicalSizeY; pixel height in Image[0] (0.425)"
-        ),
-        "physical_size_unit": (
-            "OME Pixels/@PhysicalSizeXUnit; unit of the physical sizes (µm)"
-        ),
-        "channel_names": (
-            "OME Channel/@Name; channel labels in Image[0] "
-            "(18S, ATP1A1, CD3, CD8, DAPI)"
-        ),
+    expected = {
+        "image": "2 OME-TIFF file(s)",
+        "ome_version": "2016-06",
+        "ome_image_count": "1",
+        "size_c": "3-40",
+        "size_z": "1",
+        "size_t": "1-5",
+        "dimension_order": "XYCZT",
+        "pixel_type": "uint16, uint8",
+        "physical_size_x": "0.2125 µm",
+        "physical_size_y": "0.425 mm",
+        "physical_size_x_unit": "µm",
+        "physical_size_y_unit": "mm",
+        "channel_names": "18S, ATP1A1, CD3, CD8, DAPI",
     }
-    assert record_set.description.startswith("2 OME-TIFF file(s) (8x8): ")
+    assert set(fields) == set(expected)
+    for name, observed in expected.items():
+        assert fields[name]["description"].endswith(f"({observed})"), name
+
+
+def test_spacing_ranges_never_mix_units_or_depend_on_file_order(handler):
+    headers = [
+        ome.OMEHeader(physical_size_x=x, physical_size_x_unit=unit)
+        for x, unit in [(0.2, "µm"), (0.001, "mm"), (0.4, "µm")]
+    ]
+    metas = [
+        {**_img_meta(f"{i}.tif"), "ome": header} for i, header in enumerate(headers)
+    ]
+    forward = handler.build_croissant(metas, [])
+    backward = handler.build_croissant(list(reversed(metas)), [])
+    fields = fields_of(forward.record_sets[0])
+    assert fields["physical_size_x"]["description"].endswith("(0.001 mm; 0.2-0.4 µm)")
+    assert fields["physical_size_x_unit"]["description"].endswith("(mm, µm)")
+    assert "physical_size_y" not in fields
+    assert "physical_size_y_unit" not in fields
+    assert as_json(forward) == as_json(backward)
 
 
 def test_a_field_no_file_declares_is_not_emitted(
@@ -694,8 +707,7 @@ def test_a_field_no_file_declares_is_not_emitted(
     result = build(handler, dataset, {"a.ome.tif": OME_NO_PHYSICAL_SIZE})
 
     fields = fields_of(nodes_by_name(result.record_sets)["ome_images"])
-    assert "physical_size_x" not in fields
-    assert "physical_size_unit" not in fields
+    assert not any(name.startswith("physical_size_") for name in fields)
     assert "size_c" in fields
 
 
@@ -753,19 +765,32 @@ def test_channel_names_are_the_only_vocabulary_that_reaches_the_document(
         assert secret not in document
 
 
-def test_a_refused_description_is_counted_and_never_expanded(
-    handler: ImageHandler, dataset: Path
+@pytest.mark.parametrize(
+    "payload",
+    [BOMB_TIFF, OVERSIZED_TIFF, tiff_bytes(ome_xml("<Image>"))],
+    ids=["entity declaration", "oversized", "malformed"],
+)
+@pytest.mark.parametrize("with_ome", [False, True])
+def test_a_refused_description_falls_back_to_plain_tiff(
+    handler: ImageHandler, dataset: Path, payload: bytes, with_ome: bool
 ) -> None:
     """``ScanEntry.describe()`` clears the reason and the detail, so a described
     file has nowhere else to record a partial refusal."""
-    result = build(handler, dataset, {"a.ome.tif": BOMB_TIFF, "b.ome.tif": OME_TIFF})
-
-    record_set = nodes_by_name(result.record_sets)["ome_images"]
-    fields = fields_of(record_set)
-    assert "1 of 2" in record_set.description
-    assert "not parsed" in record_set.description
-    # The refused file contributed nothing, and the sound one still did.
-    assert fields["size_c"]["description"].endswith("(3)")
+    files = {"a.ome.tif": payload}
+    if with_ome:
+        files["b.ome.tif"] = OME_TIFF
+    result = build(handler, dataset, files)
+    records = nodes_by_name(result.record_sets)
+    ordinary = records["images"]
+    assert "1 of 1" in ordinary.description
+    assert "not parsed" in ordinary.description
+    assert list(fields_of(ordinary)) == ["image"]
+    assert file_set_members(result.file_sets[0].to_json(), dataset) == {"a.ome.tif"}
+    if with_ome:
+        assert file_set_members(result.file_sets[1].to_json(), dataset) == {"b.ome.tif"}
+        assert fields_of(records["ome_images"])["size_c"]["description"].endswith("(3)")
+    else:
+        assert "ome_images" not in records
     assert "lol" not in as_json(result)
 
 

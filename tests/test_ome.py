@@ -38,7 +38,8 @@ READ = {
     "pixel_type": "uint16",
     "physical_size_x": 0.2125,
     "physical_size_y": 0.425,
-    "physical_size_unit": "µm",
+    "physical_size_x_unit": "µm",
+    "physical_size_y_unit": "mm",
     "channel_names": ("DAPI", "ATP1A1", "18S"),
     "image_count": 1,
     "refusal": "",
@@ -61,7 +62,8 @@ READ = {
                 "pixel_type": "uint8",
                 "physical_size_x": None,
                 "physical_size_y": None,
-                "physical_size_unit": None,
+                "physical_size_x_unit": None,
+                "physical_size_y_unit": None,
             },
         ),
         # One malformed attribute costs that attribute, not the whole header.
@@ -76,7 +78,8 @@ READ = {
                 "pixel_type": None,
                 "physical_size_x": None,
                 "physical_size_y": None,
-                "physical_size_unit": None,
+                "physical_size_x_unit": None,
+                "physical_size_y_unit": None,
             },
         ),
     ],
@@ -103,14 +106,72 @@ def test_the_schema_version_comes_from_the_root_element(version: str) -> None:
     assert header.version == version
 
 
-def test_a_root_that_is_not_ome_is_not_an_ome_header() -> None:
+@pytest.mark.parametrize("version", ["2016-06", "2013-06"])
+@pytest.mark.parametrize("axis", ["X", "Y"])
+def test_an_omitted_unit_defaults_only_the_axis_with_a_measurement(version, axis):
+    header = ome.parse(
+        ome_xml(
+            image(pixels=f'PhysicalSize{axis}="0.65"'),
+            namespace=f"http://www.openmicroscopy.org/Schemas/OME/{version}",
+        )
+    )
+    assert getattr(header, f"physical_size_{axis.lower()}") == 0.65
+    assert getattr(header, f"physical_size_{axis.lower()}_unit") == "µm"
+    other = "y" if axis == "X" else "x"
+    assert getattr(header, f"physical_size_{other}") is None
+    assert getattr(header, f"physical_size_{other}_unit") is None
+
+
+@pytest.mark.parametrize("unit", ["nm", "mm", "µm", "reference frame", ""])
+def test_explicit_units_are_preserved_without_conversion(unit):
+    header = ome.parse(
+        ome_xml(
+            image(
+                pixels=f'PhysicalSizeX="0.65" PhysicalSizeXUnit="{unit}" PhysicalSizeY="2"'
+            )
+        )
+    )
+    assert (header.physical_size_x, header.physical_size_x_unit) == (0.65, unit)
+    assert (header.physical_size_y, header.physical_size_y_unit) == (2, "µm")
+
+
+@pytest.mark.parametrize("value", ["NaN", "inf", "-inf", "1e309", "0", "-1", "wide"])
+def test_invalid_spacing_does_not_corrupt_the_other_axis(value):
+    header = ome.parse(
+        ome_xml(
+            image(
+                pixels=f'PhysicalSizeX="{value}" PhysicalSizeXUnit="mm" PhysicalSizeY="2"'
+            )
+        )
+    )
+    assert header.physical_size_x is None
+    assert header.physical_size_x_unit is None
+    assert (header.physical_size_y, header.physical_size_y_unit) == (2, "µm")
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "1.5", "lots"])
+def test_invalid_dimension_counts_are_omitted_independently(value):
+    header = ome.parse(ome_xml(image(pixels=f'SizeC="{value}" SizeZ="2" SizeT="3"')))
+    assert (header.size_c, header.size_z, header.size_t) == (None, 2, 3)
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        "<MetaData><plane/></MetaData>",
+        '<OME xmlns="urn:unrelated"><Image><Pixels PhysicalSizeX="1"/></Image></OME>',
+        '<OME><Image><Pixels PhysicalSizeX="1"/></Image></OME>',
+        '<OME xmlns="http://www.openmicroscopy.org/Schemas/OME/2016-06-extra"/>',
+    ],
+)
+def test_a_root_that_is_not_ome_is_not_an_ome_header(document) -> None:
     """Well-formed XML in tag 270 is common — ImageJ, MetaSeries, Leica SCN.
     Only reachable directly: ``read`` stops at ``tif.is_ome`` first."""
-    assert ome.parse("<MetaData><plane/></MetaData>") is None
+    assert ome.parse(document) is None
 
 
 def test_channel_names_keep_document_order_and_skip_the_unnamed() -> None:
-    """``Name`` is optional, and a gap in the list would misalign the rest."""
+    """The list contains declared labels, not a positional channel mapping."""
     header = ome.parse(
         ome_xml(
             '<Image ID="Image:0"><Pixels ID="Pixels:0" SizeC="3">'
@@ -200,6 +261,17 @@ def test_an_oversized_description_is_not_parsed(monkeypatch) -> None:
     assert header is not None
     assert header.refusal
     assert header.size_c is None
+
+
+def test_direct_parsing_also_bounds_utf8_bytes_before_building_a_tree(monkeypatch):
+    document = ome_xml(image(channels=("µm" * 100,)))
+    monkeypatch.setattr(ome, "MAX_DESCRIPTION_BYTES", len(document))
+
+    def fail(_document):
+        raise AssertionError("oversized XML reached the parser")
+
+    monkeypatch.setattr(ome.ET, "fromstring", fail)
+    assert ome.parse(document).refusal
 
 
 # --------------------------------------------------------------------------

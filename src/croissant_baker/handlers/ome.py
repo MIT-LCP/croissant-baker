@@ -7,6 +7,8 @@ Pure: builds no Croissant, opens no file, and never touches pixel data. See
 from __future__ import annotations
 
 import logging
+import math
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
@@ -31,6 +33,9 @@ MALFORMED = "it is not well-formed"
 # buying a megabyte — without depending on which Expat is linked. OME-XML
 # carries no DTD, so nothing legitimate is refused.
 _DECLARATIONS = ("<!DOCTYPE", "<!ENTITY")
+
+# A local element name alone does not identify OME or justify its unit defaults.
+_OME_NAMESPACE = re.compile(r"http://www\.openmicroscopy\.org/Schemas/OME/\d{4}-\d{2}")
 
 
 @dataclass(frozen=True)
@@ -59,7 +64,8 @@ class OMEHeader:
     pixel_type: Optional[str] = None
     physical_size_x: Optional[float] = None
     physical_size_y: Optional[float] = None
-    physical_size_unit: Optional[str] = None
+    physical_size_x_unit: Optional[str] = None
+    physical_size_y_unit: Optional[str] = None
     channel_names: Tuple[str, ...] = ()
     binary_only: bool = False
     companion: str = ""
@@ -87,7 +93,9 @@ def read(tif) -> Optional[OMEHeader]:
 
 
 def parse(document: str) -> Optional[OMEHeader]:
-    """Read an OME-XML document, or None if its root element is not ``OME``."""
+    """Read OME-XML, or None if the root lacks a versioned OME namespace."""
+    if len(document.encode("utf-8")) > MAX_DESCRIPTION_BYTES:
+        return OMEHeader(refusal=OVERSIZED.format(mib=MAX_DESCRIPTION_BYTES >> 20))
     if any(token in document for token in _DECLARATIONS):
         return OMEHeader(refusal=DECLARATION)
 
@@ -100,36 +108,50 @@ def parse(document: str) -> Optional[OMEHeader]:
         return OMEHeader(refusal=MALFORMED)
 
     namespace, name = _split(root.tag)
-    if name != "OME":
+    if name != "OME" or not _OME_NAMESPACE.fullmatch(namespace):
         return None
 
     def qualified(local: str) -> str:
-        return f"{{{namespace}}}{local}" if namespace else local
+        return f"{{{namespace}}}{local}"
 
     images = root.findall(qualified("Image"))
     pixels = images[0].find(qualified("Pixels")) if images else None
     attributes = pixels.attrib if pixels is not None else {}
     sidecar = root.find(qualified("BinaryOnly"))
+    physical_x = _float(attributes, "PhysicalSizeX")
+    physical_y = _float(attributes, "PhysicalSizeY")
 
     channels = ()
     if pixels is not None:
         named = [c.get("Name") for c in pixels.findall(qualified("Channel"))]
-        # ``Name`` is optional, and a gap would misalign the rest of the list.
+        # This is a list of declared labels, not a positional channel mapping.
         channels = tuple(name for name in named if name)
 
     return OMEHeader(
         # The namespace is versioned — .../OME/2016-06 — so the version is read
         # off the document rather than matched against a constant.
-        version=namespace.rsplit("/", 1)[-1] if namespace else "",
+        version=namespace.rsplit("/", 1)[-1],
         image_count=len(images),
         size_c=_int(attributes, "SizeC"),
         size_z=_int(attributes, "SizeZ"),
         size_t=_int(attributes, "SizeT"),
         dimension_order=attributes.get("DimensionOrder"),
         pixel_type=attributes.get("Type"),
-        physical_size_x=_float(attributes, "PhysicalSizeX"),
-        physical_size_y=_float(attributes, "PhysicalSizeY"),
-        physical_size_unit=attributes.get("PhysicalSizeXUnit"),
+        physical_size_x=physical_x,
+        physical_size_y=physical_y,
+        # OME defaults each axis's unit independently to micrometers. Older
+        # schemas, before the unit attributes existed, also specify micrometers.
+        # Preserve explicit units and never convert the measurements.
+        physical_size_x_unit=(
+            attributes.get("PhysicalSizeXUnit", "µm")
+            if physical_x is not None
+            else None
+        ),
+        physical_size_y_unit=(
+            attributes.get("PhysicalSizeYUnit", "µm")
+            if physical_y is not None
+            else None
+        ),
         channel_names=channels,
         binary_only=sidecar is not None,
         # ``MetadataFile``, not ``FileName``: that is TiffData/UUID's attribute,
@@ -149,13 +171,16 @@ def _split(tag: str) -> Tuple[str, str]:
 def _int(attributes: Dict[str, str], name: str) -> Optional[int]:
     """One malformed attribute costs that attribute, not the whole header."""
     try:
-        return int(attributes[name])
+        value = int(attributes[name])
+        return value if value > 0 else None
     except (KeyError, ValueError):
         return None
 
 
 def _float(attributes: Dict[str, str], name: str) -> Optional[float]:
+    """Physical sizes must be finite and positive to form a meaningful range."""
     try:
-        return float(attributes[name])
+        value = float(attributes[name])
+        return value if math.isfinite(value) and value > 0 else None
     except (KeyError, ValueError):
         return None

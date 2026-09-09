@@ -105,8 +105,8 @@ def tiff_bytes(
 #: The ``<Pixels>`` attributes a microscope writes, on an 8x8 fixture.
 #:
 #: Every pair the handler could confuse holds two different values: SizeZ
-#: against SizeT, PhysicalSizeX against Y, and the X unit against the Y unit,
-#: which the handler is meant to read in preference to it. With the pairs equal
+#: against SizeT, PhysicalSizeX against Y, and the X unit against the Y unit.
+#: Each axis retains its own unit. With the pairs equal
 #: — as a symmetric fixture makes them — a field reading its neighbour is
 #: invisible, and three such swaps went unnoticed.
 OME_PIXELS = (
@@ -342,6 +342,20 @@ def includes(file_set: dict) -> list:
     return as_list(file_set.get("includes"))
 
 
+def file_set_members(file_set: dict, directory: Path) -> set[str]:
+    """Resolve the manifest's includes minus excludes using filesystem globs."""
+
+    def matched(key):
+        return {
+            str(path.relative_to(directory))
+            for pattern in as_list(file_set.get(key))
+            for path in directory.glob(pattern)
+            if path.is_file()
+        }
+
+    return matched("includes") - matched("cr:excludes")
+
+
 def by_name(nodes: Iterable[dict], key: str = "name") -> dict:
     return {n[key]: n for n in nodes}
 
@@ -365,6 +379,7 @@ __all__ = [
     "cli",
     "file_objects",
     "file_sets",
+    "file_set_members",
     "includes",
     "ome_bomb",
     "ome_image",
