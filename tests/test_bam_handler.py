@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import struct
 from pathlib import Path
 
 import mlcroissant as mlc
@@ -15,7 +16,7 @@ import pytest
 
 from croissant_baker.handlers.bam_handler import BAMHandler
 from croissant_baker.identifiers import serialize_datetime
-from croissant_baker.sources import make_source
+from croissant_baker.sources import FileSource, make_source
 
 from tests.helpers import (
     SAMPLES,
@@ -162,6 +163,87 @@ def test_a_truncated_header_is_refused_with_a_reason(dataset: Path) -> None:
         extract(path)
 
     assert "truncated.bam" in str(caught.value)
+
+
+class _Counted:
+    """A stream that remembers how many bytes were pulled through it."""
+
+    def __init__(self, stream) -> None:
+        self._stream = stream
+        self.read_bytes = 0
+
+    def read(self, size=-1):
+        data = self._stream.read(size)
+        self.read_bytes += len(data)
+        return data
+
+    def readable(self) -> bool:
+        return True
+
+    def close(self) -> None:
+        self._stream.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
+
+
+def counting_source(path: Path, opened: list):
+    """A source over ``path`` whose every stream is counted in ``opened``."""
+
+    def open_binary():
+        stream = _Counted(path.open("rb"))
+        opened.append(stream)
+        return stream
+
+    return FileSource(
+        name=path.name,
+        relative_path=Path(path.name),
+        size=path.stat().st_size,
+        exists=True,
+        _open_binary=open_binary,
+        _digest=lambda: "0" * 64,
+    )
+
+
+#: Comfortably above anything the handler should need to refuse a header, and
+#: far below the body the fixture puts behind the declared length.
+BOUNDED_PREFIX = 64 * 1024
+
+
+def test_a_declared_header_larger_than_the_cap_is_refused_unread(
+    dataset: Path,
+) -> None:
+    """``l_text`` is a signed 32-bit integer a corrupt or hostile file chooses.
+
+    Trusting it turns a header read into a read of the whole file, which is the
+    one thing this handler exists not to do, so the length is refused before a
+    byte of it is pulled.
+    """
+    body = b"\x00" * (4 * 1024 * 1024)
+    path = write(
+        dataset,
+        "huge.bam",
+        b"BAM\x01" + struct.pack("<i", 2**31 - 1) + body,
+    )
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "huge.bam" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
+
+
+def test_a_negative_declared_header_is_refused_the_same_way(dataset: Path) -> None:
+    path = write(dataset, "negative.bam", b"BAM\x01" + struct.pack("<i", -1))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "negative.bam" in str(caught.value)
 
 
 def test_no_alignment_record_becomes_a_record_set(dataset: Path) -> None:

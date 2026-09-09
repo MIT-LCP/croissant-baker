@@ -443,6 +443,51 @@ def test_a_gvcf_says_so_in_the_description(dataset: Path) -> None:
     assert "gVCF" in record_set.description
 
 
+def test_a_space_separated_column_line_is_refused_with_a_reason(
+    dataset: Path,
+) -> None:
+    """The columns are tab-separated by specification. A line spelled with
+    spaces declares one column named 'CHROM POS ID ...', and a record set of
+    eight fields built over it would describe a schema the file never stated."""
+    path = write(
+        dataset,
+        "spaced.vcf",
+        b"##fileformat=VCFv4.2\n#CHROM POS ID REF ALT QUAL FILTER INFO\n",
+    )
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "spaced.vcf" in str(caught.value)
+    assert "CHROM" in str(caught.value)
+
+
+def test_a_truncated_column_line_is_refused_with_a_reason(dataset: Path) -> None:
+    """All eight fixed columns are mandatory; three of them are not a VCF."""
+    path = write(
+        dataset,
+        "short.vcf",
+        b"##fileformat=VCFv4.2\n#CHROM\tPOS\tID\n",
+    )
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "short.vcf" in str(caught.value)
+
+
+def test_every_field_built_is_a_column_the_header_declared(dataset: Path) -> None:
+    """The guarantee the refusals above buy: the record set names the columns
+    of the #CHROM line, in that order, and never a column it invented."""
+    (record_set,) = build(sample_vcf(dataset))
+    declared = extract(sample_vcf(dataset))["columns"]
+
+    built = [field.name for field in record_set.fields]
+
+    assert built[: len(declared)] == declared
+    assert built[len(declared) :] == ["samples"]
+
+
 def test_no_record_is_read(dataset: Path) -> None:
     """The header ends the read; whatever follows it is never parsed."""
     path = write(

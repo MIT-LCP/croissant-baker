@@ -42,6 +42,11 @@ FIXED_COLUMNS = (
     "FORMAT",
 )
 
+#: The eight of them a VCF must declare. A file naming fewer, or naming them
+#: with spaces instead of tabs, declares a schema this handler cannot describe,
+#: and the record set it would otherwise build is one the header never stated.
+MANDATORY_COLUMNS = FIXED_COLUMNS[:8]
+
 #: The ``Type`` values a ``##INFO`` or ``##FORMAT`` declaration may carry, and
 #: the Croissant type each becomes. A ``Flag`` is presence or absence, which is
 #: a boolean; ``Character`` is a one-character string, which Croissant has no
@@ -275,6 +280,15 @@ class VCFHandler(FileTypeHandler):
                 f"Incomplete VCF header in {source.relative_path}: no '#CHROM' "
                 "line, so the file declares no columns"
             )
+        if tuple(header.columns[: len(MANDATORY_COLUMNS)]) != MANDATORY_COLUMNS:
+            raise ValueError(
+                f"Incomplete VCF header in {source.relative_path}: the '#CHROM' "
+                "line declares "
+                + (", ".join(header.columns) if header.columns else "no column")
+                + ", not the tab-separated "
+                + " ".join(MANDATORY_COLUMNS)
+                + " a VCF fixes"
+            )
 
         metadata = {
             "file_name": source.name,
@@ -297,6 +311,13 @@ class VCFHandler(FileTypeHandler):
 
     def _read_header(self, source: FileSource) -> _Header:
         """Every line up to the first that is not a header line.
+
+        What is read is bounded by the size of the header, not by the size of
+        the file: the loop stops at the first line that does not start with
+        ``#``, so a callset of a hundred million records costs the same read as
+        one of ten. There is deliberately no cap on the number of header lines,
+        because a cohort VCF legitimately declares thousands of contigs and
+        keys, and every one of them is a field this handler emits.
 
         Decoded permissively: a header is ASCII by specification, and a stray
         byte in a description is not a reason to refuse a file whose structure
