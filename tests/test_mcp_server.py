@@ -41,6 +41,21 @@ def test_dry_run_reports_claimed_and_refused_with_reasons() -> None:
     assert report["total"] == len(claimed) + len(refused)
 
 
+def test_dry_run_counters_match_the_per_file_outcomes() -> None:
+    """The summary counts what a dry run actually resolves, not what a bake does.
+
+    A dry run reads nothing, so nothing is described; counting it as undescribed
+    would report a directory that bakes cleanly as one that describes no file.
+    """
+    report = mcp_server.dry_run(str(DATA / "spect_demo"))
+
+    assert report["total"] == 7
+    assert report["would_process"] == 6
+    assert report["unclaimed"] == 1
+    assert report["by_reason"] == {"no_handler": 1}
+    assert "described" not in report and "undescribed" not in report
+
+
 def test_dry_run_honours_exclude(dataset: Path) -> None:
     """The include/exclude filters reach the scan."""
     everything = mcp_server.dry_run(str(dataset))
