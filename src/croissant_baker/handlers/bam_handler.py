@@ -203,7 +203,7 @@ class BAMHandler(FileTypeHandler):
         """
         try:
             head = source.peek(CLAIM_BYTES)
-        except Exception:  # noqa: BLE001 — an unreadable file is not a claim
+        except Exception:  # noqa: BLE001, an unreadable file is not a claim
             return False
         if head.startswith(MAGIC):
             return True
@@ -211,7 +211,7 @@ class BAMHandler(FileTypeHandler):
             return False
         try:
             return _decompress_prefix(head, len(MAGIC)) == MAGIC
-        except Exception:  # noqa: BLE001 — nor is an undecodable one
+        except Exception:  # noqa: BLE001, nor is an undecodable one
             return False
 
     def extract(

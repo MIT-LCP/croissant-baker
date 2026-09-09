@@ -55,8 +55,8 @@ VCF_TYPES = {
 }
 
 #: ``Number`` values that mean exactly one value, or none at all. Everything
-#: else — ``A`` per alternate allele, ``R`` per allele, ``G`` per genotype,
-#: ``.`` unbounded, or a literal count above one — is a repeated field.
+#: else is a repeated field: ``A`` per alternate allele, ``R`` per allele,
+#: ``G`` per genotype, ``.`` unbounded, or a literal count above one.
 SINGULAR_NUMBERS = frozenset({"0", "1"})
 
 #: The type and cardinality VCF 4.x fixes for each mandatory column, with the
@@ -245,7 +245,7 @@ class VCFHandler(FileTypeHandler):
         """
         try:
             return source.peek(len(MAGIC)) == MAGIC
-        except Exception:  # noqa: BLE001 — an unreadable file is not a claim
+        except Exception:  # noqa: BLE001, an unreadable file is not a claim
             return False
 
     def extract(
