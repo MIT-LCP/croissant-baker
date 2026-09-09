@@ -813,7 +813,10 @@ class MetadataGenerator:
         addresses the file *as stored*, wrapper included.
 
         A handler's ``description`` is how what it could not describe reaches
-        a reader holding the manifest alone.
+        a reader holding the manifest alone. It is optional and belongs to the
+        handler: a format whose content is not a table has properties worth
+        stating and no record set to state them on, and BAM is one. Absent, the
+        FileObject carries none, which is what most handlers produce today.
         """
         meta = entry.meta
         objects = [
