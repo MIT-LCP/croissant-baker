@@ -287,6 +287,53 @@ on every emitted record set. A complete attribute line at end of file is valid:
 attribute blocks have no closing marker. A leading UTF-8 byte order mark is
 accepted.
 
+## VCF and gVCF
+
+VCF (`.vcf`) is the variant call format. The handler reads the header and stops
+at the first record: nothing below the `#CHROM` line is ever parsed.
+
+A VCF is claimed on its opening `##fileformat=VCF` declaration rather than on
+its extension, because `.vcf` is also the vCard extension. A vCard is therefore
+reported as a file no handler claimed, and a callset saved under another name is
+still described.
+
+Each file produces one record set whose fields are the columns the `#CHROM` line
+declares, in that order: `CHROM` (`sc:Text`), `POS` (`cr:Int64`), `ID`
+(`sc:Text`), `REF` (`sc:Text`), `ALT` (`sc:Text`, repeated), `QUAL`
+(`cr:Float64`), `FILTER` (`sc:Text`, repeated) and `INFO`. A file carrying
+genotypes adds `FORMAT` and a single repeated `samples` field standing for the
+genotype columns.
+
+`INFO` and `FORMAT` are per-record key-value bags rather than columns of their
+own, so each declared key becomes a sub-field of the column that carries it.
+The declared `Type` gives the Croissant type — `Integer` to `cr:Int64`, `Float`
+to `cr:Float64`, `Flag` to `sc:Boolean`, `String` and `Character` to `sc:Text` —
+and any `Number` other than `0` or `1` marks the sub-field repeated, which
+covers `A`, `R`, `G`, `.` and literal counts above one. The declared
+`Description` becomes the sub-field description; it is a header byte, so
+traceability holds.
+
+The declared `##fileformat`, `##reference`, the number of `##contig`
+declarations and the sample count are stated in the record set description
+rather than in JSON-LD keys no Croissant vocabulary defines. A gVCF is the same
+handler and the same shape: `##GVCFBlock` lines or a `NON_REF` alternate allele
+are recorded, and the description says so.
+
+Fields carry `source: {fileObject: …}` and **no `extract`**, for the reason
+given under GEO SOFT: `mlcroissant` does not read VCF, so a column reference
+would be a promise nothing can keep. `encodingFormat` is `text/x-vcf`, with the
+compression media type added by the input layer.
+
+A header with no `#CHROM` line declares no columns, and the file is reported
+with that reason rather than described.
+
+### Sample identifiers
+
+Sample column names are a manifest of the cohort. They are withheld by default:
+the record set states how many samples the file carries, not what they are
+called. `--genomic-sample-ids` emits them, mirroring the opt-in shape of
+`--count-csv-rows`.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
