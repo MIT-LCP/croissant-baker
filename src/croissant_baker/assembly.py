@@ -8,6 +8,7 @@ FileSet ``includes`` is that translation, and it is the generator's alone.
 from __future__ import annotations
 
 import fnmatch
+import glob
 from pathlib import Path
 from typing import Iterable, List
 
@@ -99,6 +100,10 @@ def _resolve_file_sets(file_sets: list, stored_paths: dict, entries: list) -> li
     anywhere would otherwise reach a FileSet whose own directory holds none —
     claiming ``application/gzip`` and an include matching no file.
 
+    Exclusions are resolved first, including duplicates of excluded files.
+    They do not contribute to the FileSet's compression types or include
+    variants, and no duplicate may reintroduce an excluded member.
+
     Membership follows the files, not the glob text. An entry belongs to a
     FileSet when a pattern matches the name it is stored under, or when it
     duplicates an entry that belongs: a twin stored as ``pixel.jpeg.gz`` rides
@@ -122,28 +127,23 @@ def _resolve_file_sets(file_sets: list, stored_paths: dict, entries: list) -> li
 
     for file_set in file_sets:
         includes = getattr(file_set, "includes", None) or []
-        resolved: List[str] = []
-        members: List[str] = []
+        excludes = getattr(file_set, "excludes", None) or []
+        resolved_excludes, excluded = _resolve_patterns(
+            excludes, by_logical, stored_paths
+        )
+        for entry in _dependants_of(excluded, entries):
+            resolved_excludes.append(glob.escape(str(entry.path)))
+            excluded.append(str(entry.path))
+        excluded = set(excluded)
 
-        for pattern in includes:
-            if any(char in pattern for char in _GLOB_CHARS):
-                matched = [
-                    str(entry.path)
-                    for logical, found in by_logical.items()
-                    if _matches(pattern, logical)
-                    for entry in found
-                ]
-                resolved.extend(
-                    compression.expand_globs([pattern], _wrappers_among(matched))
-                )
-            else:
-                matched = list(stored_paths.get(pattern, ()))
-                resolved.extend(matched)
-            members.extend(matched)
+        resolved, members = _resolve_patterns(
+            includes, by_logical, stored_paths, excluded
+        )
 
         for entry in _dependants_of(members, entries):
-            resolved.append(str(entry.path))
-            members.append(str(entry.path))
+            if str(entry.path) not in excluded:
+                resolved.append(glob.escape(str(entry.path)))
+                members.append(str(entry.path))
 
         formats = list(file_set.encoding_formats or [])
         file_set.encoding_formats = formats + [
@@ -153,7 +153,41 @@ def _resolve_file_sets(file_sets: list, stored_paths: dict, entries: list) -> li
         ]
         if includes:
             file_set.includes = list(dict.fromkeys(resolved))
+        if excludes:
+            file_set.excludes = list(dict.fromkeys(resolved_excludes))
     return file_sets
+
+
+def _resolve_patterns(
+    patterns: list,
+    by_logical: dict,
+    stored_paths: dict,
+    excluded: set | frozenset = frozenset(),
+) -> tuple:
+    """Translate logical paths/globs to stored patterns and their members."""
+    resolved, members = [], []
+    for pattern in patterns:
+        # An observed filename is exact even if it contains glob characters,
+        # e.g. slide[1].ome.tif. Escape those characters in the emitted pattern.
+        is_glob = pattern not in stored_paths and any(
+            char in pattern for char in _GLOB_CHARS
+        )
+        if is_glob:
+            matched = [
+                str(entry.path)
+                for logical, found in by_logical.items()
+                if _matches(pattern, logical)
+                for entry in found
+                if str(entry.path) not in excluded
+            ]
+            resolved.extend(
+                compression.expand_globs([pattern], _wrappers_among(matched))
+            )
+        else:
+            matched = [p for p in stored_paths.get(pattern, ()) if p not in excluded]
+            resolved.extend(glob.escape(p) for p in matched)
+        members.extend(matched)
+    return resolved, members
 
 
 def _dependants_of(members: List[str], entries: list) -> list:

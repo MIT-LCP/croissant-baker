@@ -165,7 +165,10 @@
       "name": "Image files",
       "description": "10 image files (TIFF (10))",
       "encodingFormat": "image/tiff",
-      "includes": "**/*.tiff"
+      "includes": [
+        "**/*.tiff",
+        "*.tiff"
+      ]
     }
   ],
   "recordSet": [

@@ -6,7 +6,9 @@ from typing import Dict, List
 
 import mlcroissant as mlc
 
+from croissant_baker.handlers import ome
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.handlers.utils import ARRAY_SHAPE_UNKNOWN_1D
 from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
@@ -22,8 +24,11 @@ _PILLOW_EXTENSIONS = {
     ".ico",
 }
 
-# Multi-band / scientific TIFF extensions that may need tifffile.
-_TIFF_EXTENSIONS = {".tiff", ".tif"}
+# TIFF extensions, read through tifffile. ``.btf`` is BigTIFF: not a format so
+# much as classic TIFF's 64-bit offset field, which any writer switches to at
+# 4 GiB — the size whole-slide histopathology, EM volumes, geospatial rasters
+# and light-sheet stacks all cross.
+_TIFF_EXTENSIONS = {".tiff", ".tif", ".btf"}
 
 # All supported image extensions.
 SUPPORTED_EXTENSIONS = _PILLOW_EXTENSIONS | _TIFF_EXTENSIONS
@@ -39,6 +44,8 @@ _MIME_TYPES: Dict[str, str] = {
     ".ico": "image/x-icon",
     ".tiff": "image/tiff",
     ".tif": "image/tiff",
+    # BigTIFF has no registration of its own and is served as image/tiff.
+    ".btf": "image/tiff",
 }
 
 # Magic-byte signatures for every supported image extension. These are
@@ -68,6 +75,7 @@ _IMAGE_MAGIC_CHECKS = {
     ".gif": lambda h: h.startswith((b"GIF87a", b"GIF89a")),
     ".tiff": lambda h: h.startswith(_TIFF_MAGICS),
     ".tif": lambda h: h.startswith(_TIFF_MAGICS),
+    ".btf": lambda h: h.startswith(_TIFF_MAGICS),
     ".bmp": lambda h: h.startswith(b"BM"),
     ".webp": lambda h: h[:4] == b"RIFF" and h[8:12] == b"WEBP",
     ".ico": lambda h: h[:4] in (b"\x00\x00\x01\x00", b"\x00\x00\x02\x00"),
@@ -120,11 +128,25 @@ def _read_with_pillow(source: FileSource) -> Dict:
 
 
 def _read_with_tifffile(source: FileSource) -> Dict:
-    """Read image metadata using tifffile (multi-band / scientific TIFFs)."""
+    """Read TIFF metadata, and the OME-XML header if the file carries one."""
     import tifffile
 
     with source.open() as stream, tifffile.TiffFile(stream) as tif:
         page = tif.pages[0]
+        header = ome.read(tif)
+        if header is not None and header.refusal:
+            # The count reaches the document through the record-set
+            # description, which is where a *described* file's partial refusal
+            # has to live: the scan report clears reason and detail once a file
+            # is described. This names the individual file for an application
+            # that configures logging; the package handler is a NullHandler, so
+            # the library writes to no terminal of its own.
+            logger.warning(
+                "%s: the OME-XML was not parsed (%s). The file is described "
+                "as a plain TIFF.",
+                source.relative_path,
+                header.refusal,
+            )
         # Prefer the TIFF tags, which describe the logical image dimensions
         # directly and are not affected by planar storage order.
         width = getattr(page, "imagewidth", None)
@@ -156,37 +178,36 @@ def _read_with_tifffile(source: FileSource) -> Dict:
             "width": int(width),
             "height": int(height),
             "num_bands": int(num_bands),
+            # BigTIFF is a TIFF variant, and a second token here would add one
+            # to the format breakdown that no consumer expects.
             "image_format": "TIFF",
+            "ome": header,
         }
 
 
 def _read_image_metadata(source: FileSource) -> Dict:
-    """
-    Read image dimensions and band count, choosing the right backend.
+    """Read image dimensions and band count, through the backend for the format.
 
-    Tries Pillow first for standard formats. Falls back to tifffile for
-    multi-band TIFFs that Pillow cannot decode (e.g., 12-band Sentinel-2).
+    tifffile is the reference TIFF reader in the scientific Python stack;
+    Pillow is a display library that happens to open TIFFs. Pillow reports one
+    band for a three-channel image because that is Pillow's model of a TIFF,
+    decodes tag 270 as latin-1 so ``µm`` comes back mojibake, and opens none of
+    the twelve-band rasters this repository already carries. So TIFF is read
+    through tifffile alone, and every other extension keeps Pillow.
     """
-    if source.suffix in _PILLOW_EXTENSIONS:
-        return _read_with_pillow(source)
-
-    # For TIFF files, try Pillow first (works for standard 1/3/4-band TIFFs),
-    # then fall back to tifffile for multi-band scientific imagery.
     if source.suffix in _TIFF_EXTENSIONS:
-        try:
-            return _read_with_pillow(source)
-        except Exception:
-            return _read_with_tifffile(source)
-
+        return _read_with_tifffile(source)
     return _read_with_pillow(source)
 
 
 class ImageHandler(FileTypeHandler):
     """
-    Handler for image files (JPEG, PNG, TIFF, GIF, BMP, WebP).
+    Handler for image files (JPEG, PNG, TIFF, BigTIFF, GIF, BMP, WebP).
 
     - Extracts dimensions (width, height), band count, and format
-    - Uses Pillow for standard formats, tifffile for multi-band TIFFs
+    - Uses Pillow for standard formats, tifffile for every TIFF
+    - Reads the OME-XML header of an OME-TIFF, and describes those files as a
+      collection of their own so their fields are not attributed to the rest
     - Computes SHA256 for reproducibility
     - Returns metadata with ``image_properties`` key for the builder
     """
@@ -201,9 +222,12 @@ class ImageHandler(FileTypeHandler):
         ".ico",
         ".tiff",
         ".tif",
+        ".btf",
     )
     FORMAT_NAME = "Images"
-    FORMAT_DESCRIPTION = "Dimensions, color mode, encoding format"
+    FORMAT_DESCRIPTION = (
+        "Dimensions, color mode, encoding format; OME-XML header fields"
+    )
 
     def claims(self, source: FileSource) -> bool:
         if source.suffix not in SUPPORTED_EXTENSIONS:
@@ -221,7 +245,7 @@ class ImageHandler(FileTypeHandler):
 
         mime_type = _MIME_TYPES.get(source.suffix, "application/octet-stream")
 
-        return {
+        meta = {
             "file_name": source.name,
             "file_size": source.size,
             "sha256": source.sha256,
@@ -233,6 +257,9 @@ class ImageHandler(FileTypeHandler):
                 "image_format": img_meta["image_format"],
             },
         }
+        if img_meta.get("ome") is not None:
+            meta["ome"] = img_meta["ome"]
+        return meta
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
         # An empty batch has nothing to summarise; emitting a FileSet over
@@ -240,60 +267,311 @@ class ImageHandler(FileTypeHandler):
         if not file_metas:
             return BuildResult([], [])
 
-        summary = collect_image_summary(file_metas)
-        w_lo, w_hi = summary["width_range"]
-        h_lo, h_hi = summary["height_range"]
-        b_lo, b_hi = summary["num_bands_range"]
-        formats_str = ", ".join(
-            f"{fmt} ({cnt})" for fmt, cnt in summary["format_counts"].items()
-        )
-
-        if w_lo == w_hi and h_lo == h_hi:
-            dims = f"{w_lo}x{h_lo}"
-        else:
-            dims = f"{w_lo}-{w_hi}x{h_lo}-{h_hi}"
-
-        bands_note = f", {b_lo}-{b_hi} bands" if b_hi > 4 else ""
-
-        extensions = set()
-        mime_types = set()
+        # One handler covers every image extension, so ``images`` has one row
+        # per image of any kind, and OME fields on that row would attribute a
+        # pixel size to every PNG in the same directory. So the OME files are
+        # described separately and the two collections partition the batch.
+        ome_metas, plain_metas = [], []
         for meta in file_metas:
-            ext = Path(meta["file_name"]).suffix.lower()
-            extensions.add(ext)
-            mime_types.add(meta["encoding_format"])
+            header = meta.get("ome")
+            if header is not None and not header.refusal:
+                ome_metas.append(meta)
+            else:
+                plain_metas.append(meta)
 
-        includes = [f"**/*{ext}" for ext in sorted(extensions)]
+        file_sets, record_sets = [], []
+        if plain_metas:
+            file_sets.append(_image_file_set(plain_metas, ome_metas))
+            record_sets.append(_image_record_set(plain_metas))
+        if ome_metas:
+            file_sets.append(_ome_file_set(ome_metas))
+            record_sets.append(_ome_record_set(ome_metas))
 
-        fileset_id = "image-files"
-        image_fileset = mlc.FileSet(
-            id=fileset_id,
-            name="Image files",
-            description=f"{summary['num_images']} image files ({formats_str})",
-            encoding_formats=sorted(mime_types),
-            includes=includes,
+        return BuildResult(file_sets, record_sets)
+
+
+def _relative(meta: Dict) -> str:
+    """The file's logical dataset-relative path, which a FileSet resolves."""
+    return meta.get("relative_path", meta["file_name"])
+
+
+def _formats(summary: Dict) -> str:
+    return ", ".join(f"{fmt} ({n})" for fmt, n in summary["format_counts"].items())
+
+
+def _dimensions(summary: Dict) -> str:
+    w_lo, w_hi = summary["width_range"]
+    h_lo, h_hi = summary["height_range"]
+    if w_lo == w_hi and h_lo == h_hi:
+        return f"{w_lo}x{h_lo}"
+    return f"{w_lo}-{w_hi}x{h_lo}-{h_hi}"
+
+
+def _image_file_set(file_metas: List[Dict], ome_metas: List[Dict]) -> mlc.FileSet:
+    """The FileSet over every image that is not an OME-TIFF.
+
+    Keep extension globs and exclude the OME paths. A single OME file beside
+    thousands of plain TIFF tiles then needs only one exception.
+    """
+    summary = collect_image_summary(file_metas)
+    extensions = {Path(meta["file_name"]).suffix for meta in file_metas}
+    patterns = {}
+    for extension in extensions:
+        lower = extension.lower()
+        if extension != lower:
+            # Globs are case-sensitive on Linux. One character-class pattern
+            # covers every observed spelling without overlapping include globs.
+            spelling = "".join(
+                f"[{char}{char.upper()}]" if char.isalpha() else char for char in lower
+            )
+            patterns[lower] = f"**/*{spelling}"
+        else:
+            patterns.setdefault(lower, f"**/*{lower}")
+    return mlc.FileSet(
+        id="image-files",
+        name="Image files",
+        description=f"{summary['num_images']} image files ({_formats(summary)})",
+        encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
+        # mlcroissant uses fnmatch, where **/ requires a directory. Both forms
+        # cover root and nested images with that reader and filesystem globbing.
+        includes=sorted(
+            glob for pattern in patterns.values() for glob in (pattern, pattern[3:])
+        ),
+        excludes=sorted(_relative(meta) for meta in ome_metas) or None,
+    )
+
+
+def _image_record_set(file_metas: List[Dict]) -> mlc.RecordSet:
+    summary = collect_image_summary(file_metas)
+    b_lo, b_hi = summary["num_bands_range"]
+    bands_note = f", {b_lo}-{b_hi} bands" if b_hi > 4 else ""
+    formats_str = _formats(summary)
+    description = (
+        f"{summary['num_images']} images "
+        f"({_dimensions(summary)}{bands_note}): {formats_str}"
+    )
+    refused = [
+        header.refusal
+        for meta in file_metas
+        if (header := meta.get("ome")) is not None and header.refusal
+    ]
+    if refused:
+        description += (
+            f". {len(refused)} of {len(file_metas)} carried an OME ImageDescription "
+            f"that was not parsed: {'; '.join(sorted(set(refused)))}."
         )
 
-        image_fields = [
+    return mlc.RecordSet(
+        id="images",
+        name="images",
+        description=description,
+        fields=[
             mlc.Field(
                 id="images/image_content",
                 name="image",
-                description=f"Image content ({summary['num_images']} files, {formats_str})",
+                description=(
+                    f"Image content ({summary['num_images']} files, {formats_str})"
+                ),
                 data_types=["sc:ImageObject"],
                 source=mlc.Source(
-                    file_set=fileset_id,
+                    file_set="image-files",
                     extract=mlc.Extract(file_property="content"),
                 ),
-            ),
-        ]
+            )
+        ],
+    )
 
-        image_record_set = mlc.RecordSet(
-            id="images",
-            name="images",
-            description=f"{summary['num_images']} images ({dims}{bands_note}): {formats_str}",
-            fields=image_fields,
+
+OME_FILE_SET_ID = "ome-image-files"
+OME_RECORD_SET_ID = "ome_images"
+
+#: Field name, Croissant type, description prefix, and OMEHeader attribute.
+#: Fields are emitted only when the batch has an observed value.
+_OME_FIELDS = (
+    ("ome_version", "sc:Text", "OME schema version", "version"),
+    (
+        "ome_image_count",
+        "sc:Integer",
+        "OME Image elements the file declares",
+        "image_count",
+    ),
+    ("size_c", "sc:Integer", "OME Pixels/@SizeC; channels in Image[0]", "size_c"),
+    ("size_z", "sc:Integer", "OME Pixels/@SizeZ; focal planes in Image[0]", "size_z"),
+    ("size_t", "sc:Integer", "OME Pixels/@SizeT; timepoints in Image[0]", "size_t"),
+    (
+        "dimension_order",
+        "sc:Text",
+        "OME Pixels/@DimensionOrder; plane order in Image[0]",
+        "dimension_order",
+    ),
+    (
+        "pixel_type",
+        "sc:Text",
+        "OME Pixels/@Type; stored pixel type in Image[0]",
+        "pixel_type",
+    ),
+    (
+        "physical_size_x",
+        "sc:Float",
+        "OME Pixels/@PhysicalSizeX; pixel width in Image[0]",
+        "physical_size_x",
+    ),
+    (
+        "physical_size_y",
+        "sc:Float",
+        "OME Pixels/@PhysicalSizeY; pixel height in Image[0]",
+        "physical_size_y",
+    ),
+    (
+        "physical_size_x_unit",
+        "sc:Text",
+        "OME Pixels/@PhysicalSizeXUnit; unit of the pixel width",
+        "physical_size_x_unit",
+    ),
+    (
+        "physical_size_y_unit",
+        "sc:Text",
+        "OME Pixels/@PhysicalSizeYUnit; unit of the pixel height",
+        "physical_size_y_unit",
+    ),
+)
+
+
+def _observed(values: list) -> str:
+    """What the batch holds: one value, a range of numbers, or a set of words.
+
+    No ``Field.value`` is emitted anywhere, so this is where the numbers live.
+    A field describes the whole batch, and one file's value would be a false
+    statement about the others.
+    """
+    if all(isinstance(value, (int, float)) for value in values):
+        low, high = min(values), max(values)
+        return f"{low}" if low == high else f"{low}-{high}"
+    return ", ".join(sorted({str(value) for value in values}))
+
+
+def _observed_spacing(headers: list, attribute: str) -> str:
+    """Summarize each unit separately, preserving the source measurements."""
+    by_unit: dict = {}
+    for header in headers:
+        value = getattr(header, attribute)
+        if value is not None:
+            unit = getattr(header, f"{attribute}_unit") or "unit unspecified"
+            by_unit.setdefault(unit, []).append(value)
+    return "; ".join(
+        f"{_observed(values)} {unit}" for unit, values in sorted(by_unit.items())
+    )
+
+
+def _ome_file_set(file_metas: List[Dict]) -> mlc.FileSet:
+    return mlc.FileSet(
+        id=OME_FILE_SET_ID,
+        name="OME-TIFF files",
+        # Listed rather than globbed, so a plain TIFF beside these is not
+        # re-admitted. The generator resolves an exact path to the file as
+        # stored, wrapper included.
+        includes=sorted(_relative(meta) for meta in file_metas),
+        encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
+        description=f"{len(file_metas)} OME-TIFF file(s)",
+    )
+
+
+def _ome_record_set(file_metas: List[Dict]) -> mlc.RecordSet:
+    headers = [meta["ome"] for meta in file_metas]
+    # A BinaryOnly document is a place-holder whose metadata is in a companion
+    # file, and the schema forbids it any other content. Its zero images is a
+    # fact about the stub, not about the image the file holds, so it is left
+    # out of the aggregates rather than reported as the file's own.
+    parsed = [
+        header for header in headers if not header.refusal and not header.binary_only
+    ]
+
+    fields = [
+        mlc.Field(
+            id=f"{OME_RECORD_SET_ID}/image",
+            name="image",
+            description=f"Image content ({len(file_metas)} OME-TIFF file(s))",
+            data_types=["sc:ImageObject"],
+            # The only extract this record set emits, and the only field whose
+            # content *is* the file's content. mlcroissant reads image/tiff
+            # content as the decoded pixels, so the same extract on size_c
+            # would ask a consumer to cast an image to an integer.
+            source=mlc.Source(
+                file_set=OME_FILE_SET_ID,
+                extract=mlc.Extract(file_property="content"),
+            ),
+        )
+    ]
+
+    for name, data_type, prefix, attribute in _OME_FIELDS:
+        values = [
+            value
+            for value in (getattr(header, attribute) for header in parsed)
+            if value is not None and value != ""
+        ]
+        if not values:
+            continue
+        observed = (
+            _observed_spacing(parsed, attribute)
+            if attribute in ("physical_size_x", "physical_size_y")
+            else _observed(values)
+        )
+        fields.append(
+            mlc.Field(
+                id=f"{OME_RECORD_SET_ID}/{name}",
+                name=name,
+                description=f"{prefix} ({observed})",
+                data_types=[data_type],
+                source=mlc.Source(file_set=OME_FILE_SET_ID),
+            )
         )
 
-        return BuildResult([image_fileset], [image_record_set])
+    channels = [name for header in parsed for name in header.channel_names]
+    if channels:
+        fields.append(
+            mlc.Field(
+                id=f"{OME_RECORD_SET_ID}/channel_names",
+                name="channel_names",
+                description=(
+                    "OME Channel/@Name; channel labels in Image[0] "
+                    f"({_observed(channels)})"
+                ),
+                data_types=["sc:Text"],
+                source=mlc.Source(file_set=OME_FILE_SET_ID),
+                is_array=True,
+                # One shared Field has one shape, and a batch may hold a
+                # 3-channel and a 40-channel file.
+                array_shape=ARRAY_SHAPE_UNKNOWN_1D,
+            )
+        )
+
+    return mlc.RecordSet(
+        id=OME_RECORD_SET_ID,
+        name=OME_RECORD_SET_ID,
+        description=_ome_description(file_metas, headers),
+        fields=fields,
+    )
+
+
+def _ome_description(file_metas: List[Dict], headers: List) -> str:
+    """Describe the XML's image scope and any unread BinaryOnly companions."""
+    summary = collect_image_summary(file_metas)
+    total = len(file_metas)
+    text = (
+        f"{total} OME-TIFF file(s) ({_dimensions(summary)}): one row per file. "
+        "A file may declare several images, and may be one file of a multi-file "
+        "OME set, so the Pixels fields describe Image[0] of each file."
+    )
+
+    stubs = [header for header in headers if header.binary_only]
+    if stubs:
+        named = sorted({header.companion for header in stubs if header.companion})
+        text += (
+            f" {len(stubs)} of {total} are BinaryOnly place-holders whose "
+            "metadata is in a companion file that is not read"
+        )
+        text += f": {', '.join(named)}." if named else "."
+    return text
 
 
 def collect_image_summary(image_metadata_list: List[Dict]) -> Dict:
@@ -346,5 +624,9 @@ def collect_image_summary(image_metadata_list: List[Dict]) -> Dict:
         "width_range": (min(widths), max(widths)) if widths else (0, 0),
         "height_range": (min(heights), max(heights)) if heights else (0, 0),
         "num_bands_range": (min(bands), max(bands)) if bands else (0, 0),
-        "format_counts": formats,
+        # Sorted, because this dict is read out into a description verbatim and
+        # insertion order is discovery order. Two directories holding the same
+        # images yield different rglob orders, so an unsorted breakdown makes a
+        # mixed-format batch describe itself differently on each bake.
+        "format_counts": dict(sorted(formats.items())),
     }

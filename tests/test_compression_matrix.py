@@ -20,6 +20,7 @@ from tests.helpers import (
     SAMPLES,
     WRAPPER_SUFFIXES,
     bake,
+    file_set_members,
     write_all,
     write_wrapped,
 )
@@ -30,14 +31,21 @@ def _handlers():
     return get_registered_handlers()
 
 
-def _formats(metadata: dict) -> list:
-    """The media types on each FileObject, in document order."""
-    out = []
+def _formats(metadata: dict) -> dict:
+    """The media types on each FileObject, keyed by the file's logical name.
+
+    Keyed rather than positional: the scan follows rglob order, which differs
+    between two freshly created directories, so a handler whose sample holds
+    two media types would otherwise compare a PNG against a TIFF.
+    """
+    out = {}
     for node in metadata.get("distribution", []):
         if node.get("@type") != "cr:FileObject":
             continue
         value = node.get("encodingFormat")
-        out.append(value if isinstance(value, list) else [value])
+        out[compression.logical_name(node["name"])] = (
+            value if isinstance(value, list) else [value]
+        )
     return out
 
 
@@ -73,7 +81,9 @@ def _normalise(metadata: dict) -> dict:
             node.pop("contentSize", None)
             node.pop("sha256", None)
         else:
-            node["includes"] = _logical_includes(node.get("includes"))
+            for key in ("includes", "cr:excludes"):
+                if key in node:
+                    node[key] = _logical_includes(node[key])
         distribution.append(node)
 
     distribution.sort(key=lambda n: (n.get("@type", ""), n.get("@id", "")))
@@ -141,7 +151,10 @@ def test_wrapped_is_described_like_plain(
     # application/x-nifti+gzip bug — fails here even if it never writes a
     # suffix literal for the grep check to find.
     wrapper = next(c for c in compression.compressions() if c.suffix == suffix)
-    expected = [formats + [wrapper.media_type] for formats in _formats(plain)]
+    expected = {
+        name: formats + [wrapper.media_type]
+        for name, formats in _formats(plain).items()
+    }
     assert _formats(wrapped) == expected, (
         f"{handler_name}: {suffix} reported {_formats(wrapped)}"
     )
@@ -165,9 +178,6 @@ def _assert_no_wrapper_is_claimed_without_a_file(
     ``**/*.dcm`` names a second spelling of one extension, and stays whether or
     not a file uses it. Only the variants the pipeline derives are asserted.
     """
-    stored = [
-        str(p.relative_to(directory)) for p in directory.rglob("*") if p.is_file()
-    ]
     wrapper_types = {c.media_type: c.suffix for c in compression.compressions()}
 
     for file_set in [
@@ -178,16 +188,16 @@ def _assert_no_wrapper_is_claimed_without_a_file(
             if isinstance(file_set["includes"], list)
             else [file_set["includes"]]
         )
+        covered = file_set_members(file_set, directory)
         for pattern in patterns:
             if not compression.is_compressed(pattern):
                 continue
-            assert any(_matches(pattern, s) for s in stored), (
-                f"{file_set['@id']}: {pattern} matches no file in {stored}"
+            assert any(_matches(pattern, s) for s in covered), (
+                f"{file_set['@id']}: {pattern} matches no member in {covered}"
             )
 
         formats = file_set.get("encodingFormat")
         formats = formats if isinstance(formats, list) else [formats]
-        covered = [s for s in stored if any(_matches(p, s) for p in patterns)]
         used = {compression.compression_for(Path(s).name) for s in covered}
         used = {c.media_type for c in used if c is not None}
         assert {f for f in formats if f in wrapper_types} <= used, (
@@ -200,19 +210,13 @@ def _assert_every_stored_file_is_covered(metadata: dict, directory: Path) -> Non
     file_sets = [n for n in metadata["distribution"] if n.get("@type") == "cr:FileSet"]
     if not file_sets:
         return  # this handler describes per-file, with no FileSet
-    patterns = [
-        p
-        for fs in file_sets
-        for p in (
-            fs["includes"] if isinstance(fs["includes"], list) else [fs["includes"]]
-        )
-    ]
+    covered = set().union(*(file_set_members(fs, directory) for fs in file_sets))
     for stored in sorted(directory.rglob("*")):
         if not stored.is_file():
             continue
         rel = stored.relative_to(directory)
-        assert any(_matches(pattern, str(rel)) for pattern in patterns), (
-            f"{rel} is described but matched by none of {patterns}"
+        assert str(rel) in covered, (
+            f"{rel} is described but is not a member of any FileSet"
         )
 
 

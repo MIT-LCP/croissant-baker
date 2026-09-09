@@ -183,7 +183,10 @@
       "name": "Image files",
       "description": "12 image files (JPEG (12))",
       "encodingFormat": "image/jpeg",
-      "includes": "**/*.jpg"
+      "includes": [
+        "**/*.jpg",
+        "*.jpg"
+      ]
     }
   ],
   "recordSet": [

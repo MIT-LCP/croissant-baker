@@ -148,7 +148,40 @@ Because a record spans several files located by path, this is the one handler th
 
 ## Images
 
-Standard images are read with Pillow. Multi-band or scientific TIFFs fall back to `tifffile`. All images in a dataset are grouped into one `cr:FileSet` with a single summary `cr:RecordSet` covering width, height, color mode, and encoding format.
+Standard images (`.png`, `.jpg`, `.gif`, `.bmp`, `.webp`, `.ico`) are read with Pillow. TIFF and BigTIFF files (`.tif`, `.tiff`, `.btf`) are read with `tifffile`, which supports scientific TIFF layouts such as multiband rasters and reads the UTF-8 OME metadata used by microscopy writers. Both TIFF variants use `image/tiff`.
+
+Ordinary images belong to the `image-files` FileSet and `images` RecordSet. Their descriptions summarize dimensions, band counts and formats. Include patterns cover both root-level files (`*.tif`, for example) and nested files (`**/*.tif`), including readers that require a directory for `**/`. Pixel arrays are not decoded during metadata extraction.
+
+!!! note
+    Wrapped TIFFs require additional decompression because TIFF readers seek within the file. A backward seek on a compressed stream can restart decompression from the beginning, so reading a `.tif.gz`, `.tif.bz2` or `.tif.xz` can decompress the pixel payload even though no pixel array is decoded. Uncompressed TIFFs can seek directly to their headers.
+
+### OME-TIFF
+
+An OME-TIFF carries OME-XML in its ImageDescription tag. The handler checks the content identified by `tifffile` and requires a versioned OME namespace; the filename's `.ome.` infix does not determine the format. Files with a readable OME header have their own collection:
+
+| Node | Content |
+|------|---------|
+| `cr:FileSet` `ome-image-files` | the OME files, listed individually |
+| `cr:RecordSet` `ome_images` | one row per OME file, with the fields below |
+
+The header fields are `ome_version`, `ome_image_count`, `size_c`, `size_z`, `size_t`, `dimension_order`, `pixel_type`, `physical_size_x`, `physical_size_y`, `physical_size_x_unit`, `physical_size_y_unit`, and the array field `channel_names`. Fields with no observed values are omitted. Invalid dimension counts and physical sizes are omitted independently; physical sizes must be finite and positive.
+
+**Physical measurements retain their original unit metadata.** X and Y have separate unit fields. An absent unit remains `None` in the parsed header, including for older OME schemas; schema defaults are not applied. Explicit unit strings are preserved and measurements are not converted. Batch ranges are grouped by unit, so `0.001 mm` and `0.2–0.4 µm` remain separate summaries. Measurements without a unit are reported separately as `unit unspecified`. A unit field is omitted when no file in the batch declares a nonempty unit for that axis.
+
+**The manifest separates OME files from ordinary images.** The ordinary-image FileSet retains extension globs and excludes the OME paths using `cr:excludes`. This keeps its size proportional to the number of OME exceptions rather than the number of ordinary TIFF tiles. The generator resolves both includes and excludes to stored paths, including compression wrappers and linked duplicates. Collection counts and summaries describe this partition.
+
+!!! note "Reader support for exclusions"
+    `mlcroissant` 1.1.0 serializes and validates `cr:excludes`, but its record reader does not apply those exclusions ([upstream issue #772](https://github.com/mlcommons/croissant/issues/772)). In a mixed dataset, `records("images")` can therefore return OME files as well as ordinary images, exceeding the count stated in the description. The same OME files also belong to `ome-image-files`. Consumers must honor includes minus excludes to obtain the intended partition. A regression test reads actual records to track this limitation; successful metadata validation alone does not establish correct record reading.
+
+**Rows describe files.** One OME document may declare several `<Image>` elements, and an image may span several TIFF files. The handler does not group these files or resolve `TiffData` mappings. The Pixels fields describe the first `<Image>` in each file's XML document, which need not correspond to all pixels stored in that particular file. `ome_image_count` counts the document's Image elements. TIFF `SamplesPerPixel` supplies `num_bands`; it can be 1 for an OME image whose three channels occupy separate TIFF pages.
+
+**Header fields are descriptive.** Their descriptions contain observed ranges or sets, and no `Field.value` is emitted. Only `image` has `extract: {fileProperty: content}`. Header fields retain their FileSet source without an extraction instruction, because reading the file content does not select an OME header attribute. `mlcroissant` 1.1.0 cannot extract these fields, so reading the complete `ome_images` RecordSet with `records("ome_images")` fails even when the metadata validates. Channel labels come from `Channel/@Name`; the list omits unnamed channels and is not a positional channel mapping. `Image/@Name`, `Creator`, and file UUIDs are not copied into field descriptions.
+
+For descriptions identified as OME-XML, the parser refuses DTD/entity declarations, malformed XML and descriptions larger than 8 MiB. Declaration-like text inside comments, processing instructions or CDATA is allowed. Such text does not declare a DTD or expand entities. Refused files remain in the ordinary `images` collection with their TIFF properties. The refusal count and reasons appear in that RecordSet's description, and a warning naming the file is available to applications that configure logging. The size limit bounds XML parsing; `tifffile` may already have decoded the TIFF description tag before the check.
+
+A `BinaryOnly` document is a placeholder pointing to a companion metadata file. It remains in `ome_images`, names the companion in its description, and contributes no header measurements or image count. The companion is not opened.
+
+Not read: `Plane`, `Objective`, `TimeIncrement`, plate and well metadata, pyramid levels, and vendor TIFF extensions such as `.svs`, `.ndpi`, `.scn`, and `.qptiff`.
 
 ## DICOM
 

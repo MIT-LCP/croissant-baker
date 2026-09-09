@@ -332,3 +332,23 @@ def test_every_module_imports_first(module: str) -> None:
     )
 
     assert done.returncode == 0, f"{module} does not import alone:\n{done.stderr}"
+
+
+#: Generous for any legitimate parametrize id, catastrophic for a payload.
+MAX_TEST_ID = 500
+
+
+def test_no_test_id_carries_a_payload(request: pytest.FixtureRequest) -> None:
+    """A str or bytes parametrize value becomes part of the test id, and CI runs
+    ``pytest -v``, which prints every id it collects.
+
+    An 8 MiB fixture passed as a parameter produced an 8,390,146-character id
+    on a single line. Locally that is an ugly ``-q`` run; in CI the Actions log
+    collector stalled on the line until the six-hour job limit cancelled both
+    matrix jobs. Name the case with ``ids=`` and keep the payload out of it.
+    """
+    longest = max(request.session.items, key=lambda item: len(item.nodeid))
+
+    assert len(longest.nodeid) < MAX_TEST_ID, (
+        f"{len(longest.nodeid)}-character test id: {longest.nodeid[:200]}..."
+    )

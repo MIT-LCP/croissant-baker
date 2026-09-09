@@ -8,7 +8,7 @@
 | JSON / JSONL | `.json`, `.jsonl` | `.gz`, `.bz2`, `.xz` | Schema inferred from a sample of records |
 | WFDB | `.hea` | — | Signal names, sampling frequency, duration, number of signals |
 | Parquet | `.parquet` | `.gz`, `.bz2`, `.xz` | Arrow schema, column names and types, row count |
-| Images | `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.webp`, `.ico`, `.tiff`, `.tif` | `.gz`, `.bz2`, `.xz` | Dimensions, color mode, encoding format |
+| Images | `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.webp`, `.ico`, `.tiff`, `.tif`, `.btf` | `.gz`, `.bz2`, `.xz` | Dimensions, color mode, encoding format; OME-XML header fields |
 | DICOM | `.dcm`, `.dicom` | `.gz`, `.bz2`, `.xz` | Image geometry, modality, pixel encoding, acquisition parameters |
 | NIfTI | `.nii` | `.gz`, `.bz2`, `.xz` | Spatial dimensions, voxel spacing, data type, TR for fMRI volumes |
 | GEO SOFT | `.soft` | `.gz`, `.bz2`, `.xz` | Entity attribute names, sample characteristic keys, data table columns |

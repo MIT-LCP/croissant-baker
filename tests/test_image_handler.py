@@ -1,17 +1,37 @@
 """Tests for image file handler."""
 
+from __future__ import annotations
+
+import io
 from pathlib import Path
 
 import numpy as np
 import pytest
 import tifffile
 
-import croissant_baker.handlers.image_handler as image_handler_module
+from croissant_baker.handlers import ome
 from croissant_baker.handlers.image_handler import (
+    _IMAGE_MAGIC_CHECKS,
+    _MIME_TYPES,
+    _TIFF_EXTENSIONS,
+    SUPPORTED_EXTENSIONS,
     ImageHandler,
     collect_image_summary,
 )
-from croissant_baker.sources import make_source
+from croissant_baker.handlers.registry import builtin_handlers
+from croissant_baker.sources import FileSource, make_source
+
+from tests.helpers import (
+    OME_TIFF,
+    PNG_1X1,
+    WRAPPER_SUFFIXES,
+    file_set_members,
+    ome_bomb,
+    ome_image,
+    ome_xml,
+    tiff_bytes,
+    write_wrapped,
+)
 
 
 @pytest.fixture
@@ -20,7 +40,7 @@ def handler() -> ImageHandler:
 
 
 # Minimal magic-byte stubs per supported extension. These are not full
-# images — they only need enough bytes to satisfy can_handle's check.
+# images — they only need enough bytes to satisfy claims()'s check.
 _IMAGE_STUBS = {
     ".png": b"\x89PNG\r\n\x1a\n",
     ".jpg": b"\xff\xd8\xff\xe0",
@@ -30,6 +50,7 @@ _IMAGE_STUBS = {
     ".webp": b"RIFF\x00\x00\x00\x00WEBP",
     ".tiff": b"II*\x00",
     ".tif": b"MM\x00*",
+    ".btf": b"II+\x00",
     ".ico": b"\x00\x00\x01\x00",
 }
 
@@ -48,6 +69,7 @@ _IMAGE_STUBS = {
         "satellite.tiff",
         "satellite.tif",
         "satellite.TIFF",
+        "tissue.btf",
         "image.ico",
     ],
 )
@@ -147,48 +169,676 @@ def test_extract_metadata_tiff(
     assert props["image_format"] == "TIFF"
 
 
-@pytest.fixture
-def separate_planar_tiff_path(tmp_path: Path) -> Path:
-    """Create a multi-band TIFF that forces the tifffile fallback path."""
+def test_extract_metadata_separate_planar_tiff(
+    handler: ImageHandler, tmp_path: Path
+) -> None:
+    """Regression test for TIFFs whose band axis is stored first."""
     path = tmp_path / "separate_planar.tiff"
-    data = np.zeros((12, 5, 7), dtype=np.uint8)
     tifffile.imwrite(
         str(path),
-        data,
+        np.zeros((12, 5, 7), dtype=np.uint8),
         photometric="minisblack",
         planarconfig="separate",
     )
-    return path
 
+    props = handler.extract(make_source(path))["image_properties"]
 
-def test_extract_metadata_separate_planar_tiff(
-    handler: ImageHandler,
-    separate_planar_tiff_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Regression test for TIFFs whose band axis is stored first."""
-
-    def _force_tifffile_fallback(_path: Path) -> None:
-        raise RuntimeError("force tifffile fallback")
-
-    monkeypatch.setattr(
-        image_handler_module,
-        "_read_with_pillow",
-        _force_tifffile_fallback,
-    )
-
-    meta = handler.extract(make_source(separate_planar_tiff_path))
-
-    assert meta["file_name"] == "separate_planar.tiff"
-    assert meta["encoding_format"] == "image/tiff"
-    assert meta["file_size"] > 0
-    assert len(meta["sha256"]) == 64
-
-    props = meta["image_properties"]
-    assert props["width"] == 7
-    assert props["height"] == 5
+    assert (props["width"], props["height"]) == (7, 5)
     assert props["num_bands"] == 12
     assert props["image_format"] == "TIFF"
+
+
+# --------------------------------------------------------------------------
+# BigTIFF
+# --------------------------------------------------------------------------
+
+BIGTIFF = tiff_bytes(size=16, bigtiff=True)
+
+
+def test_every_supported_extension_is_declared_typed_and_sniffed() -> None:
+    """``_TIFF_MAGICS`` already accepted BigTIFF's version byte. The magic check
+    is keyed by extension first, so being in three of these tables is no use."""
+    assert set(ImageHandler.EXTENSIONS) == SUPPORTED_EXTENSIONS
+    assert set(_MIME_TYPES) == SUPPORTED_EXTENSIONS
+    assert set(_IMAGE_MAGIC_CHECKS) == SUPPORTED_EXTENSIONS
+    # BigTIFF has no registration of its own and is served as image/tiff.
+    assert {_MIME_TYPES[ext] for ext in _TIFF_EXTENSIONS} == {"image/tiff"}
+
+
+@pytest.mark.parametrize(
+    ("name", "payload", "claimed"),
+    [
+        ("tissue.btf", BIGTIFF, True),
+        # #93: a writer that crosses 4 GiB keeps the .tiff name, so the magic
+        # check is the only thing that can rescue the file.
+        ("tissue.tiff", BIGTIFF, True),
+        ("impostor.btf", PNG_1X1, False),
+    ],
+    ids=["the .btf spelling", "a BigTIFF named .tiff", "PNG bytes under .btf"],
+)
+def test_a_bigtiff_is_claimed_by_its_magic_not_its_name(
+    handler: ImageHandler,
+    tmp_path: Path,
+    name: str,
+    payload: bytes,
+    claimed: bool,
+) -> None:
+    # BigTIFF differs from classic TIFF in one version byte, so a fixture
+    # written as classic TIFF would let the claim pass for the wrong reason.
+    assert BIGTIFF[:4] == b"II+\x00"
+    path = tmp_path / name
+    path.write_bytes(payload)
+    source = make_source(path)
+
+    assert handler.claims(source) is claimed
+    if not claimed:
+        return
+
+    props = handler.extract(source)["image_properties"]
+
+    assert (props["width"], props["height"]) == (16, 16)
+    assert props["num_bands"] == 1
+    # BigTIFF is a TIFF variant, and a second token here would land in the
+    # format breakdown that the record-set description reports.
+    assert props["image_format"] == "TIFF"
+
+
+@pytest.mark.parametrize(
+    "handler_name", sorted(type(h).__name__ for h in builtin_handlers())
+)
+def test_only_the_image_handler_claims_a_bigtiff(
+    handler_name: str, tmp_path: Path
+) -> None:
+    """The shared exclusive-format sweep cannot reach this: ``.btf`` resolves to
+    ImageHandler, and the sweep then writes that owner's first sample, which is
+    ``pixel.png``. So no handler is ever asked about a ``.btf`` but here."""
+    path = tmp_path / "tissue.btf"
+    path.write_bytes(BIGTIFF)
+    other = next(h for h in builtin_handlers() if type(h).__name__ == handler_name)
+
+    claimed = other.claims(make_source(path))
+
+    assert claimed is (handler_name == "ImageHandler")
+
+
+@pytest.mark.parametrize("suffix", WRAPPER_SUFFIXES)
+def test_a_wrapped_bigtiff_is_read_through_the_wrapper(
+    handler: ImageHandler, dataset: Path, suffix: str
+) -> None:
+    """tifffile seeks to the end of a BigTIFF to reach its offsets, and on a
+    compressed stream that is a decompression of the whole file. It has to
+    work, and it is the dearest read this handler does."""
+    path = write_wrapped(dataset, "tissue.btf", BIGTIFF, suffix)
+
+    props = handler.extract(make_source(path, Path("tissue.btf")))["image_properties"]
+
+    assert (props["width"], props["height"]) == (16, 16)
+
+
+# --------------------------------------------------------------------------
+# Which backend reads a TIFF
+# --------------------------------------------------------------------------
+
+PLAIN_TIFF = tiff_bytes()
+
+
+@pytest.mark.parametrize(
+    ("name", "payload", "forbidden"),
+    [
+        ("scan.tif", PLAIN_TIFF, "_read_with_pillow"),
+        ("pixel.png", PNG_1X1, "_read_with_tifffile"),
+    ],
+    ids=["a TIFF never reaches Pillow", "a PNG never reaches tifffile"],
+)
+def test_each_format_reaches_only_its_own_backend(
+    handler: ImageHandler,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    payload: bytes,
+    forbidden: str,
+) -> None:
+    """Pillow opens some TIFFs and reads them worse — see
+    ``_read_image_metadata``. Only the TIFF extensions move."""
+    from croissant_baker.handlers import image_handler as module
+
+    def fail(_source):
+        raise AssertionError(f"{name} was read through {forbidden}")
+
+    monkeypatch.setattr(module, forbidden, fail)
+    path = tmp_path / name
+    path.write_bytes(payload)
+
+    assert handler.extract(make_source(path))["image_properties"]["width"] > 0
+
+
+def test_an_unreadable_tiff_raises_a_value_error_naming_the_file(
+    handler: ImageHandler, tmp_path: Path
+) -> None:
+    """The message becomes the reason detail a user reads in ``--report``. The
+    shared garbage-bytes sweep writes this handler's first sample name, which
+    is a PNG, so a broken TIFF is only covered here."""
+    path = tmp_path / "truncated.tif"
+    path.write_bytes(BIGTIFF[:20])
+
+    with pytest.raises(ValueError, match="truncated.tif"):
+        handler.extract(make_source(path))
+
+
+# --------------------------------------------------------------------------
+# No pixel data, at any size
+# --------------------------------------------------------------------------
+
+TILED_OME = tiff_bytes(ome_xml(ome_image()), planes=4, size=64, tile=(16, 16))
+
+
+class ReadLog(io.BytesIO):
+    """A stream that records the byte interval of every read it serves."""
+
+    def __init__(self, data: bytes) -> None:
+        super().__init__(data)
+        self.intervals: list = []
+        self.back_seeks = 0
+
+    def read(self, size=-1):
+        start = self.tell()
+        chunk = super().read(size)
+        self.intervals.append((start, start + len(chunk)))
+        return chunk
+
+    def seek(self, offset, whence=0):
+        before = self.tell()
+        position = super().seek(offset, whence)
+        if position < before:
+            self.back_seeks += 1
+        return position
+
+
+def pixel_intervals(data: bytes) -> list:
+    """Where the pixels are, from the offsets and byte counts the TIFF declares."""
+    out = []
+    with tifffile.TiffFile(io.BytesIO(data)) as tif:
+        for page in tif.pages:
+            tags = page.tags
+            offsets = tags.get("TileOffsets") or tags.get("StripOffsets")
+            counts = tags.get("TileByteCounts") or tags.get("StripByteCounts")
+            out += [(o, o + c) for o, c in zip(offsets.value, counts.value) if c]
+    return out
+
+
+def test_describing_a_tiled_ome_tiff_reads_no_pixel_data(
+    handler: ImageHandler,
+) -> None:
+    """A byte cap would be the wrong assertion: the pull scales with the
+    ImageDescription and the IFD count, so 8 KiB holds at 3 channels and
+    breaches at 40. Overlap, not "no read starts at a pixel offset", which a
+    read beginning earlier and spanning into one would satisfy."""
+    log = ReadLog(TILED_OME)
+    source = FileSource(
+        name="tiled.ome.tif",
+        relative_path=Path("tiled.ome.tif"),
+        size=len(TILED_OME),
+        exists=True,
+        _open_binary=lambda: log,
+        _digest=lambda: "0" * 64,
+    )
+
+    handler.extract(source)
+
+    assert log.intervals, "nothing was read at all, so the check proves nothing"
+    pixels = pixel_intervals(TILED_OME)
+    assert pixels, "the fixture declares no pixel data to avoid"
+    overlaps = [
+        (read, pixel)
+        for read in log.intervals
+        for pixel in pixels
+        if read[0] < pixel[1] and pixel[0] < read[1]
+    ]
+    assert not overlaps, overlaps
+    # A backward seek on a wrapped file costs a decompression from offset 0.
+    assert log.back_seeks <= 3, log.back_seeks
+
+
+# --------------------------------------------------------------------------
+# The OME header
+# --------------------------------------------------------------------------
+def test_an_ome_tiff_keeps_its_tiff_tags_alongside_its_header(
+    handler: ImageHandler, tmp_path: Path
+) -> None:
+    """``num_bands`` is TIFF SamplesPerPixel and stays so. It is genuinely 1 for
+    a three-channel OME stored as three IFDs, and ``size_c`` is the channel
+    count — reporting one of them as the other would lose both."""
+    path = tmp_path / "morphology.ome.tif"
+    path.write_bytes(OME_TIFF)
+
+    meta = handler.extract(make_source(path))
+
+    assert meta["image_properties"]["num_bands"] == 1
+    assert meta["ome"].size_c == 3
+
+
+BOMB_TIFF = tiff_bytes(ome_bomb())
+OVERSIZED_TIFF = tiff_bytes(ome_xml(f"<!--{'x' * (ome.MAX_DESCRIPTION_BYTES + 1)}-->"))
+
+
+@pytest.mark.parametrize(
+    ("payload", "warnings"),
+    [
+        (BOMB_TIFF, 1),
+        (OVERSIZED_TIFF, 1),
+        # Closed at the root, so tifffile still calls it OME, but not
+        # well-formed. A description truncated before ``</OME>`` is a different
+        # case: nothing identifies it as OME, so it is not refused.
+        (tiff_bytes(ome_xml("<Image>")), 1),
+        # Or every microscopy bake would warn on every file.
+        (OME_TIFF, 0),
+    ],
+    ids=["entity declaration", "oversized", "malformed", "sound"],
+)
+def test_only_a_refused_description_is_warned_about(
+    handler: ImageHandler,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    payload: bytes,
+    warnings: int,
+) -> None:
+    """The count reaches the document through the record-set description, which
+    is where a described file's partial refusal has to live. This names the one
+    file, for an application that configures logging — the library itself
+    carries a NullHandler and writes to no terminal."""
+    path = tmp_path / "a.ome.tif"
+    path.write_bytes(payload)
+
+    with caplog.at_level("DEBUG", logger="croissant_baker.handlers"):
+        handler.extract(make_source(path))
+
+    logged = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(logged) == warnings, caplog.records
+    assert all("a.ome.tif" in r.getMessage() for r in logged)
+
+
+# --------------------------------------------------------------------------
+# The OME collection
+# --------------------------------------------------------------------------
+
+IMAGEJ_TIFF = tiff_bytes("ImageJ=1.53t\nimages=1\nslices=1\n")
+BINARY_ONLY_TIFF = tiff_bytes(
+    ome_xml('<BinaryOnly UUID="urn:uuid:9c1b" MetadataFile="plate.companion.ome"/>')
+)
+OME_40 = tiff_bytes(
+    ome_xml(
+        ome_image(
+            pixels='DimensionOrder="XYCZT" Type="uint8" SizeX="8" SizeY="8"'
+            ' SizeC="40" SizeZ="1" SizeT="1"',
+            channels=("CD3", "CD8"),
+        )
+    )
+)
+OME_NO_PHYSICAL_SIZE = tiff_bytes(
+    ome_xml(
+        ome_image(
+            pixels='DimensionOrder="XYCZT" Type="uint16" SizeX="8" SizeY="8"'
+            ' SizeC="3" SizeZ="1" SizeT="1"'
+        )
+    )
+)
+OME_TWO_IMAGES = tiff_bytes(
+    ome_xml(ome_image() + ome_image(identifier="Image:1", channels=("CD3",)))
+)
+OME_NAMED = tiff_bytes(
+    ome_xml(
+        ome_image(attrs=' Name="Patient 3 slide 2"'),
+        attrs=' UUID="urn:uuid:9c1bde0e-dead-beef" Creator="Acme Scanner 4.2"',
+    )
+)
+
+
+def ome_partner(other: str) -> bytes:
+    """One file of a multi-file OME set, naming its partner the way OME does."""
+    return tiff_bytes(
+        ome_xml(
+            ome_image(
+                trailing=f'<TiffData IFD="0"><UUID FileName="{other}">'
+                "urn:uuid:9c1b</UUID></TiffData>"
+            )
+        )
+    )
+
+
+def described(handler: ImageHandler, directory: Path, files: dict) -> tuple:
+    """Write ``files``, extract each, and stamp what the generator stamps."""
+    metas = []
+    for name, payload in files.items():
+        path = directory / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+        meta = handler.extract(make_source(path, Path(name)))
+        meta["relative_path"] = name
+        metas.append(meta)
+    return metas, [f"file_{i}" for i in range(len(metas))]
+
+
+def build(handler: ImageHandler, directory: Path, files: dict):
+    return handler.build_croissant(*described(handler, directory, files))
+
+
+def nodes_by_name(nodes) -> dict:
+    return {node.name: node for node in nodes}
+
+
+def fields_of(record_set) -> dict:
+    return {field["name"]: field for field in record_set.to_json().get("field", [])}
+
+
+def as_json(result) -> str:
+    """Everything the handler contributes to the document, as one string."""
+    import json
+
+    return json.dumps(
+        [node.to_json() for node in (*result.file_sets, *result.record_sets)],
+        ensure_ascii=False,
+    )
+
+
+def test_a_batch_with_no_ome_file_describes_one_collection(
+    handler: ImageHandler, dataset: Path
+) -> None:
+    """The gate on every corpus already committed: no OME file, no change."""
+    result = build(
+        handler, dataset, {"a.png": PNG_1X1, "b.tif": PLAIN_TIFF, "c.btf": BIGTIFF}
+    )
+
+    assert [fs.id for fs in result.file_sets] == ["image-files"]
+    assert [rs.name for rs in result.record_sets] == ["images"]
+    assert sorted(result.file_sets[0].includes) == [
+        "**/*.btf",
+        "**/*.png",
+        "**/*.tif",
+        "*.btf",
+        "*.png",
+        "*.tif",
+    ]
+
+
+def test_the_two_collections_partition_the_batch(
+    handler: ImageHandler, dataset: Path
+) -> None:
+    """The OME files leave ``images``, an existing public record set, so every
+    image must still land in exactly one of the two collections.
+
+    Check both compact patterns and actual membership.
+    """
+    files = {
+        "a.ome.tif": OME_TIFF,
+        "nested/b.ome.tif": OME_40,
+        "plain.tif": PLAIN_TIFF,
+        # Tag 270 carries all sorts of things. Only OME-XML is OME.
+        "imagej.tif": IMAGEJ_TIFF,
+        "photo.png": PNG_1X1,
+        "tissue.btf": BIGTIFF,
+    }
+
+    result = build(handler, dataset, files)
+
+    by_name = nodes_by_name(result.file_sets)
+    assert sorted(fs.id for fs in result.file_sets) == [
+        "image-files",
+        "ome-image-files",
+    ]
+    assert sorted(rs.name for rs in result.record_sets) == ["images", "ome_images"]
+    assert by_name["OME-TIFF files"].includes == ["a.ome.tif", "nested/b.ome.tif"]
+    assert by_name["Image files"].includes == [
+        "**/*.btf",
+        "**/*.png",
+        "**/*.tif",
+        "*.btf",
+        "*.png",
+        "*.tif",
+    ]
+    assert by_name["Image files"].excludes == ["a.ome.tif", "nested/b.ome.tif"]
+    assert list(fields_of(nodes_by_name(result.record_sets)["images"])) == ["image"]
+
+    plain, ome_files = (
+        file_set_members(by_name[name].to_json(), dataset)
+        for name in ("Image files", "OME-TIFF files")
+    )
+    assert plain & ome_files == set()
+    assert plain | ome_files == set(files)
+
+
+def test_one_ome_file_does_not_expand_thousands_of_plain_tiff_paths(handler):
+    plain = [
+        _img_meta(f"tile_{i}.tif", fmt="TIFF", mime="image/tiff") for i in range(3000)
+    ]
+    microscopy = {
+        **_img_meta("slide.ome.tif", fmt="TIFF", mime="image/tiff"),
+        "ome": ome.OMEHeader(size_c=3),
+    }
+    result = handler.build_croissant([*plain, microscopy], [])
+    ordinary = result.file_sets[0]
+    assert ordinary.includes == ["**/*.tif", "*.tif"]
+    assert ordinary.excludes == ["slide.ome.tif"]
+
+
+def test_every_field_is_typed_and_only_the_image_field_extracts(
+    handler: ImageHandler, dataset: Path
+) -> None:
+    """mlcroissant's ``fileProperty: content`` for ``image/tiff`` is the decoded
+    pixels, so putting that extract on ``size_c`` would ask a consumer to cast
+    an image to an integer."""
+    result = build(handler, dataset, {"a.ome.tif": OME_TIFF})
+
+    fields = fields_of(nodes_by_name(result.record_sets)["ome_images"])
+    # Exact, so that dropping a row from ``_OME_FIELDS`` fails here. Spot-checking
+    # four of the types let three fields go missing in silence. ``str`` because
+    # mlcroissant hands a dataType back as an rdflib URIRef, which does not
+    # compare equal to a plain str from the left.
+    assert {name: str(f["dataType"]) for name, f in fields.items()} == {
+        "image": "sc:ImageObject",
+        "ome_version": "sc:Text",
+        "ome_image_count": "sc:Integer",
+        "size_c": "sc:Integer",
+        "size_z": "sc:Integer",
+        "size_t": "sc:Integer",
+        "dimension_order": "sc:Text",
+        "pixel_type": "sc:Text",
+        "physical_size_x": "sc:Float",
+        "physical_size_y": "sc:Float",
+        "physical_size_x_unit": "sc:Text",
+        "physical_size_y_unit": "sc:Text",
+        "channel_names": "sc:Text",
+    }
+    assert fields["channel_names"]["cr:isArray"] is True
+    assert fields["channel_names"]["cr:arrayShape"] == "-1"
+
+    assert fields["image"]["source"]["extract"] == {"fileProperty": "content"}
+    for name, field in fields.items():
+        assert "value" not in field, name
+        assert field["source"]["fileSet"] == {"@id": "ome-image-files"}
+        if name != "image":
+            assert "extract" not in field["source"], name
+
+
+def test_each_field_describes_what_the_whole_batch_holds(
+    handler: ImageHandler, dataset: Path
+) -> None:
+    """One shared field describes the whole batch, so one file's value would be
+    a false statement about the rest.
+
+    Compare the complete observed summary without pinning explanatory prose.
+    """
+    result = build(handler, dataset, {"a.ome.tif": OME_TIFF, "b.ome.tif": OME_40})
+
+    record_set = nodes_by_name(result.record_sets)["ome_images"]
+    fields = fields_of(record_set)
+    expected = {
+        "image": "2 OME-TIFF file(s)",
+        "ome_version": "2016-06",
+        "ome_image_count": "1",
+        "size_c": "3-40",
+        "size_z": "1",
+        "size_t": "1-5",
+        "dimension_order": "XYCZT",
+        "pixel_type": "uint16, uint8",
+        "physical_size_x": "0.2125 µm",
+        "physical_size_y": "0.425 mm",
+        "physical_size_x_unit": "µm",
+        "physical_size_y_unit": "mm",
+        "channel_names": "18S, ATP1A1, CD3, CD8, DAPI",
+    }
+    assert set(fields) == set(expected)
+    for name, observed in expected.items():
+        assert fields[name]["description"].endswith(f"({observed})"), name
+
+
+def test_spacing_ranges_never_mix_units_or_depend_on_file_order(handler):
+    headers = [
+        ome.OMEHeader(physical_size_x=x, physical_size_x_unit=unit)
+        for x, unit in [(0.2, "µm"), (0.001, "mm"), (0.4, "µm"), (9.0, None)]
+    ]
+    metas = [
+        {**_img_meta(f"{i}.tif"), "ome": header} for i, header in enumerate(headers)
+    ]
+    forward = handler.build_croissant(metas, [])
+    backward = handler.build_croissant(list(reversed(metas)), [])
+    fields = fields_of(forward.record_sets[0])
+    assert fields["physical_size_x"]["description"].endswith(
+        "(0.001 mm; 9.0 unit unspecified; 0.2-0.4 µm)"
+    )
+    assert fields["physical_size_x_unit"]["description"].endswith("(mm, µm)")
+    assert "physical_size_y" not in fields
+    assert "physical_size_y_unit" not in fields
+    assert as_json(forward) == as_json(backward)
+
+
+@pytest.mark.parametrize("version", ["2016-06", "2013-06"])
+def test_measurements_without_units_remain_unspecified_in_the_manifest(
+    handler: ImageHandler, dataset: Path, version: str
+) -> None:
+    document = ome_xml(
+        ome_image(pixels='PhysicalSizeX="0.65" PhysicalSizeY="2"'),
+        namespace=f"http://www.openmicroscopy.org/Schemas/OME/{version}",
+    )
+    result = build(handler, dataset, {"missing-units.ome.tif": tiff_bytes(document)})
+    fields = fields_of(nodes_by_name(result.record_sets)["ome_images"])
+
+    assert fields["physical_size_x"]["description"].endswith("(0.65 unit unspecified)")
+    assert fields["physical_size_y"]["description"].endswith("(2.0 unit unspecified)")
+    assert "physical_size_x_unit" not in fields
+    assert "physical_size_y_unit" not in fields
+
+
+def test_a_field_no_file_declares_is_not_emitted(
+    handler: ImageHandler, dataset: Path
+) -> None:
+    """``PhysicalSizeX`` is optional in the schema, and a field naming
+    something no file declares is noise."""
+    result = build(handler, dataset, {"a.ome.tif": OME_NO_PHYSICAL_SIZE})
+
+    fields = fields_of(nodes_by_name(result.record_sets)["ome_images"])
+    assert not any(name.startswith("physical_size_") for name in fields)
+    assert "size_c" in fields
+
+
+@pytest.mark.parametrize(
+    ("files", "images_declared"),
+    [
+        # One document may declare several images: a multi-position acquisition
+        # does.
+        ({"a.ome.tif": OME_TWO_IMAGES}, "2"),
+        # And one logical image may be spread over several files. Grouping
+        # those is a separate change; reporting rows as images is not.
+        (
+            {
+                "a.ome.tif": ome_partner("b.ome.tif"),
+                "b.ome.tif": ome_partner("a.ome.tif"),
+            },
+            "1",
+        ),
+    ],
+    ids=["two images in one file", "two files cross-referencing"],
+)
+def test_the_record_set_says_its_rows_are_files(
+    handler: ImageHandler,
+    dataset: Path,
+    files: dict,
+    images_declared: str,
+) -> None:
+    """A FileSet yields one record per file, so the count makes the gap visible
+    instead of leaving a consumer to assume rows are images."""
+    result = build(handler, dataset, files)
+
+    record_set = nodes_by_name(result.record_sets)["ome_images"]
+    fields = fields_of(record_set)
+    assert fields["ome_image_count"]["description"].endswith(f"({images_declared})")
+    assert f"{len(files)} OME-TIFF file(s)" in record_set.description
+    assert "one row per file" in record_set.description
+    assert "Image[0]" in record_set.description
+
+
+def test_channel_names_are_the_only_vocabulary_that_reaches_the_document(
+    handler: ImageHandler, dataset: Path
+) -> None:
+    """The schema defines ``Channel/@Name`` as an acquisition channel's label,
+    so it names an antibody or a fluorophore. It says nothing about
+    ``Image/@Name``, which in practice holds slide labels and operator notes."""
+    result = build(handler, dataset, {"a.ome.tif": OME_NAMED})
+
+    fields = fields_of(nodes_by_name(result.record_sets)["ome_images"])
+    channels = fields["channel_names"]["description"]
+    document = as_json(result)
+    for name in ("DAPI", "ATP1A1", "18S"):
+        assert name in channels
+        assert document.count(name) == 1, f"{name} reached a node of its own"
+    for secret in ("Patient 3 slide 2", "Acme Scanner 4.2", "9c1bde0e-dead-beef"):
+        assert secret not in document
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [BOMB_TIFF, OVERSIZED_TIFF, tiff_bytes(ome_xml("<Image>"))],
+    ids=["entity declaration", "oversized", "malformed"],
+)
+@pytest.mark.parametrize("with_ome", [False, True])
+def test_a_refused_description_falls_back_to_plain_tiff(
+    handler: ImageHandler, dataset: Path, payload: bytes, with_ome: bool
+) -> None:
+    """``ScanEntry.describe()`` clears the reason and the detail, so a described
+    file has nowhere else to record a partial refusal."""
+    files = {"a.ome.tif": payload}
+    if with_ome:
+        files["b.ome.tif"] = OME_TIFF
+    result = build(handler, dataset, files)
+    records = nodes_by_name(result.record_sets)
+    ordinary = records["images"]
+    assert "1 of 1" in ordinary.description
+    assert "not parsed" in ordinary.description
+    assert list(fields_of(ordinary)) == ["image"]
+    assert file_set_members(result.file_sets[0].to_json(), dataset) == {"a.ome.tif"}
+    if with_ome:
+        assert file_set_members(result.file_sets[1].to_json(), dataset) == {"b.ome.tif"}
+        assert fields_of(records["ome_images"])["size_c"]["description"].endswith("(3)")
+    else:
+        assert "ome_images" not in records
+    assert "lol" not in as_json(result)
+
+
+def test_a_binary_only_file_names_its_companion_and_declares_nothing(
+    handler: ImageHandler, dataset: Path
+) -> None:
+    """The schema forbids a place-holder any other content, so it carries no
+    header field — not even the zero images it declares, which is a fact about
+    the stub rather than about the image the file holds."""
+    result = build(handler, dataset, {"a.ome.tif": BINARY_ONLY_TIFF})
+
+    record_set = nodes_by_name(result.record_sets)["ome_images"]
+    assert "plate.companion.ome" in record_set.description
+    assert list(fields_of(record_set)) == ["image"]
+
+
+# --------------------------------------------------------------------------
+# The batch summary
+# --------------------------------------------------------------------------
 
 
 def test_collect_image_summary() -> None:
@@ -227,6 +877,22 @@ def test_collect_image_summary() -> None:
     assert summary["format_counts"] == {"JPEG": 2, "TIFF": 1}
 
 
+def test_the_format_breakdown_does_not_follow_discovery_order() -> None:
+    """Read into a description verbatim, and discovery order is rglob's, so a
+    dataset and the same dataset compressed would describe one batch two ways.
+    Every committed image corpus holds a single format, so no golden can catch
+    this; only a mixed batch, which is what an OME dataset is.
+    """
+    tiff_first = [_img_meta("a.tif", fmt="TIFF"), _img_meta("b.png", fmt="PNG")]
+    png_first = list(reversed(tiff_first))
+
+    assert (
+        list(collect_image_summary(tiff_first)["format_counts"])
+        == list(collect_image_summary(png_first)["format_counts"])
+        == ["PNG", "TIFF"]
+    )
+
+
 def _img_meta(name, fmt="JPEG", mime="image/jpeg", w=100, h=100, bands=3):
     return {
         "file_name": name,
@@ -258,35 +924,3 @@ def test_image_build_croissant_multiband(handler: ImageHandler) -> None:
     _, record_sets = handler.build_croissant(metas, [f"file_{i}" for i in range(3)])
 
     assert "band" in record_sets[0].description
-
-
-def test_a_bigtiff_is_claimed_and_described(
-    handler: ImageHandler, tmp_path: Path
-) -> None:
-    """Regression test for #93, which made claims() check magic bytes.
-
-    BigTIFF is classic TIFF with a 64-bit offset field, which any writer
-    switches to at 4 GiB — where whole-slide imaging, EM volumes and geospatial
-    rasters all live. It differs in one byte, 0x2b against 0x2a, so a magic
-    check listing only 0x2a would reject a valid .tiff. The version byte is
-    asserted before the handler is asked, since a fixture written as classic
-    TIFF would let the claim pass for the wrong reason.
-    """
-    path = tmp_path / "tissue.tiff"
-    tifffile.imwrite(
-        str(path),
-        np.zeros((16, 16), np.uint16),
-        photometric="minisblack",
-        bigtiff=True,
-    )
-    assert path.read_bytes()[:4] == b"II+\x00"
-
-    source = make_source(path)
-    assert handler.claims(source) is True
-
-    props = handler.extract(source)["image_properties"]
-
-    assert (props["width"], props["height"]) == (16, 16)
-    # BigTIFF is a TIFF variant; a second token here would reach the format
-    # breakdown the record-set description reports.
-    assert props["image_format"] == "TIFF"
