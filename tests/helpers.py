@@ -226,6 +226,34 @@ def _soft() -> list:
     ]
 
 
+def _vcf() -> list:
+    """A small multi-sample VCFv4.2 export: two samples, two variant records.
+
+    Small, but not degenerate. ``AF`` is per-alternate-allele, ``DB`` is a
+    flag, ``AD`` is per-allele, and the second record carries two ALTs, so the
+    sweep sees the cardinalities a real callset has rather than one column of
+    scalars.
+    """
+    return [
+        (
+            "calls.vcf",
+            b"##fileformat=VCFv4.2\n"
+            b'##FILTER=<ID=PASS,Description="All filters passed">\n'
+            b"##reference=file:///ref/GRCh38.fa\n"
+            b"##contig=<ID=chr1,length=248956422>\n"
+            b"##contig=<ID=chr2,length=242193529>\n"
+            b'##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth">\n'
+            b'##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency, for each ALT allele">\n'
+            b'##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP membership">\n'
+            b'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+            b'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">\n'
+            b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001\tNA00002\n"
+            b"chr1\t100\trs1\tA\tG\t50.0\tPASS\tDP=14;AF=0.5;DB\tGT:AD\t0/1:7,7\t1/1:0,14\n"
+            b"chr1\t200\t.\tC\tT,A\t99.0\tPASS\tDP=20;AF=0.25,0.25\tGT:AD\t0/1:15,5,0\t0/0:20,0,0\n",
+        )
+    ]
+
+
 def _nifti() -> list:
     source = next(_SPECT.rglob("*.nii.gz"), None)
     assert source is not None, f"tracked NIfTI fixture missing under {_SPECT}"
@@ -246,6 +274,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "DICOMHandler": _dicom,
     "NIfTIHandler": _nifti,
     "SOFTHandler": _soft,
+    "VCFHandler": _vcf,
 }
 
 #: Handlers with no sample, and why.

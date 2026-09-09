@@ -151,6 +151,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.dicom_handler import DICOMHandler
     from croissant_baker.handlers.nifti_handler import NIfTIHandler
     from croissant_baker.handlers.soft_handler import SOFTHandler
+    from croissant_baker.handlers.vcf_handler import VCFHandler
 
     return [
         CSVHandler(),
@@ -165,6 +166,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
         DICOMHandler(),
         NIfTIHandler(),
         SOFTHandler(),
+        VCFHandler(),
     ]
 
 

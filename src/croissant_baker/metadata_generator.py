@@ -168,6 +168,7 @@ class MetadataGenerator:
         usage_info: Optional[str] = None,
         field_mappings: Optional[Dict[str, Dict[str, object]]] = None,
         count_csv_rows: bool = False,
+        genomic_sample_ids: bool = False,
         max_workers: Optional[int] = None,
         detect_references: bool = False,
         includes: Optional[List[str]] = None,
@@ -212,6 +213,10 @@ class MetadataGenerator:
                 external vocabularies like Wikidata/SNOMED/LOINC.
             count_csv_rows: If True, scan each CSV fully for exact row counts.
                 Defaults to False for performance.
+            genomic_sample_ids: If True, emit the sample identifiers a genomic
+                file names in its header. Defaults to False: for a controlled
+                release those identifiers are a manifest of the cohort, and the
+                counts answer the structural question without publishing one.
             max_workers: Maximum worker threads for per-file metadata
                 extraction. None (default) auto-sizes from the CPU count; 1
                 forces serial. Output is identical regardless of this value.
@@ -265,6 +270,7 @@ class MetadataGenerator:
         # To add a new handler-specific flag: add one key here — the call site never changes.
         self._handler_kwargs = {
             "count_rows": count_csv_rows,
+            "genomic_sample_ids": genomic_sample_ids,
         }
         # One entry per file the last generate_metadata() call scanned, each
         # carrying what became of it. Empty until then.
