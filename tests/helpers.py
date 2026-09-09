@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import gzip
 import io
+import struct
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
@@ -226,6 +227,42 @@ def _soft() -> list:
     ]
 
 
+#: The SAM text header of the sample BAM, which its own test also reads.
+BAM_HEADER_TEXT = (
+    "@HD\tVN:1.6\tSO:coordinate\n"
+    "@SQ\tSN:chr1\tLN:248956422\tAS:GRCh38\n"
+    "@SQ\tSN:chr2\tLN:242193529\tAS:GRCh38\n"
+    "@RG\tID:rg1\tPL:ILLUMINA\tCN:STJUDE\tLB:lib1\tSM:NA00001\n"
+    "@PG\tID:bwa\tPN:bwa\tVN:0.7.17\n"
+    "@PG\tID:samtools\tPN:samtools\tVN:1.19\tPP:bwa\n"
+)
+
+
+def bam_payload(text: str = BAM_HEADER_TEXT, references: int = 2) -> bytes:
+    """The uncompressed bytes of a header-only BAM.
+
+    Built rather than committed: a BAM carries its lengths inside it, and a
+    fixture nobody can read by eye is one nobody can change.
+    """
+    encoded = text.encode()
+    payload = b"BAM\x01" + struct.pack("<i", len(encoded)) + encoded
+    payload += struct.pack("<i", references)
+    for i in range(references):
+        name = f"chr{i + 1}".encode() + b"\x00"
+        payload += struct.pack("<i", len(name)) + name + struct.pack("<i", 248956422)
+    return payload
+
+
+def _bam() -> list:
+    """One header-only BAM: two references, one read group, a two-step @PG chain.
+
+    Plain gzip rather than BGZF, and ``mtime=0`` so the same header is the same
+    bytes on every call. Python's gzip module reads both spellings, and it is
+    the header this handler describes.
+    """
+    return [("sample.bam", gzip.compress(bam_payload(), mtime=0))]
+
+
 def _vcf() -> list:
     """A small multi-sample VCFv4.2 export: two samples, two variant records.
 
@@ -275,6 +312,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "NIfTIHandler": _nifti,
     "SOFTHandler": _soft,
     "VCFHandler": _vcf,
+    "BAMHandler": _bam,
 }
 
 #: Handlers with no sample, and why.

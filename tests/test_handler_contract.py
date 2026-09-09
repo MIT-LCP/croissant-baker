@@ -222,7 +222,15 @@ def test_a_real_batch_returns_a_build_result(name: str, dataset: Path) -> None:
     result = handler.build_croissant(metas, ids)
 
     assert isinstance(result, BuildResult)
-    assert result.record_sets or result.file_sets, f"{name} described nothing"
+    # Three ways to describe a file, and a handler has to take one of them. The
+    # third is the FileObject the generator owns: a format whose content is not
+    # a table has properties worth stating and no record set to state them on,
+    # and BAM is one, so it describes through the extracted ``description``.
+    assert (
+        result.record_sets
+        or result.file_sets
+        or any(meta.get("description") for meta in metas)
+    ), f"{name} described nothing"
     assert all(isinstance(d, Declined) for d in result.declined)
 
 

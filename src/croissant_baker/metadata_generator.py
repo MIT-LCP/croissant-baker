@@ -625,6 +625,11 @@ class MetadataGenerator:
         A list, because a multi-file record produces several: WFDB reads a
         header together with its sibling ``.dat`` and ``.atr``. Everything here
         addresses the file *as stored*, wrapper included.
+
+        ``description`` is optional and belongs to the handler: a format whose
+        content is not a table has properties worth stating and no record set
+        to state them on, and BAM is one. Absent, the FileObject carries none,
+        which is what every other handler produces today.
         """
         meta = entry.meta
         objects = [
@@ -632,6 +637,7 @@ class MetadataGenerator:
                 id=f"file_{counter}",
                 name=entry.path.name,
                 content_url=str(entry.path),
+                description=meta.get("description"),
                 encoding_formats=_encoding_formats(
                     meta["encoding_format"], entry.path.name
                 ),
