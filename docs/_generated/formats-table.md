@@ -11,3 +11,4 @@
 | Images | `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.webp`, `.ico`, `.tiff`, `.tif` | `.gz`, `.bz2`, `.xz` | Dimensions, color mode, encoding format |
 | DICOM | `.dcm`, `.dicom` | `.gz`, `.bz2`, `.xz` | Image geometry, modality, pixel encoding, acquisition parameters |
 | NIfTI | `.nii` | `.gz`, `.bz2`, `.xz` | Spatial dimensions, voxel spacing, data type, TR for fMRI volumes |
+| GEO SOFT | `.soft` | `.gz`, `.bz2`, `.xz` | Entity attribute names, sample characteristic keys, data table columns |

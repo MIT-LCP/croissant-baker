@@ -8,6 +8,8 @@ repos:
 
     # Removes trailing whitespace
     -   id: trailing-whitespace
+        # SOFT regression data includes meaningful trailing TSV delimiters.
+        exclude: ^tests/data/input/geo_soft(?:_regressions)?/.*\.soft$
 
     # Checks TOML files (like pyproject.toml) for basic syntax errors
     -   id: check-toml

@@ -1312,3 +1312,163 @@ def test_spect_demo_generation(spect_demo_path: Path, output_dir: Path) -> None:
         "nifti_version",
     } <= nifti_fields
     assert "tr_seconds" not in nifti_fields  # no 4D file in this fixture
+
+
+# ---------------------------------------------------------------------------
+# GEO SOFT
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def geo_soft_path() -> Path:
+    """Three real NCBI GEO family exports; see the directory's README.
+
+    A hard failure rather than a skip: the fixtures are committed, so they can
+    only go missing by accident, and skipping would hide the loss.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "geo_soft"
+    assert dataset_path.is_dir(), f"tracked GEO SOFT fixtures missing at {dataset_path}"
+    return dataset_path
+
+
+def _geo_schema(document: dict) -> dict:
+    """Compare the graph independently of filesystem discovery order.
+
+    FileObject ids are scan counters. Resolve each to its contentUrl so that
+    reordered files compare equally, while a source pointing at the wrong
+    file still fails. Preserve field order and all other metadata.
+    """
+    file_urls = {d["@id"]: d["contentUrl"] for d in document["distribution"]}
+
+    def resolve(value):
+        if isinstance(value, dict):
+            return {
+                key: file_urls.get(item, item) if key == "@id" else resolve(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [resolve(item) for item in value]
+        return value
+
+    normalized = resolve(document)
+    for key in ("distribution", "recordSet"):
+        normalized[key].sort(key=lambda node: node["@id"])
+    return normalized
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_geo_soft_generation(
+    geo_soft_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
+    """The whole CLI over three real deposits, compared against the committed
+    document rather than overwriting it.
+
+    Both shapes in one bake: two modern tableless exports read through their
+    gzip wrappers, and one classic series whose tables carry three column
+    signatures. The fixture README says how to regenerate the golden.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output_file = tmp_path / "geo_soft_croissant.jsonld"
+    golden = Path(__file__).parent / "data" / "output" / "geo_soft_croissant.jsonld"
+    assert golden.is_file(), f"tracked GEO SOFT golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(geo_soft_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "GEO SOFT family exports (demo)",
+            "--description",
+            "Three NCBI GEO family exports: two modern tableless deposits and one classic series with data tables",
+            "--url",
+            "https://www.ncbi.nlm.nih.gov/geo/",
+            "--date-published",
+            "2026-08-31",
+            "--creator",
+            "NCBI Gene Expression Omnibus",
+        ],
+    )
+
+    assert result.exit_code == 0, f"CLI failed:\n{result.output}"
+    assert "Scanned 4 file(s): 3 described, 1 not described" in result.output
+    assert _geo_schema(json.loads(output_file.read_text())) == _geo_schema(
+        json.loads(golden.read_text())
+    )
+
+
+def test_a_stem_shared_with_another_format_suffixes_both_sides(
+    tmp_path: Path,
+) -> None:
+    """`GSE1_family.soft` derives the record set `GSE1_family_samples`, which
+    is also what the CSV sitting beside it is called.
+
+    The two are in different handler batches, so the collision is invisible to
+    either handler's allocator and is settled by the generator, which suffixes
+    *every* member of a colliding group — the same rule that already turns
+    `sample.csv` and `sample.tsv` into `sample_csv` and `sample_tsv` rather
+    than letting either keep the bare stem. Asserted here because the design
+    note this handler was written from claimed the CSV would keep
+    `GSE1_family_samples`, and it does not.
+    """
+    (tmp_path / "GSE1_family.soft").write_text(
+        "^SAMPLE = GSM1\n!Sample_title = a sample\n"
+    )
+    (tmp_path / "GSE1_family_samples.csv").write_text("id,name\n1,Ada\n")
+
+    output = tmp_path / "out.jsonld"
+    result = runner.invoke(
+        app, ["-i", str(tmp_path), "-o", str(output), "--creator", "Tester"]
+    )
+
+    assert result.exit_code == 0, result.output
+    with open(output) as f:
+        ids = {rs["@id"] for rs in json.load(f)["recordSet"]}
+    assert ids == {"GSE1_family_samples_csv", "GSE1_family_samples_soft"}
+
+
+@pytest.mark.parametrize(
+    "filename, expected_suffixes",
+    [
+        ("GDS10.soft", {"datasets", "subsets", "dataset_table"}),
+        (
+            "GSE2034_series.soft",
+            {"series", "series_table", "series_table_2"},
+        ),
+    ],
+)
+def test_geo_review_exports_validate_through_the_cli(
+    tmp_path: Path, filename: str, expected_suffixes: set
+) -> None:
+    source = (
+        Path(__file__).parent / "data" / "input" / "geo_soft_regressions" / filename
+    )
+    dataset = tmp_path / "input"
+    dataset.mkdir()
+    (dataset / filename).write_bytes(source.read_bytes())
+    output = tmp_path / "croissant.jsonld"
+    result = runner.invoke(
+        app, ["-i", str(dataset), "-o", str(output), "--creator", "Tester"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "1 described" in result.output
+    document = json.loads(output.read_text())
+    assert {rs["@id"] for rs in document["recordSet"]} == {
+        f"{source.stem}_{suffix}" for suffix in expected_suffixes
+    }
+    file_id = document["distribution"][0]["@id"]
+    assert all(
+        field["source"]["fileObject"]["@id"] == file_id
+        for rs in document["recordSet"]
+        for field in rs["field"]
+    )

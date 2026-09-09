@@ -168,6 +168,92 @@ Extracted metadata: spatial dimensions (x, y, z), number of timepoints for 4D vo
 
 All NIfTI files in a dataset are grouped into one `cr:FileSet` with a summary `cr:RecordSet`. The `tr_seconds` field is only added when at least one 4D volume is present.
 
+## GEO SOFT
+
+SOFT is a metadata and data export format of the NCBI Gene Expression Omnibus.
+The handler reads `.soft` family exports and curated DataSet exports such as
+`GDS10.soft.gz`. Compression is handled by the shared input layer.
+
+The following record sets describe each file:
+
+| Record set suffix | One row per | Fields |
+|-------------------|-------------|--------|
+| `_series`, `_samples`, `_platforms`, `_datasets`, `_subsets` | distinct entity of that kind | declared attribute names, with the entity prefix removed |
+| `_sample_characteristics` | sample | sample accession and submitter-defined characteristic keys |
+| `_series_table`, `_sample_table`, `_platform_table`, `_dataset_table`, etc. | table row | declared table columns |
+
+The `^DATABASE` block is shared GEO boilerplate and is not described. An entity
+kind with no attributes produces no attribute record set. Repeated
+`^DATASET` declarations for the same accession, separated by `^SUBSET` blocks,
+count as one dataset. Unsupported entity kinds cause extraction to fail with a
+reason; their metadata is not silently omitted.
+
+Sample characteristics have a separate record set because their keys are
+submitter-defined. This also keeps a `title:` characteristic distinct from the
+standard `!Sample_title` attribute. Characteristics split on the **first colon**,
+with or without whitespace: `tissue:liver` and `tissue: liver` both name `tissue`.
+An empty value still names a key. Lines without a nonempty key and colon are
+counted and represented by fallback fields such as `characteristics_ch1`.
+Channel 1 and channel-less keys keep their bare names; channels 2 and above
+always use `ch2_`, `ch3_`, etc. An unrelated sample cannot rename channel 1's
+fields. Name collisions receive `__2`, `__3`, etc., preserving each field.
+
+The characteristics record set also includes a scalar text **`geo_accession`**
+field. It describes the accession of the enclosing `^SAMPLE = ACCESSION`
+declaration, also commonly recorded in `!Sample_geo_accession`. A consumer can
+therefore associate that sample with donor keys such as `dbgap_subject_id`
+(GSE327347) or `patient id` (GSE335275). This works even when the redundant
+`!Sample_geo_accession` attribute is absent. If a submitter uses `geo_accession`
+as a characteristic key, that key is preserved and the added sample identifier
+uses the next available `geo_accession__N` name; its description identifies its
+source. Donor values and accession values are not copied into the manifest.
+
+Tables group by entity kind, optional table title, and exact column signature.
+Named series tables, including GSE2034's patient clinical parameters, are
+included. Differently titled tables remain separate even with identical
+columns. Titles and the deposit's `#COLUMN` descriptions are retained as schema
+metadata. Row counts come from `!*_data_row_count` declarations; absent or
+invalid counts are reported as unknown. Counts describe the declarations, not
+an independent count of the table body.
+
+### Schema metadata
+
+**No data values are emitted.** Attribute and characteristic fields are
+`sc:Text`, including numeric-looking donor identifiers. Table columns are typed
+using PyArrow and the shared Croissant type mapping. The parser samples up to
+500 rows and 1 MiB per table signature, then discards the sample after typing.
+Empty trailing cells beyond the header width are ignored; duplicate column
+names retain separate positions, types and field identifiers. Type inference
+uses sampled rows, so later rows may contain types absent from that sample.
+Memory grows with entity metadata and distinct table signatures, not the full
+table bodies.
+
+Fields carry `source: {fileObject: …}` and **no `extract`**. Croissant 1.1's
+extraction grammar cannot address SOFT entity attributes, and `mlcroissant`
+does not read SOFT data. These record sets describe the schema; consumers
+reading sample–donor values must parse the source SOFT file within each
+`^SAMPLE` block. The sample accession field supplies the schema needed for
+that association, without inventing a donor relationship from field names.
+
+Identifiers derive from the logical filename and dataset-relative path.
+Compression does not change them. For example, `GSE1_family.soft.gz` produces
+`GSE1_family_series` and `GSE1_family_sample_characteristics`. Cross-format
+identifier collisions follow the shared generator rules. `encodingFormat` is
+`text/x-geo-soft`, with the compression media type added by the input layer.
+
+### Unsupported and incomplete inputs
+
+`GSE*_series_matrix.txt` uses a different grammar and is not supported by this
+handler. Neither are `GSM*.txt` or `GPL*.annot`. Renaming a series matrix to
+`.soft` does not make it a valid SOFT entity export.
+
+Files without valid `^ENTITY = ACCESSION` declarations, unknown entity kinds,
+and mismatched or nested table markers fail extraction with a reason. A table
+still open at end of file or undecodable UTF-8 produces a partial-parse warning
+on every emitted record set. A complete attribute line at end of file is valid:
+attribute blocks have no closing marker. A leading UTF-8 byte order mark is
+accepted.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
