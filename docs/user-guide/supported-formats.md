@@ -306,8 +306,8 @@ genotype columns.
 
 `INFO` and `FORMAT` are per-record key-value bags rather than columns of their
 own, so each declared key becomes a sub-field of the column that carries it.
-The declared `Type` gives the Croissant type — `Integer` to `cr:Int64`, `Float`
-to `cr:Float64`, `Flag` to `sc:Boolean`, `String` and `Character` to `sc:Text` —
+The declared `Type` gives the Croissant type (`Integer` to `cr:Int64`, `Float`
+to `cr:Float64`, `Flag` to `sc:Boolean`, `String` and `Character` to `sc:Text`),
 and any `Number` other than `0` or `1` marks the sub-field repeated, which
 covers `A`, `R`, `G`, `.` and literal counts above one. The declared
 `Description` becomes the sub-field description; it is a header byte, so
