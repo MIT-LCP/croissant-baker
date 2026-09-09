@@ -334,6 +334,35 @@ the record set states how many samples the file carries, not what they are
 called. `--genomic-sample-ids` emits them, mirroring the opt-in shape of
 `--count-csv-rows`.
 
+## BAM
+
+BAM (`.bam`) is the compressed binary form of a SAM alignment file. A `.bam` is
+already a compressed container, and the input layer does not treat it as one: it
+is a format, not a transport wrapper, so the handler decompresses it itself. It
+reads the magic, the SAM text header and the reference count, then stops. No
+alignment record is read.
+
+A BAM is claimed on that magic, in either of the two forms the pipeline can hand
+over: a stream whose payload starts with `BAM\1`, or one that already starts with
+it because a second wrapper was taken off on the way in.
+
+From the text header: `@HD` gives the SAM version and sort order, `@SQ` the
+number of reference sequences and, from the first, the assembly name; `@RG` the
+number of read groups with their sequencing platforms and centres; `@PG` the
+program chain in declaration order. The binary `n_ref` that follows the text is
+recorded alongside the `@SQ` count.
+
+**No record set is emitted.** Aligned reads are records of a genome, not of a
+dataset schema, so a BAM is described as a file: the properties above are stated
+in the `description` of its `cr:FileObject`. That description is the one thing
+this handler produces; `encodingFormat` is `application/x-bam`, with the
+compression media type added by the input layer when the file arrives under one.
+
+`@RG SM` names the sample a read group came from, and the tags together are a
+cohort manifest, so they are withheld under the same `--genomic-sample-ids`
+opt-in as the VCF sample columns. Index files (`.bai`, `.csi`, `.tbi`) are
+reported as unsupported; nothing claims them.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
