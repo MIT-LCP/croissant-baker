@@ -914,7 +914,10 @@ def main(
                 )
 
         _validate_uri("--usage-info", usage_info)
-        _validate_profiles(profile)
+        # Normalise before validating, so the names checked here are the ones
+        # the generator is handed rather than the raw argv strings.
+        profiles = _normalize_optional_text_list(profile)
+        _validate_profiles(profiles)
         merged_field_mappings = _merge_field_mapping_flags(
             _load_field_mappings(field_mappings), field_mapping
         )
@@ -945,7 +948,7 @@ def main(
             conditions_of_access=conditions_of_access,
             is_accessible_for_free=is_accessible_for_free,
             included_in_data_catalog=included_in_data_catalog,
-            profiles=_normalize_optional_text_list(profile),
+            profiles=profiles,
             field_mappings=merged_field_mappings,
             count_csv_rows=count_csv_rows,
             max_workers=jobs or None,

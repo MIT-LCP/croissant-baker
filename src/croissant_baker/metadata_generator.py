@@ -8,7 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import mlcroissant as mlc
 
@@ -58,26 +58,12 @@ BIOSCHEMAS_CONFORMS_TO = "https://bioschemas.org/profiles/Dataset/1.0-RELEASE"
 
 # Profiles a document can additionally declare, by the name --profile takes.
 # A new profile is one entry here: the CLI validates against these keys and
-# the generator appends the URI. Nothing else in the document changes, so
-# declaring a profile is a claim about the vocabulary, not a validation of it.
+# the generator declares the URI alongside CROISSANT_CONFORMS_TO. Nothing else
+# in the document changes, so declaring a profile is a claim about the
+# vocabulary, not a validation against it.
 PROFILE_CONFORMS_TO = {
     "bioschemas": BIOSCHEMAS_CONFORMS_TO,
 }
-
-
-def _append_conforms_to(metadata_dict: dict, uri: str) -> None:
-    """Declare ``uri`` in conformsTo, which may be absent, a string, or a list."""
-    conforms_to = metadata_dict.get("conformsTo")
-    if conforms_to is None:
-        metadata_dict["conformsTo"] = [uri]
-        return
-    if isinstance(conforms_to, str):
-        metadata_dict["conformsTo"] = (
-            [conforms_to] if conforms_to == uri else [conforms_to, uri]
-        )
-        return
-    if isinstance(conforms_to, list) and uri not in conforms_to:
-        conforms_to.append(uri)
 
 
 def _apply_field_mappings(
@@ -246,8 +232,9 @@ class MetadataGenerator:
             included_in_data_catalog: URL of a catalog entry that lists this
                 dataset (schema.org/includedInDataCatalog).
             profiles: Additional profiles the document declares in
-                ``conformsTo``, by the names in ``PROFILE_CONFORMS_TO``.
-                Declaring a profile does not validate against it.
+                ``conformsTo`` alongside Croissant 1.1, by the names in
+                ``PROFILE_CONFORMS_TO``. Declaring a profile does not
+                validate against it.
             field_mappings: Per-column overrides keyed by field name. Each value
                 is a dict with optional ``equivalent_property`` (vocab URI) and
                 ``data_types`` (list of vocab URIs). Used to link columns to
@@ -570,7 +557,7 @@ class MetadataGenerator:
             date_modified=self._parse_iso(self.date_modified),
             version=self.version or "1.0.0",
             cite_as=self._build_citation(),
-            conforms_to=CROISSANT_CONFORMS_TO,
+            conforms_to=self._resolve_conforms_to(),
             keywords=self.keywords,
             in_language=self.in_language,
             same_as=self.same_as,
@@ -614,8 +601,6 @@ class MetadataGenerator:
             result["isAccessibleForFree"] = self.is_accessible_for_free
         if self.included_in_data_catalog is not None:
             result["includedInDataCatalog"] = self.included_in_data_catalog
-        for profile in self.profiles or []:
-            _append_conforms_to(result, PROFILE_CONFORMS_TO[profile])
         if self.field_mappings:
             _apply_field_mappings(result, self.field_mappings)
         return result
@@ -759,6 +744,20 @@ class MetadataGenerator:
             f"Dataset containing {len(file_metadata)} files "
             f"({', '.join(sorted(file_types))}) with automatically inferred types and structure"
         )
+
+    def _resolve_conforms_to(self) -> Union[str, List[str]]:
+        """Croissant 1.1, plus any profile the caller asked to declare.
+
+        A bare string when there is nothing to add, because that is what the
+        canonical 1.1 examples carry. ``dict.fromkeys`` keeps the declared
+        order while dropping a profile named twice.
+        """
+        if not self.profiles:
+            return CROISSANT_CONFORMS_TO
+        profile_uris = dict.fromkeys(
+            PROFILE_CONFORMS_TO[profile] for profile in self.profiles
+        )
+        return [CROISSANT_CONFORMS_TO, *profile_uris]
 
     def _resolve_license(self) -> str:
         if not self.license:

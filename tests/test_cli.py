@@ -9,6 +9,10 @@ import pytest
 from typer.testing import CliRunner
 
 from croissant_baker.__main__ import app
+from croissant_baker.metadata_generator import (
+    BIOSCHEMAS_CONFORMS_TO,
+    MetadataGenerator,
+)
 from tests.helpers import cli
 
 runner = CliRunner()
@@ -1079,6 +1083,25 @@ def test_unknown_profile_is_rejected(csv_dataset: Path, tmp_path: Path) -> None:
     assert "bioschemas" in result.output
 
 
+def test_unknown_profile_is_rejected_by_the_generator(tmp_path: Path) -> None:
+    """A library caller gets the same refusal at construction, not a KeyError."""
+    with pytest.raises(ValueError, match="bioschemas"):
+        MetadataGenerator(dataset_path=str(tmp_path), profiles=["biocroissant"])
+
+
+def test_padded_profile_name_is_accepted(csv_dataset: Path, tmp_path: Path) -> None:
+    """Validation reads the same normalised names the generator is handed."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--profile", " bioschemas")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        "http://mlcommons.org/croissant/1.1",
+        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
+    ]
+
+
 def test_discovery_keys_absent_without_their_flags(
     csv_dataset: Path, tmp_path: Path
 ) -> None:
@@ -1121,4 +1144,6 @@ def test_all_discovery_fields_construct_under_mlcroissant(
     )
 
     assert result.exit_code == 0, result.output
-    assert mlc.Dataset(str(output)).metadata.name == "test_dataset"
+    metadata = mlc.Dataset(str(output)).metadata
+    assert metadata.name == "test_dataset"
+    assert BIOSCHEMAS_CONFORMS_TO in metadata.conforms_to
