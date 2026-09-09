@@ -81,7 +81,10 @@ entity kind with no fields produces no record set".
 
 `tests/data/output/geo_soft_croissant.jsonld` is the document these three files
 bake to, and `test_geo_soft_generation` reads it rather than overwriting it, so
-a deliberate change to what the handler emits shows up there as a diff. To
+a deliberate change to what the handler emits shows up there as a diff. The
+comparison resolves FileObject ids to source paths and sorts record sets, since
+filesystem discovery order differs across operating systems. All other metadata,
+including field order and source relationships, is compared unchanged. To
 regenerate:
 
 ```

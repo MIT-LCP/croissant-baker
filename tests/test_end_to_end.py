@@ -1331,7 +1331,35 @@ def geo_soft_path() -> Path:
     return dataset_path
 
 
-def test_geo_soft_generation(geo_soft_path: Path, tmp_path: Path) -> None:
+def _geo_schema(document: dict) -> dict:
+    """Compare the graph independently of filesystem discovery order.
+
+    FileObject ids are scan counters. Resolve each to its contentUrl so that
+    reordered files compare equally, while a source pointing at the wrong
+    file still fails. Preserve field order and all other metadata.
+    """
+    file_urls = {d["@id"]: d["contentUrl"] for d in document["distribution"]}
+
+    def resolve(value):
+        if isinstance(value, dict):
+            return {
+                key: file_urls.get(item, item) if key == "@id" else resolve(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [resolve(item) for item in value]
+        return value
+
+    normalized = resolve(document)
+    for key in ("distribution", "recordSet"):
+        normalized[key].sort(key=lambda node: node["@id"])
+    return normalized
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_geo_soft_generation(
+    geo_soft_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
     """The whole CLI over three real deposits, compared against the committed
     document rather than overwriting it.
 
@@ -1339,6 +1367,15 @@ def test_geo_soft_generation(geo_soft_path: Path, tmp_path: Path) -> None:
     gzip wrappers, and one classic series whose tables carry three column
     signatures. The fixture README says how to regenerate the golden.
     """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
     output_file = tmp_path / "geo_soft_croissant.jsonld"
     golden = Path(__file__).parent / "data" / "output" / "geo_soft_croissant.jsonld"
     assert golden.is_file(), f"tracked GEO SOFT golden missing at {golden}"
@@ -1365,7 +1402,9 @@ def test_geo_soft_generation(geo_soft_path: Path, tmp_path: Path) -> None:
 
     assert result.exit_code == 0, f"CLI failed:\n{result.output}"
     assert "Scanned 4 file(s): 3 described, 1 not described" in result.output
-    assert output_file.read_text() == golden.read_text()
+    assert _geo_schema(json.loads(output_file.read_text())) == _geo_schema(
+        json.loads(golden.read_text())
+    )
 
 
 def test_a_stem_shared_with_another_format_suffixes_both_sides(
