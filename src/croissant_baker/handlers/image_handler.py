@@ -386,7 +386,7 @@ OME_FILE_SET_ID = "ome-image-files"
 OME_RECORD_SET_ID = "ome_images"
 
 #: Field name, Croissant type, description prefix, and OMEHeader attribute.
-#: Fields are emitted only when the batch has an observed value or schema default.
+#: Fields are emitted only when the batch has an observed value.
 _OME_FIELDS = (
     ("ome_version", "sc:Text", "OME schema version", "version"),
     (

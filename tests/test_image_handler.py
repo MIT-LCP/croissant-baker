@@ -694,7 +694,7 @@ def test_each_field_describes_what_the_whole_batch_holds(
 def test_spacing_ranges_never_mix_units_or_depend_on_file_order(handler):
     headers = [
         ome.OMEHeader(physical_size_x=x, physical_size_x_unit=unit)
-        for x, unit in [(0.2, "µm"), (0.001, "mm"), (0.4, "µm")]
+        for x, unit in [(0.2, "µm"), (0.001, "mm"), (0.4, "µm"), (9.0, None)]
     ]
     metas = [
         {**_img_meta(f"{i}.tif"), "ome": header} for i, header in enumerate(headers)
@@ -702,11 +702,30 @@ def test_spacing_ranges_never_mix_units_or_depend_on_file_order(handler):
     forward = handler.build_croissant(metas, [])
     backward = handler.build_croissant(list(reversed(metas)), [])
     fields = fields_of(forward.record_sets[0])
-    assert fields["physical_size_x"]["description"].endswith("(0.001 mm; 0.2-0.4 µm)")
+    assert fields["physical_size_x"]["description"].endswith(
+        "(0.001 mm; 9.0 unit unspecified; 0.2-0.4 µm)"
+    )
     assert fields["physical_size_x_unit"]["description"].endswith("(mm, µm)")
     assert "physical_size_y" not in fields
     assert "physical_size_y_unit" not in fields
     assert as_json(forward) == as_json(backward)
+
+
+@pytest.mark.parametrize("version", ["2016-06", "2013-06"])
+def test_measurements_without_units_remain_unspecified_in_the_manifest(
+    handler: ImageHandler, dataset: Path, version: str
+) -> None:
+    document = ome_xml(
+        ome_image(pixels='PhysicalSizeX="0.65" PhysicalSizeY="2"'),
+        namespace=f"http://www.openmicroscopy.org/Schemas/OME/{version}",
+    )
+    result = build(handler, dataset, {"missing-units.ome.tif": tiff_bytes(document)})
+    fields = fields_of(nodes_by_name(result.record_sets)["ome_images"])
+
+    assert fields["physical_size_x"]["description"].endswith("(0.65 unit unspecified)")
+    assert fields["physical_size_y"]["description"].endswith("(2.0 unit unspecified)")
+    assert "physical_size_x_unit" not in fields
+    assert "physical_size_y_unit" not in fields
 
 
 def test_a_field_no_file_declares_is_not_emitted(

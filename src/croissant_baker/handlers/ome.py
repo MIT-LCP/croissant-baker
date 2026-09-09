@@ -28,7 +28,7 @@ DECLARATION = "it declares a DTD or an entity"
 OVERSIZED = "it is larger than {mib} MiB"
 MALFORMED = "it is not well-formed"
 
-# A local element name alone does not identify OME or justify its unit defaults.
+# A local element name alone does not identify OME metadata.
 _OME_NAMESPACE = re.compile(r"http://www\.openmicroscopy\.org/Schemas/OME/\d{4}-\d{2}")
 
 
@@ -143,18 +143,13 @@ def parse(document: str) -> Optional[OMEHeader]:
         pixel_type=attributes.get("Type"),
         physical_size_x=physical_x,
         physical_size_y=physical_y,
-        # OME defaults each axis's unit independently to micrometers. Older
-        # schemas, before the unit attributes existed, also specify micrometers.
-        # Preserve explicit units and never convert the measurements.
+        # Preserve the units explicitly stored in the XML. A missing attribute
+        # stays None, including in older schemas; do not infer or convert units.
         physical_size_x_unit=(
-            attributes.get("PhysicalSizeXUnit", "µm")
-            if physical_x is not None
-            else None
+            attributes.get("PhysicalSizeXUnit") if physical_x is not None else None
         ),
         physical_size_y_unit=(
-            attributes.get("PhysicalSizeYUnit", "µm")
-            if physical_y is not None
-            else None
+            attributes.get("PhysicalSizeYUnit") if physical_y is not None else None
         ),
         channel_names=channels,
         binary_only=sidecar is not None,

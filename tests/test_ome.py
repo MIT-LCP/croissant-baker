@@ -108,7 +108,7 @@ def test_the_schema_version_comes_from_the_root_element(version: str) -> None:
 
 @pytest.mark.parametrize("version", ["2016-06", "2013-06"])
 @pytest.mark.parametrize("axis", ["X", "Y"])
-def test_an_omitted_unit_defaults_only_the_axis_with_a_measurement(version, axis):
+def test_an_omitted_unit_stays_none_even_when_a_measurement_exists(version, axis):
     header = ome.parse(
         ome_xml(
             image(pixels=f'PhysicalSize{axis}="0.65"'),
@@ -116,7 +116,7 @@ def test_an_omitted_unit_defaults_only_the_axis_with_a_measurement(version, axis
         )
     )
     assert getattr(header, f"physical_size_{axis.lower()}") == 0.65
-    assert getattr(header, f"physical_size_{axis.lower()}_unit") == "µm"
+    assert getattr(header, f"physical_size_{axis.lower()}_unit") is None
     other = "y" if axis == "X" else "x"
     assert getattr(header, f"physical_size_{other}") is None
     assert getattr(header, f"physical_size_{other}_unit") is None
@@ -132,7 +132,7 @@ def test_explicit_units_are_preserved_without_conversion(unit):
         )
     )
     assert (header.physical_size_x, header.physical_size_x_unit) == (0.65, unit)
-    assert (header.physical_size_y, header.physical_size_y_unit) == (2, "µm")
+    assert (header.physical_size_y, header.physical_size_y_unit) == (2, None)
 
 
 @pytest.mark.parametrize("value", ["NaN", "inf", "-inf", "1e309", "0", "-1", "wide"])
@@ -146,7 +146,7 @@ def test_invalid_spacing_does_not_corrupt_the_other_axis(value):
     )
     assert header.physical_size_x is None
     assert header.physical_size_x_unit is None
-    assert (header.physical_size_y, header.physical_size_y_unit) == (2, "µm")
+    assert (header.physical_size_y, header.physical_size_y_unit) == (2, None)
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "1.5", "lots"])
