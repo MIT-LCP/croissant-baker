@@ -15,11 +15,13 @@ or upload tool, and no HTTP transport, so the local-first invariant holds.
 
 from __future__ import annotations
 
-from typing import Any
+from collections import Counter
+from typing import Any, List, Optional
 
 from croissant_baker.__main__ import _dry_run_entries, _parse_creators, _save_dict
 from croissant_baker.metadata_generator import MetadataGenerator
 from croissant_baker.report import ScanReport
+from croissant_baker.scan import Outcome, Reason
 
 #: The name the server reports to a connecting client.
 SERVER_NAME = "croissant-baker"
@@ -27,10 +29,17 @@ SERVER_NAME = "croissant-baker"
 
 def dry_run(
     input_dir: str,
-    include: list[str] | None = None,
-    exclude: list[str] | None = None,
+    include: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
 ) -> dict:
     """Report what a bake of ``input_dir`` would describe, without reading files.
+
+    The counters are the dry run's own, not :meth:`ScanReport.to_dict`'s. That
+    summary is written for a completed bake, where a file is either in the
+    document or accounted for by a reason; a dry run reads nothing, so every
+    file would land in ``undescribed`` and a directory that bakes cleanly would
+    report as describing none of it. The counts here mirror what the CLI's
+    ``--dry-run`` prints: claimed and unclaimed.
 
     Args:
         input_dir: Directory containing the dataset files.
@@ -38,10 +47,21 @@ def dry_run(
         exclude: Optional glob patterns; matching files are skipped.
 
     Returns:
-        A scan report: per-file outcome (``would_process`` or ``unclaimed``)
+        ``total``, ``would_process`` and ``unclaimed`` counts, ``by_reason``
+        accounting for the unclaimed alone, and ``files``: the per-file outcome
         with the reason and a human-readable detail for every refusal.
     """
-    return ScanReport(_dry_run_entries(input_dir, include, exclude)).to_dict()
+    entries = _dry_run_entries(input_dir, include, exclude)
+    claimed = [e for e in entries if e.outcome is Outcome.WOULD_PROCESS]
+    unclaimed = [e for e in entries if e.outcome is Outcome.UNCLAIMED]
+    tally = Counter(e.reason for e in unclaimed if e.reason is not None)
+    return {
+        "total": len(entries),
+        "would_process": len(claimed),
+        "unclaimed": len(unclaimed),
+        "by_reason": {r.value: tally[r] for r in Reason if tally[r]},
+        "files": ScanReport(entries).to_dict()["files"],
+    }
 
 
 def bake(
@@ -50,12 +70,12 @@ def bake(
     name: str,
     description: str,
     license: str,
-    creators: list[str],
-    url: str | None = None,
-    citation: str | None = None,
+    creators: List[str],
+    url: Optional[str] = None,
+    citation: Optional[str] = None,
     detect_references: bool = False,
-    include: list[str] | None = None,
-    exclude: list[str] | None = None,
+    include: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
 ) -> dict:
     """Generate Croissant metadata for ``input_dir`` and write it to ``output``.
 
@@ -76,8 +96,8 @@ def bake(
 
     Returns:
         ``{"output": <path written>, "report": <scan report>}``. The report is
-        the same per-file account ``dry_run`` returns, resolved against what
-        the bake actually described.
+        the completed bake's :meth:`ScanReport.to_dict`, so it counts what the
+        document carries rather than what a dry run predicted.
 
     Raises:
         ValueError: If the document fails ``mlcroissant`` validation, in which
