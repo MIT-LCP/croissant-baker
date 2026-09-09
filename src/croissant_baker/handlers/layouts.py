@@ -319,6 +319,13 @@ _INDEX = "_index"
 _COLUMN_ORDER = "column-order"
 _SPARSE = ("csr_matrix", "csc_matrix")
 
+#: Pre-0.7 AnnData's name for a sparse group's shape. Still read by anndata.
+_H5SPARSE_SHAPE = "h5sparse_shape"
+#: AnnData 0.7's categories store: a group beside the columns, holding one
+#: labels dataset per categorical column. Reserved by anndata's own writer, so
+#: it is never a column name.
+_CATEGORIES = "__categories"
+
 #: Names AnnData's own reader treats as the row index rather than a column.
 _INDEX_NAMES = (_INDEX, "index")
 
@@ -327,6 +334,9 @@ _INDEX_NAMES = (_INDEX, "index")
 _TENX_FEATURES = ("id", "name", "feature_type", "genome")
 #: What a legacy 10x group must hold, all five, before it is one.
 _TENX_LEGACY = ("barcodes", "data", "gene_names", "genes", "indptr")
+#: 10x's list of the optional feature columns a file carries. A list of column
+#: names, never a column.
+_TENX_TAG_KEYS = "_all_tag_keys"
 
 
 def recognise(root: Node) -> Optional[Layout]:
@@ -395,10 +405,14 @@ def _dataframe_columns(node: Node, uns: Optional[Node]) -> list:
         # column-order, no _index, the member names are the columns, and every
         # one of them is at the record array's own path.
         return [
-            Column(name, _legacy_type(name, dtype, uns), path=node.path)
+            Column(name, _legacy_type(name, dtype, uns, None), path=node.path)
             for name, dtype in (node.fields or ())
             if name not in _INDEX_NAMES
         ]
+
+    # AnnData 0.7's categories store, looked up once per frame. Absent in every
+    # other vintage, which is why nothing else consults it.
+    categories = node.child(_CATEGORIES)
 
     order = node.attr(_COLUMN_ORDER)
     if isinstance(order, (list, tuple)):
@@ -407,18 +421,25 @@ def _dataframe_columns(node: Node, uns: Optional[Node]) -> list:
         names: Iterable[str] = [str(name) for name in order]
     else:
         index = str(node.attr(_INDEX) or _INDEX)
-        names = [name for name in node.keys() if name not in (index, *_INDEX_NAMES)]
+        # ``__categories`` holds other columns' labels rather than being one.
+        # anndata reserves the name, so excluding it can drop nothing real.
+        skip = (index, _CATEGORIES, *_INDEX_NAMES)
+        names = [name for name in node.keys() if name not in skip]
 
     columns = []
     for name in names:
         child = node.child(name)
         if child is None or child.unresolved:
             continue
-        columns.append(Column(name, _column_type(name, child, uns), path=child.path))
+        columns.append(
+            Column(name, _column_type(name, child, uns, categories), path=child.path)
+        )
     return columns
 
 
-def _column_type(name: str, node: Node, uns: Optional[Node]) -> str:
+def _column_type(
+    name: str, node: Node, uns: Optional[Node], categories: Optional[Node]
+) -> str:
     """The column's type, decided by its encoding and not by what carries it."""
     encoding = node.attr(_ENCODING)
     if encoding == "categorical":
@@ -434,17 +455,37 @@ def _column_type(name: str, node: Node, uns: Optional[Node]) -> str:
     # A group with no encoding at all is a shape no writer is known to
     # produce, and there is nothing in it to type from. Its dtype is None,
     # which the field builder turns into text rather than into nothing.
-    return _legacy_type(name, node.dtype, uns)
+    return _legacy_type(name, node.dtype, uns, categories)
 
 
-def _legacy_type(name: str, dtype: Optional[str], uns: Optional[Node]) -> str:
-    """A dtype, unless ``uns`` holds the labels an integer column stands for.
+def _legacy_type(
+    name: str,
+    dtype: Optional[str],
+    uns: Optional[Node],
+    categories: Optional[Node],
+) -> str:
+    """A dtype, unless the file holds the labels an integer column stands for.
 
-    Pre-spec AnnData wrote a categorical as integer codes beside
-    ``uns/<column>_categories``. anndata still applies the rule on read, so a
-    handler that ignores it describes most of what is archived as integers.
+    Two vintages wrote a categorical as bare integer codes with no encoding of
+    its own, and anndata still applies both rules on read:
+
+    * pre-0.7, the labels sit in ``uns/<column>_categories``;
+    * 0.7.0 to 0.7.8, in ``<frame>/__categories/<column>``, with the codes
+      carrying a ``categories`` object reference to them.
+
+    The reference is what anndata dereferences, but it is not what is matched
+    here: a reference names something rather than holding a value, so
+    :meth:`Node.attr` reports it as absent by design. The name is as reliable —
+    anndata's writer composes that exact path — and asking for it keeps the
+    interface as narrow as it is.
     """
-    if uns is not None and dtype is not None and dtype.startswith(("int", "uint")):
+    if dtype is None or not dtype.startswith(("int", "uint")):
+        return croissant_type(dtype)
+    if categories is not None:
+        labels = categories.child(name)
+        if labels is not None:
+            return croissant_type(labels.dtype)
+    if uns is not None:
         labels = uns.child(f"{name}_categories")
         if labels is not None:
             return croissant_type(labels.dtype)
@@ -479,12 +520,20 @@ def _axis_arrays(root: Node, groups: Sequence[str]) -> list:
 
 
 def _array_shape(node: Node) -> Optional[Tuple[int, ...]]:
-    """A dense array's own shape, or a sparse group's shape attribute."""
+    """A dense array's own shape, or a sparse group's shape attribute.
+
+    Two spellings of the attribute. ``shape`` is the on-disk spec's; pre-0.7
+    AnnData wrote ``h5sparse_shape`` instead, after the h5sparse library its
+    sparse support came from, and anndata still reads that name. Without it an
+    archived ``X`` has no declared shape, and the three CSR arrays underneath
+    it become three columns of the obs table.
+    """
     if node.shape is not None:
         return node.shape
-    declared = node.attr("shape")
-    if isinstance(declared, (list, tuple)):
-        return tuple(int(dimension) for dimension in declared)
+    for name in ("shape", _H5SPARSE_SHAPE):
+        declared = node.attr(name)
+        if isinstance(declared, (list, tuple)):
+            return tuple(int(dimension) for dimension in declared)
     return None
 
 
@@ -563,12 +612,15 @@ def _tenx(root: Node) -> Optional[Layout]:
 def _feature_columns(features: Node, n_features: Optional[int]) -> list:
     """The per-feature datasets, documented ones first.
 
-    Filtered on the leading dimension, which is what keeps ``_all_tag_keys``
-    out: it names the optional columns rather than being one of them, and its
-    length is the number of tags rather than of features.
+    Filtered on the leading dimension, and ``_all_tag_keys`` is excluded by
+    name as well: it names the optional columns rather than being one of them.
+    The length filter alone would not do it, because a file with no ``id``
+    declares no feature count to filter against.
     """
     found = {}
     for name in features.keys():
+        if name == _TENX_TAG_KEYS:
+            continue
         child = features.child(name)
         if child is None or child.unresolved or child.dtype is None:
             continue
@@ -611,48 +663,65 @@ def _matrix_column(group: Node, barcodes: int) -> Column:
 
 
 def _tenx_legacy(root: Node) -> Optional[Layout]:
-    """Cell Ranger 2: one group, named for the genome, holding all five names.
+    """Cell Ranger 2: a group named for the genome, holding all five names.
 
-    Exactly one, so a barnyard run's two-genome file falls to the generic view
-    rather than being read as one of its genomes. And no ``filetype``, because
-    Cell Ranger 2 wrote none: a container that says what it is is described by
-    what it says or not at all, never guessed at from a shape it also matches.
+    One per genome, because a barnyard run writes one group per reference and
+    both are wholly present. Cell Ranger's own readers differ on this — scanpy
+    and DropletUtils refuse a two-genome file outright, Seurat returns one
+    matrix per genome — and the ones that refuse do so because their API
+    returns exactly one matrix. A manifest is under no such constraint, and
+    describing both invents nothing.
+
+    ``filetype`` is checked but not required absent. Real Cell Ranger 2 files
+    do carry ``filetype = matrix``; refusing on its presence made this whole
+    layout dead code on every real file. A container declaring something else
+    is still described by what it says rather than by a shape it also matches.
     """
-    if root.attr("filetype") is not None:
-        return None
-    groups = [root.child(name) for name in root.keys()]
-    groups = [
-        g for g in groups if g is not None and not g.unresolved and g.dtype is None
-    ]
-    if len(groups) != 1:
-        return None
-    genome = groups[0]
-    if not set(_TENX_LEGACY) <= set(genome.keys()):
-        return None
-    n_barcodes = _barcodes_in(genome)
-    if n_barcodes is None:
+    filetype = root.attr("filetype")
+    if filetype is not None and str(filetype) != "matrix":
         return None
 
-    columns = []
-    for name in ("genes", "gene_names"):
-        child = genome.child(name)
-        if child is not None:
-            columns.append(Column(name, croissant_type(child.dtype), path=child.path))
-    columns.append(_matrix_column(genome, n_barcodes))
-    barcodes = genome.child("barcodes")
+    genomes = []
+    for name in root.keys():
+        group = root.child(name)
+        if group is None or group.unresolved or group.dtype is not None:
+            continue
+        if not set(_TENX_LEGACY) <= set(group.keys()):
+            continue
+        if _barcodes_in(group) is None:
+            # No indptr width, so there is no matrix to attach to the genes.
+            continue
+        genomes.append(group)
+    if not genomes:
+        return None
 
-    return Layout(
-        TENX,
-        (
+    # Bare keys for one genome, qualified for several: the same
+    # bare-unless-it-collides rule the record set identifiers already follow.
+    qualify = len(genomes) > 1
+    tables = []
+    for genome in genomes:
+        prefix = f"{genome.name}_" if qualify else ""
+        columns = []
+        for name in ("genes", "gene_names"):
+            child = genome.child(name)
+            if child is not None:
+                columns.append(
+                    Column(name, croissant_type(child.dtype), path=child.path)
+                )
+        columns.append(_matrix_column(genome, _barcodes_in(genome)))
+        tables.append(
             Table(
-                "genes",
+                f"{prefix}genes",
                 "gene",
                 genome.path,
                 tuple(columns),
                 _axis_length(genome.child("genes")),
-            ),
+            )
+        )
+        barcodes = genome.child("barcodes")
+        tables.append(
             Table(
-                "barcodes",
+                f"{prefix}barcodes",
                 "barcode",
                 genome.path,
                 (
@@ -663,10 +732,11 @@ def _tenx_legacy(root: Node) -> Optional[Layout]:
                     ),
                 ),
                 _axis_length(barcodes),
-            ),
-        ),
-        tuple(sorted(set(root.keys()) - {genome.name})),
-    )
+            )
+        )
+
+    named = {genome.name for genome in genomes}
+    return Layout(TENX, tuple(tables), tuple(sorted(set(root.keys()) - named)))
 
 
 def _axis_length(node: Optional[Node]) -> Optional[int]:

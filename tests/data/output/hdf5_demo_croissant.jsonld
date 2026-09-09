@@ -48,7 +48,7 @@
   },
   "@type": "sc:Dataset",
   "name": "HDF5 demo (synthetic single-cell series)",
-  "description": "Two 10x feature matrices, an integrated AnnData object, and a NetCDF4 file",
+  "description": "Three 10x feature matrices, an integrated AnnData object, and a NetCDF4 file",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
   "citeAs": "croissant-baker test suite. (2026). HDF5 demo (synthetic single-cell series) [Data set].",
   "creator": {
@@ -73,28 +73,37 @@
       "@type": "cr:FileObject",
       "@id": "file_1",
       "name": "integrated.h5ad",
-      "contentSize": "130808",
+      "contentSize": "132128",
       "contentUrl": "integrated.h5ad",
       "encodingFormat": "application/x-hdf5",
-      "sha256": "bce9445d0762bb2969f4396d143b96fe7e46dbba687cc1b82e59c7576d31bb93"
+      "sha256": "e1e7eddd9cde8f7ef6974ca3251637e33e3176e68d6dfc6c4ead5c867d099300"
     },
     {
       "@type": "cr:FileObject",
       "@id": "file_2",
       "name": "filtered_feature_bc_matrix.h5",
-      "contentSize": "39344",
+      "contentSize": "25200",
       "contentUrl": "GSM000001/filtered_feature_bc_matrix.h5",
       "encodingFormat": "application/x-hdf5",
-      "sha256": "08aca88d61e5b7b9448c3479cb8a203cd8ca675948293ea3de004e04dfac1429"
+      "sha256": "e5b94fb9b86d3639815acd775cbb320b678793225591403804ebaee277c3488d"
     },
     {
       "@type": "cr:FileObject",
       "@id": "file_3",
+      "name": "hgmm_gene_bc_matrices_h5.h5",
+      "contentSize": "15408",
+      "contentUrl": "GSM000003/hgmm_gene_bc_matrices_h5.h5",
+      "encodingFormat": "application/x-hdf5",
+      "sha256": "339e674a3df32fe5039653cf75c89e228343ed44cd5109acd7effbfeaa04ea0c"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_4",
       "name": "filtered_feature_bc_matrix.h5",
-      "contentSize": "39344",
+      "contentSize": "25200",
       "contentUrl": "GSM000002/filtered_feature_bc_matrix.h5",
       "encodingFormat": "application/x-hdf5",
-      "sha256": "08aca88d61e5b7b9448c3479cb8a203cd8ca675948293ea3de004e04dfac1429"
+      "sha256": "e5b94fb9b86d3639815acd775cbb320b678793225591403804ebaee277c3488d"
     }
   ],
   "recordSet": [
@@ -166,7 +175,7 @@
       "@type": "cr:RecordSet",
       "@id": "integrated_obs",
       "name": "integrated_obs",
-      "description": "AnnData obs table from integrated.h5ad — 120 row(s), one row per observation, 11 field(s), columns at /obs. Present in the file and not described: obsp, raw, uns, varp.",
+      "description": "AnnData obs table from integrated.h5ad — 120 row(s), one row per observation, 12 field(s), columns at /obs. Present in the file and not described: obsp, raw, uns, varp.",
       "field": [
         {
           "@type": "cr:Field",
@@ -258,6 +267,18 @@
           "name": "nullable_b",
           "description": "Column 'nullable_b' at /obs/nullable_b in integrated.h5ad",
           "dataType": "sc:Boolean",
+          "source": {
+            "fileObject": {
+              "@id": "file_1"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "integrated_obs/nullable_s",
+          "name": "nullable_s",
+          "description": "Column 'nullable_s' at /obs/nullable_s in integrated.h5ad",
+          "dataType": "sc:Text",
           "source": {
             "fileObject": {
               "@id": "file_1"
@@ -446,6 +467,138 @@
     },
     {
       "@type": "cr:RecordSet",
+      "@id": "hgmm_gene_bc_matrices_h5_hg19_genes",
+      "name": "hgmm_gene_bc_matrices_h5_hg19_genes",
+      "description": "10x feature-barcode matrix hg19_genes table from hgmm_gene_bc_matrices_h5.h5 — 25 row(s), one row per gene, 3 field(s), columns at /hg19.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "hgmm_gene_bc_matrices_h5_hg19_genes/genes",
+          "name": "genes",
+          "description": "Column 'genes' at /hg19/genes in hgmm_gene_bc_matrices_h5.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hgmm_gene_bc_matrices_h5_hg19_genes/gene_names",
+          "name": "gene_names",
+          "description": "Column 'gene_names' at /hg19/gene_names in hgmm_gene_bc_matrices_h5.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hgmm_gene_bc_matrices_h5_hg19_genes/matrix",
+          "name": "matrix",
+          "description": "Array /hg19, indexed by the hg19_genes axis, in hgmm_gene_bc_matrices_h5.h5",
+          "cr:arrayShape": "60",
+          "cr:isArray": true,
+          "dataType": "cr:Int32",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "hgmm_gene_bc_matrices_h5_hg19_barcodes",
+      "name": "hgmm_gene_bc_matrices_h5_hg19_barcodes",
+      "description": "10x feature-barcode matrix hg19_barcodes table from hgmm_gene_bc_matrices_h5.h5 — 60 row(s), one row per barcode, 1 field(s), columns at /hg19.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "hgmm_gene_bc_matrices_h5_hg19_barcodes/barcodes",
+          "name": "barcodes",
+          "description": "Column 'barcodes' at /hg19/barcodes in hgmm_gene_bc_matrices_h5.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "hgmm_gene_bc_matrices_h5_mm10_genes",
+      "name": "hgmm_gene_bc_matrices_h5_mm10_genes",
+      "description": "10x feature-barcode matrix mm10_genes table from hgmm_gene_bc_matrices_h5.h5 — 25 row(s), one row per gene, 3 field(s), columns at /mm10.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "hgmm_gene_bc_matrices_h5_mm10_genes/genes",
+          "name": "genes",
+          "description": "Column 'genes' at /mm10/genes in hgmm_gene_bc_matrices_h5.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hgmm_gene_bc_matrices_h5_mm10_genes/gene_names",
+          "name": "gene_names",
+          "description": "Column 'gene_names' at /mm10/gene_names in hgmm_gene_bc_matrices_h5.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hgmm_gene_bc_matrices_h5_mm10_genes/matrix",
+          "name": "matrix",
+          "description": "Array /mm10, indexed by the mm10_genes axis, in hgmm_gene_bc_matrices_h5.h5",
+          "cr:arrayShape": "60",
+          "cr:isArray": true,
+          "dataType": "cr:Int32",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "hgmm_gene_bc_matrices_h5_mm10_barcodes",
+      "name": "hgmm_gene_bc_matrices_h5_mm10_barcodes",
+      "description": "10x feature-barcode matrix mm10_barcodes table from hgmm_gene_bc_matrices_h5.h5 — 60 row(s), one row per barcode, 1 field(s), columns at /mm10.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "hgmm_gene_bc_matrices_h5_mm10_barcodes/barcodes",
+          "name": "barcodes",
+          "description": "Column 'barcodes' at /mm10/barcodes in hgmm_gene_bc_matrices_h5.h5",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
       "@id": "GSM000002__filtered_feature_bc_matrix_features",
       "name": "GSM000002__filtered_feature_bc_matrix_features",
       "description": "10x feature-barcode matrix features table from filtered_feature_bc_matrix.h5 — 40 row(s), one row per feature, 5 field(s), columns at /matrix/features.",
@@ -458,7 +611,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_3"
+              "@id": "file_4"
             }
           }
         },
@@ -470,7 +623,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_3"
+              "@id": "file_4"
             }
           }
         },
@@ -482,7 +635,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_3"
+              "@id": "file_4"
             }
           }
         },
@@ -494,7 +647,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_3"
+              "@id": "file_4"
             }
           }
         },
@@ -508,7 +661,7 @@
           "dataType": "cr:Int32",
           "source": {
             "fileObject": {
-              "@id": "file_3"
+              "@id": "file_4"
             }
           }
         }
@@ -528,7 +681,7 @@
           "dataType": "sc:Text",
           "source": {
             "fileObject": {
-              "@id": "file_3"
+              "@id": "file_4"
             }
           }
         }

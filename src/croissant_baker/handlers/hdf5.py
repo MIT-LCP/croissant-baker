@@ -118,10 +118,19 @@ class H5Node:
     def shape(self) -> Optional[Tuple[int, ...]]:
         if not isinstance(self._obj, h5py.Dataset):
             return None
+        declared = self._obj.shape
+        if declared is None:
+            # A null dataspace: a dataset that holds no values at all, which
+            # PyTables writes for an empty attribute and h5py exposes as
+            # ``h5py.Empty``. ``None`` here would mean "not a dataset" to every
+            # consumer, so it reports as a scalar and the byte-width-style loss
+            # is stated in the docs. Before this it was ``tuple(None)``, and one
+            # such dataset cost the whole file its description.
+            return ()
         ragged = _normalise(self._obj.dtype)[1]
         # A variable-length dataset has one more dimension than it declares,
         # and only the declared ones have a size.
-        return tuple(self._obj.shape) + ((-1,) if ragged else ())
+        return tuple(declared) + ((-1,) if ragged else ())
 
     @property
     def fields(self) -> Optional[Tuple[Tuple[str, str], ...]]:

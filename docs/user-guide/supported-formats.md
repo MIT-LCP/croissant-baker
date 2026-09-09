@@ -301,10 +301,12 @@ Every file gets one of two views, never both.
 |--------|---------------|-------------|
 | AnnData (`.h5ad`) | root `encoding-type: anndata`, or an `obs` and a `var` with no root `encoding-type` at all | `<stem>_obs`, `<stem>_var` |
 | 10x feature-barcode matrix | a `matrix` group holding a `features` group and an `indptr` that declares a width | `<stem>_features`, `<stem>_barcodes` |
-| 10x, Cell Ranger 2 | exactly one group holding `genes`, `gene_names`, `barcodes`, `data` and an `indptr` that declares a width, and no root `filetype` | `<stem>_genes`, `<stem>_barcodes` |
+| 10x, Cell Ranger 2 | any group holding `genes`, `gene_names`, `barcodes`, `data` and an `indptr` that declares a width, under no root `filetype` or `filetype: matrix` | `<stem>_genes`, `<stem>_barcodes`, one pair per genome |
 | anything else | — | `<stem>`, one field per leaf dataset |
 
-Nothing is refused. A Keras model, a NetCDF4 file, a MATLAB v7.3 session, an NWB recording and a BigDataViewer volume all fall to the generic view and are described by their datasets — and so does anything that only partly matches a layout: a `matrix` group missing its `features`, either 10x shape whose `indptr` says nothing about how many barcodes there are, a Cell Ranger 2 file that also declares a `filetype`, or a barnyard run whose two genome groups mean neither can be read as *the* one. A partial match is described for what it holds rather than claimed as a layout, since a field standing in for an absent array would name something that is not there.
+Nothing is refused. A Keras model, a NetCDF4 file, a MATLAB v7.3 session, an NWB recording and a BigDataViewer volume all fall to the generic view and are described by their datasets — and so does anything that only partly matches a layout: a `matrix` group missing its `features`, either 10x shape whose `indptr` says nothing about how many barcodes there are, or a legacy shape under a `filetype` naming some other format. A partial match is described for what it holds rather than claimed as a layout, since a field standing in for an absent array would name something that is not there.
+
+**A barnyard run gets one table pair per genome.** Cell Ranger 2 wrote one group per reference genome, and a human–mouse mixing experiment has two. Both are wholly present, so both are described, and the record set identifiers carry the genome only when there is more than one: `<stem>_hg19_genes`, `<stem>_mm10_genes`. scanpy and DropletUtils refuse such a file outright and Seurat returns one matrix per genome; the two that refuse do so because their readers return exactly one matrix, which a manifest is not obliged to. Cell Ranger 3 and later express multiple genomes as a `genome` column instead, so this only arises for files written before 2018.
 
 ### How to find a field in the file
 
@@ -326,9 +328,23 @@ In the generic view the field's `name` is itself the path. In a recognised layou
 
 ### Types, and where they come from
 
-For a recognised layout the AnnData `encoding-type` decides, not the dtype of the object carrying it. A `categorical` is typed from its `categories` and never from its `codes` — the codes are `int8` below 127 categories and `int32` at 40 000, so their width is the encoding rather than the type. A `nullable-integer` is typed from its `values` and not its `mask`. Pre-spec files are read too: `obs` as a compound-dtype dataset gives its members as columns, and an integer column beside `uns/<column>_categories` is a categorical.
+For a recognised layout the AnnData `encoding-type` decides, not the dtype of the object carrying it. A `categorical` is typed from its `categories` and never from its `codes` — the codes are `int8` below 127 categories and `int32` at 40 000, so their width is the encoding rather than the type. A `nullable-integer` is typed from its `values` and not its `mask`.
 
-Elsewhere the dtype maps directly, with two cases worth naming. A fixed-length string reports `sc:Text`, which loses the byte width. An object or region reference also reports `sc:Text`, because Croissant has nothing better, but its description says it is a reference — `dtype.kind` alone cannot tell one from a variable-length string, and calling it text without saying so would invite a reader to expect labels where there are only pointers.
+Older files are read too, because that is what the archives hold. Three vintages wrote a categorical with no encoding of its own, and all three are typed from their labels rather than from their codes:
+
+| Vintage | Where the labels are |
+|---|---|
+| current | `<column>/categories`, under `encoding-type: categorical` |
+| 0.7.0 – 0.7.8 | `<frame>/__categories/<column>`, beside int8 codes |
+| pre-0.7 | `uns/<column>_categories`, beside int8 codes |
+
+The 0.7 codes also carry a `categories` attribute holding an object reference. The reference is not what is followed: it names something rather than holding a value, and this reader never resolves one. The sibling's name is what is matched, and anndata's writer composes that exact path. `__categories` itself is never described as a column — anndata reserves the name.
+
+Two more pre-0.7 shapes: `obs` as a compound-dtype dataset gives its members as columns, and a sparse `X` written as a group under `h5sparse_format` / `h5sparse_shape` is one array field, not the three CSR arrays underneath it.
+
+A plain string column arrives in either of two shapes, and which one depends on the pandas version that wrote the file rather than on the anndata version: a `string-array` dataset under pandas 2, a `nullable-string-array` group under pandas 3, where `StringDtype` became the default. Both read as text.
+
+Elsewhere the dtype maps directly, with three cases worth naming. A fixed-length string reports `sc:Text`, which loses the byte width — every string in a Cell Ranger file is one of these. An object or region reference also reports `sc:Text`, because Croissant has nothing better, but its description says it is a reference — `dtype.kind` alone cannot tell one from a variable-length string, and calling it text without saying so would invite a reader to expect labels where there are only pointers. A dataset with a **null dataspace**, which declares no dimensions at all and holds no values, is described as a scalar; that it holds nothing rather than one value is a stated loss.
 
 ### Arrays attach to the axis that indexes them
 

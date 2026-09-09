@@ -236,6 +236,7 @@ def test_a_table_reaches_the_document_with_its_types_and_shapes(
         "is_doublet": "sc:Boolean",
         "nullable": "cr:Int64",
         "nullable_b": "sc:Boolean",
+        "nullable_s": "sc:Text",
         "X": "cr:Float32",
         "layers/counts": "cr:Int32",
         "obsm/X_pca": "cr:Float32",
@@ -464,7 +465,7 @@ def test_concurrent_extraction_matches_serial(dataset: Path) -> None:
     ("writer", "described_columns"),
     [
         (fx.write_dense, 8),
-        (lambda path: fx.write_h5ad(path, 2000, 50, payload=1_000_000), 15),
+        (lambda path: fx.write_h5ad(path, 2000, 50, payload=1_000_000), 16),
     ],
     ids=["generic", "anndata"],
 )

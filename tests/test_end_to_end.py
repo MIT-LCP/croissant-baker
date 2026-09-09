@@ -1331,7 +1331,7 @@ def geo_soft_path() -> Path:
     return dataset_path
 
 
-def _geo_schema(document: dict) -> dict:
+def _discovery_independent(document: dict) -> dict:
     """Compare the graph independently of filesystem discovery order.
 
     FileObject ids are scan counters. Resolve each to its contentUrl so that
@@ -1402,9 +1402,9 @@ def test_geo_soft_generation(
 
     assert result.exit_code == 0, f"CLI failed:\n{result.output}"
     assert "Scanned 4 file(s): 3 described, 1 not described" in result.output
-    assert _geo_schema(json.loads(output_file.read_text())) == _geo_schema(
-        json.loads(golden.read_text())
-    )
+    assert _discovery_independent(
+        json.loads(output_file.read_text())
+    ) == _discovery_independent(json.loads(golden.read_text()))
 
 
 def test_a_stem_shared_with_another_format_suffixes_both_sides(
@@ -1551,15 +1551,30 @@ def hdf5_demo_path() -> Path:
     return dataset_path
 
 
-def test_hdf5_demo_generation(hdf5_demo_path: Path, tmp_path: Path) -> None:
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_hdf5_demo_generation(
+    hdf5_demo_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
     """The whole CLI over HDF5, compared against the committed document.
 
-    The only end-to-end case that reads its golden rather than overwriting it,
-    which is what makes the golden worth committing: both the input fixture and
-    the output are frozen bytes, so any change to what this handler emits shows
-    up here as a diff rather than as a silently rewritten file. The input's
-    README says how to regenerate both.
+    Read rather than overwritten, which is what makes the golden worth
+    committing: both the input fixture and the output are frozen, so any change
+    to what this handler emits shows up here as a diff rather than as a
+    silently rewritten file. The input's README says how to regenerate both.
+
+    Compared through :func:`_discovery_independent`, and run in both discovery
+    orders, because ``rglob`` order is the filesystem's rather than sorted:
+    comparing the text directly passed on macOS and failed on Linux.
     """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
     output_file = tmp_path / "hdf5_demo_croissant.jsonld"
     golden = Path(__file__).parent / "data" / "output" / "hdf5_demo_croissant.jsonld"
     assert golden.is_file(), f"tracked HDF5 golden missing at {golden}"
@@ -1574,7 +1589,7 @@ def test_hdf5_demo_generation(hdf5_demo_path: Path, tmp_path: Path) -> None:
             "--name",
             "HDF5 demo (synthetic single-cell series)",
             "--description",
-            "Two 10x feature matrices, an integrated AnnData object, and a NetCDF4 file",
+            "Three 10x feature matrices, an integrated AnnData object, and a NetCDF4 file",
             "--url",
             "https://example.org/hdf5-demo",
             "--license",
@@ -1589,5 +1604,7 @@ def test_hdf5_demo_generation(hdf5_demo_path: Path, tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0, f"Command failed: {result.stdout}"
-    assert "Scanned 5 file(s): 4 described, 1 not described" in result.stdout
-    assert output_file.read_text() == golden.read_text()
+    assert "Scanned 6 file(s): 5 described, 1 not described" in result.stdout
+    assert _discovery_independent(
+        json.loads(output_file.read_text())
+    ) == _discovery_independent(json.loads(golden.read_text()))

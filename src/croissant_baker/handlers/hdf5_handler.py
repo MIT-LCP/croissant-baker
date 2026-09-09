@@ -16,9 +16,10 @@ import mlcroissant as mlc
 from croissant_baker.handlers import hdf5, layouts
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.utils import (
+    BASE,
+    allocate_record_set_ids,
     display_name,
     make_field_id,
-    make_record_set_ids,
 )
 from croissant_baker.sources import FileSource
 
@@ -83,39 +84,35 @@ class HDF5Handler(FileTypeHandler):
         if not file_metas:
             return BuildResult([], [])
 
-        bases = make_record_set_ids(file_metas)
-        # A bare base is claimed before any suffixed identifier is derived, so
-        # ``sample.h5ad`` cannot take ``sample_obs`` from a file actually named
-        # ``sample_obs.h5``. Claiming them in batch order instead would make
-        # the outcome depend on which file the scan reached first.
-        taken = {
-            base for base, meta in zip(bases, file_metas) if meta.get("layout") is None
-        }
+        # Every file's own base is reserved before any suffixed identifier is
+        # derived, so ``sample.h5ad`` cannot take ``sample_obs`` from a file
+        # actually named ``sample_obs.h5``. Sorted, and the batch's union
+        # rather than each file's own keys, so which file moves does not depend
+        # on the order the scan reached them in.
+        suffixes = sorted(
+            {
+                table.key
+                for meta in file_metas
+                if meta.get("layout") is not None
+                for table in meta["layout"].tables
+            }
+        )
+        allocated = allocate_record_set_ids(file_metas, suffixes, include_base=True)
+
         record_sets: List[mlc.RecordSet] = []
-        for base, meta, file_id in zip(bases, file_metas, file_ids):
-            record_sets.extend(_record_sets(base, taken, meta, file_id))
+        for meta, file_id, ids in zip(file_metas, file_ids, allocated):
+            record_sets.extend(_record_sets(ids, meta, file_id))
         return BuildResult([], record_sets)
 
 
-def _allocate(candidate: str, taken: set) -> str:
-    """``candidate``, suffixed until it is unique document-wide."""
-    chosen, n = candidate, 2
-    while chosen in taken:
-        chosen = f"{candidate}__{n}"
-        n += 1
-    taken.add(chosen)
-    return chosen
-
-
-def _record_sets(base: str, taken: set, meta: dict, file_id: str) -> list:
+def _record_sets(ids: dict, meta: dict, file_id: str) -> list:
     layout: Optional[layouts.Layout] = meta.get("layout")
     stored = display_name(meta)
     if layout is None:
-        # ``base`` is this file's, reserved above and unique among the bases.
-        return [_structure_record_set(base, meta["structure"], stored, file_id)]
+        return [_structure_record_set(ids[BASE], meta["structure"], stored, file_id)]
     return [
         _table_record_set(
-            _allocate(f"{base}_{table.key}", taken),
+            ids[table.key],
             layout,
             table,
             stored,

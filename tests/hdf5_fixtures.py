@@ -1,11 +1,18 @@
 """HDF5 files to describe, written by hand against what the real writers emit.
 
 Hand-built rather than produced by ``anndata`` or ``cellranger``, which are not
-dependencies of this package. Every layout here was checked against the real
-thing while it was written: the ``.h5ad`` is read back by anndata 0.13.3 with
-all eight ``obs`` columns at their intended dtypes, and both 10x files are read
-by ``scanpy.read_10x_h5`` at the expected shape. The dumps that pin the
-attribute names are in the AnnData on-disk spec and the Cell Ranger H5 spec.
+dependencies of this package, and small enough to commit. What each writer
+reproduces is not a reading of the specs but a dump of a real file, recorded in
+``tests/data/input/hdf5_demo/README.md`` beside the command that produced it.
+
+Reading a spec was not enough, and the differences were load-bearing: real 10x
+stores every string fixed-length rather than variable-length, writes ``indices``
+as ``int64``, and — the one that mattered — a real Cell Ranger 2 file carries
+``filetype = matrix`` at the root, which an earlier version of this module
+omitted and the reader therefore refused. Legacy files come from PyTables, so
+every object also carries ``CLASS``, ``VERSION``, ``TITLE`` and ``FILTERS``,
+and ``TITLE`` is sometimes a null dataspace — the shape that used to cost a
+file its whole description.
 """
 
 from __future__ import annotations
@@ -16,16 +23,47 @@ from typing import Iterable, Sequence
 import h5py
 import numpy as np
 
-#: Variable-length UTF-8, which is how both writers store every string.
+#: Variable-length UTF-8, which is how ``anndata`` stores every string.
 VLEN = h5py.string_dtype(encoding="utf-8")
+
+
+def _fixed(values: Sequence[str]):
+    """ASCII padded to the longest value, which is how Cell Ranger stores text.
+
+    Not :data:`VLEN`. Every string in a real 10x file is fixed-length — ``S18``
+    for a barcode, ``S15`` for a feature id — and the two take different
+    branches of the reader's dtype normalisation.
+    """
+    return np.array([v.encode("ascii") for v in values], dtype="S")
+
+
+def _pytables(node, klass: str, version: str = "1.1", *, titled: bool = False) -> None:
+    """The attributes PyTables stamps on every object it writes.
+
+    Cell Ranger 2 wrote through PyTables, so a real legacy file carries these
+    on every group and dataset. ``TITLE`` on a dataset is a *null dataspace* —
+    an attribute holding no value at all — which is worth having in a fixture.
+    """
+    node.attrs["CLASS"] = np.bytes_(klass.encode())
+    node.attrs["VERSION"] = np.bytes_(version.encode())
+    node.attrs["TITLE"] = h5py.Empty("S1") if titled else np.bytes_(b"")
+    if klass == "GROUP":
+        node.attrs["FILTERS"] = np.int64(65793)
+
 
 #: The 10x feature table's columns, in the order Cell Ranger writes them.
 TENX_FEATURE_COLUMNS = ("id", "name", "feature_type", "genome")
 
 #: ``obs`` columns of :func:`write_h5ad`, in ``column-order``. One per encoding
-#: a string column can take, plus the numeric and nullable ones.
+#: a column can take, and both encodings a *string* column can take.
+#:
+#: Which of the two a real file has turns on pandas, not on anndata: under
+#: pandas 2 a plain string column is written as a ``string-array`` dataset,
+#: and under pandas 3 — where ``StringDtype`` became the default — the same
+#: column is written as a ``nullable-string-array`` group. Both are shapes
+#: anndata 0.13 emits, so the fixture carries both.
 OBS_COLUMNS = (
-    "cell_id",  # all-distinct strings: anndata leaves these a string array
+    "cell_id",  # string-array dataset: a plain string column under pandas 2
     "cell_type",  # low cardinality: anndata converts these to categorical
     "sex",
     "n_counts",
@@ -33,6 +71,7 @@ OBS_COLUMNS = (
     "is_doublet",
     "nullable",
     "nullable_b",
+    "nullable_s",  # nullable-string-array group: the same column under pandas 3
 )
 
 VAR_COLUMNS = ("gene_symbol", "highly_variable")
@@ -104,11 +143,17 @@ def _dict(parent, name: str):
 
 
 def _dataframe(parent, name: str, columns: Sequence[str], index: Sequence[str]):
+    """A dataframe group whose ``_index`` is a ``string-array`` dataset.
+
+    A dataset, not a group: that is what anndata writes for an index of plain
+    strings. The group form belongs to pandas' nullable string dtype, and
+    :data:`OBS_COLUMNS` carries one of those separately.
+    """
     group = parent.create_group(name)
     _encoded(group, "dataframe")
     group.attrs["_index"] = "_index"
     group.attrs["column-order"] = np.asarray(columns, dtype=object)
-    _nullable(group, "_index", index, "nullable-string-array")
+    _strings(group, "_index", index)
     return group
 
 
@@ -124,9 +169,7 @@ def write_h5ad(path: Path, n_obs: int = 200, n_var: int = 50, payload: int = 0) 
         _encoded(f, "anndata", "0.1.0")
 
         obs = _dataframe(f, "obs", OBS_COLUMNS, [f"bc_{i}" for i in range(n_obs)])
-        _nullable(
-            obs, "cell_id", [f"cell_{i}" for i in range(n_obs)], "nullable-string-array"
-        )
+        _strings(obs, "cell_id", [f"cell_{i}" for i in range(n_obs)])
         _categorical(obs, "cell_type", ["B", "NK", "T"], np.arange(n_obs) % 3)
         _categorical(obs, "sex", ["female", "male"], np.arange(n_obs) % 2)
         _array(obs, "n_counts", np.arange(n_obs, dtype="int64"))
@@ -134,14 +177,15 @@ def write_h5ad(path: Path, n_obs: int = 200, n_var: int = 50, payload: int = 0) 
         _array(obs, "is_doublet", np.zeros(n_obs, dtype=bool))
         _nullable(obs, "nullable", np.arange(n_obs, dtype="int64"), "nullable-integer")
         _nullable(obs, "nullable_b", np.zeros(n_obs, dtype=bool), "nullable-boolean")
-
-        var = _dataframe(f, "var", VAR_COLUMNS, [f"ENSG{i:08d}" for i in range(n_var)])
         _nullable(
-            var,
-            "gene_symbol",
-            [f"GENE{i}" for i in range(n_var)],
+            obs,
+            "nullable_s",
+            [f"lot_{i}" for i in range(n_obs)],
             "nullable-string-array",
         )
+
+        var = _dataframe(f, "var", VAR_COLUMNS, [f"ENSG{i:08d}" for i in range(n_var)])
+        _strings(var, "gene_symbol", [f"GENE{i}" for i in range(n_var)])
         _array(var, "highly_variable", np.zeros(n_var, dtype=bool))
 
         _csr(f, "X", (n_obs, n_var))
@@ -184,56 +228,148 @@ def write_h5ad_compound(path: Path, n_obs: int = 20) -> Path:
     return path
 
 
+def write_h5ad_h5sparse(path: Path, n_obs: int = 20, n_var: int = 6) -> Path:
+    """Pre-0.7 AnnData: ``X`` a sparse group under the ``h5sparse`` names.
+
+    ``h5sparse_shape`` rather than ``shape``, after the library anndata's sparse
+    support came from. anndata still reads it. Without that fallback the group
+    declares no shape, and its three CSR arrays become three columns of ``obs``.
+    """
+    with h5py.File(path, "w") as f:
+        f["obs"] = np.zeros(n_obs, dtype=[("index", "S12"), ("louvain", "i8")])
+        f["var"] = np.zeros(n_var, dtype=[("index", "S12")])
+        nnz = n_obs
+        x = f.create_group("X")
+        x.attrs["h5sparse_format"] = np.bytes_(b"csr")
+        x.attrs["h5sparse_shape"] = np.asarray([n_obs, n_var], dtype="int64")
+        x.create_dataset("data", data=np.ones(nnz, dtype="float32"))
+        x.create_dataset("indices", data=np.zeros(nnz, dtype="int32"))
+        x.create_dataset("indptr", data=np.arange(n_obs + 1, dtype="int32"))
+    return path
+
+
+def write_h5ad_categories_group(path: Path, n_obs: int = 12) -> Path:
+    """AnnData 0.7.0 to 0.7.8: a categorical as codes beside ``__categories``.
+
+    No per-column ``encoding-type``, and the link to the labels is a
+    ``categories`` object *reference*. The reference is written because real
+    files carry it, but it is not what the reader matches on: a reference names
+    something rather than holding a value, so the ``Node`` interface reports it
+    absent. The sibling's name is what the reader follows, and anndata's writer
+    composes that exact path.
+    """
+    with h5py.File(path, "w") as f:
+        _encoded(f, "anndata", "0.1.0")
+        obs = f.create_group("obs")
+        _encoded(obs, "dataframe")
+        obs.attrs["_index"] = "_index"
+        obs.attrs["column-order"] = np.asarray(("cell_type", "n_counts"), dtype=object)
+        obs.create_dataset("_index", data=[f"bc_{i}" for i in range(n_obs)], dtype=VLEN)
+        labels = obs.create_group("__categories").create_dataset(
+            "cell_type", data=["B", "T"], dtype=VLEN
+        )
+        labels.attrs["ordered"] = False
+        codes = obs.create_dataset(
+            "cell_type", data=(np.arange(n_obs) % 2).astype("int8")
+        )
+        codes.attrs["categories"] = labels.ref
+        obs.create_dataset("n_counts", data=np.arange(n_obs, dtype="int64"))
+
+        var = f.create_group("var")
+        _encoded(var, "dataframe")
+        var.attrs["_index"] = "_index"
+        var.attrs["column-order"] = np.asarray(("gene_symbol",), dtype=object)
+        var.create_dataset("_index", data=["ENSG00000000"], dtype=VLEN)
+        var.create_dataset("gene_symbol", data=["GENE0"], dtype=VLEN)
+    return path
+
+
+def write_h5ad_categories_unordered(path: Path) -> Path:
+    """The same store, with no ``column-order`` to hide ``__categories``.
+
+    Without it the column names come from the group's keys, and ``__categories``
+    is one of them — a group holding other columns' labels, described as a
+    column of its own. anndata reserves the name, so excluding it drops nothing.
+    """
+    write_h5ad_categories_group(path)
+    with h5py.File(path, "a") as f:
+        del f["obs"].attrs["column-order"]
+    return path
+
+
+def write_null_dataspace(path: Path) -> Path:
+    """A dataset that declares no dataspace at all, beside ordinary ones.
+
+    Legal HDF5, and what PyTables writes for an empty ``TITLE``. h5py reports
+    its shape as ``None``, which used to cost the file its whole description.
+    """
+    with h5py.File(path, "w") as f:
+        f.create_dataset("empty", data=h5py.Empty("f8"))
+        f.create_dataset("real", data=np.arange(3, dtype="int64"))
+        f.create_group("g").create_dataset("also_empty", data=h5py.Empty("i4"))
+    return path
+
+
 # ---------------------------------------------------------------------------
 # 10x Genomics feature-barcode matrices
 # ---------------------------------------------------------------------------
 
 
-def _csc(group, n_rows: int, n_cols: int, *, dtype="int32", shape_child=True):
+def _csc(group, n_rows: int, n_cols: int, *, dtype="int32", shape_child=True, pt=False):
     """A CSC matrix with one column per barcode.
 
     ``indptr`` has one entry per column plus a terminator, so its length pins
     which axis ``shape`` names — the invariant an earlier synthetic fixture
-    broke, leaving the axis convention unsettled.
+    broke, leaving the axis convention unsettled. ``indices`` is ``int64`` and
+    ``shape`` ``int32``, as in every real file dumped.
     """
     per_column = 2
     nnz = n_cols * per_column
-    group.create_dataset("data", data=np.ones(nnz, dtype=dtype))
-    group.create_dataset("indices", data=(np.arange(nnz) % n_rows).astype("int32"))
-    group.create_dataset(
-        "indptr", data=np.arange(n_cols + 1, dtype="int64") * per_column
-    )
+    made = {
+        "data": group.create_dataset("data", data=np.ones(nnz, dtype=dtype)),
+        "indices": group.create_dataset(
+            "indices", data=(np.arange(nnz) % n_rows).astype("int64")
+        ),
+        "indptr": group.create_dataset(
+            "indptr", data=np.arange(n_cols + 1, dtype="int64") * per_column
+        ),
+    }
     if shape_child:
-        group.create_dataset("shape", data=np.asarray([n_rows, n_cols], dtype="int32"))
+        made["shape"] = group.create_dataset(
+            "shape", data=np.asarray([n_rows, n_cols], dtype="int32")
+        )
+    if pt:
+        for dataset in made.values():
+            _pytables(dataset, "CARRAY", titled=True)
 
 
 def write_tenx(path: Path, n_features: int = 30, n_barcodes: int = 200) -> Path:
-    """Cell Ranger v3 and later: one ``matrix`` group, features in a subgroup."""
+    """Cell Ranger v3 and later: one ``matrix`` group, features in a subgroup.
+
+    The root attribute set of a real file, and fixed-length strings throughout.
+    """
     with h5py.File(path, "w") as f:
-        f.attrs["filetype"] = "matrix"
-        f.attrs["version"] = 2
         f.attrs["chemistry_description"] = "Single Cell 3' v3"
-        f.attrs["library_ids"] = np.asarray(["probe_library"], dtype=object)
+        f.attrs["filetype"] = "matrix"
+        f.attrs["library_ids"] = _fixed(["probe_library"])
         f.attrs["original_gem_groups"] = np.asarray([1], dtype="int64")
-        f.attrs["software_version"] = "cellranger-7.1.0"
+        f.attrs["version"] = np.int64(2)
 
         matrix = f.create_group("matrix")
         matrix.create_dataset(
-            "barcodes",
-            data=[f"BC{i:06d}-1" for i in range(n_barcodes)],
-            dtype=VLEN,
+            "barcodes", data=_fixed([f"BC{i:06d}-1" for i in range(n_barcodes)])
         )
         _csc(matrix, n_features, n_barcodes)
 
         features = matrix.create_group("features")
-        features.create_dataset("_all_tag_keys", data=["genome"], dtype=VLEN)
+        features.create_dataset("_all_tag_keys", data=_fixed(["genome"]))
         for name, values in (
             ("id", [f"ENSG{i:08d}" for i in range(n_features)]),
             ("name", [f"GENE{i}" for i in range(n_features)]),
             ("feature_type", ["Gene Expression"] * n_features),
             ("genome", ["GRCh38"] * n_features),
         ):
-            features.create_dataset(name, data=values, dtype=VLEN)
+            features.create_dataset(name, data=_fixed(values))
     return path
 
 
@@ -291,24 +427,42 @@ def write_fat_attributes(path: Path, megabytes: int = 8) -> Path:
     return path
 
 
+def _legacy_genome(f, genome: str, n_genes: int, n_barcodes: int):
+    """One Cell Ranger 2 genome group, as PyTables wrote it."""
+    group = f.create_group(genome)
+    _pytables(group, "GROUP", "1.0")
+    for name, values in (
+        ("barcodes", [f"BC{i:06d}-1" for i in range(n_barcodes)]),
+        ("gene_names", [f"GENE{i}" for i in range(n_genes)]),
+        ("genes", [f"ENSG{i:08d}" for i in range(n_genes)]),
+    ):
+        _pytables(
+            group.create_dataset(name, data=_fixed(values)), "CARRAY", titled=True
+        )
+    _csc(group, n_genes, n_barcodes, pt=True)
+    return group
+
+
 def write_tenx_legacy(
     path: Path, n_genes: int = 30, n_barcodes: int = 200, genome: str = "GRCh38"
 ) -> Path:
-    """Cell Ranger v2: one group named for the genome, and no ``filetype``."""
+    """Cell Ranger v2: one group named for the genome.
+
+    It carries ``filetype = matrix`` like every real one, which is the whole
+    reason this fixture was rewritten: the reader used to refuse on that
+    attribute's presence, so the legacy layout matched nothing real.
+    """
     with h5py.File(path, "w") as f:
-        group = f.create_group(genome)
-        group.create_dataset(
-            "barcodes",
-            data=[f"BC{i:06d}-1" for i in range(n_barcodes)],
-            dtype=VLEN,
-        )
-        group.create_dataset(
-            "gene_names", data=[f"GENE{i}" for i in range(n_genes)], dtype=VLEN
-        )
-        group.create_dataset(
-            "genes", data=[f"ENSG{i:08d}" for i in range(n_genes)], dtype=VLEN
-        )
-        _csc(group, n_genes, n_barcodes)
+        f.attrs["CLASS"] = np.bytes_(b"GROUP")
+        f.attrs["FILTERS"] = np.int64(65793)
+        f.attrs["PYTABLES_FORMAT_VERSION"] = np.bytes_(b"2.1")
+        f.attrs["TITLE"] = np.bytes_(b"")
+        f.attrs["VERSION"] = np.bytes_(b"1.0")
+        f.attrs["chemistry_description"] = np.bytes_(b"Single Cell 3' v2")
+        f.attrs["filetype"] = np.bytes_(b"matrix")
+        f.attrs["library_ids"] = _fixed(["legacy_library"])
+        f.attrs["original_gem_groups"] = np.asarray([1], dtype="int64")
+        _legacy_genome(f, genome, n_genes, n_barcodes)
     return path
 
 
@@ -322,10 +476,11 @@ def write_tenx_legacy_widthless(
     length at all; pass a sequence for a length that declares no columns.
     """
     with h5py.File(path, "w") as f:
+        f.attrs["filetype"] = np.bytes_(b"matrix")
         group = f.create_group(genome)
-        group.create_dataset("barcodes", data=["BC000000-1"], dtype=VLEN)
-        group.create_dataset("gene_names", data=["GENE0"], dtype=VLEN)
-        group.create_dataset("genes", data=["ENSG00000000"], dtype=VLEN)
+        group.create_dataset("barcodes", data=_fixed(["BC000000-1"]))
+        group.create_dataset("gene_names", data=_fixed(["GENE0"]))
+        group.create_dataset("genes", data=_fixed(["ENSG00000000"]))
         group.create_dataset("data", data=np.ones(1, dtype="int32"))
         group.create_dataset(
             "indptr",
@@ -334,23 +489,41 @@ def write_tenx_legacy_widthless(
     return path
 
 
-def write_tenx_legacy_with_a_filetype(path: Path) -> Path:
-    """Cell Ranger v2's shape over the ``filetype`` v2 never wrote."""
+def write_tenx_foreign_filetype(path: Path) -> Path:
+    """Cell Ranger v2's shape under a ``filetype`` naming something else.
+
+    A container that says what it is is described by what it says. ``matrix``
+    is what a real legacy file declares and is accepted; anything else is a
+    different format wearing a familiar shape.
+    """
     write_tenx_legacy(path)
     with h5py.File(path, "a") as f:
-        f.attrs["filetype"] = "matrix"
+        f.attrs["filetype"] = np.bytes_(b"molecule_info")
     return path
 
 
-def write_tenx_barnyard(path: Path) -> Path:
-    """Two genome groups, as a barnyard run wrote them: reading it as either
-    one would silently drop the other."""
-    write_tenx_legacy(path, genome="hg19")
-    second = path.with_name("mm10.h5")
-    write_tenx_legacy(second, genome="mm10")
-    with h5py.File(path, "a") as target, h5py.File(second, "r") as extra:
-        extra.copy("mm10", target)
-    second.unlink()
+def write_tenx_barnyard(path: Path, n_genes: int = 30, n_barcodes: int = 200) -> Path:
+    """Two genome groups, as a barnyard run wrote them.
+
+    Both are wholly present, so both are described. scanpy and DropletUtils
+    refuse this file because their readers return exactly one matrix; a
+    manifest is under no such constraint.
+    """
+    write_tenx_legacy(path, n_genes, n_barcodes, genome="hg19")
+    with h5py.File(path, "a") as f:
+        _legacy_genome(f, "mm10", n_genes, n_barcodes)
+    return path
+
+
+def write_tenx_legacy_with_a_sibling(path: Path) -> Path:
+    """One genome group beside a group that is not one.
+
+    Real files carry extra top-level groups, and requiring exactly one group at
+    the root sent them all to the generic view.
+    """
+    write_tenx_legacy(path)
+    with h5py.File(path, "a") as f:
+        f.create_group("metadata").create_dataset("note", data=_fixed(["run 1"]))
     return path
 
 
@@ -478,8 +651,9 @@ def write_many(path: Path, count: int) -> Path:
 #: ``features/genome``, and not for :func:`write_tenx_legacy`, which names its
 #: group for the reference and stores no genome column at all.
 FORBIDDEN_VALUES = {
-    write_h5ad: ("cell_0", "bc_0", "NK", "GENE0", "ENSG00000000"),
+    write_h5ad: ("cell_0", "bc_0", "NK", "GENE0", "ENSG00000000", "lot_0"),
     write_h5ad_compound: ("louvain_categories",),
+    write_h5ad_categories_group: ("bc_0", "GENE0", "ENSG00000000"),
     write_tenx: (
         "BC000000",
         "ENSG00000000",
@@ -487,9 +661,9 @@ FORBIDDEN_VALUES = {
         "GRCh38",
         "Gene Expression",
         "probe_library",
-        "cellranger-7.1.0",
     ),
-    write_tenx_legacy: ("BC000000", "ENSG00000000", "GENE0"),
+    write_tenx_legacy: ("BC000000", "ENSG00000000", "GENE0", "legacy_library"),
+    write_tenx_barnyard: ("BC000000", "ENSG00000000", "GENE0", "legacy_library"),
 }
 
 

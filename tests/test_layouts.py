@@ -254,8 +254,9 @@ def test_current_anndata_becomes_an_obs_table_and_a_var_table(tmp_path: Path) ->
     ]
     assert list(table_of(layout, "obs"))[: len(fx.OBS_COLUMNS)] == list(fx.OBS_COLUMNS)
     assert table_of(layout, "obs") == {
-        # nullable-string-array and nullable-integer are typed from ``values``,
-        # never from the ``mask`` beside it.
+        # A plain string column: a ``string-array`` dataset under pandas 2, and
+        # the ``nullable-string-array`` group ``nullable_s`` below under
+        # pandas 3. Both are shapes anndata 0.13 emits, and both read as text.
         "cell_id": ("sc:Text", "", "obs/cell_id"),
         # A categorical is typed from its categories and never from its codes:
         # those are int8 below 127 categories and int32 at 40 000, so their
@@ -267,6 +268,9 @@ def test_current_anndata_becomes_an_obs_table_and_a_var_table(tmp_path: Path) ->
         "is_doublet": ("sc:Boolean", "", "obs/is_doublet"),
         "nullable": ("cr:Int64", "", "obs/nullable"),
         "nullable_b": ("sc:Boolean", "", "obs/nullable_b"),
+        # nullable-string-array and nullable-integer are typed from ``values``,
+        # never from the ``mask`` beside it.
+        "nullable_s": ("sc:Text", "", "obs/nullable_s"),
         # ``X`` is a group of data/indices/indptr whose shape is an attribute,
         # and is not derivable from the children's lengths.
         "X": ("cr:Float32", "500", "X"),
@@ -336,9 +340,9 @@ def test_a_current_feature_matrix_becomes_features_and_barcodes(
 
 
 def test_a_legacy_feature_matrix_becomes_genes_and_barcodes(tmp_path: Path) -> None:
-    """Cell Ranger v2 wrote one group named for the reference genome and no
-    ``filetype`` at all, so ``genes`` is at ``/GRCh38/genes`` and nothing else
-    in the manifest would record the genome.
+    """Cell Ranger v2 wrote one group named for the reference genome, so
+    ``genes`` is at ``/GRCh38/genes`` and nothing else in the manifest would
+    record the genome.
     """
     path = fx.write_tenx_legacy(tmp_path / "legacy.h5", 30, 200)
     with h5py.File(path, "a") as f:
@@ -359,6 +363,125 @@ def test_a_legacy_feature_matrix_becomes_genes_and_barcodes(tmp_path: Path) -> N
     assert layout.undescribed == ("library_ids",)
 
 
+def test_a_legacy_matrix_is_recognised_over_the_filetype_it_declares(
+    tmp_path: Path,
+) -> None:
+    """Every real Cell Ranger 2 file carries ``filetype = matrix``. Refusing on
+    its presence — on the belief that v2 wrote none — made this layout match
+    nothing that was ever written."""
+    with h5py.File(fx.write_tenx_legacy(tmp_path / "legacy.h5"), "r") as f:
+        assert f.attrs["filetype"] == b"matrix"
+
+    layout, _ = described(tmp_path / "legacy.h5")
+
+    assert layout is not None and layout.name == layouts.TENX
+
+
+def test_a_legacy_matrix_is_recognised_beside_a_group_that_is_not_a_genome(
+    tmp_path: Path,
+) -> None:
+    """Any extra top-level group used to disqualify the file, because the rule
+    counted groups rather than genomes."""
+    layout, _ = described(fx.write_tenx_legacy_with_a_sibling(tmp_path / "legacy.h5"))
+
+    assert [t.key for t in layout.tables] == ["genes", "barcodes"]
+    assert layout.undescribed == ("metadata",)
+
+
+def test_a_barnyard_file_gives_one_table_pair_per_genome(tmp_path: Path) -> None:
+    """Both genomes are wholly present, so both are described, and the keys
+    carry the genome only because there is more than one.
+
+    scanpy and DropletUtils refuse this file and Seurat returns one matrix per
+    genome; the two that refuse do so because their readers return exactly one
+    matrix, which a manifest is not obliged to.
+    """
+    layout, structure = described(
+        fx.write_tenx_barnyard(tmp_path / "barnyard.h5", 8, 6)
+    )
+
+    assert (structure, layout.name) == (None, layouts.TENX)
+    assert [t.key for t in layout.tables] == [
+        "hg19_genes",
+        "hg19_barcodes",
+        "mm10_genes",
+        "mm10_barcodes",
+    ]
+    assert table_of(layout, "mm10_genes") == {
+        "genes": ("sc:Text", "", "mm10/genes"),
+        "gene_names": ("sc:Text", "", "mm10/gene_names"),
+        "matrix": ("cr:Int32", "6", "mm10"),
+    }
+    assert {t.rows for t in layout.tables} == {8, 6}
+    assert layout.undescribed == ()
+
+
+def test_a_pre_spec_sparse_x_is_one_column_and_not_its_csr_arrays(
+    tmp_path: Path,
+) -> None:
+    """Pre-0.7 AnnData spelled a sparse group's shape ``h5sparse_shape``, and
+    anndata still reads that name. Without it the group declares no shape, and
+    ``data``, ``indices`` and ``indptr`` become three columns of ``obs`` —
+    the matrix's internals described as observations."""
+    layout, structure = described(fx.write_h5ad_h5sparse(tmp_path / "old.h5ad", 20, 6))
+
+    assert (structure, layout.name) == (None, layouts.ANNDATA)
+    assert table_of(layout, "obs") == {
+        "louvain": ("cr:Int64", "", "obs"),
+        "X": ("cr:Float32", "6", "X"),
+    }
+
+
+def test_a_categories_group_types_the_codes_beside_it(tmp_path: Path) -> None:
+    """anndata 0.7.0 to 0.7.8 wrote a categorical as an int8 dataset with its
+    labels in a ``__categories`` sibling and no encoding of its own. Typing it
+    from the codes reports the encoding's width as the column's type."""
+    layout, _ = described(fx.write_h5ad_categories_group(tmp_path / "v07.h5ad"))
+
+    assert table_of(layout, "obs") == {
+        "cell_type": ("sc:Text", "", "obs/cell_type"),
+        "n_counts": ("cr:Int64", "", "obs/n_counts"),
+    }
+
+
+def test_the_categories_store_is_never_a_column_of_its_own(tmp_path: Path) -> None:
+    """With no ``column-order`` the names come from the group's keys, and
+    ``__categories`` is one of them. It holds other columns' labels; anndata
+    reserves the name, so excluding it can drop nothing real."""
+    layout, _ = described(fx.write_h5ad_categories_unordered(tmp_path / "v07.h5ad"))
+
+    assert set(table_of(layout, "obs")) == {"cell_type", "n_counts"}
+
+
+def test_a_null_dataspace_does_not_cost_the_file_its_description(
+    tmp_path: Path,
+) -> None:
+    """``h5py.Empty`` is legal HDF5 and reports ``shape is None``. One such
+    dataset used to raise out of the whole extraction, taking every other
+    dataset in the file with it. It is described as a scalar."""
+    structure = structure_of(fx.write_null_dataspace(tmp_path / "null.h5"))
+
+    assert {c.name: (c.data_type, c.array_shape) for c in structure.columns} == {
+        "empty": ("cr:Float64", ""),
+        "g/also_empty": ("cr:Int32", ""),
+        "real": ("cr:Int64", "3"),
+    }
+
+
+def test_the_tag_key_list_is_not_a_feature_column(tmp_path: Path) -> None:
+    """``_all_tag_keys`` names the optional feature columns rather than being
+    one. The length filter alone misses it on a file with no ``id``, which
+    declares no feature count to filter against."""
+    path = tmp_path / "noid.h5"
+    fx.write_tenx(path, 5, 4)
+    with h5py.File(path, "a") as f:
+        del f["matrix/features/id"]
+
+    layout, _ = described(path)
+
+    assert "_all_tag_keys" not in table_of(layout, "features")
+
+
 # ---------------------------------------------------------------------------
 # A partial match is described for what it holds, never claimed as a layout
 # ---------------------------------------------------------------------------
@@ -366,11 +489,10 @@ def test_a_legacy_feature_matrix_becomes_genes_and_barcodes(tmp_path: Path) -> N
 #: Each nearly matches a layout, and each must fall to the generic view with
 #: the dataset it really holds named there.
 MALFORMED = {
-    "two-genomes": (fx.write_tenx_barnyard, "hg19/barcodes"),
     "no-features": (fx.write_tenx_headless, "matrix/barcodes"),
     "features-not-a-group": (fx.write_tenx_dataset_features, "matrix/features"),
     "no-matrix": (fx.write_tenx_featureless_matrix, "matrix/features/id"),
-    "legacy-with-filetype": (fx.write_tenx_legacy_with_a_filetype, "GRCh38/genes"),
+    "foreign-filetype": (fx.write_tenx_foreign_filetype, "GRCh38/genes"),
     "width-scalar": (fx.write_tenx_legacy_widthless, "GRCh38/genes"),
     "width-no-columns": (
         lambda path: fx.write_tenx_legacy_widthless(path, []),
