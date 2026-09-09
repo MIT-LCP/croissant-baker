@@ -72,6 +72,7 @@ $ croissant-baker [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `rai-apply`: Apply RAI attributes from a config YAML to...
+* `mcp`: Serve the dry_run, bake and validate tools...
 * `validate`: Validate a Croissant metadata file.
 
 ## `croissant-baker rai-apply`
@@ -93,6 +94,23 @@ $ croissant-baker rai-apply [OPTIONS] FILE_PATH
 * `--rai-config FILE`: RAI config YAML file  [required]
 * `-o, --output TEXT`: Output path (defaults to overwriting the input file)
 * `--validate / --no-validate`: Validate after applying RAI attributes  [default: validate]
+* `--help`: Show this message and exit.
+
+## `croissant-baker mcp`
+
+Serve the dry_run, bake and validate tools over stdio to a local agent.
+
+Model Context Protocol, stdio transport only: no HTTP listener and no
+outbound requests, so a bake still never leaves the local environment.
+
+**Usage**:
+
+```console
+$ croissant-baker mcp [OPTIONS]
+```
+
+**Options**:
+
 * `--help`: Show this message and exit.
 
 ## `croissant-baker validate`

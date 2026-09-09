@@ -26,6 +26,20 @@ uv run croissant-baker --help
 uv run croissant-baker --input ./my-dataset --creator "Jane Doe"
 ```
 
+### Local MCP server
+
+`croissant-baker mcp` serves three tools to a local agent over stdio: `dry_run`
+(what a bake would describe and refuse, with reasons), `bake` (generate,
+validate and write the metadata) and `validate` (construct an existing file
+under `mlcroissant`). stdio is the only transport; there is no HTTP listener and
+no outbound request, so the no-upload guarantee is unchanged. The SDK is an
+optional dependency group:
+
+```bash
+uv sync --group mcp
+uv run croissant-baker mcp
+```
+
 ## Testing
 
 ```bash
