@@ -553,6 +553,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#geo-soft" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GEO SOFT
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GEO SOFT">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schema-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unsupported-and-incomplete-inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unsupported and incomplete inputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hidden-files-and-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -898,6 +937,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#geo-soft" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GEO SOFT
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GEO SOFT">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schema-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unsupported-and-incomplete-inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unsupported and incomplete inputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hidden-files-and-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1038,6 +1116,12 @@ or <code>would_process</code> (<code>--dry-run</code> only). <code>reason</code>
 <td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Spatial dimensions, voxel spacing, data type, TR for fMRI volumes</td>
 </tr>
+<tr>
+<td>GEO SOFT</td>
+<td><code>.soft</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>Entity attribute names, sample characteristic keys, data table columns</td>
+</tr>
 </tbody>
 </table>
 <h2 id="compression">Compression</h2>
@@ -1143,6 +1227,98 @@ or <code>would_process</code> (<code>--dry-run</code> only). <code>reason</code>
 <p>NIfTI (<code>.nii</code>) is the standard format for neuroimaging data (structural MRI, fMRI, CT). The handler uses <code>nibabel</code> and reads the header only — the voxel data array is never loaded.</p>
 <p>Extracted metadata: spatial dimensions (x, y, z), number of timepoints for 4D volumes, voxel spacing in mm, stored data type, NIfTI version (1 or 2), and repetition time (TR) for fMRI data.</p>
 <p>All NIfTI files in a dataset are grouped into one <code>cr:FileSet</code> with a summary <code>cr:RecordSet</code>. The <code>tr_seconds</code> field is only added when at least one 4D volume is present.</p>
+<h2 id="geo-soft">GEO SOFT</h2>
+<p>SOFT is a metadata and data export format of the NCBI Gene Expression Omnibus.
+The handler reads <code>.soft</code> family exports and curated DataSet exports such as
+<code>GDS10.soft.gz</code>. Compression is handled by the shared input layer.</p>
+<p>The following record sets describe each file:</p>
+<table>
+<thead>
+<tr>
+<th>Record set suffix</th>
+<th>One row per</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_series</code>, <code>_samples</code>, <code>_platforms</code>, <code>_datasets</code>, <code>_subsets</code></td>
+<td>distinct entity of that kind</td>
+<td>declared attribute names, with the entity prefix removed</td>
+</tr>
+<tr>
+<td><code>_sample_characteristics</code></td>
+<td>sample</td>
+<td>sample accession and submitter-defined characteristic keys</td>
+</tr>
+<tr>
+<td><code>_series_table</code>, <code>_sample_table</code>, <code>_platform_table</code>, <code>_dataset_table</code>, etc.</td>
+<td>table row</td>
+<td>declared table columns</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>^DATABASE</code> block is shared GEO boilerplate and is not described. An entity
+kind with no attributes produces no attribute record set. Repeated
+<code>^DATASET</code> declarations for the same accession, separated by <code>^SUBSET</code> blocks,
+count as one dataset. Unsupported entity kinds cause extraction to fail with a
+reason; their metadata is not silently omitted.</p>
+<p>Sample characteristics have a separate record set because their keys are
+submitter-defined. This also keeps a <code>title:</code> characteristic distinct from the
+standard <code>!Sample_title</code> attribute. Characteristics split on the <strong>first colon</strong>,
+with or without whitespace: <code>tissue:liver</code> and <code>tissue: liver</code> both name <code>tissue</code>.
+An empty value still names a key. Lines without a nonempty key and colon are
+counted and represented by fallback fields such as <code>characteristics_ch1</code>.
+Channel 1 and channel-less keys keep their bare names; channels 2 and above
+always use <code>ch2_</code>, <code>ch3_</code>, etc. An unrelated sample cannot rename channel 1's
+fields. Name collisions receive <code>__2</code>, <code>__3</code>, etc., preserving each field.</p>
+<p>The characteristics record set also includes a scalar text <strong><code>geo_accession</code></strong>
+field. It describes the accession of the enclosing <code>^SAMPLE = ACCESSION</code>
+declaration, also commonly recorded in <code>!Sample_geo_accession</code>. A consumer can
+therefore associate that sample with donor keys such as <code>dbgap_subject_id</code>
+(GSE327347) or <code>patient id</code> (GSE335275). This works even when the redundant
+<code>!Sample_geo_accession</code> attribute is absent. If a submitter uses <code>geo_accession</code>
+as a characteristic key, that key is preserved and the added sample identifier
+uses the next available <code>geo_accession__N</code> name; its description identifies its
+source. Donor values and accession values are not copied into the manifest.</p>
+<p>Tables group by entity kind, optional table title, and exact column signature.
+Named series tables, including GSE2034's patient clinical parameters, are
+included. Differently titled tables remain separate even with identical
+columns. Titles and the deposit's <code>#COLUMN</code> descriptions are retained as schema
+metadata. Row counts come from <code>!*_data_row_count</code> declarations; absent or
+invalid counts are reported as unknown. Counts describe the declarations, not
+an independent count of the table body.</p>
+<h3 id="schema-metadata">Schema metadata</h3>
+<p><strong>No data values are emitted.</strong> Attribute and characteristic fields are
+<code>sc:Text</code>, including numeric-looking donor identifiers. Table columns are typed
+using PyArrow and the shared Croissant type mapping. The parser samples up to
+500 rows and 1 MiB per table signature, then discards the sample after typing.
+Empty trailing cells beyond the header width are ignored; duplicate column
+names retain separate positions, types and field identifiers. Type inference
+uses sampled rows, so later rows may contain types absent from that sample.
+Memory grows with entity metadata and distinct table signatures, not the full
+table bodies.</p>
+<p>Fields carry <code>source: {fileObject: …}</code> and <strong>no <code>extract</code></strong>. Croissant 1.1's
+extraction grammar cannot address SOFT entity attributes, and <code>mlcroissant</code>
+does not read SOFT data. These record sets describe the schema; consumers
+reading sample–donor values must parse the source SOFT file within each
+<code>^SAMPLE</code> block. The sample accession field supplies the schema needed for
+that association, without inventing a donor relationship from field names.</p>
+<p>Identifiers derive from the logical filename and dataset-relative path.
+Compression does not change them. For example, <code>GSE1_family.soft.gz</code> produces
+<code>GSE1_family_series</code> and <code>GSE1_family_sample_characteristics</code>. Cross-format
+identifier collisions follow the shared generator rules. <code>encodingFormat</code> is
+<code>text/x-geo-soft</code>, with the compression media type added by the input layer.</p>
+<h3 id="unsupported-and-incomplete-inputs">Unsupported and incomplete inputs</h3>
+<p><code>GSE*_series_matrix.txt</code> uses a different grammar and is not supported by this
+handler. Neither are <code>GSM*.txt</code> or <code>GPL*.annot</code>. Renaming a series matrix to
+<code>.soft</code> does not make it a valid SOFT entity export.</p>
+<p>Files without valid <code>^ENTITY = ACCESSION</code> declarations, unknown entity kinds,
+and mismatched or nested table markers fail extraction with a reason. A table
+still open at end of file or undecodable UTF-8 produces a partial-parse warning
+on every emitted record set. A complete attribute line at end of file is valid:
+attribute blocks have no closing marker. A leading UTF-8 byte order mark is
+accepted.</p>
 <h2 id="hidden-files-and-directories">Hidden files and directories</h2>
 <p>Files inside hidden directories (any path component starting with <code>.</code>) are always skipped, and do not appear in the coverage report. Use <code>--include</code> and <code>--exclude</code> glob patterns to further control which files are processed.</p>
 
