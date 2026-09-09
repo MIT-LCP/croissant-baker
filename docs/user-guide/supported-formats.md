@@ -178,11 +178,12 @@ The following record sets describe each file:
 
 | Record set suffix | One row per | Fields |
 |-------------------|-------------|--------|
-| `_database`, `_series`, `_samples`, `_platforms`, `_datasets`, `_subsets` | distinct entity of that kind | declared attribute names, with the entity prefix removed |
+| `_series`, `_samples`, `_platforms`, `_datasets`, `_subsets` | distinct entity of that kind | declared attribute names, with the entity prefix removed |
 | `_sample_characteristics` | sample | sample accession and submitter-defined characteristic keys |
 | `_series_table`, `_sample_table`, `_platform_table`, `_dataset_table`, etc. | table row | declared table columns |
 
-An entity kind with no attributes produces no attribute record set. Repeated
+The `^DATABASE` block is shared GEO boilerplate and is not described. An entity
+kind with no attributes produces no attribute record set. Repeated
 `^DATASET` declarations for the same accession, separated by `^SUBSET` blocks,
 count as one dataset. Unsupported entity kinds cause extraction to fail with a
 reason; their metadata is not silently omitted.

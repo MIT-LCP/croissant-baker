@@ -154,6 +154,7 @@ def test_no_value_is_emitted(any_export: Path) -> None:
     record_sets = build(any_export)
 
     assert record_sets, "nothing was described"
+    assert all(not rs.id.endswith("_database") for rs in record_sets)
     for record_set in record_sets:
         assert record_set.fields, record_set.id
         for field in record_set.fields:
@@ -255,7 +256,7 @@ def test_same_basename_in_two_directories_stays_apart(dataset: Path) -> None:
 
     ids = [rs.id for rs in build(*paths, root=dataset)]
 
-    assert len(ids) == len(set(ids)) == 14
+    assert len(ids) == len(set(ids)) == 12
     assert all(rs_id.startswith(("a__", "b__")) for rs_id in ids), ids
 
 
@@ -643,7 +644,6 @@ def test_gds_attributes_subsets_and_expression_table_are_all_described() -> None
     }
     record_sets = build(path)
     assert {rs.id for rs in record_sets} == {
-        "GDS10_database",
         "GDS10_datasets",
         "GDS10_subsets",
         "GDS10_dataset_table",

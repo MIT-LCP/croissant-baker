@@ -97,62 +97,6 @@
   "recordSet": [
     {
       "@type": "cr:RecordSet",
-      "@id": "GSE327347_family_database",
-      "name": "GSE327347_family_database",
-      "description": "Database-level attributes in GSE327347_family.soft.gz (1 database, 4 attribute names). No value is emitted.",
-      "field": [
-        {
-          "@type": "cr:Field",
-          "@id": "GSE327347_family_database/name",
-          "name": "name",
-          "description": "Database attribute 'name'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_0"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE327347_family_database/institute",
-          "name": "institute",
-          "description": "Database attribute 'institute'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_0"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE327347_family_database/web_link",
-          "name": "web_link",
-          "description": "Database attribute 'web_link'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_0"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE327347_family_database/email",
-          "name": "email",
-          "description": "Database attribute 'email'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_0"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "@type": "cr:RecordSet",
       "@id": "GSE327347_family_series",
       "name": "GSE327347_family_series",
       "description": "Series-level attributes in GSE327347_family.soft.gz (1 series, 28 attribute names). No value is emitted.",
@@ -1268,62 +1212,6 @@
           "source": {
             "fileObject": {
               "@id": "file_0"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "@type": "cr:RecordSet",
-      "@id": "GSE1000_family_database",
-      "name": "GSE1000_family_database",
-      "description": "Database-level attributes in GSE1000_family.soft (1 database, 4 attribute names). No value is emitted.",
-      "field": [
-        {
-          "@type": "cr:Field",
-          "@id": "GSE1000_family_database/name",
-          "name": "name",
-          "description": "Database attribute 'name'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE1000_family_database/institute",
-          "name": "institute",
-          "description": "Database attribute 'institute'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE1000_family_database/web_link",
-          "name": "web_link",
-          "description": "Database attribute 'web_link'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE1000_family_database/email",
-          "name": "email",
-          "description": "Database attribute 'email'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_1"
             }
           }
         }
@@ -2578,62 +2466,6 @@
           "source": {
             "fileObject": {
               "@id": "file_1"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "@type": "cr:RecordSet",
-      "@id": "GSE335275_family_database",
-      "name": "GSE335275_family_database",
-      "description": "Database-level attributes in GSE335275_family.soft.gz (1 database, 4 attribute names). No value is emitted.",
-      "field": [
-        {
-          "@type": "cr:Field",
-          "@id": "GSE335275_family_database/name",
-          "name": "name",
-          "description": "Database attribute 'name'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_2"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE335275_family_database/institute",
-          "name": "institute",
-          "description": "Database attribute 'institute'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_2"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE335275_family_database/web_link",
-          "name": "web_link",
-          "description": "Database attribute 'web_link'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_2"
-            }
-          }
-        },
-        {
-          "@type": "cr:Field",
-          "@id": "GSE335275_family_database/email",
-          "name": "email",
-          "description": "Database attribute 'email'",
-          "dataType": "sc:Text",
-          "source": {
-            "fileObject": {
-              "@id": "file_2"
             }
           }
         }

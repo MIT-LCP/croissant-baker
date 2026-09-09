@@ -31,10 +31,9 @@ logger = logging.getLogger(__name__)
 #: ``application/x-nifti``, already in the tree.
 ENCODING_FORMAT = "text/x-geo-soft"
 
-# Every supported entity kind gets an attribute record set. Unknown kinds are
-# refused during extraction so a future format extension cannot disappear.
+# Describe deposit entities; ^DATABASE is shared GEO boilerplate. Unknown kinds
+# are refused during extraction so a future format extension cannot disappear.
 ENTITY_RECORD_SETS = (
-    ("DATABASE", "database", "database"),
     ("SERIES", "series", "series"),
     ("SAMPLE", "samples", "sample"),
     ("PLATFORM", "platforms", "platform"),
@@ -186,7 +185,8 @@ class SOFTHandler(FileTypeHandler):
                 "'^ENTITY = ACCESSION' line"
             )
 
-        unsupported = parsed.kinds.keys() - {kind for kind, _, _ in ENTITY_RECORD_SETS}
+        supported = {"DATABASE", *(kind for kind, _, _ in ENTITY_RECORD_SETS)}
+        unsupported = parsed.kinds.keys() - supported
         if unsupported:
             raise ValueError(
                 f"Unsupported GEO SOFT entity kind(s) in {source.relative_path}: "

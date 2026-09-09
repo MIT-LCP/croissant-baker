@@ -1440,10 +1440,10 @@ def test_a_stem_shared_with_another_format_suffixes_both_sides(
 @pytest.mark.parametrize(
     "filename, expected_suffixes",
     [
-        ("GDS10.soft", {"database", "datasets", "subsets", "dataset_table"}),
+        ("GDS10.soft", {"datasets", "subsets", "dataset_table"}),
         (
             "GSE2034_series.soft",
-            {"database", "series", "series_table", "series_table_2"},
+            {"series", "series_table", "series_table_2"},
         ),
     ],
 )
