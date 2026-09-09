@@ -26,7 +26,7 @@ from croissant_baker.metadata_generator import (
 from croissant_baker import compression
 from croissant_baker.files import discover_files
 from croissant_baker.handlers.registry import select_handler
-from croissant_baker.scan import Reason, ScanReport, scan_directory
+from croissant_baker.scan import Outcome, Reason, ScanEntry, ScanReport, scan_directory
 import mlcroissant as mlc
 
 # Create the Typer application instance
@@ -443,6 +443,65 @@ def _ensure_rai_conforms_to(metadata_dict: dict, force: bool = False) -> None:
         conforms_to.append(RAI_CONFORMS_TO)
 
 
+def _parse_creators(creator: Optional[List[str]]) -> List[dict]:
+    """Parse ``Name,email,url`` creator strings into mlcroissant Person dicts.
+
+    Semicolons take precedence as the separator so a name containing a comma
+    needs no quoting; otherwise the string is read as one CSV row, which
+    handles quoting properly.
+    """
+    parsed_creators: List[dict] = []
+    for creator_info in creator or []:
+        creator_info = creator_info.strip()
+
+        # Preferred: semicolon
+        if ";" in creator_info:
+            creator_parts = [p.strip() for p in creator_info.split(";")]
+
+        else:
+            # Use CSV parsing for comma cases (handles quotes properly)
+            creator_parts = next(csv.reader([creator_info]))
+            creator_parts = [p.strip() for p in creator_parts]
+
+        if not creator_parts or not creator_parts[0]:
+            continue
+
+        creator_obj = {"name": creator_parts[0]}
+
+        if len(creator_parts) > 1 and creator_parts[1]:
+            creator_obj["email"] = creator_parts[1]
+
+        if len(creator_parts) > 2 and creator_parts[2]:
+            creator_obj["url"] = creator_parts[2]
+
+        parsed_creators.append(creator_obj)
+
+    return parsed_creators
+
+
+def _dry_run_entries(
+    input_dir: str,
+    include: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
+) -> List[ScanEntry]:
+    """Resolve every discovered file to a handler without reading any of it.
+
+    Each entry comes back either ``WOULD_PROCESS`` or ``UNCLAIMED`` with the
+    registry's own reason: an archive and a path-only handler differ, so the
+    reason is asked for rather than assumed.
+    """
+    entries = scan_directory(
+        input_dir, include_patterns=include, exclude_patterns=exclude
+    )
+    for entry in entries:
+        selection = select_handler(Path(input_dir) / entry.path, entry.path)
+        if selection.handler is None:
+            entry.unclaimed(selection.reason or Reason.NO_HANDLER, selection.refusal)
+        else:
+            entry.would_process(selection.handler)
+    return entries
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -759,23 +818,9 @@ def main(
     # governing the default bake summary does not apply here.
     if dry_run:
         try:
-            entries = scan_directory(
-                input, include_patterns=include, exclude_patterns=exclude
-            )
-            claimed = []
-            unclaimed = []
-            for entry in entries:
-                # Ask the registry for its own reason rather than assuming
-                # one: an archive and a path-only handler differ.
-                selection = select_handler(Path(input) / entry.path, entry.path)
-                if selection.handler is None:
-                    entry.unclaimed(
-                        selection.reason or Reason.NO_HANDLER, selection.refusal
-                    )
-                    unclaimed.append(entry)
-                else:
-                    entry.would_process(selection.handler)
-                    claimed.append(entry)
+            entries = _dry_run_entries(input, include, exclude)
+            claimed = [e for e in entries if e.outcome is Outcome.WOULD_PROCESS]
+            unclaimed = [e for e in entries if e.outcome is Outcome.UNCLAIMED]
 
             typer.echo(
                 f"Dry run: {len(claimed)} file(s) would be processed in '{input}':"
@@ -833,32 +878,7 @@ def main(
 
         # Parse creators following mlcroissant specification
         # Allows flexible Person/Organization objects with optional properties
-        parsed_creators = []
-        if creator:
-            for creator_info in creator:
-                creator_info = creator_info.strip()
-
-                # Preferred: semicolon
-                if ";" in creator_info:
-                    creator_parts = [p.strip() for p in creator_info.split(";")]
-
-                else:
-                    # Use CSV parsing for comma cases (handles quotes properly)
-                    creator_parts = next(csv.reader([creator_info]))
-                    creator_parts = [p.strip() for p in creator_parts]
-
-                if not creator_parts or not creator_parts[0]:
-                    continue
-
-                creator_obj = {"name": creator_parts[0]}
-
-                if len(creator_parts) > 1 and creator_parts[1]:
-                    creator_obj["email"] = creator_parts[1]
-
-                if len(creator_parts) > 2 and creator_parts[2]:
-                    creator_obj["url"] = creator_parts[2]
-
-                parsed_creators.append(creator_obj)
+        parsed_creators = _parse_creators(creator)
 
         # Warn early if --count-csv-rows is set but dataset has no CSV files.
         # Asked of the logical name, so the CLI does not become a second
@@ -1056,6 +1076,28 @@ def rai_apply(
     except Exception as e:
         typer.echo(f"Unexpected error: {e}", err=True)
         raise typer.Exit(code=1)
+
+
+@app.command(name="mcp")
+def mcp_command() -> None:
+    """Serve the dry_run, bake and validate tools over stdio to a local agent.
+
+    Model Context Protocol, stdio transport only: no HTTP listener and no
+    outbound requests, so a bake still never leaves the local environment.
+    """
+    try:
+        import mcp  # noqa: F401
+    except ImportError:
+        typer.echo(
+            "Error: the MCP server needs the optional 'mcp' dependency group",
+            err=True,
+        )
+        typer.echo("Fix: uv sync --group mcp", err=True)
+        raise typer.Exit(code=1)
+
+    from croissant_baker import mcp_server
+
+    mcp_server.serve()
 
 
 @app.command()

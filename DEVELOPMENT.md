@@ -26,6 +26,44 @@ uv run croissant-baker --help
 uv run croissant-baker --input ./my-dataset --creator "Jane Doe"
 ```
 
+### Local MCP server
+
+`croissant-baker mcp` serves three tools to a local agent over stdio: `dry_run`
+(what a bake would describe and refuse, with reasons), `bake` (generate,
+validate and write the metadata) and `validate` (construct an existing file
+under `mlcroissant`). stdio is the only transport; there is no HTTP listener and
+no outbound request, so the no-upload guarantee is unchanged. The SDK is an
+optional dependency group:
+
+```bash
+uv sync --group mcp
+uv run croissant-baker mcp
+```
+
+### Agent Skill
+
+The [Agent Skill](https://agentskills.io/specification) that teaches an LLM how
+to drive the tool lives at
+`src/croissant_baker/skills/croissant-baker/SKILL.md`, inside the package, so
+`pip install croissant-baker` delivers it. `.agents/skills/croissant-baker` is
+a relative symlink to that one directory, the cross-client discovery
+convention, so agent clients find it in a checkout; edit the canonical copy,
+never the link. The MCP server publishes the same file as the resource
+`croissant-baker://skill`.
+
+Validate it against the specification with the reference library:
+
+```bash
+uvx --from "git+https://github.com/agentskills/agentskills#subdirectory=skills-ref" \
+  skills-ref validate src/croissant_baker/skills/croissant-baker
+```
+
+`tests/test_skill.py` checks the frontmatter, the body length, the symlink and
+that the installed package carries the file. Adding another symlink to the
+skill needs a matching entry in `[tool.hatch.build] exclude` in
+`pyproject.toml`, or the build will ship the skill under the link's path
+instead of inside the package.
+
 ## Testing
 
 ```bash

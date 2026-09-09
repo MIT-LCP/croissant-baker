@@ -46,6 +46,9 @@ dev = [
     "pre-commit>=4.5.1",
     { include-group = "test" },
 ]
+# Optional: the local stdio MCP server (`croissant-baker mcp`).
+# Install with: uv sync --group mcp
+mcp = ["mcp>=2.2"]
 docs = [
     "mkdocs>=1.6,<2",
     "mkdocs-material>=9.7,<10",
@@ -53,6 +56,17 @@ docs = [
     "griffe>=2.0",
     "typer-cli",
 ]
+
+# The Agent Skill lives at src/croissant_baker/skills/croissant-baker/ and is
+# surfaced to agent clients through the symlink in .agents/skills/. Hatchling
+# follows that symlink and keeps one path per file, so whichever it walks first
+# wins: without this the skill ships under a dot-directory instead of inside
+# the package, or not at all. `skip-excluded-dirs` is what stops the walk,
+# since `exclude` alone filters the result after the link has already claimed
+# the files.
+[tool.hatch.build]
+exclude = [".agents"]
+skip-excluded-dirs = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/croissant_baker"]
