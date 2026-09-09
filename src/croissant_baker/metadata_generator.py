@@ -54,6 +54,30 @@ _CARRIED_BY_ANOTHER = (Outcome.UNCLAIMED, Outcome.FAILED)
 # https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html
 CROISSANT_CONFORMS_TO = "http://mlcommons.org/croissant/1.1"
 RAI_CONFORMS_TO = "http://mlcommons.org/croissant/RAI/1.0"
+BIOSCHEMAS_CONFORMS_TO = "https://bioschemas.org/profiles/Dataset/1.0-RELEASE"
+
+# Profiles a document can additionally declare, by the name --profile takes.
+# A new profile is one entry here: the CLI validates against these keys and
+# the generator appends the URI. Nothing else in the document changes, so
+# declaring a profile is a claim about the vocabulary, not a validation of it.
+PROFILE_CONFORMS_TO = {
+    "bioschemas": BIOSCHEMAS_CONFORMS_TO,
+}
+
+
+def _append_conforms_to(metadata_dict: dict, uri: str) -> None:
+    """Declare ``uri`` in conformsTo, which may be absent, a string, or a list."""
+    conforms_to = metadata_dict.get("conformsTo")
+    if conforms_to is None:
+        metadata_dict["conformsTo"] = [uri]
+        return
+    if isinstance(conforms_to, str):
+        metadata_dict["conformsTo"] = (
+            [conforms_to] if conforms_to == uri else [conforms_to, uri]
+        )
+        return
+    if isinstance(conforms_to, list) and uri not in conforms_to:
+        conforms_to.append(uri)
 
 
 def _apply_field_mappings(
@@ -166,6 +190,11 @@ class MetadataGenerator:
         is_live_dataset: Optional[bool] = None,
         temporal_coverage: Optional[str] = None,
         usage_info: Optional[str] = None,
+        identifier: Optional[List[str]] = None,
+        conditions_of_access: Optional[str] = None,
+        is_accessible_for_free: Optional[bool] = None,
+        included_in_data_catalog: Optional[str] = None,
+        profiles: Optional[List[str]] = None,
         field_mappings: Optional[Dict[str, Dict[str, object]]] = None,
         count_csv_rows: bool = False,
         max_workers: Optional[int] = None,
@@ -206,6 +235,19 @@ class MetadataGenerator:
                 free text or ISO 8601 (e.g., "2008/2019", "2023-01-15").
             usage_info: URL of a usage/consent policy (e.g., a DUO term URL,
                 ODRL Offer URL).
+            identifier: Accessions or persistent identifiers the dataset is
+                known by (e.g. a dbGaP phs number, an EGA study accession, a
+                DOI). A single value is emitted as a string, several as a list.
+            conditions_of_access: How access is obtained, in free text (e.g.
+                the data access agreement and committee for a controlled
+                release). schema.org/conditionsOfAccess.
+            is_accessible_for_free: Whether the data can be had without payment
+                or an access agreement. Tri-state: None leaves the key absent.
+            included_in_data_catalog: URL of a catalog entry that lists this
+                dataset (schema.org/includedInDataCatalog).
+            profiles: Additional profiles the document declares in
+                ``conformsTo``, by the names in ``PROFILE_CONFORMS_TO``.
+                Declaring a profile does not validate against it.
             field_mappings: Per-column overrides keyed by field name. Each value
                 is a dict with optional ``equivalent_property`` (vocab URI) and
                 ``data_types`` (list of vocab URIs). Used to link columns to
@@ -227,7 +269,8 @@ class MetadataGenerator:
                 or with a handler the baker does not ship.
 
         Raises:
-            ValueError: If dataset_path is not a directory.
+            ValueError: If dataset_path is not a directory, or a named profile
+                is not one of ``PROFILE_CONFORMS_TO``.
         """
         self.dataset_path = Path(dataset_path).resolve()
         if not self.dataset_path.is_dir():
@@ -253,6 +296,17 @@ class MetadataGenerator:
         self.is_live_dataset = is_live_dataset
         self.temporal_coverage = temporal_coverage
         self.usage_info = usage_info
+        self.identifier = identifier
+        self.conditions_of_access = conditions_of_access
+        self.is_accessible_for_free = is_accessible_for_free
+        self.included_in_data_catalog = included_in_data_catalog
+        unknown = sorted(set(profiles or []) - set(PROFILE_CONFORMS_TO))
+        if unknown:
+            raise ValueError(
+                f"Unknown profile(s) {', '.join(unknown)}; "
+                f"known profiles: {', '.join(sorted(PROFILE_CONFORMS_TO))}"
+            )
+        self.profiles = profiles
         self.field_mappings = field_mappings or {}
         self.includes = includes
         self.excludes = excludes
@@ -548,6 +602,20 @@ class MetadataGenerator:
             result["temporalCoverage"] = self.temporal_coverage
         if self.usage_info is not None:
             result["usageInfo"] = self.usage_info
+        if self.identifier:
+            # One accession reads as a string, the way mlcroissant flattens its
+            # own single-element lists; several stay a list.
+            result["identifier"] = (
+                self.identifier[0] if len(self.identifier) == 1 else self.identifier
+            )
+        if self.conditions_of_access is not None:
+            result["conditionsOfAccess"] = self.conditions_of_access
+        if self.is_accessible_for_free is not None:
+            result["isAccessibleForFree"] = self.is_accessible_for_free
+        if self.included_in_data_catalog is not None:
+            result["includedInDataCatalog"] = self.included_in_data_catalog
+        for profile in self.profiles or []:
+            _append_conforms_to(result, PROFILE_CONFORMS_TO[profile])
         if self.field_mappings:
             _apply_field_mappings(result, self.field_mappings)
         return result

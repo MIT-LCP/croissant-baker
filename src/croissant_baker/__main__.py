@@ -20,6 +20,7 @@ from rich.progress import (
 
 from croissant_baker.metadata_generator import (
     MetadataGenerator,
+    PROFILE_CONFORMS_TO,
     RAI_CONFORMS_TO,
     serialize_datetime,
 )
@@ -330,6 +331,16 @@ def _validate_uri(option_name: str, value: Optional[str]) -> None:
         )
 
 
+def _validate_profiles(values: Optional[List[str]]) -> None:
+    """Reject profile names the generator has no conformsTo URI for."""
+    unknown = sorted(set(values or []) - set(PROFILE_CONFORMS_TO))
+    if unknown:
+        raise typer.BadParameter(
+            f"--profile must be one of: {', '.join(sorted(PROFILE_CONFORMS_TO))}; "
+            f"got {', '.join(repr(name) for name in unknown)}"
+        )
+
+
 def _validate_iso_datetimes(option_name: str, values: Optional[List[str]]) -> None:
     """Validate repeated date/datetime options and raise a CLI-friendly error."""
     if not values:
@@ -546,6 +557,31 @@ def main(
         None,
         "--usage-info",
         help="URI pointing to a usage or consent policy. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'http://purl.obolibrary.org/obo/DUO_0000042' (DUO term).",
+    ),
+    identifier: Optional[List[str]] = typer.Option(
+        None,
+        "--identifier",
+        help="Accession or persistent identifier the dataset is known by (e.g., 'phs000218.v1.p1', 'EGAS00001000255', a DOI). Repeat or comma-delimit.",
+    ),
+    conditions_of_access: Optional[str] = typer.Option(
+        None,
+        "--conditions-of-access",
+        help="How access is obtained, in free text. Example: 'Controlled access: Data Access Agreement via the Data Access Committee'.",
+    ),
+    is_accessible_for_free: Optional[bool] = typer.Option(
+        None,
+        "--is-accessible-for-free/--not-accessible-for-free",
+        help="Whether the data can be had without payment or an access agreement. Omit to leave the field out.",
+    ),
+    included_in_data_catalog: Optional[str] = typer.Option(
+        None,
+        "--included-in-data-catalog",
+        help="URL of a catalog entry listing this dataset (e.g., 'https://datacatalog.ccdi.cancer.gov/').",
+    ),
+    profile: Optional[List[str]] = typer.Option(
+        None,
+        "--profile",
+        help=f"Additional profile to declare in conformsTo. One of: {', '.join(sorted(PROFILE_CONFORMS_TO))}. Declares the profile; it does not validate against it. Repeatable.",
     ),
     field_mappings: Optional[Path] = typer.Option(
         None,
@@ -878,6 +914,7 @@ def main(
                 )
 
         _validate_uri("--usage-info", usage_info)
+        _validate_profiles(profile)
         merged_field_mappings = _merge_field_mapping_flags(
             _load_field_mappings(field_mappings), field_mapping
         )
@@ -904,6 +941,11 @@ def main(
             is_live_dataset=is_live_dataset or None,
             temporal_coverage=temporal_coverage,
             usage_info=usage_info,
+            identifier=_split_csv_list(identifier),
+            conditions_of_access=conditions_of_access,
+            is_accessible_for_free=is_accessible_for_free,
+            included_in_data_catalog=included_in_data_catalog,
+            profiles=_normalize_optional_text_list(profile),
             field_mappings=merged_field_mappings,
             count_csv_rows=count_csv_rows,
             max_workers=jobs or None,
