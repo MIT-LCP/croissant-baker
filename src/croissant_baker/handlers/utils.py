@@ -134,7 +134,7 @@ def _disambiguate_ids(items: list) -> list:
     used: set = set()
     for i, value in enumerate(out):
         if value in used:
-            n = 1
+            n = 2
             while f"{value}__{n}" in used:
                 n += 1
             value = f"{value}__{n}"
@@ -263,8 +263,7 @@ def make_field_id(record_set_id: str, column_name: str, used_field_ids: set) -> 
     On collision (which happens when two distinct column names sanitize
     to the same string, for example ``Age>30`` and ``Age 30`` both
     becoming ``Age_30``), a numeric suffix ``__N`` is appended starting
-    at 1. This mirrors the disambiguation that ``pandas.read_csv``
-    applies to duplicate column headers by default.
+    at 2, as in record-set identifier allocation.
 
     ``used_field_ids`` is mutated to record the chosen identifier so
     subsequent calls within the same RecordSet can detect further
@@ -274,7 +273,7 @@ def make_field_id(record_set_id: str, column_name: str, used_field_ids: set) -> 
     if base not in used_field_ids:
         used_field_ids.add(base)
         return base
-    n = 1
+    n = 2
     while f"{base}__{n}" in used_field_ids:
         n += 1
     chosen = f"{base}__{n}"

@@ -91,7 +91,7 @@ CHARACTERISTICS = """\
 """
 
 
-def test_characteristics_are_split_on_the_first_colon_space_and_stand_alone() -> None:
+def test_characteristics_are_split_on_the_first_colon_and_stand_alone() -> None:
     """A one-channel deposit keeps the bare key, and the raw attribute name
     stays out of the sample attributes: listing it beside them would assert a
     field the characteristics record set already enumerates."""
@@ -112,7 +112,7 @@ def test_a_key_repeated_within_one_sample_is_marked_repeated() -> None:
     assert parsed.characteristics.names == {"treatment": True}
 
 
-def test_two_channels_prefix_every_key_not_only_the_colliding_one() -> None:
+def test_only_channels_after_channel_one_are_prefixed() -> None:
     """Which of two ``gender`` keys keeps the bare name must not depend on
     which the parser met first."""
     parsed = parse(
@@ -122,31 +122,24 @@ def test_two_channels_prefix_every_key_not_only_the_colliding_one() -> None:
         "!Sample_characteristics_ch1 = age: 66\n"
     )
 
-    assert list(parsed.characteristics.names) == ["ch1_gender", "ch2_gender", "ch1_age"]
+    assert list(parsed.characteristics.names) == ["gender", "ch2_gender", "age"]
 
 
-def test_the_separator_is_the_literal_colon_space() -> None:
-    """Not a bare colon. ``10:30`` inside a value must not become a key, a
-    namespaced key must survive its own colons, and a line with no ``: `` at
-    all does not follow the convention — which is a convention, not a grammar,
-    so those lines are counted and collected under the attribute they arrived
-    on rather than guessed at.
-    """
-    parsed = parse(
-        "^SAMPLE = GSM1\n"
-        "!Sample_characteristics_ch1 = collected: 10:30\n"
-        "!Sample_characteristics_ch1 = efo:cell type: fibroblast\n"
-        "!Sample_characteristics_ch1 = stage:\n"
-        "!Sample_characteristics_ch1 = nokey:value\n"
-    )
-
-    assert list(parsed.characteristics.names) == [
-        "collected",
-        "efo:cell type",
-        "characteristics_ch1",
-    ]
-    assert list(parsed.fallbacks) == ["characteristics_ch1"]
-    assert parsed.unparsed == 2
+@pytest.mark.parametrize(
+    "value, key",
+    [
+        ("tissue:liver", "tissue"),
+        ("tissue: liver", "tissue"),
+        ("tissue:\tliver", "tissue"),
+        ("stage:", "stage"),
+        ("collected:10:30", "collected"),
+        ("efo:cell type: fibroblast", "efo"),
+    ],
+)
+def test_characteristics_split_on_the_first_colon(value: str, key: str) -> None:
+    parsed = parse(f"^SAMPLE = GSM1\n!Sample_characteristics_ch1 = {value}\n")
+    assert parsed.characteristics.names == {key: False}
+    assert parsed.unparsed == 0
 
 
 def test_a_characteristic_with_an_empty_value_still_yields_its_key() -> None:
@@ -170,17 +163,14 @@ def test_a_repeated_malformed_line_is_marked_repeated_like_any_other() -> None:
     assert parsed.unparsed == 2
 
 
-def test_a_malformed_line_still_establishes_its_channel() -> None:
-    """The channel is in the attribute name, so it is known whatever the value
-    turned out to be — and if it did not count, valid channel-1 keys would
-    keep the bare name in a file that plainly carries two channels."""
+def test_a_malformed_second_channel_does_not_rename_channel_one() -> None:
     parsed = parse(
         "^SAMPLE = GSM1\n"
         "!Sample_characteristics_ch1 = gender: female\n"
         "!Sample_characteristics_ch2 = free text\n"
     )
 
-    assert "ch1_gender" in parsed.characteristics.names
+    assert list(parsed.characteristics.names) == ["gender", "characteristics_ch2"]
 
 
 def test_characteristics_outside_a_sample_stay_plain_attributes() -> None:
@@ -434,3 +424,107 @@ def test_a_file_with_no_entity_line_yields_no_kinds() -> None:
 
     assert parsed.kinds == {}
     assert parsed.tables == []
+
+
+@pytest.mark.parametrize("later_channel", ["1", "2", "3"])
+def test_channel_names_do_not_depend_on_other_samples(later_channel: str) -> None:
+    parsed = parse(
+        "^SAMPLE = GSM1\n!Sample_characteristics_ch1 = tissue:liver\n"
+        f"^SAMPLE = GSM2\n!Sample_characteristics_ch{later_channel} = age:42\n"
+    )
+    assert list(parsed.characteristics.names) == [
+        "tissue",
+        "age" if later_channel == "1" else f"ch{later_channel}_age",
+    ]
+
+
+def test_channel_and_fallback_name_collisions_do_not_merge_fields() -> None:
+    parsed = parse(
+        "^SAMPLE = GSM1\n"
+        "!Sample_characteristics_ch1 = ch2_tissue:one\n"
+        "!Sample_characteristics_ch2 = tissue:two\n"
+        "!Sample_characteristics_ch1 = ch2_tissue__2:three\n"
+        "!Sample_characteristics_ch1 = characteristics_ch1:four\n"
+        "!Sample_characteristics_ch1 = free text\n"
+    )
+    assert list(parsed.characteristics.names) == [
+        "ch2_tissue",
+        "ch2_tissue__3",
+        "ch2_tissue__2",
+        "characteristics_ch1",
+        "characteristics_ch1__2",
+    ]
+
+
+def test_named_tables_keep_titles_and_scope_column_documentation() -> None:
+    parsed = parse(
+        "^SERIES = GSE1\n#VALUE = First table only\n"
+        "!series_table_begin = Clinical labels\nID\tVALUE\n1\t2\n!series_table_end\n"
+        "!series_table_begin = Follow-up\nID\tVALUE\n1\t3\n!series_table_end\n"
+    )
+    assert [(t.kind, t.title, t.columns) for t in parsed.tables] == [
+        ("SERIES", "Clinical labels", ("ID", "VALUE")),
+        ("SERIES", "Follow-up", ("ID", "VALUE")),
+    ]
+    assert parsed.tables[1].column_lines == {}
+    assert parsed.kinds["SERIES"].names == {}
+    assert parsed.incomplete == ()
+
+
+def test_resumed_dataset_is_one_entity_and_retains_attribute_cardinality() -> None:
+    parsed = parse(
+        "^DATASET = GDS10\n!dataset_description = first\n"
+        "^SUBSET = GDS10_1\n!subset_type = tissue\n"
+        "^DATASET = GDS10\n!dataset_description = second\n"
+        "!dataset_table_begin\nID_REF\tGSM1\n1\t2\n!dataset_table_end\n"
+    )
+    assert parsed.kinds["DATASET"].entities == 1
+    assert parsed.kinds["DATASET"].names == {"description": True}
+    assert parsed.tables[0].kind == "DATASET"
+
+
+@pytest.mark.parametrize(
+    "declaration", ["^SAMPLE", "^SAMPLE =", "^ = GSM1", "^not soft"]
+)
+def test_malformed_entity_declarations_are_refused(declaration: str) -> None:
+    with pytest.raises(ValueError, match="Malformed GEO SOFT"):
+        parse(declaration + "\n!Sample_title = misleading\n")
+
+
+@pytest.mark.parametrize("marker", ["!platform_table_end", "!sample_table_begin"])
+def test_mismatched_or_nested_table_markers_are_refused(marker: str) -> None:
+    with pytest.raises(ValueError, match="Mismatched or nested"):
+        parse(f"^SAMPLE = GSM1\n!sample_table_begin\nID\n1\n{marker}\n")
+
+
+def test_utf8_bom_does_not_drop_the_first_entity() -> None:
+    parsed = parse("\ufeff^SAMPLE = GSM1\n!Sample_title = first\n")
+    assert parsed.kinds["SAMPLE"].entities == 1
+    assert parsed.kinds["SAMPLE"].names == {"title": False}
+
+
+def test_negative_row_count_is_unknown() -> None:
+    parsed = parse(
+        "^SAMPLE = GSM1\n!Sample_data_row_count = -1\n"
+        "!sample_table_begin\nID\n1\n!sample_table_end\n"
+    )
+    assert not parsed.tables[0].rows_known
+
+
+def test_channel_one_keeps_a_literal_key_even_when_channel_two_came_first() -> None:
+    parsed = parse(
+        "^SAMPLE = GSM1\n!Sample_characteristics_ch2 = tissue:a\n"
+        "^SAMPLE = GSM2\n!Sample_characteristics_ch1 = ch2_tissue:b\n"
+    )
+    assert list(parsed.characteristics.names) == ["ch2_tissue__2", "ch2_tissue"]
+    assert parsed.characteristics.origins == {
+        "ch2_tissue__2": "'tissue' in !Sample_characteristics_ch2"
+    }
+
+
+def test_channel_less_and_channel_one_characteristics_share_a_field() -> None:
+    parsed = parse(
+        "^SAMPLE = GSM1\n!Sample_characteristics = tissue:a\n"
+        "!Sample_characteristics_ch1 = tissue:b\n"
+    )
+    assert parsed.characteristics.names == {"tissue": True}

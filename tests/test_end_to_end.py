@@ -1396,3 +1396,40 @@ def test_a_stem_shared_with_another_format_suffixes_both_sides(
     with open(output) as f:
         ids = {rs["@id"] for rs in json.load(f)["recordSet"]}
     assert ids == {"GSE1_family_samples_csv", "GSE1_family_samples_soft"}
+
+
+@pytest.mark.parametrize(
+    "filename, expected_suffixes",
+    [
+        ("GDS10.soft", {"database", "datasets", "subsets", "dataset_table"}),
+        (
+            "GSE2034_series.soft",
+            {"database", "series", "series_table", "series_table_2"},
+        ),
+    ],
+)
+def test_geo_review_exports_validate_through_the_cli(
+    tmp_path: Path, filename: str, expected_suffixes: set
+) -> None:
+    source = (
+        Path(__file__).parent / "data" / "input" / "geo_soft_regressions" / filename
+    )
+    dataset = tmp_path / "input"
+    dataset.mkdir()
+    (dataset / filename).write_bytes(source.read_bytes())
+    output = tmp_path / "croissant.jsonld"
+    result = runner.invoke(
+        app, ["-i", str(dataset), "-o", str(output), "--creator", "Tester"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "1 described" in result.output
+    document = json.loads(output.read_text())
+    assert {rs["@id"] for rs in document["recordSet"]} == {
+        f"{source.stem}_{suffix}" for suffix in expected_suffixes
+    }
+    file_id = document["distribution"][0]["@id"]
+    assert all(
+        field["source"]["fileObject"]["@id"] == file_id
+        for rs in document["recordSet"]
+        for field in rs["field"]
+    )

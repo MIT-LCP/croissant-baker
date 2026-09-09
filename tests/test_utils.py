@@ -84,16 +84,15 @@ def test_make_field_id_unique_column_returns_bare_id() -> None:
 
 def test_make_field_id_collision_appends_numeric_suffix() -> None:
     """Two distinct column names that sanitize to the same string get
-    disambiguated by an appended numeric suffix, mirroring how
-    pandas.read_csv handles duplicate column headers by default."""
+    disambiguated by the same numeric suffix convention as record sets."""
     used: set = set()
     first = make_field_id("rs1", "Age>30", used)
     second = make_field_id("rs1", "Age 30", used)
     assert first == "rs1/Age_30"
-    assert second == "rs1/Age_30__1"
+    assert second == "rs1/Age_30__2"
     # Both ids are recorded so a third collision continues the sequence.
     third = make_field_id("rs1", "Age=30", used)
-    assert third == "rs1/Age_30__2"
+    assert third == "rs1/Age_30__3"
 
 
 def test_normalize_array_shape_accepts_tuple_and_bare_forms() -> None:
@@ -180,3 +179,11 @@ def test_allocation_does_not_depend_on_batch_order() -> None:
     )
 
     assert forward == list(reversed(reversed_))
+
+
+def test_numeric_identifier_collisions_start_at_two() -> None:
+    assert _disambiguate_ids([("data", []), ("data", []), ("data", [])]) == [
+        "data",
+        "data__2",
+        "data__3",
+    ]

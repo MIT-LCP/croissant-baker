@@ -20,7 +20,7 @@ from croissant_baker.handlers.utils import (
     SCHEMA_SAMPLE,
     allocate_record_set_ids,
     display_name,
-    infer_column_types_from_arrow_schema,
+    map_arrow_type,
     make_field_id,
 )
 from croissant_baker.sources import FileSource
@@ -31,12 +31,15 @@ logger = logging.getLogger(__name__)
 #: ``application/x-nifti``, already in the tree.
 ENCODING_FORMAT = "text/x-geo-soft"
 
-#: ``(entity kind, record-set suffix, noun)``. ``^DATABASE`` is absent: it is
-#: GEO boilerplate, byte-identical across a 2004 deposit and a 2026 one.
+# Every supported entity kind gets an attribute record set. Unknown kinds are
+# refused during extraction so a future format extension cannot disappear.
 ENTITY_RECORD_SETS = (
+    ("DATABASE", "database", "database"),
     ("SERIES", "series", "series"),
     ("SAMPLE", "samples", "sample"),
     ("PLATFORM", "platforms", "platform"),
+    ("DATASET", "datasets", "dataset"),
+    ("SUBSET", "subsets", "subset"),
 )
 
 CHARACTERISTICS_SUFFIX = "sample_characteristics"
@@ -67,8 +70,8 @@ class DescribedTable:
     table: soft.Table
     #: Record-set suffix, unique among this file's tables.
     suffix: str
-    #: Column name -> Croissant type.
-    column_types: dict
+    #: Croissant types in column order, including duplicate column names.
+    column_types: tuple
 
 
 def _described_tables(tables: list) -> list:
@@ -93,7 +96,7 @@ def _described_tables(tables: list) -> list:
     return out
 
 
-def _column_types(table: soft.Table) -> dict:
+def _column_types(table: soft.Table) -> tuple:
     """Croissant types for one table's columns, from its buffered row sample.
 
     The same PyArrow path a ``.tsv`` takes, because a table column is thousands
@@ -106,7 +109,7 @@ def _column_types(table: soft.Table) -> dict:
     nothing else — every column falls back to text, which is what SOFT
     guarantees anyway.
     """
-    fallback = {name: "sc:Text" for name in table.columns}
+    fallback = tuple("sc:Text" for _ in table.columns)
     if not table.sample:
         return fallback
     try:
@@ -117,8 +120,7 @@ def _column_types(table: soft.Table) -> dict:
     except Exception as exc:  # noqa: BLE001 — the types, not the description
         logger.debug("Could not type a %s table: %s", table.kind.lower(), exc)
         return fallback
-    inferred = infer_column_types_from_arrow_schema(sampled.schema)
-    return {name: inferred.get(name, "sc:Text") for name in table.columns}
+    return tuple(map_arrow_type(field.type) for field in sampled.schema)
 
 
 def _partial_note(parsed: soft.SoftFile) -> str:
@@ -134,7 +136,7 @@ def _partial_note(parsed: soft.SoftFile) -> str:
 
 
 class SOFTHandler(FileTypeHandler):
-    """Handler for GEO SOFT family exports (``.soft``).
+    """Handler for GEO SOFT family and curated DataSet exports (``.soft``).
 
     Entities become record sets whose fields are the attribute and
     characteristic *names* the deposit uses, all ``sc:Text``; data tables become
@@ -182,6 +184,13 @@ class SOFTHandler(FileTypeHandler):
             raise ValueError(
                 f"Not a GEO SOFT file: {source.relative_path} carries no "
                 "'^ENTITY = ACCESSION' line"
+            )
+
+        unsupported = parsed.kinds.keys() - {kind for kind, _, _ in ENTITY_RECORD_SETS}
+        if unsupported:
+            raise ValueError(
+                f"Unsupported GEO SOFT entity kind(s) in {source.relative_path}: "
+                + ", ".join(sorted(unsupported))
             )
 
         if parsed.incomplete:
@@ -263,6 +272,7 @@ class SOFTHandler(FileTypeHandler):
                     f"({_plural(characteristics.entities, 'sample')}, "
                     f"{_plural(len(characteristics.names), 'key')}{unparsed}). "
                     f"{NO_VALUE_NOTICE}{note}",
+                    sample_accession=True,
                 )
             )
 
@@ -282,6 +292,8 @@ class SOFTHandler(FileTypeHandler):
         group: soft.FieldGroup,
         label: str,
         description: str,
+        *,
+        sample_accession: bool = False,
     ) -> mlc.RecordSet:
         """One record set per entity kind: one row per entity, fields by name.
 
@@ -294,7 +306,7 @@ class SOFTHandler(FileTypeHandler):
             mlc.Field(
                 id=make_field_id(rs_id, name, used),
                 name=name,
-                description=f"{label} '{name}'",
+                description=f"{label} " + group.origins.get(name, f"'{name}'"),
                 data_types=["sc:Text"],
                 is_array=True if repeated else None,
                 array_shape=ARRAY_SHAPE_UNKNOWN_1D if repeated else None,
@@ -302,6 +314,28 @@ class SOFTHandler(FileTypeHandler):
             )
             for name, repeated in group.names.items()
         ]
+        if sample_accession:
+            # Keep a submitter's literal geo_accession key distinct from the
+            # accession of the enclosing ^SAMPLE. Reserve all declared names.
+            name = "geo_accession"
+            n = 2
+            while name in group.names:
+                name = f"geo_accession__{n}"
+                n += 1
+            fields.insert(
+                0,
+                mlc.Field(
+                    id=make_field_id(rs_id, name, used),
+                    name=name,
+                    description=(
+                        "GEO sample accession from the enclosing '^SAMPLE = "
+                        "ACCESSION' declaration (also !Sample_geo_accession); "
+                        "identifies the sample for its donor characteristics."
+                    ),
+                    data_types=["sc:Text"],
+                    source=mlc.Source(file_object=file_id),
+                ),
+            )
         return mlc.RecordSet(
             id=rs_id, name=rs_id, description=description, fields=fields
         )
@@ -332,7 +366,9 @@ class SOFTHandler(FileTypeHandler):
 
         used: set = set()
         fields = []
-        for name in named:
+        for name, data_type in zip(table.columns, described.column_types):
+            if not name.strip():
+                continue
             # The deposit's own ``#COLUMN`` line, verbatim, so its provenance is
             # visible. It is format-guaranteed to describe the column.
             documented = table.column_lines.get(name)
@@ -345,7 +381,7 @@ class SOFTHandler(FileTypeHandler):
                         if documented
                         else f"Column '{name}'"
                     ),
-                    data_types=[described.column_types.get(name, "sc:Text")],
+                    data_types=[data_type],
                     source=mlc.Source(file_object=file_id),
                 )
             )
@@ -364,7 +400,9 @@ class SOFTHandler(FileTypeHandler):
             name=rs_id,
             description=(
                 f"Inline data table of {_plural(table.entities, table.kind.lower())} "
-                f"in {shown} ({columns}{rows}). {NO_VALUE_NOTICE}{note}"
+                f"in {shown} ({columns}{rows}). "
+                + (f"Table title: {table.title}. " if table.title else "")
+                + f"{NO_VALUE_NOTICE}{note}"
             ),
             fields=fields,
         )

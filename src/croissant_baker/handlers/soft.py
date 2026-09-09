@@ -25,9 +25,12 @@ SAMPLE_ROWS = 500
 #: its size, which is the one way the buffer exceeds this.
 SAMPLE_BYTES = 1 << 20
 
-#: A whole marker line and nothing else. ``\w`` admits no ``=``, space or tab,
-#: which is what keeps ordinary content from opening or closing a table.
-_TABLE_MARKER = re.compile(r"!\w+_table_(begin|end)", re.IGNORECASE)
+# Series tables may have a title after '='. Tabs still distinguish table cells
+# from control lines, including cells whose text resembles an end marker.
+_TABLE_MARKER = re.compile(
+    r"!([a-z]+)_table_(begin|end)(?:[ ]*=[ ]*([^\t]*))?", re.IGNORECASE
+)
+_ENTITY = re.compile(r"([A-Za-z][A-Za-z0-9_]*)\s*=\s*(\S+)\s*")
 
 #: ``!Sample_characteristics_ch1`` once its ``Sample_`` prefix has come off.
 _CHARACTERISTICS = re.compile(r"^characteristics(?:_ch(\w+))?$", re.IGNORECASE)
@@ -36,10 +39,7 @@ _CHARACTERISTICS = re.compile(r"^characteristics(?:_ch(\w+))?$", re.IGNORECASE)
 #: every real export tested declares one, so no table body is ever counted.
 _ROW_COUNT = "data_row_count"
 
-#: What separates a characteristic's key from its value. The literal sequence,
-#: not a bare colon: a bare colon makes a key of ``stage:`` and refuses the
-#: namespaced ``efo:cell type: fibroblast``, whose key carries one of its own.
-_KEY_SEPARATOR = ": "
+_KEY_SEPARATOR = ":"
 
 #: What a partial parse can mean. An attribute block has no closing marker, so a
 #: file ending after a complete attribute line is *not* partial.
@@ -58,6 +58,8 @@ class FieldGroup:
 
     entities: int = 0
     names: dict = field(default_factory=dict)
+    #: Original SOFT field location when a collision required a renamed field.
+    origins: dict = field(default_factory=dict)
 
     def observe(self, name: str, repeated: bool) -> None:
         self.names[name] = self.names.get(name, False) or repeated
@@ -73,6 +75,7 @@ class Table:
 
     kind: str
     columns: tuple
+    title: str = ""
     #: Column name -> its ``#COLUMN`` line, verbatim. First non-empty one wins.
     column_lines: dict = field(default_factory=dict)
     entities: int = 0
@@ -107,7 +110,7 @@ class SoftFile:
     #: The attribute names those lines arrived on, mapped to whether they
     #: repeated within one entity. They become the fallback fields.
     fallbacks: dict = field(default_factory=dict)
-    #: One per distinct ``(kind, columns)`` signature, in declaration order.
+    #: One per distinct ``(kind, title, columns)`` signature, in declaration order.
     tables: list = field(default_factory=list)
     #: The conditions that made this a best-effort read, if any.
     incomplete: tuple = ()
@@ -128,8 +131,10 @@ def parse(
 
     Returns:
         The deposit's shape. An input with no ``^`` entity line yields no kinds,
-        which is how a caller tells "not SOFT" from "SOFT that says little"; the
-        parser does not raise, because it does not know what file it is reading.
+        which distinguishes non-SOFT input from an export with little metadata.
+
+    Raises:
+        ValueError: An entity declaration or table marker is malformed.
     """
     state = _State(sample_rows, sample_bytes)
     for raw in lines:
@@ -145,6 +150,7 @@ class _State:
         self._sample_bytes = sample_bytes
         self._out = SoftFile()
         self._undecodable = 0
+        self._first_line = True
 
         # The open entity.
         self._kind: Optional[str] = None
@@ -154,13 +160,18 @@ class _State:
         self._fallback_counts: dict = {}
         self._column_lines: dict = {}
         self._declared_rows: Optional[int] = None
+        # GDS resumes ^DATASET after its ^SUBSET blocks. Count the accession
+        # once and retain attribute cardinality across resumed blocks.
+        self._entity_counts: dict = {}
+        self._entity_char_counts: dict = {}
+        self._entity_fallback_counts: dict = {}
 
         # The open table. ``_table`` is None while its header is still awaited.
         self._in_table = False
         self._table: Optional[Table] = None
+        self._table_title = ""
 
         self._characteristics: dict = {}
-        self._channels: set = set()
         # Signature -> Table, so a later entity declaring the same columns joins
         # the first rather than starting a record set of its own.
         self._by_signature: dict = {}
@@ -170,10 +181,16 @@ class _State:
     def feed(self, raw: bytes) -> None:
         """Consume one raw line."""
         line = self._decode(raw)
+        if self._first_line:
+            line = line.removeprefix("\ufeff")
+            self._first_line = False
         marker = _table_marker(line)
 
         if self._in_table:
-            if marker == "end":
+            if marker is not None:
+                kind, action, _ = marker
+                if kind != self._kind or action != "end":
+                    raise ValueError("Mismatched or nested GEO SOFT table marker")
                 self._close_table()
             elif self._table is None:
                 self._start_table(line)
@@ -184,9 +201,13 @@ class _State:
         if marker is not None:
             # A begin marker opens a table; a stray end marker is neither a
             # table nor an attribute, so it is dropped rather than named.
-            if marker == "begin" and self._kind is not None:
+            kind, action, title = marker
+            if action == "begin" and self._kind is not None:
+                if kind != self._kind:
+                    raise ValueError("GEO SOFT table marker does not match its entity")
                 self._in_table = True
                 self._table = None
+                self._table_title = title
             return
         if not line:
             return
@@ -226,15 +247,22 @@ class _State:
             return raw.decode("utf-8", "replace").rstrip("\r\n")
 
     def _open_entity(self, rest: str) -> None:
-        kind = rest.partition("=")[0].strip().upper()
+        match = _ENTITY.fullmatch(rest)
+        if match is None:
+            raise ValueError("Malformed GEO SOFT '^ENTITY = ACCESSION' line")
+        kind, accession = match.groups()
+        kind = kind.upper()
+        entity = (kind, accession)
+        group = self._out.kinds.setdefault(kind, FieldGroup())
+        if entity not in self._entity_counts:
+            group.entities += 1
         self._kind = kind
         self._prefix = f"{kind.lower()}_"
-        self._counts = {}
-        self._char_counts = {}
-        self._fallback_counts = {}
+        self._counts = self._entity_counts.setdefault(entity, {})
+        self._char_counts = self._entity_char_counts.setdefault(entity, {})
+        self._fallback_counts = self._entity_fallback_counts.setdefault(entity, {})
         self._column_lines = {}
         self._declared_rows = None
-        self._out.kinds.setdefault(kind, FieldGroup()).entities += 1
 
     def _attribute(self, rest: str) -> None:
         if self._kind is None:
@@ -259,14 +287,7 @@ class _State:
         self._out.kinds[self._kind].observe(name, count > 1)
 
     def _characteristic(self, attribute: str, channel: str, value: str) -> None:
-        # The channel is in the attribute name, so it counts whatever the value
-        # turned out to be. Otherwise a malformed _ch2 line would leave every
-        # valid channel-1 key unprefixed in a file that carries two channels.
-        self._channels.add(channel)
-
-        # ``diagnosis: `` still names ``diagnosis``, which is why the value is
-        # not stripped before the split: a submitter leaving one spreadsheet
-        # column empty still named the key.
+        # An empty value, as in ``diagnosis:``, still declares its key.
         key, sep, _ = value.partition(_KEY_SEPARATOR)
         if not sep or not key.strip():
             self._out.unparsed += 1
@@ -277,7 +298,7 @@ class _State:
             self._out.fallbacks[attribute] = was or count > 1
             return
 
-        slot = (channel, key.strip())
+        slot = (channel or "1", key.strip())
         count = self._char_counts[slot] = self._char_counts.get(slot, 0) + 1
         was = self._characteristics.get(slot, False)
         self._characteristics[slot] = was or count > 1
@@ -294,11 +315,13 @@ class _State:
 
     def _start_table(self, header: str) -> None:
         columns = tuple(header.split("\t"))
-        signature = (self._kind, columns)
+        signature = (self._kind, self._table_title, columns)
 
         table = self._by_signature.get(signature)
         if table is None:
-            table = Table(kind=self._kind or "", columns=columns)
+            table = Table(
+                kind=self._kind or "", columns=columns, title=self._table_title
+            )
             table.sample += header.encode("utf-8") + b"\n"
             self._by_signature[signature] = table
             self._out.tables.append(table)
@@ -309,8 +332,8 @@ class _State:
         if self._declared_rows is not None:
             table.rows += self._declared_rows
             table.rows_declared += 1
-            # Consumed, so a second table under one entity — which GEO does not
-            # write — reports no row count rather than counting it twice.
+            # A later table under this entity needs its own declaration rather
+            # than reusing the preceding table's row count.
             self._declared_rows = None
         self._table = table
 
@@ -318,6 +341,13 @@ class _State:
         table = self._table
         if table is None or table._sampled_rows >= self._sample_rows:
             return
+        # GEO's GSE2034 series matrix rows have an extra trailing tab. Ignore
+        # only empty cells beyond the declared header, never populated extras
+        # or empty cells belonging to declared columns.
+        cells = line.split("\t")
+        width = len(table.columns)
+        if len(cells) > width and not any(cells[width:]):
+            line = "\t".join(cells[:width])
         row = line.encode("utf-8") + b"\n"
         if len(table.sample) + len(row) > self._sample_bytes:
             # Too big for what is left of the budget. Skipped rather than
@@ -331,6 +361,7 @@ class _State:
     def _close_table(self) -> None:
         self._table = None
         self._in_table = False
+        self._column_lines = {}
 
     # ------------------------------------------------------------------
 
@@ -347,28 +378,59 @@ class _State:
     def _name_characteristics(self) -> None:
         """Turn the collected ``(channel, key)`` slots into field names.
 
-        A one-channel deposit keeps the bare key. Once a second channel appears
-        *every* key is prefixed, because which of two ``gender`` keys keeps the
-        bare name must not depend on which was met first.
+        Channel 1 (or an omitted channel) keeps the bare key, regardless of
+        other samples' channels. Later channels always carry their prefix.
+        Disambiguate collisions so a submitter's ``ch2_tissue`` and channel 2's
+        ``tissue`` both survive. Suffixes never displace another literal key.
         """
-        prefixed = len(self._channels) > 1
         group = self._out.characteristics
         group.entities = self._out.kinds.get("SAMPLE", FieldGroup()).entities
-        for (channel, key), repeated in self._characteristics.items():
-            group.observe(f"ch{channel}_{key}" if prefixed else key, repeated)
-        for attribute, repeated in self._out.fallbacks.items():
-            group.observe(attribute, repeated)
+        names = [
+            (
+                key if channel == "1" else f"ch{channel}_{key}",
+                repeated,
+                f"'{key}' in !Sample_characteristics_ch{channel}",
+                0 if channel == "1" else 1,
+            )
+            for (channel, key), repeated in self._characteristics.items()
+        ] + [
+            (attribute, repeated, f"unparsed !Sample_{attribute}", 2)
+            for attribute, repeated in self._out.fallbacks.items()
+        ]
+        reserved = {name for name, _, _, _ in names}
+        used: set = set()
+        assigned: dict = {}
+        # A literal channel-1 key keeps its spelling even when another sample
+        # declared the colliding channel-2 name first.
+        for i in sorted(range(len(names)), key=lambda i: names[i][3]):
+            name = names[i][0]
+            candidate = name
+            if candidate in used:
+                n = 2
+                while f"{name}__{n}" in reserved or f"{name}__{n}" in used:
+                    n += 1
+                candidate = f"{name}__{n}"
+            used.add(candidate)
+            assigned[i] = candidate
+        for i, (name, repeated, origin, _) in enumerate(names):
+            candidate = assigned[i]
+            group.observe(candidate, repeated)
+            if candidate != name:
+                group.origins[candidate] = origin
 
 
-def _table_marker(line: str) -> Optional[str]:
-    """``"begin"``, ``"end"``, or None if this line is not a whole marker.
+def _table_marker(line: str) -> Optional[tuple]:
+    """The entity kind, action and optional title of a whole marker line.
 
     Spaces are forgiven, tabs are not: the line ending is already off, so what
     remains to strip is either padding around a marker or a TSV delimiter, and
     ``!sample_table_end\t`` is a two-column row whose second cell is empty.
     """
     match = _TABLE_MARKER.fullmatch(line.strip(" "))
-    return match.group(1).lower() if match else None
+    if match is None:
+        return None
+    kind, action, title = match.groups()
+    return kind.upper(), action.lower(), (title or "").strip()
 
 
 def _characteristic_channel(name: str) -> Optional[str]:
@@ -383,6 +445,7 @@ def _characteristic_channel(name: str) -> Optional[str]:
 
 def _as_int(value: str) -> Optional[int]:
     try:
-        return int(value)
+        count = int(value)
+        return count if count >= 0 else None
     except ValueError:
         return None

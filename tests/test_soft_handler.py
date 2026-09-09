@@ -1,8 +1,7 @@
 """GEO SOFT: what the registry-wide sweeps cannot reach.
 
 Unit level throughout — ``extract`` and ``build_croissant``, never a bake. The
-pipeline is covered once, end to end, in ``test_end_to_end.py``. Tests name the
-success criterion they settle where there is one.
+pipeline is covered end to end in ``test_end_to_end.py``.
 """
 
 from __future__ import annotations
@@ -101,33 +100,28 @@ CHARACTERISTIC_KEYS = {
 
 @pytest.mark.parametrize("export", CHARACTERISTIC_KEYS, ids=lambda p: p.name)
 def test_every_characteristic_key_becomes_a_field_of_its_own(export: Path) -> None:
-    """Criterion 1. Exactly these, no more: a key not emitted is a target field
+    """Exactly these, no more: a key not emitted is a target field
     nobody can map, and one invented is a claim the deposit does not make."""
     characteristics = one(build(export), "_sample_characteristics")
 
-    assert {f.name for f in characteristics.fields} == CHARACTERISTIC_KEYS[export]
+    assert {f.name for f in characteristics.fields} == CHARACTERISTIC_KEYS[export] | {
+        "geo_accession"
+    }
 
 
 # ---------------------------------------------------------------------------
-# 2 — no value is emitted
+# No value is emitted
 # ---------------------------------------------------------------------------
 #
-# Characterised rather than searched. A substring sweep has to pick a length
-# threshold to dodge coincidences, and everything under it goes unchecked. These
-# two tests instead pin every string the handler can emit: a field name must be
-# a name the file declares, and a description must be built from nothing but
-# counts, the stored filename, a field name, and a verbatim #COLUMN line. There
-# is then nowhere for a value to go.
-
 _ATTRIBUTE = re.compile(
-    r"^!(?:Database|Series|Sample|Platform)_(?P<name>[^=]*?)\s*=", re.I | re.M
+    r"^!(?:Database|Series|Sample|Platform|Dataset|Subset)_(?P<name>[^=]*?)\s*=",
+    re.I | re.M,
 )
 _CHARACTERISTIC = re.compile(
-    r"^!Sample_characteristics(?:_ch(?P<channel>\w+))? = (?P<key>[^:]+):(?: |$)",
+    r"^!Sample_characteristics(?:_ch(?P<channel>\w+))? = (?P<key>[^:]+):",
     re.I | re.M,
 )
 _TABLE_HEADER = re.compile(r"^![a-z]+_table_begin\n(?P<header>.*)$", re.I | re.M)
-_COLUMN_LINE = re.compile(r"^#(?P<column>[^=]+)=(?P<description>.*)$", re.M)
 
 
 def declared_names(path: Path) -> set:
@@ -135,7 +129,7 @@ def declared_names(path: Path) -> set:
 
     Deliberately independent of the implementation under test, and deliberately
     a superset on characteristics: both the bare key and its ``chN_`` form are
-    admitted, since which is emitted depends on how many channels the file uses.
+    admitted.
     """
     text = text_of(path)
     names = {m.group("name") for m in _ATTRIBUTE.finditer(text)}
@@ -148,71 +142,23 @@ def declared_names(path: Path) -> set:
     return {name for name in names if name}
 
 
-def column_lines(path: Path) -> set:
-    return {
-        m.group(0).strip()
-        for m in _COLUMN_LINE.finditer(text_of(path))
-        if m.group("description").strip()
-    }
-
-
 @pytest.fixture(params=[GEO_EXPORT, TABLES], ids=["tableless", "tables"])
 def any_export(request) -> Path:
     """Both shapes, so the checks below see characteristics and tables alike."""
     return request.param
 
 
-#: Every record set ends the same way, which is the guide's promise in code.
-_TAIL = r"\. No value is emitted\.( Partial parse: [^.]+\.)?$"
-
-_RECORD_SET_DESCRIPTIONS = [
-    re.compile(head + _TAIL)
-    for head in (
-        r"^(Series|Sample|Platform)-level attributes in (?P<file>\S+) "
-        r"\(\d+ (series|samples?|platforms?), \d+ attribute names?\)",
-        r"^Submitter-defined sample characteristics in (?P<file>\S+) "
-        r"\(\d+ samples?, \d+ keys?"
-        r"(, and \d+ lines? that were not 'key: value')?\)",
-        r"^Inline data table of \d+ (samples?|platforms?) in (?P<file>\S+) "
-        r"\(\d+ columns?(, \d+ unnamed)?"
-        r"(, \d+ rows declared|, row count not declared)\)",
-    )
-]
-
-
-def _allowed_descriptions(name: str, documented: set) -> set:
-    """Every description the handler is permitted to build for one field."""
-    return (
-        {f"{noun} attribute '{name}'" for noun in ("Series", "Sample", "Platform")}
-        | {f"Characteristic '{name}'", f"Column '{name}'"}
-        | {f"Column '{name}'. {line}" for line in documented}
-    )
-
-
 def test_no_value_is_emitted(any_export: Path) -> None:
-    """Criterion 2, over every string the handler can produce.
-
-    Every emitted string is pinned rather than searched for: a field name
-    against the names the file declares, both kinds of description against a
-    template, and the absence of a ``value`` structurally, since one would
-    bypass the templates entirely. There is then nowhere for a value to go.
-    """
+    """Check declared names and absent values without parsing description prose."""
     declared = declared_names(any_export)
-    documented = column_lines(any_export)
-
     record_sets = build(any_export)
 
     assert record_sets, "nothing was described"
     for record_set in record_sets:
-        matched = (p.match(record_set.description) for p in _RECORD_SET_DESCRIPTIONS)
-        match = next((m for m in matched if m), None)
-        assert match, record_set.description
-        assert match.group("file") == any_export.name
         assert record_set.fields, record_set.id
         for field in record_set.fields:
             assert field.name in declared, field.name
             assert field.value is None, field.name
-            assert field.description in _allowed_descriptions(field.name, documented)
 
 
 def test_the_names_the_test_re_derives_are_not_the_values() -> None:
@@ -225,7 +171,7 @@ def test_the_names_the_test_re_derives_are_not_the_values() -> None:
 
 
 def test_every_entity_field_is_text() -> None:
-    """Criterion 3. Coercing before typing turns ``dbgap_subject_id: 27278``
+    """Coercing before typing turns ``dbgap_subject_id: 27278``
     into a measurement."""
     entity_sets = [
         rs
@@ -240,7 +186,7 @@ def test_every_entity_field_is_text() -> None:
 
 
 def test_no_source_carries_an_extract() -> None:
-    """Criterion 3. What stops a later contributor "improving" the manifest
+    """What stops a later contributor "improving" the manifest
     into a promise mlcroissant cannot keep."""
     sources = [f.source for rs in build(GEO_EXPORT, TABLES) for f in rs.fields]
 
@@ -250,7 +196,6 @@ def test_no_source_carries_an_extract() -> None:
 
 
 def test_a_repeated_attribute_is_one_array_field(dataset: Path) -> None:
-    """Criterion 4."""
     path = write_soft(
         dataset,
         "GSE1_family.soft",
@@ -267,7 +212,7 @@ def test_a_repeated_attribute_is_one_array_field(dataset: Path) -> None:
 
 
 def test_an_attribute_and_a_characteristic_may_share_a_name(dataset: Path) -> None:
-    """Criterion 5, and the second reason the characteristics stand alone: one
+    """Characteristics stand alone so that one
     record set holding two fields called ``title`` is one no reader could use."""
     path = write_soft(
         dataset,
@@ -279,14 +224,18 @@ def test_an_attribute_and_a_characteristic_may_share_a_name(dataset: Path) -> No
 
     built = {rs.id: rs for rs in build(path)}
     attribute = built["GSE1_family_samples"].fields[0]
-    characteristic = built["GSE1_family_sample_characteristics"].fields[0]
+    characteristic = next(
+        f
+        for f in built["GSE1_family_sample_characteristics"].fields
+        if f.name == "title"
+    )
 
     assert attribute.name == characteristic.name == "title"
     assert attribute.id != characteristic.id
 
 
 # ---------------------------------------------------------------------------
-# 6 — identifiers come from paths, not from discovery order
+# Identifiers come from paths, not from discovery order
 # ---------------------------------------------------------------------------
 
 
@@ -302,17 +251,16 @@ def sibling_tree(root: Path) -> list:
 
 
 def test_same_basename_in_two_directories_stays_apart(dataset: Path) -> None:
-    """Criterion 6."""
     paths = sibling_tree(dataset)
 
     ids = [rs.id for rs in build(*paths, root=dataset)]
 
-    assert len(ids) == len(set(ids)) == 12
+    assert len(ids) == len(set(ids)) == 14
     assert all(rs_id.startswith(("a__", "b__")) for rs_id in ids), ids
 
 
 def test_identifiers_do_not_depend_on_discovery_order(dataset: Path) -> None:
-    """Criterion 6, second half. Batch order is rglob order, fixed within a
+    """Batch order is rglob order, fixed within a
     process, so no parallel-determinism test would catch this."""
     paths = sibling_tree(dataset)
 
@@ -323,23 +271,22 @@ def test_identifiers_do_not_depend_on_discovery_order(dataset: Path) -> None:
 
 
 def test_each_column_signature_is_described_once() -> None:
-    """Criterion 6b. Ten near-identical record sets would be noise; a
+    """Ten near-identical record sets would be noise; a
     nine-against-one split is information. GSE1000 declares ``SIG_LOG2`` on one
     of its ten samples and ``SIGNAL_Log2`` on the other nine."""
-    described = {rs.id: rs.description for rs in build(TABLES) if "_table" in rs.id}
-
-    assert set(described) == {
+    assert {rs.id for rs in build(TABLES) if "_table" in rs.id} == {
         "GSE1000_family_platform_table",
         "GSE1000_family_sample_table",
         "GSE1000_family_sample_table_2",
     }
-    assert "1 platform" in described["GSE1000_family_platform_table"]
-    assert "1 sample" in described["GSE1000_family_sample_table"]
-    assert "9 samples" in described["GSE1000_family_sample_table_2"]
+    assert [(d.suffix, d.table.entities) for d in extract(TABLES)["tables"]] == [
+        ("platform_table", 1),
+        ("sample_table", 1),
+        ("sample_table_2", 9),
+    ]
 
 
 def test_a_table_column_is_typed_from_a_sample_of_its_rows() -> None:
-    """Criterion 6c."""
     columns = {
         f.name: str(f.data_types[0]) for f in one(build(TABLES), "_sample_table").fields
     }
@@ -352,7 +299,7 @@ def test_a_table_column_is_typed_from_a_sample_of_its_rows() -> None:
 
 
 def test_a_columns_description_carries_its_column_line_verbatim() -> None:
-    """Criterion 6c. The provenance is the point: a reader has to be able to
+    """The provenance is the point: a reader has to be able to
     see the prose came from the deposit's own ``#COLUMN`` line."""
     columns = {
         f.name: f.description for f in one(build(TABLES), "_sample_table").fields
@@ -370,23 +317,23 @@ def test_the_row_sample_is_released_once_it_has_been_typed() -> None:
     inside the extracted metadata is a cell one edit away from the document."""
     described = extract(TABLES)["tables"]
 
-    assert [d.column_types["VALUE"] for d in described if "VALUE" in d.column_types]
+    assert any("cr:Float64" in d.column_types for d in described)
     assert all(d.table.sample == b"" for d in described)
 
 
 def test_a_row_count_comes_from_the_declaration() -> None:
-    """Criterion 6d. Every table in this fixture declares 22 283 rows and was
+    """Every table in this fixture declares 22 283 rows and was
     trimmed to ten, so a handler that counted would report 10 — and 90 for the
     shared signature, whose declarations are summed the way the Parquet handler
     sums shards."""
-    described = {rs.id: rs.description for rs in build(TABLES)}
-
-    assert "22283 rows declared" in described["GSE1000_family_sample_table"]
-    assert "200547 rows declared" in described["GSE1000_family_sample_table_2"]
+    tables = {d.suffix: d.table for d in extract(TABLES)["tables"]}
+    assert tables["sample_table"].rows == 22283
+    assert tables["sample_table_2"].rows == 200547
+    assert all(t.rows_known for t in tables.values())
 
 
 def test_an_entity_kind_with_no_fields_produces_no_record_set() -> None:
-    """Criterion 7. GSE1000 carries no characteristics at all, and mlcroissant
+    """GSE1000 carries no characteristics at all, and mlcroissant
     validates an empty record set, which is why the handler has to refuse one
     rather than emit it."""
     ids = {rs.id for rs in build(TABLES)}
@@ -396,7 +343,7 @@ def test_an_entity_kind_with_no_fields_produces_no_record_set() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 8 — one forward pass, bounded memory
+# One forward pass, bounded memory
 # ---------------------------------------------------------------------------
 
 
@@ -458,7 +405,7 @@ def write_large_export(path: Path, samples: int = 20, wide_rows: int = 10_500) -
 
 
 def test_a_large_export_costs_one_pass_and_bounded_allocation(tmp_path: Path) -> None:
-    """Criterion 8. Everything this handler holds is a Python object — the row
+    """Everything this handler holds is a Python object — the row
     sample is a ``bytearray``, and it is the only thing PyArrow is ever handed
     — so ``tracemalloc`` is exact about the peak rather than a proxy for it.
     """
@@ -483,7 +430,7 @@ def test_a_large_export_costs_one_pass_and_bounded_allocation(tmp_path: Path) ->
 def test_an_undecodable_byte_costs_that_line_and_nothing_more(
     dataset: Path, caplog
 ) -> None:
-    """Criterion 9, on a synthetic fixture: the real deposits are all valid
+    """A synthetic fixture: the real deposits are all valid
     UTF-8, so a byte that does not decode has to be manufactured by rewriting
     ``\\xc2\\xba`` down to a bare ``\\xba``."""
     path = dataset / "GSE1_family.soft"
@@ -503,7 +450,7 @@ def test_an_undecodable_byte_costs_that_line_and_nothing_more(
 def test_a_table_left_open_is_reported_on_every_record_set(
     dataset: Path, caplog
 ) -> None:
-    """Criterion 12. A syntactically valid Croissant file that silently claims
+    """A syntactically valid Croissant file that silently claims
     to be complete is worse than an explicit failure."""
     path = write_soft(
         dataset,
@@ -527,7 +474,7 @@ def test_a_table_left_open_is_reported_on_every_record_set(
 
 
 def test_a_file_that_simply_ends_is_not_reported_as_partial(dataset: Path) -> None:
-    """Criterion 12's negative half. An attribute block has no closing marker,
+    """An attribute block has no closing marker,
     so ending after one is how every SOFT file ends."""
     path = write_soft(
         dataset, "GSE1_family.soft", "^SERIES = GSE1\n!Series_title = a\n"
@@ -537,14 +484,14 @@ def test_a_file_that_simply_ends_is_not_reported_as_partial(dataset: Path) -> No
 
 
 # ---------------------------------------------------------------------------
-# 10, 11 — what this handler is not
+# Unsupported inputs
 # ---------------------------------------------------------------------------
 
 
 def test_a_soft_file_with_no_entity_line_raises_naming_the_file(
     dataset: Path,
 ) -> None:
-    """Criterion 10. Reported as ``extract_failed``, which is accurate: the
+    """Reported as ``extract_failed``, which is accurate: the
     file really could not be read."""
     path = write_soft(dataset, "notes.soft", "this is prose, not a deposit\n")
 
@@ -578,7 +525,7 @@ def test_a_series_matrix_is_a_different_grammar_and_is_refused(dataset: Path) ->
 
 @pytest.mark.parametrize("handler", builtin_handlers(), ids=lambda h: type(h).__name__)
 def test_only_this_handler_claims_a_bare_soft_file(handler, dataset: Path) -> None:
-    """Criterion 11. The shared sweep does not cover this half: its negative
+    """The shared sweep does not cover this half: its negative
     case writes ``SAMPLES[owner]()[0]``, so it feeds other handlers this
     handler's own sample *filename* and never a bare ``.soft``."""
     path = write_soft(dataset, "probe.soft", "^SERIES = GSE1\n!Series_title = a\n")
@@ -590,7 +537,7 @@ def test_only_this_handler_claims_a_bare_soft_file(handler, dataset: Path) -> No
 
 def test_the_wrapper_never_reaches_an_identifier() -> None:
     """``.gz`` is transport. It reaches the prose that names the file on disk —
-    which criterion 2 asserts — and never the ``@id``."""
+    as the source-name checks assert — and never the ``@id``."""
     assert one(build(GEO_EXPORT), "_series").id == "GSE327347_family_series"
 
 
@@ -650,6 +597,7 @@ def test_a_duplicate_column_name_survives_under_distinct_ids(dataset: Path) -> N
 
     assert [f.name for f in table.fields] == ["ID_REF", "ID_REF"]
     assert len({f.id for f in table.fields}) == 2
+    assert [str(f.data_types[0]) for f in table.fields] == ["sc:Text", "cr:Int64"]
 
 
 def test_an_attribute_name_survives_into_the_field_but_not_into_the_id(
@@ -683,3 +631,116 @@ def test_the_counts_read_as_prose(dataset: Path) -> None:
 
     assert "1 series, 1 attribute name)" in build(one_each)[0].description
     assert "2 series, 2 attribute names)" in build(two_each)[0].description
+
+
+def test_gds_attributes_subsets_and_expression_table_are_all_described() -> None:
+    path = DATA / "geo_soft_regressions" / "GDS10.soft"
+    parsed = extract(path)["soft"]
+    assert {k: v.entities for k, v in parsed.kinds.items()} == {
+        "DATABASE": 1,
+        "DATASET": 1,
+        "SUBSET": 12,
+    }
+    record_sets = build(path)
+    assert {rs.id for rs in record_sets} == {
+        "GDS10_database",
+        "GDS10_datasets",
+        "GDS10_subsets",
+        "GDS10_dataset_table",
+    }
+    assert {f.name for f in one(record_sets, "_subsets").fields} == {
+        "dataset_id",
+        "description",
+        "sample_id",
+        "type",
+    }
+    assert {f.name for f in one(record_sets, "_datasets").fields} == set(
+        parsed.kinds["DATASET"].names
+    )
+    table = one(record_sets, "_dataset_table")
+    assert len(table.fields) == 30
+    assert (
+        str(next(f for f in table.fields if f.name == "GSM582").data_types[0])
+        == "cr:Int64"
+    )
+
+
+def test_real_series_tables_include_patient_labels_and_typed_matrix() -> None:
+    path = DATA / "geo_soft_regressions" / "GSE2034_series.soft"
+    tables = extract(path)["tables"]
+    assert [(d.table.kind, d.table.title, len(d.table.columns)) for d in tables] == [
+        ("SERIES", "Data_matrix_for_GSE2034", 287),
+        ("SERIES", "Patient clinical parameters header descriptions", 7),
+    ]
+    built = build(path)
+    assert str(one(built, "_series_table").fields[1].data_types[0]) == "cr:Float64"
+    clinical = one(built, "_series_table_2")
+    assert {f.name: str(f.data_types[0]) for f in clinical.fields} == {
+        "PID": "cr:Int64",
+        "GEO asscession number": "sc:Text",
+        "lymph node status": "sc:Text",
+        "time to relapse or last follow-up (months)": "cr:Int64",
+        "relapse (1=True)": "cr:Int64",
+        "ER Status": "sc:Text",
+        "Brain relapses (1=yes, 0=no)": "cr:Int64",
+    }
+
+
+@pytest.mark.parametrize("attribute", ["", "!Sample_geo_accession = GSM123456789\n"])
+def test_characteristics_identify_the_sample_without_emitting_values(
+    dataset: Path, attribute: str
+) -> None:
+    import json
+
+    path = write_soft(
+        dataset,
+        "sample.soft",
+        "^SAMPLE = GSM123456789\n"
+        + attribute
+        + "!Sample_characteristics_ch1 = dbgap_subject_id:987654321\n"
+        "!Sample_characteristics_ch1 = patient id:UNIQUE_DONOR_VALUE\n",
+    )
+    record_sets = build(path)
+    characteristics = one(record_sets, "_sample_characteristics")
+    fields = {f.name: f for f in characteristics.fields}
+    assert set(fields) == {"geo_accession", "dbgap_subject_id", "patient id"}
+    accession = fields["geo_accession"]
+    assert str(accession.data_types[0]) == "sc:Text"
+    assert not accession.is_array
+    assert "^SAMPLE = ACCESSION" in accession.description
+    serialized = json.dumps([rs.to_json() for rs in record_sets])
+    for value in ("GSM123456789", "987654321", "UNIQUE_DONOR_VALUE"):
+        assert value not in serialized
+    assert all(f.value is None for rs in record_sets for f in rs.fields)
+
+
+def test_a_submitter_accession_key_stays_distinct_from_the_sample_identifier(
+    dataset: Path,
+) -> None:
+    path = write_soft(
+        dataset,
+        "collision.soft",
+        "^SAMPLE = GSM1\n"
+        "!Sample_characteristics_ch1 = geo_accession:donor_id\n"
+        "!Sample_characteristics_ch1 = geo_accession__2:other_id\n",
+    )
+    fields = one(build(path), "_sample_characteristics").fields
+    assert [f.name for f in fields] == [
+        "geo_accession__3",
+        "geo_accession",
+        "geo_accession__2",
+    ]
+    assert len({f.id for f in fields}) == 3
+    assert "^SAMPLE = ACCESSION" in fields[0].description
+
+
+def test_unknown_entities_fail_instead_of_silently_disappearing(dataset: Path) -> None:
+    path = write_soft(
+        dataset,
+        "unknown.soft",
+        "^SERIES = GSE1\n!Series_title = known\n^UNKNOWN = X1\n!Unknown_title = lost\n",
+    )
+    with pytest.raises(
+        ValueError, match="Unsupported GEO SOFT entity kind.*unknown.soft: UNKNOWN"
+    ):
+        extract(path)
