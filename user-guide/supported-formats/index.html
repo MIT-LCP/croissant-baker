@@ -528,6 +528,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Images">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ome-tiff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OME-TIFF
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -912,6 +929,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Images">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ome-tiff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OME-TIFF
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1100,9 +1134,9 @@ or <code>would_process</code> (<code>--dry-run</code> only). <code>reason</code>
 </tr>
 <tr>
 <td>Images</td>
-<td><code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.gif</code>, <code>.bmp</code>, <code>.webp</code>, <code>.ico</code>, <code>.tiff</code>, <code>.tif</code></td>
+<td><code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.gif</code>, <code>.bmp</code>, <code>.webp</code>, <code>.ico</code>, <code>.tiff</code>, <code>.tif</code>, <code>.btf</code></td>
 <td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
-<td>Dimensions, color mode, encoding format</td>
+<td>Dimensions, color mode, encoding format; OME-XML header fields</td>
 </tr>
 <tr>
 <td>DICOM</td>
@@ -1217,7 +1251,44 @@ or <code>would_process</code> (<code>--dry-run</code> only). <code>reason</code>
 <p>WFDB (WaveForm DataBase) is the standard physiological signal format on PhysioNet. The handler reads the <code>.hea</code> header file and records signal channel names, sampling frequency, number of samples, and duration. Associated <code>.dat</code> binary files are listed as related files.</p>
 <p>Because a record spans several files located by path, this is the one handler that needs a real file on disk. A compressed <code>.hea</code> is reported rather than described.</p>
 <h2 id="images">Images</h2>
-<p>Standard images are read with Pillow. Multi-band or scientific TIFFs fall back to <code>tifffile</code>. All images in a dataset are grouped into one <code>cr:FileSet</code> with a single summary <code>cr:RecordSet</code> covering width, height, color mode, and encoding format.</p>
+<p>Standard images (<code>.png</code>, <code>.jpg</code>, <code>.gif</code>, <code>.bmp</code>, <code>.webp</code>, <code>.ico</code>) are read with Pillow. TIFF and BigTIFF files (<code>.tif</code>, <code>.tiff</code>, <code>.btf</code>) are read with <code>tifffile</code>, which supports scientific TIFF layouts such as multiband rasters and reads the UTF-8 OME metadata used by microscopy writers. Both TIFF variants use <code>image/tiff</code>.</p>
+<p>Ordinary images belong to the <code>image-files</code> FileSet and <code>images</code> RecordSet. Their descriptions summarize dimensions, band counts and formats. Include patterns cover both root-level files (<code>*.tif</code>, for example) and nested files (<code>**/*.tif</code>), including readers that require a directory for <code>**/</code>. Pixel arrays are not decoded during metadata extraction.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Wrapped TIFFs require additional decompression because TIFF readers seek within the file. A backward seek on a compressed stream can restart decompression from the beginning, so reading a <code>.tif.gz</code>, <code>.tif.bz2</code> or <code>.tif.xz</code> can decompress the pixel payload even though no pixel array is decoded. Uncompressed TIFFs can seek directly to their headers.</p>
+</div>
+<h3 id="ome-tiff">OME-TIFF</h3>
+<p>An OME-TIFF carries OME-XML in its ImageDescription tag. The handler checks the content identified by <code>tifffile</code> and requires a versioned OME namespace; the filename's <code>.ome.</code> infix does not determine the format. Files with a readable OME header have their own collection:</p>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cr:FileSet</code> <code>ome-image-files</code></td>
+<td>the OME files, listed individually</td>
+</tr>
+<tr>
+<td><code>cr:RecordSet</code> <code>ome_images</code></td>
+<td>one row per OME file, with the fields below</td>
+</tr>
+</tbody>
+</table>
+<p>The header fields are <code>ome_version</code>, <code>ome_image_count</code>, <code>size_c</code>, <code>size_z</code>, <code>size_t</code>, <code>dimension_order</code>, <code>pixel_type</code>, <code>physical_size_x</code>, <code>physical_size_y</code>, <code>physical_size_x_unit</code>, <code>physical_size_y_unit</code>, and the array field <code>channel_names</code>. Fields with no observed values are omitted. Invalid dimension counts and physical sizes are omitted independently; physical sizes must be finite and positive.</p>
+<p><strong>Physical measurements retain their original unit metadata.</strong> X and Y have separate unit fields. An absent unit remains <code>None</code> in the parsed header, including for older OME schemas; schema defaults are not applied. Explicit unit strings are preserved and measurements are not converted. Batch ranges are grouped by unit, so <code>0.001 mm</code> and <code>0.2–0.4 µm</code> remain separate summaries. Measurements without a unit are reported separately as <code>unit unspecified</code>. A unit field is omitted when no file in the batch declares a nonempty unit for that axis.</p>
+<p><strong>The manifest separates OME files from ordinary images.</strong> The ordinary-image FileSet retains extension globs and excludes the OME paths using <code>cr:excludes</code>. This keeps its size proportional to the number of OME exceptions rather than the number of ordinary TIFF tiles. The generator resolves both includes and excludes to stored paths, including compression wrappers and linked duplicates. Collection counts and summaries describe this partition.</p>
+<div class="admonition note">
+<p class="admonition-title">Reader support for exclusions</p>
+<p><code>mlcroissant</code> 1.1.0 serializes and validates <code>cr:excludes</code>, but its record reader does not apply those exclusions (<a href="https://github.com/mlcommons/croissant/issues/772">upstream issue #772</a>). In a mixed dataset, <code>records("images")</code> can therefore return OME files as well as ordinary images, exceeding the count stated in the description. The same OME files also belong to <code>ome-image-files</code>. Consumers must honor includes minus excludes to obtain the intended partition. A regression test reads actual records to track this limitation; successful metadata validation alone does not establish correct record reading.</p>
+</div>
+<p><strong>Rows describe files.</strong> One OME document may declare several <code>&lt;Image&gt;</code> elements, and an image may span several TIFF files. The handler does not group these files or resolve <code>TiffData</code> mappings. The Pixels fields describe the first <code>&lt;Image&gt;</code> in each file's XML document, which need not correspond to all pixels stored in that particular file. <code>ome_image_count</code> counts the document's Image elements. TIFF <code>SamplesPerPixel</code> supplies <code>num_bands</code>; it can be 1 for an OME image whose three channels occupy separate TIFF pages.</p>
+<p><strong>Header fields are descriptive.</strong> Their descriptions contain observed ranges or sets, and no <code>Field.value</code> is emitted. Only <code>image</code> has <code>extract: {fileProperty: content}</code>. Header fields retain their FileSet source without an extraction instruction, because reading the file content does not select an OME header attribute. <code>mlcroissant</code> 1.1.0 cannot extract these fields, so reading the complete <code>ome_images</code> RecordSet with <code>records("ome_images")</code> fails even when the metadata validates. Channel labels come from <code>Channel/@Name</code>; the list omits unnamed channels and is not a positional channel mapping. <code>Image/@Name</code>, <code>Creator</code>, and file UUIDs are not copied into field descriptions.</p>
+<p>For descriptions identified as OME-XML, the parser refuses DTD/entity declarations, malformed XML and descriptions larger than 8 MiB. Declaration-like text inside comments, processing instructions or CDATA is allowed. Such text does not declare a DTD or expand entities. Refused files remain in the ordinary <code>images</code> collection with their TIFF properties. The refusal count and reasons appear in that RecordSet's description, and a warning naming the file is available to applications that configure logging. The size limit bounds XML parsing; <code>tifffile</code> may already have decoded the TIFF description tag before the check.</p>
+<p>A <code>BinaryOnly</code> document is a placeholder pointing to a companion metadata file. It remains in <code>ome_images</code>, names the companion in its description, and contributes no header measurements or image count. The companion is not opened.</p>
+<p>Not read: <code>Plane</code>, <code>Objective</code>, <code>TimeIncrement</code>, plate and well metadata, pyramid levels, and vendor TIFF extensions such as <code>.svs</code>, <code>.ndpi</code>, <code>.scn</code>, and <code>.qptiff</code>.</p>
 <h2 id="dicom">DICOM</h2>
 <p>DICOM (<code>.dcm</code>, <code>.dicom</code>) is the standard format for medical imaging (CT, MRI, PET, etc.). The handler uses <code>pydicom</code> with <code>stop_before_pixels=True</code> — only the file header is read, so large pixel arrays are never loaded into memory.</p>
 <p>Extracted metadata: image dimensions (rows, columns), number of frames, bits allocated per pixel, photometric interpretation, pixel spacing, slice thickness, modality, study/series description, manufacturer, and SOP class UID.</p>
