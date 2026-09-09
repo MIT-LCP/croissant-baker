@@ -242,16 +242,12 @@ class VCFHandler(FileTypeHandler):
         vCard, and a vCard described as a callset is worse than one nothing
         claims.
 
-        Reading bytes before looking at the name means meeting every file in
-        the dataset, corrupt wrappers among them. A decompression library
-        raises its own exception type rather than ``OSError``, and a file this
-        handler cannot open is one it does not claim, not one that fails
-        dispatch for everybody behind it.
+        A file that cannot be read peeks as ``b""`` and is therefore not
+        claimed, corrupt wrappers included; that is
+        :meth:`~croissant_baker.sources.FileSource.peek`'s contract, and no
+        handler repeats it.
         """
-        try:
-            return source.peek(len(MAGIC)) == MAGIC
-        except Exception:  # noqa: BLE001, an unreadable file is not a claim
-            return False
+        return source.peek(len(MAGIC)) == MAGIC
 
     def extract(
         self, source: FileSource, genomic_sample_ids: bool = False, **kwargs

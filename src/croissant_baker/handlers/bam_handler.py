@@ -14,6 +14,7 @@ import gzip
 import io
 import logging
 import struct
+import zlib
 from typing import BinaryIO, Dict, List, Optional
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
@@ -204,21 +205,20 @@ class BAMHandler(FileTypeHandler):
         wrapper has had one layer taken off already, and the magic is the first
         thing in the stream.
 
-        A file this handler cannot open is one it does not claim: a
-        decompression library raises its own exception type rather than
-        ``OSError``, and that must not end dispatch for the handlers behind it.
+        A file that cannot be read peeks as ``b""`` and is therefore not
+        claimed; that is
+        :meth:`~croissant_baker.sources.FileSource.peek`'s contract. The
+        prefix this handler decompresses itself is its own to guard, and the
+        types are the ones a refused or corrupt member raises.
         """
-        try:
-            head = source.peek(CLAIM_BYTES)
-        except Exception:  # noqa: BLE001, an unreadable file is not a claim
-            return False
+        head = source.peek(CLAIM_BYTES)
         if head.startswith(MAGIC):
             return True
         if not head.startswith(COMPRESSED_MAGIC):
             return False
         try:
             return _decompress_prefix(head, len(MAGIC)) == MAGIC
-        except Exception:  # noqa: BLE001, nor is an undecodable one
+        except (OSError, EOFError, zlib.error):
             return False
 
     def extract(

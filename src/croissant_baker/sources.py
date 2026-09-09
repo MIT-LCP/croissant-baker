@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import io
+import lzma
+import zlib
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
@@ -68,11 +70,19 @@ class FileSource:
 
         Returns fewer bytes than asked for at end of file, and ``b""`` if the
         file cannot be read at all.
+
+        Cannot be read covers a wrapper that will not open, which is not an
+        ``OSError`` in general: ``lzma`` raises ``LZMAError`` and a corrupt
+        deflate stream raises ``zlib.error``, neither of which derives from it.
+        This is the boundary for that, because every caller is a handler
+        sniffing magic while the registry is still deciding who owns the file,
+        and an exception there ends dispatch for every handler behind it rather
+        than leaving the file with a reason.
         """
         try:
             with self.open() as stream:
                 return stream.read(size)
-        except OSError:
+        except (OSError, EOFError, lzma.LZMAError, zlib.error):
             return b""
 
 
