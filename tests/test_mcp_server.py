@@ -6,6 +6,7 @@ would make these tests slow and non-deterministic for no extra coverage.
 """
 
 import asyncio
+import importlib.resources
 import json
 import shutil
 from pathlib import Path
@@ -105,3 +106,26 @@ def test_build_server_registers_exactly_the_three_tools() -> None:
     tools = asyncio.run(mcp_server.build_server().list_tools())
 
     assert sorted(tool.name for tool in tools) == ["bake", "dry_run", "validate"]
+
+
+def test_the_server_publishes_the_skill_as_its_only_resource() -> None:
+    """An agent that connects can read the skill without a filesystem path."""
+    resources = asyncio.run(mcp_server.build_server().list_resources())
+
+    assert [str(r.uri) for r in resources] == ["croissant-baker://skill"]
+    assert [r.mime_type for r in resources] == ["text/markdown"]
+
+
+def test_reading_the_skill_resource_returns_the_packaged_skill() -> None:
+    """The resource serves the file that ships in the package, verbatim."""
+    packaged = (
+        importlib.resources.files("croissant_baker")
+        .joinpath("skills", "croissant-baker", "SKILL.md")
+        .read_text(encoding="utf-8")
+    )
+
+    contents = asyncio.run(
+        mcp_server.build_server().read_resource("croissant-baker://skill")
+    )
+
+    assert "".join(chunk.content for chunk in contents) == packaged

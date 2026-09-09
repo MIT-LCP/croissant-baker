@@ -11,10 +11,15 @@ human would type and nothing else: an agent can supply only what a person
 could, the structural layer is untouched, and the ``ScanReport`` comes back
 verbatim so every refusal and its reason are visible. There is no fetch, search
 or upload tool, and no HTTP transport, so the local-first invariant holds.
+
+Alongside the tools the server publishes one read-only resource: the packaged
+Agent Skill. A client that has the tools but not the skill would otherwise have
+to be told separately how to use them.
 """
 
 from __future__ import annotations
 
+import importlib.resources
 from collections import Counter
 from typing import Any, List, Optional
 
@@ -25,6 +30,23 @@ from croissant_baker.scan import Outcome, Reason
 
 #: The name the server reports to a connecting client.
 SERVER_NAME = "croissant-baker"
+
+#: URI of the bundled Agent Skill, served as the server's one resource.
+SKILL_URI = "croissant-baker://skill"
+
+
+def skill_markdown() -> str:
+    """Return the text of the bundled ``SKILL.md``.
+
+    Read through :mod:`importlib.resources` rather than from a path relative
+    to this file, so it resolves the same way from a wheel, a zip import and a
+    source checkout. Nothing is read until a client asks for the resource.
+    """
+    return (
+        importlib.resources.files("croissant_baker")
+        .joinpath("skills", "croissant-baker", "SKILL.md")
+        .read_text(encoding="utf-8")
+    )
 
 
 def dry_run(
@@ -139,7 +161,7 @@ def validate(path: str) -> dict:
 
 
 def build_server() -> Any:
-    """Build the MCP server with the three tools registered.
+    """Build the MCP server with the three tools and the skill resource.
 
     Returns:
         An ``MCPServer`` from the ``mcp`` package, imported here so the
@@ -153,6 +175,17 @@ def build_server() -> Any:
     server = MCPServer(SERVER_NAME)
     for tool in (dry_run, bake, validate):
         server.add_tool(tool)
+    server.resource(
+        SKILL_URI,
+        name="croissant-baker-skill",
+        title="Croissant Baker Agent Skill",
+        description=(
+            "How to drive croissant-baker: the dry-run-bake-validate loop, "
+            "which fields are inferred and which must be asked for, and the "
+            "gotchas."
+        ),
+        mime_type="text/markdown",
+    )(skill_markdown)
     return server
 
 
