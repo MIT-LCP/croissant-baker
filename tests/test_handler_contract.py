@@ -226,10 +226,12 @@ def test_a_real_batch_returns_a_build_result(name: str, dataset: Path) -> None:
     # third is the FileObject the generator owns: a format whose content is not
     # a table has properties worth stating and no record set to state them on,
     # and BAM is one, so it describes through the extracted ``description``.
+    # Every file of the batch, not one of them: a handler that described the
+    # first and dropped the rest would satisfy ``any`` and describe nothing.
     assert (
         result.record_sets
         or result.file_sets
-        or any(meta.get("description") for meta in metas)
+        or all(meta.get("description") for meta in metas)
     ), f"{name} described nothing"
     assert all(isinstance(d, Declined) for d in result.declined)
 
