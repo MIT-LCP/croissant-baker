@@ -550,7 +550,14 @@ def test_a_batch_with_no_ome_file_describes_one_collection(
 
     assert [fs.id for fs in result.file_sets] == ["image-files"]
     assert [rs.name for rs in result.record_sets] == ["images"]
-    assert sorted(result.file_sets[0].includes) == ["**/*.btf", "**/*.png", "**/*.tif"]
+    assert sorted(result.file_sets[0].includes) == [
+        "**/*.btf",
+        "**/*.png",
+        "**/*.tif",
+        "*.btf",
+        "*.png",
+        "*.tif",
+    ]
 
 
 def test_the_two_collections_partition_the_batch(
@@ -584,6 +591,9 @@ def test_the_two_collections_partition_the_batch(
         "**/*.btf",
         "**/*.png",
         "**/*.tif",
+        "*.btf",
+        "*.png",
+        "*.tif",
     ]
     assert by_name["Image files"].excludes == ["a.ome.tif", "nested/b.ome.tif"]
     assert list(fields_of(nodes_by_name(result.record_sets)["images"])) == ["image"]
@@ -606,7 +616,7 @@ def test_one_ome_file_does_not_expand_thousands_of_plain_tiff_paths(handler):
     }
     result = handler.build_croissant([*plain, microscopy], [])
     ordinary = result.file_sets[0]
-    assert ordinary.includes == ["**/*.tif"]
+    assert ordinary.includes == ["**/*.tif", "*.tif"]
     assert ordinary.excludes == ["slide.ome.tif"]
 
 

@@ -144,13 +144,17 @@ def test_a_glob_gains_one_variant_per_wrapper_present(dataset: Path) -> None:
         "**/*.png.gz",
         "**/*.png.bz2",
         "**/*.png.xz",
+        "*.png",
+        "*.png.gz",
+        "*.png.bz2",
+        "*.png.xz",
     ]
 
 
 def test_a_dataset_of_plain_files_keeps_its_bare_globs(dataset: Path) -> None:
     write_wrapped(dataset, "pixel.png", PNG_1X1)
 
-    assert includes(file_sets(bake(dataset))[0]) == ["**/*.png"]
+    assert includes(file_sets(bake(dataset))[0]) == ["**/*.png", "*.png"]
 
 
 def test_a_glob_stays_scoped_to_the_directory_it_describes(dataset: Path) -> None:
@@ -208,7 +212,12 @@ def test_a_linked_twin_stays_inside_its_primarys_fileset(dataset: Path) -> None:
     write_wrapped(dataset, "pixel.png", PNG_1X1)
     write_wrapped(dataset, "pixel.png", PNG_1X1, ".gz")
 
-    assert includes(file_sets(bake(dataset))[0]) == ["**/*.png", "**/*.png.gz"]
+    assert includes(file_sets(bake(dataset))[0]) == [
+        "**/*.png",
+        "**/*.png.gz",
+        "*.png",
+        "*.png.gz",
+    ]
 
 
 def test_an_upper_case_extension_still_reports_its_wrapper(dataset: Path) -> None:

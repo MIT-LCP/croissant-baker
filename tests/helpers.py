@@ -343,7 +343,11 @@ def includes(file_set: dict) -> list:
 
 
 def file_set_members(file_set: dict, directory: Path) -> set[str]:
-    """Resolve the manifest's includes minus excludes using filesystem globs."""
+    """Spec membership using filesystem globs, not mlcroissant's record reader.
+
+    Reader compatibility is checked separately in ``test_ome_filesets.py``;
+    mlcroissant 1.1.0 currently ignores exclusions.
+    """
 
     def matched(key):
         return {

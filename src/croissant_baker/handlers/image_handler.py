@@ -332,7 +332,11 @@ def _image_file_set(file_metas: List[Dict], ome_metas: List[Dict]) -> mlc.FileSe
         name="Image files",
         description=f"{summary['num_images']} image files ({_formats(summary)})",
         encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
-        includes=sorted(patterns.values()),
+        # mlcroissant uses fnmatch, where **/ requires a directory. Both forms
+        # cover root and nested images with that reader and filesystem globbing.
+        includes=sorted(
+            glob for pattern in patterns.values() for glob in (pattern, pattern[3:])
+        ),
         excludes=sorted(_relative(meta) for meta in ome_metas) or None,
     )
 

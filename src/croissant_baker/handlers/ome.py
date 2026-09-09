@@ -28,14 +28,19 @@ DECLARATION = "it declares a DTD or an entity"
 OVERSIZED = "it is larger than {mib} MiB"
 MALFORMED = "it is not well-formed"
 
-# XML spells both in upper case, so a substring test finds them. Expat already
-# caps entity amplification, so this refuses the bounded remainder — 353 bytes
-# buying a megabyte — without depending on which Expat is linked. OME-XML
-# carries no DTD, so nothing legitimate is refused.
-_DECLARATIONS = ("<!DOCTYPE", "<!ENTITY")
-
 # A local element name alone does not identify OME or justify its unit defaults.
 _OME_NAMESPACE = re.compile(r"http://www\.openmicroscopy\.org/Schemas/OME/\d{4}-\d{2}")
+
+
+class _DTDForbidden(ValueError):
+    """A real declaration, as distinct from declaration text in an annotation."""
+
+
+class _OMEBuilder(ET.TreeBuilder):
+    def doctype(self, name, pubid, system):
+        # The parser calls this before processing the DTD's entity declarations.
+        # Comments, processing instructions and CDATA never trigger it.
+        raise _DTDForbidden
 
 
 @dataclass(frozen=True)
@@ -96,11 +101,10 @@ def parse(document: str) -> Optional[OMEHeader]:
     """Read OME-XML, or None if the root lacks a versioned OME namespace."""
     if len(document.encode("utf-8")) > MAX_DESCRIPTION_BYTES:
         return OMEHeader(refusal=OVERSIZED.format(mib=MAX_DESCRIPTION_BYTES >> 20))
-    if any(token in document for token in _DECLARATIONS):
-        return OMEHeader(refusal=DECLARATION)
-
     try:
-        root = ET.fromstring(document)
+        root = ET.fromstring(document, parser=ET.XMLParser(target=_OMEBuilder()))
+    except _DTDForbidden:
+        return OMEHeader(refusal=DECLARATION)
     except ET.ParseError as exc:
         logger.debug(
             "an ImageDescription claiming to be OME-XML did not parse: %s", exc

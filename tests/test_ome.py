@@ -215,6 +215,52 @@ def test_the_pixels_fields_describe_the_first_image() -> None:
 @pytest.mark.parametrize(
     "document",
     [
+        ome_xml(image()).replace("<OME", "<!-- <!DOCTYPE example> --><OME", 1),
+        ome_xml("<!-- <!ENTITY example 'text'> -->" + image()),
+        ome_xml(image()) + "<!-- <!DOCTYPE example> -->",
+        ome_xml(image()).replace("<OME", "<?annotation <!DOCTYPE example> ?><OME", 1),
+        ome_xml(
+            image()
+            + '<StructuredAnnotations><XMLAnnotation ID="Annotation:0"><Value>'
+            + "<![CDATA[<!DOCTYPE example [<!ENTITY label 'text'>]><example/>]]>"
+            + "</Value></XMLAnnotation></StructuredAnnotations>"
+        ),
+    ],
+    ids=["prolog comment", "body comment", "trailing comment", "PI", "CDATA"],
+)
+def test_declaration_text_in_annotations_does_not_discard_the_header(document):
+    assert ome.parse(document) == ome.parse(ome_xml(image()))
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        "<!DOCTYPE OME>",
+        '<!DOCTYPE OME SYSTEM "file:///nonexistent.dtd">',
+        '<!DOCTYPE OME PUBLIC "example" "https://example.invalid/ome.dtd">',
+        '<!DOCTYPE OME [<!ENTITY example "text">]>',
+    ],
+    ids=["bare", "external system", "external public", "internal entity"],
+)
+def test_real_declarations_are_refused_even_after_a_comment(declaration):
+    document = ome_xml(image()).replace(
+        "<OME", "<!-- <OME/> -->" + declaration + "<OME", 1
+    )
+    assert ome.parse(document).refusal == ome.DECLARATION
+
+
+def test_entity_expansion_is_stopped_by_the_declaration_guard():
+    assert ome.parse(bomb(8)).refusal == ome.DECLARATION
+
+
+@pytest.mark.parametrize("token", ["<!DOCTYPE OME>", "<!ENTITY example 'text'>"])
+def test_declarations_after_the_root_are_malformed(token):
+    assert ome.parse(ome_xml(image()) + token).refusal == ome.MALFORMED
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
         bomb(6),
         f'<!DOCTYPE OME><OME xmlns="{OME_NAMESPACE}"/>',
         f'<OME xmlns="{OME_NAMESPACE}"><Image',

@@ -1525,5 +1525,10 @@ def test_ome_tiff_generation(ome_dataset: Path, tmp_path: Path) -> None:
 
     file_sets = {n["@id"]: n for n in metadata["distribution"] if "includes" in n}
     assert file_sets["ome-image-files"]["includes"] == "morphology.ome.tif"
-    assert sorted(file_sets["image-files"]["includes"]) == ["**/*.png", "**/*.tif"]
+    assert sorted(file_sets["image-files"]["includes"]) == [
+        "**/*.png",
+        "**/*.tif",
+        "*.png",
+        "*.tif",
+    ]
     assert file_sets["image-files"]["cr:excludes"] == "morphology.ome.tif"
