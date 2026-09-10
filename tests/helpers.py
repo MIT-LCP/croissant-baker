@@ -579,6 +579,24 @@ def _bcf() -> list:
     return [("calls.bcf", gzip.compress(bcf_payload(), mtime=0))]
 
 
+def _xyz() -> list:
+    """One water molecule: a count, a titled comment line, three atom lines.
+
+    The comment carries a title rather than being blank, so the sweep sees the
+    line a writer actually fills in, and the three atoms give a file whose first
+    frame the handler has to stop part way through.
+    """
+    return [
+        (
+            "water.xyz",
+            b"3\nwater molecule\n"
+            b"O 0.000 0.000 0.117\n"
+            b"H 0.000 0.757 -0.469\n"
+            b"H 0.000 -0.757 -0.469\n",
+        )
+    ]
+
+
 def _nifti() -> list:
     source = next(_SPECT.rglob("*.nii.gz"), None)
     assert source is not None, f"tracked NIfTI fixture missing under {_SPECT}"
@@ -609,6 +627,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "BCFHandler": _bcf,
     "CRAMHandler": _cram,
     "PDBHandler": _pdb,
+    "XYZHandler": _xyz,
 }
 
 #: Handlers with no sample, and why.

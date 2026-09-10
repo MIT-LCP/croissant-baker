@@ -724,6 +724,55 @@ file.
 added by the input layer when the file arrives under one. SMILES has no IANA
 registration, so the media type follows the `chemical/x-*` family cheminformatics
 tools register theirs under.
+## XYZ
+
+XYZ (`.xyz`) is an atom count, a comment line, and then one line of `symbol x y
+z` per atom; a trajectory or a multi-structure export repeats that frame back to
+back. The handler reads the first frame's header and stops there. No further
+frame is opened and no coordinate is read: the geometry is the data, and a
+molecular dynamics run is gigabytes of it.
+
+An XYZ is claimed on its extension **and** on the shape of its head, and neither
+half would do alone. A leading integer on a line of its own is also how a
+numbered list, a record count and a line-oriented log all open, so it is too
+little to own a file on; the extension alone would claim anything a user
+happened to name `.xyz`, which several unrelated formats have. Together they are
+a frame: a count, a comment line that may say anything at all, and under them a
+line of a symbol and three numbers. A `.xyz` whose first line is not a count, or
+whose third line is not an atom line, is therefore reported as a file no handler
+claimed.
+
+What is reported is the first frame's atom count and its comment line, verbatim
+and stripped of surrounding whitespace. The comment is usually a title and is
+often empty, and either way it is bytes the file states rather than a reading of
+them. When it carries the extended-XYZ `Properties=species:S:1:pos:R:3` term,
+the file is reported as extended XYZ and the property names in that term are
+reported with it: they are the columns the file declares its atom lines to
+carry.
+
+Deliberately not reported:
+
+- **The number of frames.** Counting them means reading the whole file, which is
+  what header-only reading exists to avoid. One structure and a million-frame
+  trajectory cost the same read.
+- **The coordinates**, and anything derived from them: no cell, no bounding box,
+  no per-element tally. The first atom line is looked at only to confirm the
+  frame is one, and is then discarded.
+- **What the extended-XYZ columns hold.** The names come off the `Properties=`
+  declaration; the values under them are never parsed.
+
+A frame of zero atoms is legal and is described as one, because a trajectory
+writer emits it for an empty cell. A header that declares atoms with no atom
+line under it, an empty file, and a first atom line that is not a symbol and
+three numbers are each reported with that as the reason rather than described.
+
+**No record set is emitted.** Atoms are records of a structure, not of a dataset
+schema, so an XYZ is described as a file: the statement above is carried in the
+`description` of its `cr:FileObject`. `encodingFormat` is `chemical/x-xyz`, with
+the compression media type added by the input layer when the file arrives under
+one. XYZ has no IANA registration; `chemical/*` is the family the chemistry
+tools have used for these files for decades, and the `x-` form marks it as
+unregistered the way `text/x-fasta` does.
 
 ## Hidden files and directories
 

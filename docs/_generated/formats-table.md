@@ -22,3 +22,4 @@
 | FASTA | `.fa`, `.fasta`, `.fna` | `.gz`, `.bz2`, `.xz` | Format and encoding; record names and sequences are not read |
 | PDB | `.pdb`, `.ent` | `.gz`, `.bz2`, `.xz` | ID code, classification, title, experimental method, resolution, chain count (header only) |
 | SMILES | `.smi`, `.smiles` | `.gz`, `.bz2`, `.xz` | Column count and delimiter from a bounded sample of lines; one record per molecule |
+| XYZ | `.xyz` | `.gz`, `.bz2`, `.xz` | Atom count and comment line of the first frame; frames are not counted |
