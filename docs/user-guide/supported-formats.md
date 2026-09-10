@@ -181,7 +181,43 @@ For descriptions identified as OME-XML, the parser refuses DTD/entity declaratio
 
 A `BinaryOnly` document is a placeholder pointing to a companion metadata file. It remains in `ome_images`, names the companion in its description, and contributes no header measurements or image count. The companion is not opened.
 
-Not read: `Plane`, `Objective`, `TimeIncrement`, plate and well metadata, pyramid levels, and vendor TIFF extensions such as `.svs`, `.ndpi`, `.scn`, and `.qptiff`.
+Not read: `Plane`, `Objective`, `TimeIncrement`, plate and well metadata, and pyramid levels. Vendor whole-slide TIFFs (`.svs`, `.ndpi`, `.scn`, `.bif`, `.qptiff`) have a handler of their own, described in the next section.
+
+## Whole-slide images
+
+Digital pathology scanners write their slides into a TIFF container, one private shape per vendor. Five extensions are claimed: `.svs` (Aperio), `.ndpi` (Hamamatsu), `.scn` (Leica), `.bif` (Ventana) and `.qptiff` (Akoya). Both TIFF versions and both byte orders are accepted, because a slide crosses the 4 GiB that sends a writer to BigTIFF more often than not.
+
+The claim is the vendor extension over TIFF magic, never the magic alone. The bytes of a pyramidal TIFF say nothing about whether the pyramid holds tissue, so `.tif` and `.tiff` stay with the image handler even when they are pyramidal. `tifffile` reads the header; no pixel is decoded and no tile is stitched.
+
+What is read from the file: the vendor signature, the base level's width and height, the number of pyramid levels and each level's dimensions, the base level's tile size and compression, microns per pixel across and down, the objective magnification the slide was scanned through, and the kinds of associated image the file carries (`label`, `macro`, `overview`, `thumbnail`). Each is left unstated where the file does not state it: a Leica SCN document puts the imaged area in its `view` element and the level sizes in `pixels`, and dividing one by the other is an inference the file does not make, so a Leica slide reports no microns per pixel.
+
+| Node | Content |
+|------|---------|
+| `cr:FileSet` `wsi-files` | every slide in the dataset, by two globs per extension present: one for root-level files and one for nested ones |
+| `cr:RecordSet` `slides` | one row per slide, with the fields below |
+
+The fields are `image` (an `sc:ImageObject`), `filename`, `vendor`, `width`, `height`, `level_count`, `mpp_x`, `mpp_y` and `objective_power`. A field is emitted only where the batch has an observed value, so a batch of Leica slides carries no `mpp_x` field describing a measurement none of them made. Every field draws on the `wsi-files` FileSet. As in the OME record set, no `Field.value` is emitted and each header field's description carries the value or range the batch was observed to hold. The record set's description states the slide count, the dimension range, the vendor breakdown and the objective magnifications.
+
+The tile size, the compression, the per-level dimensions and the associated image kinds are read but do not reach the document: they describe how the pixels are stored rather than what was imaged, and there is no field in the record set for them.
+
+Every vendor here describes one thing, a pyramid of a single tissue section, so unlike the OME split in the image handler there is no second collection. A file bearing one of these extensions but no vendor signature is still described, from its TIFF tags, and counted in the vendor breakdown as `no vendor signature`.
+
+A vendor's own XML document is refused on the same terms as OME-XML: a DTD or entity declaration, a document larger than 8 MiB, or text that is not well-formed. A refused file keeps its row and is described from its TIFF tags alone; the refusal count and reasons appear in the record set's description, and a warning naming the file is available to applications that configure logging.
+
+Not read: the pixels, the tile offsets, the ICC profile, the scanner's serial number and scan date, and the annotation files a vendor stores beside the slide.
+
+A wrapped slide (`.svs.gz`, and the other two codecs) is described the same way, at the cost the note under Images gives: a TIFF reader seeks within the file, and a backward seek on a compressed stream can restart decompression from the beginning.
+
+### Not yet supported
+
+| Format | Why |
+|--------|-----|
+| MIRAX (`.mrxs`) | one slide is a stub file beside a directory of index and data files, and this codebase has no directory-as-one-unit concept |
+| Olympus VSI (`.vsi`) | needs a new library, and the pixels live in a companion directory rather than in the named file |
+| Zeiss CZI (`.czi`) | not a TIFF container; needs a new library |
+| Philips iSyntax (`.isyntax`) | needs the vendor SDK; there is no open reader to depend on |
+| OME-Zarr (`.zarr`) | a directory of chunks rather than a file |
+| DZI (`.dzi`) | an XML descriptor beside a directory of tiles |
 
 ## DICOM
 
@@ -192,6 +228,12 @@ Extracted metadata: image dimensions (rows, columns), number of frames, bits all
 Files with no extension are also accepted if they carry the DICOM magic bytes (`DICM` at byte offset 128), which is common in PACS exports.
 
 All DICOM files in a dataset are grouped into one `cr:FileSet` with a summary `cr:RecordSet` covering modality counts and dimension ranges.
+
+### Whole-slide microscopy
+
+A digital pathology scanner writes DICOM too, under the VL Whole Slide Microscopy Image SOP class (`1.2.840.10008.5.1.4.1.1.77.1.6`). An instance of that class is a slide rather than a cross section, and four further fields are added for it: `wsi_flavor` (the ImageType value 3, one of `VOLUME`, `LABEL`, `OVERVIEW` or `THUMBNAIL`), `total_pixel_matrix_columns` and `total_pixel_matrix_rows` (the size of the whole slide across all tiles), and `container_identifier` (the slide barcode, shared by every instance imaged from one glass slide). The imaged volume in millimetres, the optical path count and the pixel spacing are read too; a slide is multi-frame, so its pixel spacing comes from the shared functional groups rather than from the top-level tag a single-frame CT uses.
+
+The fields are added only when the batch holds a slide, so a batch of cross sections is described exactly as it was before slides were recognised. The record set's description names the slide count and the flavors present, alongside the modality counts. `LABEL` and `OVERVIEW` instances routinely omit the imaged volume and the container id, so each of these values is reported as unstated rather than dropped, keeping the shape of a slide the same across the flavors of one study.
 
 ## NIfTI
 

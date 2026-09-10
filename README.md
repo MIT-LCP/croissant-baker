@@ -75,8 +75,9 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | FHIR | `.ndjson`, `.json` (Bundle) | NDJSON bulk export and JSON Bundle |
 | JSON / JSONL | `.json`, `.jsonl` | Arrays, single objects, and JSON Lines |
 | WFDB | `.hea` + `.dat` / `.atr` | PhysioNet waveform data |
+| Whole-slide images | `.svs`, `.ndpi`, `.scn`, `.bif`, `.qptiff` | Vendor, pyramid levels, microns per pixel and objective magnification via tifffile (header only); Aperio, Hamamatsu, Leica, Ventana and Akoya scanners |
 | Images | `.png`, `.jpg`, `.tiff`, `.btf`, `.bmp`, `.gif`, `.webp` | Dimensions and format; BigTIFF via tifffile; OME-XML header fields for OME-TIFF |
-| DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only) |
+| DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only); image flavor, total pixel matrix size and slide barcode for whole-slide microscopy instances |
 | NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
 | GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
 | HDF5 | `.h5`, `.h5ad`, `.hdf5` | Dataset paths, dtypes and shapes via h5py (structure only); AnnData and 10x table columns where the layout is recognised |
