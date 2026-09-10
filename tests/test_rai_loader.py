@@ -255,3 +255,25 @@ def test_the_template_claims_no_model_used_the_dataset() -> None:
     config = load_rai_config(RAI_EXAMPLE)
 
     assert config.lineage.models == []
+
+
+def test_blank_collection_types_are_dropped(tmp_path: Path) -> None:
+    """Key names are strict; values stay as lenient as they were."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types:\n"
+        "      - observations\n"
+        '      - ""\n'
+        "      - ~\n"
+        "      - existing_datasets\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.activities[0].collection_types == [
+        "observations",
+        "existing_datasets",
+    ]

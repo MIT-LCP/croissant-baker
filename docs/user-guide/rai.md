@@ -112,6 +112,8 @@ activities:
         url: https://lcp.mit.edu
 ```
 
+`collection_types` is written out as `rai:dataCollectionType` on the dataset node, unioned across every activity in declaration order, because RAI 1.0 declares that property on the dataset rather than on an activity.
+
 A complete working example is at [`tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml`](https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml).
 
 ### Unknown keys are rejected
