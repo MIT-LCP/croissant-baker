@@ -235,6 +235,17 @@ def test_a_quality_line_of_a_different_length_is_refused(dataset: Path) -> None:
     assert "ragged.fastq" in str(caught.value)
 
 
+def test_a_record_with_no_quality_line_is_refused(dataset: Path) -> None:
+    """Three lines are a truncated record, not a shorter one: without the
+    quality line there is no read to state a length for."""
+    path = write(dataset, "short.fastq", b"@r1\nACGTACGT\n+\n")
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "short.fastq" in str(caught.value)
+
+
 def test_no_read_becomes_a_record_set(dataset: Path) -> None:
     """Reads are records of a run, not of a dataset schema: a FASTQ is
     described as a file, and the description is all of it."""
