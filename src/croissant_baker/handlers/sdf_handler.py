@@ -27,12 +27,12 @@ import mlcroissant as mlc
 from croissant_baker.handlers import molfile
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.utils import (
+    PrefixLines,
     allocate_record_set_ids,
     display_name,
     infer_croissant_type,
     make_field_id,
     plural,
-    read_prefix_chunks,
 )
 from croissant_baker.sources import UNREADABLE, FileSource
 
@@ -98,16 +98,6 @@ STRUCTURE_FIELDS = (
 
 #: What a version is called when the sample holds more than one of them.
 MIXED_VERSION = "mixed"
-
-
-def _decode(raw: bytes) -> str:
-    """One line as text, with the carriage return of a CRLF file gone.
-
-    Decoded permissively: an SD file is printable ASCII by specification, and a
-    stray byte in a data item is not a reason to refuse a file whose structure
-    is otherwise readable.
-    """
-    return raw.decode("utf-8", "replace").rstrip("\r")
 
 
 def _take_line(line: str, records: List[List[str]], current: List[str]) -> List[str]:
@@ -303,42 +293,25 @@ class SDFHandler(FileTypeHandler):
     ) -> Tuple[List[List[str]], bool]:
         """The sampled records, and whether the file ended inside the sample.
 
-        Taken a chunk at a time rather than a line at a time: a stream iterated
-        by line hands back the whole file as one line when the file holds no
-        line ending, and reading the whole file is the one thing the sample
-        exists to avoid. The loop stops as soon as either bound is reached, so
+        Read through :class:`~croissant_baker.handlers.utils.PrefixLines`, which
+        is bounded in bytes and delivers the tail of a file that ends without a
+        line ending as the line it is. The record bound stops the read here, so
         nothing past the sample is pulled off the stream at all.
-
-        A file that ends without a line ending behind its last line is read to
-        its end all the same: the tail is the last line, and a writer that
-        closes the file straight after the terminator leaves it there.
         """
         records: List[List[str]] = []
         current: List[str] = []
-        pending = b""
-        read = 0
         bounded = ""
         try:
             with source.open() as stream:
-                for chunk in read_prefix_chunks(stream, SAMPLE_BYTES + 1):
-                    read += len(chunk)
-                    if read > SAMPLE_BYTES:
-                        chunk = chunk[: len(chunk) - (read - SAMPLE_BYTES)]
-                        bounded = f"the first {SAMPLE_BYTES} bytes"
-                    complete = (pending + chunk).split(b"\n")
-                    # The tail after the last line ending is not yet a line.
-                    pending = complete.pop()
-                    for raw in complete:
-                        current = _take_line(_decode(raw), records, current)
+                reader = PrefixLines(stream, SAMPLE_BYTES)
+                for line in reader:
+                    current = _take_line(line, records, current)
                     if len(records) >= SAMPLE_RECORDS:
-                        bounded = bounded or plural(SAMPLE_RECORDS, "record")
-                    if bounded:
+                        bounded = plural(SAMPLE_RECORDS, "record")
                         break
-                if pending and not bounded:
-                    # End of file with no line ending behind the last line,
-                    # which is where a writer that closes the file straight
-                    # after the terminator leaves it.
-                    _take_line(_decode(pending), records, current)
+                else:
+                    if reader.bounded:
+                        bounded = f"the first {SAMPLE_BYTES} bytes"
         except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"

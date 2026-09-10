@@ -16,7 +16,7 @@ from typing import List, Tuple
 
 from croissant_baker.handlers import molfile
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.utils import plural, read_prefix_chunks
+from croissant_baker.handlers.utils import PrefixLines, plural
 from croissant_baker.sources import UNREADABLE, FileSource
 
 #: The chemical MIME family, which is not IANA-registered but is what chemistry
@@ -111,30 +111,19 @@ class MOLHandler(FileTypeHandler):
     def _read_lines(self, source: FileSource, name: str) -> Tuple[List[str], bool]:
         """The lines of a bounded prefix, and whether the file ran past it.
 
-        Taken a chunk at a time rather than a line at a time: a stream iterated
-        by line hands back the whole file as one line when the file holds no
-        line ending, and reading the whole file is the one thing this handler
-        exists not to do.
-
-        Decoded permissively: a molfile is printable ASCII by specification, and
-        a stray byte in a title or a comment is not a reason to refuse a file
-        whose counts are otherwise readable.
+        Read through :class:`~croissant_baker.handlers.utils.PrefixLines`,
+        which is bounded in bytes and drops a tail the bound cut in half, since
+        nothing may be read off half a line.
         """
         try:
             with source.open() as stream:
-                head = b"".join(read_prefix_chunks(stream, HEAD_BYTES + 1))
+                reader = PrefixLines(stream, HEAD_BYTES)
+                lines = list(reader)
         except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
             ) from exc
-
-        truncated = len(head) > HEAD_BYTES
-        lines = head[:HEAD_BYTES].decode("utf-8", "replace").split("\n")
-        if truncated:
-            # The tail after the last line ending was cut by the bound, so it is
-            # not yet a line and nothing may be read off it.
-            lines.pop()
-        return [line.rstrip("\r") for line in lines], truncated
+        return lines, reader.bounded
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
         """Nothing: a molfile is described as a file, by the description it carries.
