@@ -90,19 +90,21 @@ lineage:
 
   # prov:wasDerivedFrom — datasets this dataset was derived from.
   # url is required; all other fields are optional.
+  # id is your own identifier for the source, if you use one.
   source_datasets:
     - url: https://physionet.org/content/mimiciii/
+      id: SOURCE-001
       name: MIMIC-III
       organisation: PhysioNet
       license: PhysioNet Credentialed Health Data License 1.5.0
 
   # rai:usedBy — models or assets that have used this dataset (e.g. for training
   # or evaluation). url is required; name and id are optional.
-  models: []
-  # models:
-  #   - url: https://huggingface.co/my-org/my-model
-  #     name: My Clinical NLP Model
-  #     id: MODEL-001
+  # Write `models: []` if no model has used the dataset yet.
+  models:
+    - url: https://huggingface.co/my-org/my-model
+      id: MODEL-001
+      name: My Clinical NLP Model
 
 
 # ── Activities ────────────────────────────────────────────────────────────────
@@ -145,6 +147,7 @@ activities:
         is_synthetic: false
     platforms:
       - name: Hospital Electronic Health Record System
+        url: https://www.bidmc.org
         description: >
           Institutional EHR system used for routine clinical documentation,
           from which the raw data was extracted.

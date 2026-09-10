@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from croissant_baker.rai import schema
 from croissant_baker.rai.loader import load_rai_config
 from croissant_baker.rai.schema import AIFairnessConfig
 
@@ -20,19 +21,55 @@ def write_config(tmp_path: Path, body: str) -> Path:
     return path
 
 
-def test_shipped_example_populates_every_fairness_field() -> None:
-    """Every key in the template must be one the loader actually reads.
+def _collect(value, found: dict) -> dict:
+    """Group every dataclass instance reachable from ``value`` by its class."""
+    if dataclasses.is_dataclass(value):
+        found.setdefault(type(value), []).append(value)
+        for f in dataclasses.fields(value):
+            _collect(getattr(value, f.name), found)
+    elif isinstance(value, list):
+        for item in value:
+            _collect(item, found)
+    return found
 
-    ``--rai-config --help`` points users at ``rai-example.yaml``, so a key the
-    loader does not know is a field silently missing from their output.
+
+def _is_set(value) -> bool:
+    """A field the template actually says something about.
+
+    ``False`` counts: ``has_synthetic_data: false`` is a deliberate answer,
+    not an omission. An empty string or list is not.
     """
-    config = load_rai_config(RAI_EXAMPLE)
+    if value is None:
+        return False
+    if isinstance(value, (str, list)):
+        return bool(value)
+    return True
 
-    unset = [
-        f.name
-        for f in dataclasses.fields(AIFairnessConfig)
-        if getattr(config.ai_fairness, f.name) is None
-    ]
+
+def test_shipped_example_exercises_every_schema_field() -> None:
+    """The template has to show every field the config can carry.
+
+    ``--rai-config --help`` points users at ``rai-example.yaml``, so a field
+    missing from it is a field they will never know they could have filled in,
+    and a key it spells wrong is one silently dropped from their output.
+    """
+    found = _collect(load_rai_config(RAI_EXAMPLE), {})
+
+    declared = {
+        obj
+        for obj in vars(schema).values()
+        if dataclasses.is_dataclass(obj) and obj.__module__ == schema.__name__
+    }
+    assert sorted(c.__name__ for c in declared - set(found)) == [], (
+        "a schema dataclass has no entry in the template"
+    )
+
+    unset = sorted(
+        f"{cls.__name__}.{f.name}"
+        for cls in declared
+        for f in dataclasses.fields(cls)
+        if not any(_is_set(getattr(instance, f.name)) for instance in found[cls])
+    )
     assert unset == []
 
 
