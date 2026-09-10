@@ -135,6 +135,39 @@ def test_a_file_read_to_its_end_reports_the_exact_record_count(
     assert meta["molfile_version"] == "V2000"
 
 
+def test_a_file_whose_last_terminator_has_no_line_ending_keeps_its_last_record(
+    dataset: Path,
+) -> None:
+    """The tail behind the last line ending is a line like any other. A writer
+    that closes the file straight after the terminator is common enough that
+    dropping the record under it silently miscounts a whole library."""
+    meta = extract(write(dataset, "molecules.sdf", SDF_PAYLOAD.removesuffix(b"\n")))
+
+    assert meta["sampled_records"] == 2
+    assert meta["sample_exhausted"] is True
+
+
+def test_the_record_count_is_the_same_with_and_without_the_last_line_ending(
+    dataset: Path,
+) -> None:
+    """One byte at the end of the file says nothing about what is in it."""
+    terminated = extract(write(dataset, "terminated.sdf", SDF_PAYLOAD))
+    bare = extract(write(dataset, "bare.sdf", SDF_PAYLOAD.removesuffix(b"\n")))
+
+    assert bare["sampled_records"] == terminated["sampled_records"]
+
+
+def test_a_single_record_with_no_line_ending_is_described(dataset: Path) -> None:
+    """It was refused with a reason that was not true: the file does carry the
+    terminator, and the read simply stopped one line short of it."""
+    payload = sdf_record(MOL_V2000, [("ID", "1")]).removesuffix(b"\n")
+
+    meta = extract(write(dataset, "one.sdf", payload))
+
+    assert meta["sampled_records"] == 1
+    assert meta["fields"] == [{"name": "ID", "type": "cr:Int64"}]
+
+
 def test_versions_that_differ_across_the_sample_are_reported_as_mixed(
     dataset: Path,
 ) -> None:
