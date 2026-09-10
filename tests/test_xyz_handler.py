@@ -66,6 +66,31 @@ def test_a_first_line_that_is_not_a_count_is_not_claimed(dataset: Path) -> None:
     assert not HANDLER.claims(source_for(path))
 
 
+#: More digits than ``int`` will parse without being told to. A file opening
+#: with a run this long is not one that states an atom count, and the refusal
+#: for it has to be this handler's, naming the file, rather than CPython's.
+HUGE_COUNT = b"9" * 5000
+
+
+def test_a_first_line_of_more_digits_than_a_count_holds_is_not_claimed(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "huge.xyz", HUGE_COUNT + b"\ncomment\nO 0.0 0.0 0.0\n")
+
+    assert not HANDLER.claims(source_for(path))
+
+
+def test_a_first_line_of_more_digits_than_a_count_holds_is_refused_by_name(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "huge.xyz", HUGE_COUNT + b"\ncomment\nO 0.0 0.0 0.0\n")
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "huge.xyz" in str(caught.value)
+
+
 def test_a_third_line_that_is_not_an_atom_line_is_not_claimed(dataset: Path) -> None:
     """A leading integer is also how a plain numbered list opens."""
     path = write(dataset, "list.xyz", b"3\nthings to do\nbuy milk\nwrite it up\n")

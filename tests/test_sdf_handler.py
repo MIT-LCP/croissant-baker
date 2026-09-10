@@ -145,6 +145,19 @@ def test_a_value_spanning_several_lines_is_text(dataset: Path) -> None:
     assert meta["fields"] == [{"name": "Count", "type": "sc:Text"}]
 
 
+def test_a_value_of_more_digits_than_an_integer_holds_is_text(
+    dataset: Path,
+) -> None:
+    """No integer type carries it, and past 4300 digits ``int`` refuses to
+    parse it at all and raises a message with no file name in it. It is a run
+    of digits the depositor wrote, which is text."""
+    payload = sdf_record(MOL_V2000, [("Count", "9" * 5000)])
+
+    meta = extract(write(dataset, "huge.sdf", payload))
+
+    assert meta["fields"] == [{"name": "Count", "type": "sc:Text"}]
+
+
 def test_a_field_typed_integer_by_one_record_and_text_by_another_is_text(
     dataset: Path,
 ) -> None:
