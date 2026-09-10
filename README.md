@@ -87,6 +87,7 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | SAM | `.sam` | As BAM, from the text header |
 | FASTQ | `.fastq`, `.fq` | Sequencing reads: read length of the first record; read names are not reported |
 | FASTA | `.fa`, `.fasta`, `.fna` | Sequences and references: format only; record names and sequences are not read |
+| SMILES | `.smi`, `.smiles` | Chemical structures: delimiter, column count and header names from a bounded sample of lines; no structure or compound name is read |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly
