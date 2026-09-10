@@ -200,6 +200,21 @@ SCN_XML = (
     "</image></collection></scn>"
 )
 
+#: The root element of an SCN document, which is what tifffile calls the
+#: format by: a page is SCN when its description ends in ``</scn>``.
+SCN_ROOT = '<scn xmlns="http://www.leica-microsystems.com/scn/2010/10/01">'
+
+#: One entity declaration is enough: the refusal is on the declaration itself,
+#: not on how far the expansion would have got. Beside :func:`ome_bomb`,
+#: which is the same refusal in the other XML the repository parses.
+SCN_BOMB = (
+    '<?xml version="1.0"?>\n<!DOCTYPE scn [\n<!ENTITY a "lol">\n]>\n'
+    f'{SCN_ROOT}<collection name="&a;"/></scn>'
+)
+
+#: An SCN document whose collection element is never closed.
+SCN_MALFORMED = f"{SCN_ROOT}<collection></scn>"
+
 #: The XMP packet a Ventana scanner puts in tag 700. ``ScanRes`` is microns
 #: per pixel and ``Magnification`` the objective power.
 VENTANA_XMP = (
@@ -621,6 +636,8 @@ __all__ = [
     "APERIO_HEADER",
     "APERIO_SVS",
     "QPI_XML",
+    "SCN_BOMB",
+    "SCN_MALFORMED",
     "SCN_XML",
     "VENTANA_XMP",
     "WRAPPER_SUFFIXES",

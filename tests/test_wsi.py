@@ -9,7 +9,7 @@ import tifffile
 
 from croissant_baker.handlers import wsi
 
-from tests.helpers import tiff_bytes, wsi_bytes
+from tests.helpers import SCN_BOMB, SCN_MALFORMED, tiff_bytes, wsi_bytes
 
 
 def open_bytes(data: bytes) -> tifffile.TiffFile:
@@ -241,18 +241,6 @@ def test_a_plain_tiff_states_no_optics() -> None:
 
 
 # Refusals
-
-
-SCN_ROOT = '<scn xmlns="http://www.leica-microsystems.com/scn/2010/10/01">'
-
-#: One entity declaration is enough: the refusal is on the declaration itself,
-#: not on how far the expansion would have got.
-SCN_BOMB = (
-    '<?xml version="1.0"?>\n<!DOCTYPE scn [\n<!ENTITY a "lol">\n]>\n'
-    f'{SCN_ROOT}<collection name="&a;"/></scn>'
-)
-
-SCN_MALFORMED = f"{SCN_ROOT}<collection></scn>"
 
 
 @pytest.mark.parametrize(

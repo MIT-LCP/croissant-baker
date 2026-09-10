@@ -9,7 +9,13 @@ import pytest
 from croissant_baker.handlers.wsi_handler import WSIHandler
 from croissant_baker.sources import make_source
 
-from tests.helpers import APERIO_SVS, WRAPPER_SUFFIXES, wsi_bytes, write_wrapped
+from tests.helpers import (
+    APERIO_SVS,
+    SCN_MALFORMED,
+    WRAPPER_SUFFIXES,
+    wsi_bytes,
+    write_wrapped,
+)
 
 #: The vendor whose scanner writes each extension. A slide has to be the
 #: format its name claims: tifffile reads a little-endian classic TIFF named
@@ -199,8 +205,6 @@ def test_a_refused_vendor_document_is_logged_against_the_file(
 ) -> None:
     """The scan report clears the reason once a file is described, so a
     partial refusal on a described file has nowhere else to be seen."""
-    from tests.test_wsi import SCN_MALFORMED
-
     path = write_wrapped(dataset, "slide.scn", wsi_bytes("leica", xml=SCN_MALFORMED))
 
     with caplog.at_level("WARNING", logger="croissant_baker.handlers.wsi_handler"):
@@ -219,10 +223,7 @@ def batch(handler: WSIHandler, dataset: Path, *names: str) -> tuple:
     for index, name in enumerate(names):
         extension = Path(name).suffix
         path = write_wrapped(dataset, name, wsi_bytes(VENDOR_EXTENSIONS[extension]))
-        meta = handler.extract(make_source(path, Path(name)))
-        # The generator stamps this after extraction; build_croissant needs it.
-        meta["relative_path"] = name
-        metas.append(meta)
+        metas.append(handler.extract(make_source(path, Path(name))))
         ids.append(f"file_{index}")
     return metas, ids
 
@@ -329,12 +330,9 @@ def test_the_record_set_description_counts_the_slides_it_could_not_read(
 ) -> None:
     """A described file's partial refusal has nowhere else to be seen: the
     scan report clears the reason once the file is described."""
-    from tests.test_wsi import SCN_MALFORMED
-
     metas, ids = batch(handler, dataset, "a.svs")
     path = write_wrapped(dataset, "b.scn", wsi_bytes("leica", xml=SCN_MALFORMED))
     broken = handler.extract(make_source(path, Path("b.scn")))
-    broken["relative_path"] = "b.scn"
 
     (record_set,) = handler.build_croissant([*metas, broken], [*ids, "f"]).record_sets
 
