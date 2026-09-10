@@ -1,9 +1,10 @@
 """HDF5 handler: turning what a container holds into Croissant.
 
 One record set per file, or one per table where
-:mod:`croissant_baker.handlers.layouts` recognised the layout. The reading is
-elsewhere: :mod:`croissant_baker.handlers.hdf5` knows HDF5, ``layouts`` knows
-what a container holds and no storage format, and this module knows neither.
+:mod:`croissant_baker.handlers.hdf5_handler.layouts` recognised the layout.
+The reading is elsewhere: :mod:`croissant_baker.handlers.hdf5_handler.reading`
+knows HDF5, ``layouts`` knows what a container holds and no storage format,
+and this module knows neither.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from typing import List, Optional, Tuple
 
 import mlcroissant as mlc
 
-from croissant_baker.handlers import hdf5, layouts
+from croissant_baker.handlers.hdf5_handler import layouts, reading
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.utils import (
     BASE,
@@ -51,14 +52,14 @@ class HDF5Handler(FileTypeHandler):
     def claims(self, source: FileSource) -> bool:
         if source.suffix not in self.EXTENSIONS:
             return False
-        return hdf5.looks_like_hdf5(source.peek(hdf5.PEEK_BYTES))
+        return reading.looks_like_hdf5(source.peek(reading.PEEK_BYTES))
 
     def extract(self, source: FileSource, **kwargs) -> dict:
         if not source.exists:
             raise FileNotFoundError(f"HDF5 file not found: {source.relative_path}")
 
         try:
-            with hdf5.opened(source) as root:
+            with reading.opened(source) as root:
                 layout = layouts.recognise(root)
                 structure = None if layout else layouts.structure(root)
         except Exception as e:
@@ -263,7 +264,8 @@ def _describe(
 ) -> str:
     """Where the value is, in the container's own terms.
 
-    Every field states its own :attr:`~croissant_baker.handlers.layouts.Column.path`,
+    Every field states its own
+    :attr:`~croissant_baker.handlers.hdf5_handler.layouts.Column.path`,
     so a reader infers nothing from a naming convention. The stored name comes
     last and bare, because that is the file it can be found in on disk.
     """

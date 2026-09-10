@@ -1,10 +1,10 @@
 """Reading HDF5 structure from a stream, as a finite tree of nodes.
 
 The offset-tolerant signature search, opening a file-like object, and a
-:class:`~croissant_baker.handlers.layouts.Node` view over h5py. What a
-container's structure *means* is
-:mod:`~croissant_baker.handlers.layouts`, which is why that module does not
-import h5py.
+:class:`~croissant_baker.handlers.hdf5_handler.layouts.Node` view over h5py.
+What a container's structure *means* is
+:mod:`~croissant_baker.handlers.hdf5_handler.layouts`, which is why that
+module does not import h5py.
 
 Everything here comes out of object headers and no array is ever read, so
 describing a 5 GB file costs what describing a 5 MB one with the same structure
@@ -20,7 +20,7 @@ from typing import Iterator, Optional, Tuple
 import h5py
 import numpy as np
 
-from croissant_baker.handlers.layouts import (
+from croissant_baker.handlers.hdf5_handler.layouts import (
     BROKEN,
     COMPOUND,
     CYCLE,

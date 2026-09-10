@@ -15,7 +15,7 @@ import h5py
 import numpy as np
 import pytest
 
-from croissant_baker.handlers import hdf5, layouts
+from croissant_baker.handlers.hdf5_handler import layouts, reading
 from croissant_baker.sources import make_source
 
 from tests import hdf5_fixtures as fx
@@ -42,7 +42,7 @@ class Snapshot:
 
 def root_of(path: Path) -> dict:
     """Every node of ``path``, keyed by the path the walk reached it at."""
-    with hdf5.opened(make_source(path)) as root:
+    with reading.opened(make_source(path)) as root:
         return _flatten(root)
 
 
@@ -84,7 +84,7 @@ def test_the_signature_is_found_behind_a_user_block(
         with open(path, "r+b") as fh:
             fh.write(b"a text header written into the user block")
 
-    assert hdf5.looks_like_hdf5(path.read_bytes()[: hdf5.PEEK_BYTES])
+    assert reading.looks_like_hdf5(path.read_bytes()[: reading.PEEK_BYTES])
     assert root_of(path)["x"].shape == (3,)
 
 
@@ -92,10 +92,10 @@ def test_a_user_block_past_the_peek_is_not_claimed(tmp_path: Path) -> None:
     """HDF5 sets no upper limit on a user block, so the 8 KiB bound is honest
     rather than conclusive. No writer is known to exceed it."""
     path = tmp_path / "far.h5"
-    with h5py.File(path, "w", userblock_size=hdf5.PEEK_BYTES * 2) as f:
+    with h5py.File(path, "w", userblock_size=reading.PEEK_BYTES * 2) as f:
         f["x"] = np.arange(3)
 
-    assert not hdf5.looks_like_hdf5(path.read_bytes()[: hdf5.PEEK_BYTES])
+    assert not reading.looks_like_hdf5(path.read_bytes()[: reading.PEEK_BYTES])
 
 
 @pytest.mark.parametrize(
@@ -104,7 +104,7 @@ def test_a_user_block_past_the_peek_is_not_claimed(tmp_path: Path) -> None:
     ids=["empty", "half a signature", "unrelated bytes", "corrupt at offset 512"],
 )
 def test_bytes_that_are_not_hdf5_are_not_claimed(prefix: bytes) -> None:
-    assert not hdf5.looks_like_hdf5(prefix)
+    assert not reading.looks_like_hdf5(prefix)
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +252,7 @@ def test_an_attribute_is_decoded_to_plain_python(tmp_path: Path) -> None:
         # is tested as ``attr(name) is not None``, so it reads as absent.
         dataset.attrs["points_at"] = dataset.ref
 
-    with hdf5.opened(make_source(path)) as root:
+    with reading.opened(make_source(path)) as root:
         node = root.child("x")
         names = ("count", "ratio", "label", "names", "dims", "flag")
         read = {name: node.attr(name) for name in (*names, "points_at", "absent")}
@@ -277,7 +277,7 @@ def test_asking_for_one_attribute_does_not_read_the_others(tmp_path: Path) -> No
     assert payload > 8_000_000
 
     source, counters = counting_source(path)
-    with hdf5.opened(source) as root:
+    with reading.opened(source) as root:
         assert root.attr("encoding-type") is not None
     read = sum(counter.count for counter in counters)
 
@@ -309,7 +309,7 @@ def test_the_container_is_closed_once_it_has_been_described(
 
     monkeypatch.setattr(h5py, "File", _Spy)
 
-    with hdf5.opened(make_source(fx.write_plain(tmp_path / "probe.h5"))) as root:
+    with reading.opened(make_source(fx.write_plain(tmp_path / "probe.h5"))) as root:
         assert root.keys()
 
     assert handles, "nothing opened an h5py.File"

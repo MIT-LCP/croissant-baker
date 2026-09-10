@@ -1,6 +1,7 @@
 """What a container's structure means: the generic view and the two layouts.
 
-This layer reads through :class:`~croissant_baker.handlers.layouts.Node` and
+This layer reads through
+:class:`~croissant_baker.handlers.hdf5_handler.layouts.Node` and
 imports no h5py, so the same code would describe an AnnData Zarr store. The
 tests reach it through real HDF5 files, because that is what a user brings,
 except for the one that supplies ``Node`` itself and so proves the seam holds.
@@ -15,22 +16,22 @@ from typing import Mapping, Optional, Tuple
 import h5py
 import pytest
 
-from croissant_baker.handlers import hdf5, layouts
+from croissant_baker.handlers.hdf5_handler import layouts, reading
 from croissant_baker.sources import make_source
 
 from tests import hdf5_fixtures as fx
-from tests.test_hdf5 import counting_source
+from tests.test_hdf5_reading import counting_source
 
 
 def described(path: Path):
     """``(layout, structure)`` for ``path`` — exactly one of the two is set."""
-    with hdf5.opened(make_source(path)) as root:
+    with reading.opened(make_source(path)) as root:
         layout = layouts.recognise(root)
         return layout, None if layout else layouts.structure(root)
 
 
 def structure_of(path: Path) -> layouts.Structure:
-    with hdf5.opened(make_source(path)) as root:
+    with reading.opened(make_source(path)) as root:
         return layouts.structure(root)
 
 
@@ -111,7 +112,7 @@ def test_the_generic_view_never_asks_for_an_attribute(
     def refuse(_self, name):
         raise AssertionError(f"the generic view read the attribute {name!r}")
 
-    monkeypatch.setattr(hdf5.H5Node, "attr", refuse)
+    monkeypatch.setattr(reading.H5Node, "attr", refuse)
 
     assert len(structure_of(fx.write_keras(tmp_path / "model.h5")).columns) == 4
 
@@ -211,7 +212,7 @@ def test_the_cap_bounds_the_read_and_not_only_the_output(tmp_path: Path) -> None
     read = {}
     for label, cap in (("capped", layouts.MAX_DATASETS), ("whole", 10**9)):
         source, counters = counting_source(path)
-        with hdf5.opened(source) as root:
+        with reading.opened(source) as root:
             layouts.structure(root, cap=cap)
         read[label] = sum(counter.count for counter in counters)
 

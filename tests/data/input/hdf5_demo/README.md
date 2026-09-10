@@ -132,7 +132,7 @@ curl -sLO https://cf.10xgenomics.com/samples/cell-exp/2.1.0/hgmm_1k/hgmm_1k_raw_
 ```
 
 Then walk each with `h5py`, printing every object's kind, dtype, shape and
-attributes. `tests/test_layouts.py` pins what the handler makes of each shape,
+attributes. `tests/test_hdf5_layouts.py` pins what the handler makes of each shape,
 so a fixture that drifted from the dump shows up there rather than here.
 
 ## Regenerating

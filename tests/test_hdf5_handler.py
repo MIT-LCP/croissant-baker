@@ -1,7 +1,7 @@
 """What an HDF5 file becomes in the manifest.
 
 One representative per output shape. What each layout *means* is
-``tests/test_layouts.py``, and what every handler owes the pipeline is
+``tests/test_hdf5_layouts.py``, and what every handler owes the pipeline is
 ``tests/test_handler_contract.py``, which sweeps this handler with the rest.
 """
 
@@ -13,7 +13,7 @@ from pathlib import Path
 import h5py
 import pytest
 
-from croissant_baker.handlers import layouts
+from croissant_baker.handlers.hdf5_handler import layouts
 from croissant_baker.handlers.hdf5_handler import HDF5Handler
 from croissant_baker.handlers.registry import builtin_handlers, select_handler
 from croissant_baker.metadata_generator import MetadataGenerator
@@ -29,7 +29,7 @@ from tests.helpers import (
     record_sets,
     write_wrapped,
 )
-from tests.test_hdf5 import counting_source
+from tests.test_hdf5_reading import counting_source
 
 
 @pytest.fixture
@@ -220,7 +220,7 @@ def test_a_table_reaches_the_document_with_its_types_and_shapes(
     dataset: Path,
 ) -> None:
     """One representative of the shape every recognised layout produces. Which
-    columns each layout finds, and why, is ``tests/test_layouts.py``."""
+    columns each layout finds, and why, is ``tests/test_hdf5_layouts.py``."""
     fx.write_h5ad(dataset / "sample.h5ad", n_obs=2000, n_var=500)
 
     sets = sets_of(dataset)

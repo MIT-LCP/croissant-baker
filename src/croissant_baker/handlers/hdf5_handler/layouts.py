@@ -10,8 +10,8 @@ Nothing here is HDF5. Everything is read through :class:`Node`, which AnnData's
 Zarr stores could supply just as well: anndata writes ``.zarr`` with the same
 ``encoding-type`` vocabulary, the same ``column-order`` and the same
 shape-as-attribute as ``.h5ad``, so this knowledge is about a logical layout
-rather than about a storage format. ``tests/test_layouts.py`` holds the seam to
-that, with a static check that no h5py import creeps back in.
+rather than about a storage format. ``tests/test_hdf5_layouts.py`` holds the
+seam to that, with a static check that no h5py import creeps back in.
 
 **No value from inside the file is read.** Column names, dataset paths, dtypes
 and shapes only — every number that appears here is a shape or a count. A
