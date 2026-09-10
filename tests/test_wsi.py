@@ -106,6 +106,33 @@ def test_every_vendor_pyramid_is_counted(vendor: str, level_count: int) -> None:
     assert read_bytes(wsi_bytes(vendor)).level_count == level_count
 
 
+class _Keyframe:
+    def __init__(self, width: int, height: int) -> None:
+        self.imagewidth, self.imagelength = width, height
+
+
+class _Level:
+    def __init__(self, keyframe=None) -> None:
+        self.keyframe = keyframe
+
+
+class _Series:
+    """The shape of a tifffile series, with the levels the test dictates."""
+
+    kind = "svs"
+
+    def __init__(self, *levels: _Level) -> None:
+        self.levels = list(levels)
+
+
+def test_a_level_with_no_keyframe_costs_that_level_and_not_the_file() -> None:
+    """tifffile leaves the keyframe unset for a page it could not read, and
+    dereferencing it raises, which would cost the whole file its description."""
+    series = _Series(_Level(_Keyframe(256, 256)), _Level(None))
+
+    assert wsi._levels_from_series((series,)) == ((256, 256),)
+
+
 def test_a_single_page_tiff_is_a_one_level_pyramid() -> None:
     header = read_bytes(tiff_bytes())
 
