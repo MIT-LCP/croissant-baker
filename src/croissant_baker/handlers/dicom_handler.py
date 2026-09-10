@@ -18,6 +18,11 @@ MIME_TYPE = "application/dicom"
 _DICOM_MAGIC_OFFSET = 128
 _DICOM_MAGIC = b"DICM"
 
+# VL Whole Slide Microscopy Image Storage: the SOP class digital pathology
+# scanners write. Its instances are slides, not cross sections, so they carry
+# a second geometry (the pixel matrix over the glass) the other classes lack.
+WSI_SOP_CLASS_UID = "1.2.840.10008.5.1.4.1.1.77.1.6"
+
 
 def _has_dicom_magic(source: FileSource) -> bool:
     head = source.peek(_DICOM_MAGIC_OFFSET + 4)
@@ -34,6 +39,56 @@ def _safe_get(ds, keyword: str, default=None):
         return val
     except Exception:
         return default
+
+
+def _read_wsi_properties(ds) -> Dict:
+    """Slide-only properties, each None when the instance omits the tag.
+
+    Only the SOP class is guaranteed on a whole slide instance: LABEL and
+    OVERVIEW images routinely omit the imaged volume and the container id, so
+    every key is reported rather than dropped, keeping the shape of a slide
+    the same across the flavors of one study.
+    """
+    props: Dict = {}
+
+    # ImageType is a string MultiValue, which _safe_get would try to coerce to
+    # floats and discard. Value 3 is the whole slide flavor: VOLUME (the
+    # tissue pyramid), LABEL, OVERVIEW, or THUMBNAIL.
+    image_type = getattr(ds, "ImageType", None)
+    props["wsi_flavor"] = (
+        str(image_type[2]).strip()
+        if image_type is not None and len(image_type) > 2
+        else None
+    )
+
+    total_columns = _safe_get(ds, "TotalPixelMatrixColumns")
+    props["total_pixel_matrix_columns"] = (
+        int(total_columns) if total_columns is not None else None
+    )
+    total_rows = _safe_get(ds, "TotalPixelMatrixRows")
+    props["total_pixel_matrix_rows"] = (
+        int(total_rows) if total_rows is not None else None
+    )
+
+    volume_width = _safe_get(ds, "ImagedVolumeWidth")
+    props["imaged_volume_width"] = (
+        float(volume_width) if volume_width is not None else None
+    )
+    volume_height = _safe_get(ds, "ImagedVolumeHeight")
+    props["imaged_volume_height"] = (
+        float(volume_height) if volume_height is not None else None
+    )
+
+    container_id = _safe_get(ds, "ContainerIdentifier")
+    props["container_identifier"] = (
+        str(container_id).strip() if container_id is not None else None
+    )
+
+    # A sequence, so _safe_get would coerce its items to floats and fail.
+    optical_paths = getattr(ds, "OpticalPathSequence", None)
+    props["optical_path_count"] = len(optical_paths) if optical_paths else None
+
+    return props
 
 
 def _read_dicom_properties(source: FileSource) -> Dict:
@@ -109,6 +164,11 @@ def _read_dicom_properties(source: FileSource) -> Dict:
     series_uid = _safe_get(ds, "SeriesInstanceUID")
     if series_uid is not None:
         props["series_instance_uid"] = str(series_uid)
+
+    # Slide properties are added only for slides, so every other SOP class
+    # keeps the dict it had before whole slide support existed.
+    if props.get("sop_class_uid") == WSI_SOP_CLASS_UID:
+        props.update(_read_wsi_properties(ds))
 
     return props
 

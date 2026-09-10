@@ -230,3 +230,156 @@ def test_a_bake_says_how_many_dcm_files_lacked_the_preamble(
     assert (
         "skipped 2 DICOM file(s) without the DICM preamble" in capsys.readouterr().out
     )
+
+
+WSI_SOP_CLASS_UID = "1.2.840.10008.5.1.4.1.1.77.1.6"
+
+
+def _make_wsi_dicom(
+    path: Path,
+    flavor: str = "VOLUME",
+    total_columns: int = 98304,
+    total_rows: int = 65536,
+    imaged_volume_width: float = 24.5,
+    imaged_volume_height: float = 16.4,
+    container_identifier: str = "SLIDE-0001",
+    optical_paths: int = 1,
+    num_frames: int = 12,
+    pixel_spacing=(0.00025, 0.00025),
+    top_level_pixel_spacing=None,
+) -> Path:
+    """Write a minimal VL Whole Slide Microscopy Image instance to *path*.
+
+    A real slide is a tiled multi-frame pyramid of gigabytes; everything the
+    handler reads lives in the header, so the synthetic instance carries the
+    header tags and no frames at all.
+    """
+    file_meta = Dataset()
+    file_meta.MediaStorageSOPClassUID = WSI_SOP_CLASS_UID
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    ds = FileDataset(str(path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
+
+    ds.SOPClassUID = WSI_SOP_CLASS_UID
+    ds.SOPInstanceUID = generate_uid()
+    ds.Modality = "SM"
+    ds.ImageType = ["ORIGINAL", "PRIMARY", flavor, "NONE"]
+    ds.Rows = 512
+    ds.Columns = 512
+    ds.NumberOfFrames = num_frames
+    ds.BitsAllocated = 8
+    ds.SamplesPerPixel = 3
+    ds.PhotometricInterpretation = "YBR_FULL_422"
+    ds.Manufacturer = "TestScanner"
+
+    if total_columns is not None:
+        ds.TotalPixelMatrixColumns = total_columns
+    if total_rows is not None:
+        ds.TotalPixelMatrixRows = total_rows
+    if imaged_volume_width is not None:
+        ds.ImagedVolumeWidth = imaged_volume_width
+    if imaged_volume_height is not None:
+        ds.ImagedVolumeHeight = imaged_volume_height
+    if container_identifier is not None:
+        ds.ContainerIdentifier = container_identifier
+    if top_level_pixel_spacing is not None:
+        ds.PixelSpacing = list(top_level_pixel_spacing)
+
+    if pixel_spacing is not None:
+        measures = Dataset()
+        measures.PixelSpacing = list(pixel_spacing)
+        shared = Dataset()
+        shared.PixelMeasuresSequence = [measures]
+        ds.SharedFunctionalGroupsSequence = [shared]
+
+    if optical_paths:
+        ds.OpticalPathSequence = [Dataset() for _ in range(optical_paths)]
+
+    pydicom.dcmwrite(str(path), ds)
+    return path
+
+
+def test_a_whole_slide_instance_reports_the_image_flavor_from_image_type(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "label.dcm", flavor="LABEL")
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["wsi_flavor"] == "LABEL"
+
+
+def test_a_whole_slide_instance_reports_the_total_pixel_matrix_size(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "slide.dcm", total_columns=4096, total_rows=2048)
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["total_pixel_matrix_columns"] == 4096
+    assert props["total_pixel_matrix_rows"] == 2048
+
+
+def test_a_whole_slide_instance_reports_the_imaged_volume_in_millimetres(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(
+        tmp_path / "slide.dcm", imaged_volume_width=15.0, imaged_volume_height=10.0
+    )
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["imaged_volume_width"] == pytest.approx(15.0)
+    assert props["imaged_volume_height"] == pytest.approx(10.0)
+
+
+def test_a_whole_slide_instance_reports_the_container_identifier(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "slide.dcm", container_identifier="S24-12345-A")
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["container_identifier"] == "S24-12345-A"
+
+
+def test_a_whole_slide_instance_counts_its_optical_paths(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "fluor.dcm", optical_paths=4)
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["optical_path_count"] == 4
+
+
+def test_whole_slide_properties_are_none_when_the_slide_omits_them(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    """Only the SOP class is guaranteed; a LABEL image routinely omits the
+    imaged volume and the container id, and must still read as a slide."""
+    f = _make_wsi_dicom(
+        tmp_path / "sparse.dcm",
+        total_columns=None,
+        total_rows=None,
+        imaged_volume_width=None,
+        imaged_volume_height=None,
+        container_identifier=None,
+        optical_paths=0,
+    )
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["total_pixel_matrix_columns"] is None
+    assert props["total_pixel_matrix_rows"] is None
+    assert props["imaged_volume_width"] is None
+    assert props["imaged_volume_height"] is None
+    assert props["container_identifier"] is None
+    assert props["optical_path_count"] is None
+
+
+def test_a_non_whole_slide_instance_carries_no_whole_slide_keys(
+    handler: DICOMHandler, dicom_file: Path
+) -> None:
+    """A CT slice must extract exactly the dict it extracted before whole
+    slide support existed, so that every committed golden stays byte-identical."""
+    props = handler.extract(make_source(dicom_file))["dicom_properties"]
+    for key in (
+        "wsi_flavor",
+        "total_pixel_matrix_columns",
+        "total_pixel_matrix_rows",
+        "imaged_volume_width",
+        "imaged_volume_height",
+        "container_identifier",
+        "optical_path_count",
+    ):
+        assert key not in props
