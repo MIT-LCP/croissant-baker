@@ -117,6 +117,37 @@ def test_comment_and_blank_lines_are_skipped_before_the_claim(
     assert HANDLER.claims(source_for(path))
 
 
+def test_a_header_line_before_the_data_is_claimed(dataset: Path) -> None:
+    """RDKit's ``SmilesWriter`` opens a file with ``SMILES Name``, and the
+    ChEMBL, ZINC and Enamine drops do the same. ``SMILES`` spells no structure,
+    so what says the file is a library is the line under it, which is where the
+    molecules start."""
+    path = write(dataset, "headed.smi", b"SMILES\tName\nCCO\tethanol\n")
+
+    assert HANDLER.claims(source_for(path))
+
+
+def test_two_lines_that_are_neither_header_nor_structure_are_not_claimed(
+    dataset: Path,
+) -> None:
+    """A header is a line the molecules follow. Prose is followed by more
+    prose, and neither of the two lines spells a structure."""
+    path = write(dataset, "prose.smi", b"Notes about this deposit\nand the next\n")
+
+    assert not HANDLER.claims(source_for(path))
+
+
+def test_a_headed_file_is_described_by_a_bake(dataset: Path) -> None:
+    """The whole way through: a file the claim used to leave to no handler at
+    all is now dispatched, read and written out as a described file object."""
+    write(dataset, "headed.smi", b"SMILES\tName\nCCO\tethanol\n")
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["headed.smi"]
+    assert report.undescribed == []
+
+
 def test_an_unreadable_file_is_not_claimed(dataset: Path) -> None:
     """``claims`` never raises: an empty peek is simply not a claim."""
     assert not HANDLER.claims(source_for(dataset / "gone.smi"))
