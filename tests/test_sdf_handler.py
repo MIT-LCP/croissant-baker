@@ -114,6 +114,26 @@ def test_a_title_line_that_opens_like_a_data_item_is_not_read_as_one(
     assert meta["fields"] == [{"name": "ID", "type": "cr:Int64"}]
 
 
+def test_a_data_item_naming_no_field_is_passed_over(dataset: Path) -> None:
+    """``> <>`` names nothing, and a field with no name is not one to describe:
+    it shipped as an id ending in a slash with no name beside it."""
+    payload = sdf_record(MOL_V2000, [("", "orphan"), ("ID", "1")])
+
+    meta = extract(write(dataset, "nameless_item.sdf", payload))
+
+    assert meta["fields"] == [{"name": "ID", "type": "cr:Int64"}]
+
+
+def test_a_record_set_omits_the_field_no_data_item_names(dataset: Path) -> None:
+    write(
+        dataset, "molecules.sdf", sdf_record(MOL_V2000, [("", "orphan"), ("ID", "1")])
+    )
+
+    (record_set,) = record_sets(bake(dataset))
+
+    assert [f["name"] for f in record_set["field"]] == ["title", "molfile", "ID"]
+
+
 def test_a_value_spanning_several_lines_is_text(dataset: Path) -> None:
     """A value the file writes across lines is not a number whatever those lines
     hold, and typing it as one would promise a reader something the file does
