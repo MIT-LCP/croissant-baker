@@ -143,6 +143,9 @@ def data_items(lines: Sequence[str]) -> List[Tuple[str, str]]:
     ``M  END``, which is where the format puts the items: the block's title and
     program lines above it are free text a depositor writes, and a title that
     happens to open with ``>`` is a title rather than a field header.
+
+    An item naming no field is passed over with its value. ``> <>`` names
+    nothing, and a field with no name is not one to describe.
     """
     items: List[Tuple[str, str]] = []
     index = below_the_molfile(lines)
@@ -156,7 +159,8 @@ def data_items(lines: Sequence[str]) -> List[Tuple[str, str]]:
         while index < len(lines) and lines[index].strip():
             value.append(lines[index])
             index += 1
-        items.append((name, "\n".join(value)))
+        if name:
+            items.append((name, "\n".join(value)))
     return items
 
 
