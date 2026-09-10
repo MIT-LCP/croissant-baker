@@ -165,7 +165,6 @@ def test_a_refused_vendor_document_is_logged_against_the_file(
 ) -> None:
     """The scan report clears the reason once a file is described, so a
     partial refusal on a described file has nowhere else to be seen."""
-    from tests.helpers import wsi_bytes
     from tests.test_wsi import SCN_MALFORMED
 
     path = write_wrapped(dataset, "slide.scn", wsi_bytes("leica", xml=SCN_MALFORMED))
@@ -175,3 +174,137 @@ def test_a_refused_vendor_document_is_logged_against_the_file(
 
     assert meta["slide"].refusal
     assert [r for r in caplog.records if "slide.scn" in r.message]
+
+
+# --------------------------------------------------------------------------
+# Describing a batch
+# --------------------------------------------------------------------------
+
+
+def batch(handler: WSIHandler, dataset: Path, *names: str) -> tuple:
+    """Extract every named slide, in the shape ``build_croissant`` is given."""
+    metas, ids = [], []
+    for index, name in enumerate(names):
+        extension = Path(name).suffix
+        path = write_wrapped(dataset, name, wsi_bytes(VENDOR_EXTENSIONS[extension]))
+        meta = handler.extract(make_source(path, Path(name)))
+        # The generator stamps this after extraction; build_croissant needs it.
+        meta["relative_path"] = name
+        metas.append(meta)
+        ids.append(f"file_{index}")
+    return metas, ids
+
+
+def test_an_empty_batch_describes_nothing(handler: WSIHandler) -> None:
+    """A FileSet over zero files would describe data that is not there."""
+    result = handler.build_croissant([], [])
+
+    assert (result.file_sets, result.record_sets) == ([], [])
+
+
+def test_the_file_set_globs_only_the_extensions_the_batch_holds(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """A ``.bif`` include beside no Ventana slide names a file the dataset
+    does not have. Both glob forms, because mlcroissant's fnmatch reader
+    requires a directory before ``**/`` and the files may sit at the root."""
+    metas, ids = batch(handler, dataset, "a.svs", "b.scn")
+
+    (file_set,) = handler.build_croissant(metas, ids).file_sets
+
+    assert sorted(file_set.includes) == ["**/*.scn", "**/*.svs", "*.scn", "*.svs"]
+
+
+def test_the_file_set_names_the_container_media_type(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    metas, ids = batch(handler, dataset, "a.svs")
+
+    (file_set,) = handler.build_croissant(metas, ids).file_sets
+
+    assert file_set.encoding_formats == ["image/tiff"]
+
+
+def test_the_record_set_has_one_field_per_thing_the_batch_stated(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    metas, ids = batch(handler, dataset, "a.svs")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    assert [field.name for field in record_set.fields] == [
+        "image",
+        "filename",
+        "vendor",
+        "width",
+        "height",
+        "level_count",
+        "mpp_x",
+        "mpp_y",
+        "objective_power",
+    ]
+
+
+def test_a_field_no_slide_in_the_batch_stated_is_not_emitted(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """A Leica slide states no pixel size, so a batch of them must not carry
+    an ``mpp_x`` field describing a measurement nothing in the batch made."""
+    metas, ids = batch(handler, dataset, "a.scn")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    assert "mpp_x" not in [field.name for field in record_set.fields]
+
+
+def test_every_field_says_what_the_batch_holds(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """No ``Field.value`` is emitted anywhere, so the observed values live in
+    the descriptions or nowhere."""
+    metas, ids = batch(handler, dataset, "a.svs")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+    fields = {field.name: field.description for field in record_set.fields}
+
+    assert fields["vendor"].endswith("(aperio)")
+    assert fields["objective_power"].endswith("(20)")
+    assert fields["mpp_x"].endswith("(0.499)")
+
+
+def test_the_record_set_description_breaks_the_batch_down_by_vendor(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    metas, ids = batch(handler, dataset, "a.svs", "b.svs", "c.scn")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    assert "aperio (2), leica (1)" in record_set.description
+
+
+def test_the_record_set_description_states_the_dimension_range(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    metas, ids = batch(handler, dataset, "a.svs", "b.ndpi")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    assert "64-256x64-256" in record_set.description
+
+
+def test_the_record_set_description_counts_the_slides_it_could_not_read(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """A described file's partial refusal has nowhere else to be seen: the
+    scan report clears the reason once the file is described."""
+    from tests.test_wsi import SCN_MALFORMED
+
+    metas, ids = batch(handler, dataset, "a.svs")
+    path = write_wrapped(dataset, "b.scn", wsi_bytes("leica", xml=SCN_MALFORMED))
+    broken = handler.extract(make_source(path, Path("b.scn")))
+    broken["relative_path"] = "b.scn"
+
+    (record_set,) = handler.build_croissant([*metas, broken], [*ids, "f"]).record_sets
+
+    assert "1 of 2" in record_set.description
+    assert "it is not well-formed" in record_set.description

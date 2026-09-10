@@ -269,8 +269,8 @@ def hamamatsu_bytes(*, mpp: float = 0.46, objective: float = 20.0) -> bytes:
     """A Hamamatsu NDPI: tags 65420 and 271, and a resolution in centimetres.
 
     Written big-endian. tifffile decides a little-endian classic TIFF named
-    ``.ndpi`` has 64-bit IFD offsets — which a real NDPI does and this
-    synthetic one does not — and then finds no page in it at all. A
+    ``.ndpi`` has 64-bit IFD offsets, which a real NDPI does and this
+    synthetic one does not, and then finds no page in it at all. A
     big-endian file never takes that branch, and no real NDPI is big-endian,
     so nothing else in the suite is misled by the choice.
     """
