@@ -91,6 +91,29 @@ def _read_wsi_properties(ds) -> Dict:
     return props
 
 
+def _shared_pixel_spacing(ds) -> Optional[List[float]]:
+    """PixelSpacing out of the shared functional groups, where a slide puts it.
+
+    A whole slide instance is multi-frame, so the spacing a single-frame CT
+    states at the top level sits inside SharedFunctionalGroupsSequence
+    instead, and reading only the top level leaves every slide with no
+    physical scale at all.
+    """
+    shared = getattr(ds, "SharedFunctionalGroupsSequence", None)
+    if not shared:
+        return None
+    measures = getattr(shared[0], "PixelMeasuresSequence", None)
+    if not measures:
+        return None
+    spacing = getattr(measures[0], "PixelSpacing", None)
+    if spacing is None:
+        return None
+    try:
+        return [float(v) for v in spacing]
+    except (ValueError, TypeError):
+        return None
+
+
 def _read_dicom_properties(source: FileSource) -> Dict:
     with source.open() as stream:
         ds = pydicom.dcmread(stream, stop_before_pixels=True)
@@ -169,6 +192,10 @@ def _read_dicom_properties(source: FileSource) -> Dict:
     # keeps the dict it had before whole slide support existed.
     if props.get("sop_class_uid") == WSI_SOP_CLASS_UID:
         props.update(_read_wsi_properties(ds))
+        if "pixel_spacing" not in props:
+            shared_spacing = _shared_pixel_spacing(ds)
+            if shared_spacing is not None:
+                props["pixel_spacing"] = shared_spacing
 
     return props
 

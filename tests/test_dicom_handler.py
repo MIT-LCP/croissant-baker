@@ -383,3 +383,33 @@ def test_a_non_whole_slide_instance_carries_no_whole_slide_keys(
         "optical_path_count",
     ):
         assert key not in props
+
+
+def test_a_slide_reads_pixel_spacing_from_the_shared_functional_groups(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    """A slide is multi-frame, so it states its physical scale one nesting
+    down; reading only the top level leaves every slide without one."""
+    f = _make_wsi_dicom(tmp_path / "slide.dcm", pixel_spacing=(0.00025, 0.00025))
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["pixel_spacing"] == pytest.approx([0.00025, 0.00025])
+
+
+def test_a_top_level_pixel_spacing_wins_over_the_functional_group_one(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(
+        tmp_path / "slide.dcm",
+        pixel_spacing=(0.00025, 0.00025),
+        top_level_pixel_spacing=(0.5, 0.5),
+    )
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["pixel_spacing"] == pytest.approx([0.5, 0.5])
+
+
+def test_a_slide_stating_no_pixel_spacing_anywhere_reports_none(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "label.dcm", flavor="LABEL", pixel_spacing=None)
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert "pixel_spacing" not in props
