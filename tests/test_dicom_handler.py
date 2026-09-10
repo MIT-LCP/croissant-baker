@@ -413,3 +413,64 @@ def test_a_slide_stating_no_pixel_spacing_anywhere_reports_none(
     f = _make_wsi_dicom(tmp_path / "label.dcm", flavor="LABEL", pixel_spacing=None)
     props = handler.extract(make_source(f))["dicom_properties"]
     assert "pixel_spacing" not in props
+
+
+def _wsi_meta(name: str, flavor: str = "VOLUME") -> dict:
+    meta = _dicom_meta(name, modality="SM")
+    meta["dicom_properties"].update(
+        {
+            "sop_class_uid": WSI_SOP_CLASS_UID,
+            "wsi_flavor": flavor,
+            "total_pixel_matrix_columns": 4096,
+            "total_pixel_matrix_rows": 2048,
+            "container_identifier": "SLIDE-0001",
+        }
+    )
+    return meta
+
+
+def test_the_summary_counts_the_whole_slide_instances_and_their_flavors() -> None:
+    metas = [
+        _wsi_meta("volume.dcm", flavor="VOLUME"),
+        _wsi_meta("label.dcm", flavor="LABEL"),
+        _wsi_meta("overview.dcm", flavor="OVERVIEW"),
+        _dicom_meta("ct.dcm"),
+    ]
+    summary = collect_dicom_summary(metas)
+
+    assert summary["wsi_count"] == 3
+    assert summary["wsi_flavors"] == ["VOLUME", "LABEL", "OVERVIEW"]
+
+
+def test_the_summary_of_a_batch_without_slides_says_nothing_about_slides() -> None:
+    summary = collect_dicom_summary([_dicom_meta("ct.dcm")])
+    assert "wsi_count" not in summary
+    assert "wsi_flavors" not in summary
+
+
+def test_the_record_set_description_names_the_slide_count_and_the_flavors(
+    handler: DICOMHandler,
+) -> None:
+    metas = [
+        _wsi_meta("volume.dcm", flavor="VOLUME"),
+        _wsi_meta("label.dcm", flavor="LABEL"),
+    ]
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+    assert (
+        "2 whole-slide microscopy instances (VOLUME, LABEL)"
+        in record_sets[0].description
+    )
+
+
+def test_a_lone_slide_is_described_in_the_singular(handler: DICOMHandler) -> None:
+    _, record_sets = handler.build_croissant([_wsi_meta("volume.dcm")], ["file_0"])
+    assert "1 whole-slide microscopy instance (VOLUME)" in record_sets[0].description
+
+
+def test_the_record_set_description_of_a_batch_without_slides_is_unchanged(
+    handler: DICOMHandler,
+) -> None:
+    """The goldens in tests/data/output carry this exact sentence, so a batch
+    of cross sections must describe itself the way it did before slides."""
+    _, record_sets = handler.build_croissant([_dicom_meta("ct.dcm")], ["file_0"])
+    assert record_sets[0].description == "1 DICOM files (512x512): CT (1)"

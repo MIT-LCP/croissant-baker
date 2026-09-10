@@ -370,11 +370,30 @@ class DICOMHandler(FileTypeHandler):
         dicom_record_set = mlc.RecordSet(
             id="dicom",
             name="dicom",
-            description=f"{num_files} DICOM files ({dims_note}): {modalities_str}",
+            description=(
+                f"{num_files} DICOM files ({dims_note}): "
+                f"{modalities_str}{_wsi_note(summary)}"
+            ),
             fields=fields,
         )
 
         return BuildResult([dicom_fileset], [dicom_record_set])
+
+
+def _wsi_note(summary: Dict) -> str:
+    """The slide clause appended to the record set description, "" without slides.
+
+    Modality alone hides the shape of a pathology batch: SM (14) says nothing
+    about how many of the instances are tissue pyramids and how many are the
+    label and overview snapshots that come with them.
+    """
+    count = summary.get("wsi_count", 0)
+    if not count:
+        return ""
+    noun = "instance" if count == 1 else "instances"
+    flavors = summary.get("wsi_flavors") or []
+    flavors_note = f" ({', '.join(flavors)})" if flavors else ""
+    return f"; {count} whole-slide microscopy {noun}{flavors_note}"
 
 
 def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
@@ -387,6 +406,10 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     modalities: Dict[str, int] = {}
     bits_set: set = set()
     unknown_modality = 0
+    wsi_count = 0
+    # A dict, not a set: the flavors are reported in the order the batch shows
+    # them, so the same directory always describes itself the same way.
+    wsi_flavors: Dict[str, None] = {}
 
     for meta in dicom_metadata_list:
         props = meta.get("dicom_properties", {})
@@ -399,6 +422,12 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
             frames_list.append(props["num_frames"])
         if "bits_allocated" in props:
             bits_set.add(props["bits_allocated"])
+
+        if props.get("sop_class_uid") == WSI_SOP_CLASS_UID:
+            wsi_count += 1
+            flavor = props.get("wsi_flavor")
+            if flavor:
+                wsi_flavors[flavor] = None
 
         modality: Optional[str] = props.get("modality")
         if modality:
@@ -424,5 +453,10 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
         summary["modality_counts"] = modalities
     if bits_set:
         summary["bits_allocated_values"] = sorted(bits_set)
+    # Keys stay out of a summary with no slides in it, so a batch of cross
+    # sections summarises exactly as it did before slides were recognised.
+    if wsi_count:
+        summary["wsi_count"] = wsi_count
+        summary["wsi_flavors"] = list(wsi_flavors)
 
     return summary
