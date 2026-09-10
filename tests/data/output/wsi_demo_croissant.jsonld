@@ -100,10 +100,10 @@
       "@type": "cr:FileObject",
       "@id": "file_4",
       "name": "hamamatsu.ndpi",
-      "contentSize": "323",
+      "contentSize": "700",
       "contentUrl": "hamamatsu.ndpi",
       "encodingFormat": "image/tiff",
-      "sha256": "e699e5e34ebd302a45cada98d13e95ef0bc7c4e9f427ff40bb8b873ba6643c90"
+      "sha256": "93e1ea942d76456f1f622f4250719534a2dccb702ea01890ed069656cf13ce16"
     },
     {
       "@type": "cr:FileObject",
@@ -231,7 +231,7 @@
           "@type": "cr:Field",
           "@id": "slides/level_count",
           "name": "level_count",
-          "description": "Pyramid levels, the base level included (1-2)",
+          "description": "Pyramid levels, the base level included (2)",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
