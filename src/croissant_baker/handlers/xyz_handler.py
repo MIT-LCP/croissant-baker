@@ -72,6 +72,13 @@ PROPERTIES = re.compile(EXTENDED_MARKER + r'(?:"([^"]*)"|(\S+))')
 #: How many fields a ``Properties=`` triple holds, the name being the first.
 PROPERTY_FIELDS = 3
 
+#: How many property names the description spells out. The description is a
+#: sentence a person reads, and a post-processor's frame declares columns by
+#: the dozen; past this the names say less than a count of them does. The full
+#: list is reported under ``properties`` either way, so nothing is lost, only
+#: unsaid.
+MAX_LISTED_PROPERTIES = 20
+
 #: Enough of the head to see the frame's shape. Three short lines fit many
 #: times over; a peek that stops short of the third leaves the decision to the
 #: extension, and ``extract`` reports what it then finds.
@@ -257,11 +264,12 @@ class XYZHandler(FileTypeHandler):
         turned out to be. An extended-XYZ comment is a term list, and quoting a
         lattice back at a reader says less than naming the columns the file
         declares; a blank comment gets no clause at all, because quoting nothing
-        reads as an empty title rather than as no title.
+        reads as an empty title rather than as no title. A property list past
+        :data:`MAX_LISTED_PROPERTIES` is counted rather than spelled out.
         """
         detail = plural(atom_count, "atom")
         if properties:
-            detail += f"; extended XYZ, properties: {', '.join(properties)}"
+            detail += f"; extended XYZ, properties: {_listed(properties)}"
         elif properties is not None:
             detail += "; extended XYZ"
         elif comment:
@@ -279,6 +287,18 @@ class XYZHandler(FileTypeHandler):
         a promise nobody can keep. The same reasoning as FASTA and FASTQ.
         """
         return BuildResult([], [])
+
+
+def _listed(properties: List[str]) -> str:
+    """The property names for the description, cut at the bound and counted.
+
+    Cut in the sentence alone: the ``properties`` key carries every name the
+    file declared, so what is left out here is left out of the prose only.
+    """
+    if len(properties) <= MAX_LISTED_PROPERTIES:
+        return ", ".join(properties)
+    listed = ", ".join(properties[:MAX_LISTED_PROPERTIES])
+    return f"{listed}, and {len(properties) - MAX_LISTED_PROPERTIES} more"
 
 
 def _decode_lines(head: bytes) -> List[str]:
