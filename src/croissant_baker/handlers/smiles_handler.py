@@ -153,9 +153,33 @@ def is_data_line(line: str) -> bool:
     return bool(stripped) and not stripped.startswith(COMMENT_PREFIX)
 
 
-def first_data_line(lines: List[str]) -> Optional[str]:
-    """The first line that is not a comment or a blank, or None if there is none."""
-    return next((line for line in lines if is_data_line(line)), None)
+def data_lines(lines: List[str]) -> List[str]:
+    """The lines that carry a record, comments and blanks dropped."""
+    return [line for line in lines if is_data_line(line)]
+
+
+def header_before_the_molecules(records: List[str]) -> Optional[bool]:
+    """Whether the records open with a header line, or None if they open with
+    neither a header nor a molecule.
+
+    The format has no way to declare a header, so one is detected: a first
+    record whose first field is a structure is a molecule line, and a first
+    record whose first field is not, followed by one whose first field is, is a
+    file that wrote its column names down. ``SMILES Name`` is what RDKit's
+    writer puts there, and it spells no structure.
+
+    None is neither of those, which is a file this handler cannot read as a
+    table of molecules. The claim and the layout both turn on this one
+    question, and they answer it the same way or they disagree about the same
+    file.
+    """
+    if not records:
+        return None
+    if is_plausible_smiles(first_field(records[0])):
+        return False
+    if len(records) > 1 and is_plausible_smiles(first_field(records[1])):
+        return True
+    return None
 
 
 #: What the sampled lines separate their fields with. A tab anywhere in the
@@ -207,14 +231,19 @@ class SMILESHandler(FileTypeHandler):
     )
 
     def claims(self, source: FileSource) -> bool:
-        """Claim a declared SMILES extension whose first record is a structure.
+        """Claim a declared SMILES extension whose head is molecule lines.
 
         Both conditions, because neither would do alone. The extension would
         claim any text a user happened to name ``.smi``, since the format has
-        no magic bytes and no header line it requires. The first line would not
+        no magic bytes and no header line it requires. The lines would not
         either: read as symbols a structure is recognisable, but a single short
         line of it is also a plausible line of many other things, and the name
         is what says this file is a library of molecules.
+
+        The head is read by the rule the layout is, so a file the claim takes
+        is one ``extract`` can describe: a first record that is a structure, or
+        a first record that is not with molecules under it, which is the header
+        line half the writers and every large drop emit.
 
         A head that reaches no line other than comments is claimed, because the
         preamble may simply run past the peek; ``extract`` then reports what
@@ -234,10 +263,10 @@ class SMILESHandler(FileTypeHandler):
         if len(head) == CLAIM_BYTES:
             # The peek stopped mid-line, and half a structure is not one.
             lines.pop()
-        line = first_data_line(lines)
-        if line is None:
+        records = data_lines(lines)
+        if not records:
             return True
-        return is_plausible_smiles(first_field(line))
+        return header_before_the_molecules(records) is not None
 
     def extract(self, source: FileSource, **kwargs) -> dict:
         """Read the head of a SMILES file and report the layout it shows.
@@ -319,30 +348,27 @@ class SMILESHandler(FileTypeHandler):
         """The sampled records as fields, and whether the first of them names
         the columns rather than carrying a molecule.
 
-        A header is detected rather than declared, because the format has no
-        way to declare one: a first record whose first field is no structure,
-        followed by one whose first field is, is a file that wrote its column
-        names down. A first record that is no structure and no header is a file
-        this handler cannot describe, and it is reported rather than described
-        as the molecule table it is not.
+        A header is detected rather than declared, by the rule ``claims`` reads
+        the head with. A first record that is no structure and no header is a
+        file this handler cannot describe, and it is reported rather than
+        described as the molecule table it is not.
         """
-        records = [line for line in lines if is_data_line(line)]
+        records = data_lines(lines)
         if not records:
             raise ValueError(
                 f"Empty {self.FORMAT_NAME} file: {name} holds no molecule line "
                 f"in its first {plural(len(lines), 'line')}"
             )
         rows = [split_fields(line, delimiter) for line in records]
-        opening = first_field(records[0])
-        if is_plausible_smiles(opening):
-            return rows, False
-        if len(records) > 1 and is_plausible_smiles(first_field(records[1])):
-            return rows, True
-        raise ValueError(
-            f"Not a {self.FORMAT_NAME} file: the first record of {name} opens "
-            f"with '{opening}', which spells no structure, and the record after "
-            "it spells none either, so the first column is not SMILES"
-        )
+        has_header = header_before_the_molecules(records)
+        if has_header is None:
+            raise ValueError(
+                f"Not a {self.FORMAT_NAME} file: the first record of {name} "
+                f"opens with '{first_field(records[0])}', which spells no "
+                "structure, and the record after it spells none either, so the "
+                "first column is not SMILES"
+            )
+        return rows, has_header
 
     def _columns(self, header: List[str], count: int) -> List[str]:
         """One name per column: the header's where it has one, the position's
