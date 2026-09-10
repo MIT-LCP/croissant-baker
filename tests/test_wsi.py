@@ -161,3 +161,103 @@ def test_the_associated_images_a_vendor_stored_are_named(vendor, kinds) -> None:
 
 def test_a_plain_tiff_carries_no_associated_images() -> None:
     assert read_bytes(tiff_bytes()).associated_images == ()
+
+
+# --------------------------------------------------------------------------
+# The optics
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("vendor", "mpp"),
+    [("aperio", 0.4990), ("hamamatsu", 0.46), ("ventana", 0.25), ("akoya", 0.5)],
+)
+def test_the_microns_per_pixel_each_vendor_states_are_read(vendor, mpp) -> None:
+    header = read_bytes(wsi_bytes(vendor))
+
+    assert (header.mpp_x, header.mpp_y) == (mpp, mpp)
+
+
+def test_a_leica_slide_states_no_microns_per_pixel() -> None:
+    """SCN puts the imaged area in the ``view`` element and the level sizes in
+    ``pixels``, and dividing one by the other is an inference the file does not
+    make. Left unread rather than guessed at."""
+    header = read_bytes(wsi_bytes("leica"))
+
+    assert (header.mpp_x, header.mpp_y) == (None, None)
+
+
+@pytest.mark.parametrize(
+    ("vendor", "objective"),
+    [
+        ("aperio", 20.0),
+        ("hamamatsu", 20.0),
+        ("leica", 40.0),
+        ("ventana", 40.0),
+        ("akoya", 20.0),
+    ],
+)
+def test_the_objective_power_each_vendor_states_is_read(vendor, objective) -> None:
+    assert read_bytes(wsi_bytes(vendor)).objective_power == objective
+
+
+def test_a_slide_stating_no_optics_leaves_them_unread() -> None:
+    """Both items are optional in the Aperio description, and a default would
+    be a magnification nobody measured."""
+    header = read_bytes(wsi_bytes("aperio", description="Aperio Image Library\r\n256"))
+
+    assert (header.mpp_x, header.mpp_y, header.objective_power) == (None, None, None)
+
+
+def test_a_plain_tiff_states_no_optics() -> None:
+    header = read_bytes(tiff_bytes())
+
+    assert (header.mpp_x, header.mpp_y, header.objective_power) == (None, None, None)
+
+
+# --------------------------------------------------------------------------
+# Refusals
+# --------------------------------------------------------------------------
+
+
+SCN_ROOT = '<scn xmlns="http://www.leica-microsystems.com/scn/2010/10/01">'
+
+#: One entity declaration is enough: the refusal is on the declaration itself,
+#: not on how far the expansion would have got.
+SCN_BOMB = (
+    '<?xml version="1.0"?>\n<!DOCTYPE scn [\n<!ENTITY a "lol">\n]>\n'
+    f'{SCN_ROOT}<collection name="&a;"/></scn>'
+)
+
+SCN_MALFORMED = f"{SCN_ROOT}<collection></scn>"
+
+
+@pytest.mark.parametrize(
+    ("xml", "refusal"),
+    [(SCN_BOMB, wsi.DECLARATION), (SCN_MALFORMED, wsi.MALFORMED)],
+    ids=["entity declaration", "not well-formed"],
+)
+def test_a_vendor_document_that_cannot_be_parsed_is_refused(xml, refusal) -> None:
+    assert read_bytes(wsi_bytes("leica", xml=xml)).refusal == refusal
+
+
+def test_an_oversized_vendor_document_is_refused(monkeypatch) -> None:
+    """The cap bounds the tree ElementTree would build, not the read: tifffile
+    has already decoded tag 270 by the time any of this runs."""
+    monkeypatch.setattr(wsi, "MAX_DESCRIPTION_BYTES", 8)
+
+    assert read_bytes(wsi_bytes("leica")).refusal == wsi.OVERSIZED.format(mib=0)
+
+
+def test_a_refused_slide_is_still_described_from_its_tiff_tags() -> None:
+    """The refusal costs the vendor's own metadata and nothing else. The
+    pyramid comes from the pages, because tifffile builds a series by parsing
+    the same document this module just refused."""
+    header = read_bytes(wsi_bytes("leica", xml=SCN_MALFORMED))
+
+    assert (header.width, header.height, header.level_count) == (256, 256, 2)
+
+
+@pytest.mark.parametrize("vendor", ["aperio", "hamamatsu", "leica", "ventana", "akoya"])
+def test_a_slide_whose_document_parsed_carries_no_refusal(vendor: str) -> None:
+    assert read_bytes(wsi_bytes(vendor)).refusal == ""
