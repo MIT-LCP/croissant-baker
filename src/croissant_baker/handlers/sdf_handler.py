@@ -72,6 +72,16 @@ _DECIMAL = re.compile(r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\Z")
 #: infinity, which is not a value any record wrote down.
 MAX_NUMBER_CHARACTERS = 40
 
+#: The most data fields one record set states. Every data item is a field node
+#: in the output, so a file naming a hundred thousand distinct items costs
+#: minutes and gigabytes to build and describes nothing anyone will read. A
+#: compound library states a few dozen; a file far past this is a file of
+#: another format that happens to be named ``.sdf``, and describing it to here
+#: and saying so beats both truncating in silence and emitting a record set the
+#: length of the file. The HDF5 handler caps its generic view the same way, at
+#: the same number.
+MAX_FIELDS = 300
+
 #: The suffix the one record set per file is allocated under.
 RECORD_SET_SUFFIX = "molecules"
 
@@ -282,7 +292,8 @@ class SDFHandler(FileTypeHandler):
             ),
             "sampled_records": len(records),
             "sample_exhausted": exhausted,
-            "fields": fields,
+            "fields": fields[:MAX_FIELDS],
+            "field_count": len(fields),
         }
 
     # ------------------------------------------------------------------
@@ -433,6 +444,20 @@ class SDFHandler(FileTypeHandler):
         )
 
 
+def _fields_stated(meta: dict) -> str:
+    """How many data fields the record set names, and how many the sample found.
+
+    The two differ only where :data:`MAX_FIELDS` stopped the list, and then the
+    difference is the whole point: a reader is owed the fields that are not
+    described here.
+    """
+    described = len(meta["fields"])
+    total = meta.get("field_count", described)
+    if total > described:
+        return f"the first {described} of {plural(total, 'data field')}"
+    return plural(described, "data field")
+
+
 def _description(meta: dict) -> str:
     """What the sample found, in one deterministic sentence.
 
@@ -445,10 +470,7 @@ def _description(meta: dict) -> str:
         if meta["sample_exhausted"]
         else f"from the first {plural(meta['sampled_records'], 'record')}"
     )
-    stated = [
-        meta["molfile_version"],
-        f"{plural(len(meta['fields']), 'data field')}, {read}",
-    ]
+    stated = [meta["molfile_version"], f"{_fields_stated(meta)}, {read}"]
     return (
         f"Molecule records in {display_name(meta)} ({'; '.join(stated)}). "
         "One record per molecule."
