@@ -492,6 +492,61 @@ def _fasta() -> list:
     return [("reference.fa", b">chr1 test contig\nACGTACGTNN\n>chr2\nGGCCAATT\n")]
 
 
+def pdb_record(text: str) -> str:
+    """One PDB record, padded to the eighty columns a real file writes."""
+    return f"{text:<80}\n"
+
+
+#: The title section of the sample structure, in the columns PDB v3.3 fixes.
+#:
+#: Written out record by record rather than downloaded, because every field the
+#: handler reads sits at a fixed column and a fixture whose columns nobody can
+#: count is one nobody can change. The HEADER record is assembled with
+#: ``ljust`` for the same reason: classification is columns 11 to 50, the
+#: deposition date 51 to 59 and the ID code 63 to 66, and that is visible here
+#: rather than counted off a run of spaces.
+PDB_TITLE_RECORDS = (
+    "HEADER    " + "HYDROLASE".ljust(40) + "12-JAN-98" + "   " + "1ABC",
+    "TITLE     CRYSTAL STRUCTURE OF A MINIATURE HYDROLASE AT 1.80",
+    "TITLE    2 ANGSTROM RESOLUTION",
+    "COMPND    MOL_ID: 1;",
+    "COMPND   2 MOLECULE: MINIATURE HYDROLASE;",
+    "COMPND   3 CHAIN: A, B;",
+    "SOURCE    MOL_ID: 1;",
+    "SOURCE   2 ORGANISM_SCIENTIFIC: ESCHERICHIA COLI;",
+    "KEYWDS    HYDROLASE, SERINE PROTEASE",
+    "EXPDTA    X-RAY DIFFRACTION",
+    "AUTHOR    J.DOE,A.SMITH",
+    "REMARK   2",
+    "REMARK   2 RESOLUTION.    1.80 ANGSTROMS.",
+    "SEQRES   1 A    3  GLY ILE VAL",
+    "SEQRES   1 B    3  PHE VAL ASN",
+    "CRYST1   40.960   18.650   22.520  90.00  90.77  90.00 P 1 21 1      2",
+)
+
+#: The coordinate records behind it. Never parsed by anything: they are here so
+#: a test proving the read stops at the first of them has one to stop at.
+PDB_COORDINATE_RECORDS = (
+    "ATOM      1  N   GLY A   1      -8.901   4.127  -0.555  1.00 11.99           N",
+    "ATOM      2  CA  GLY A   1      -8.608   3.135  -1.618  1.00 11.85           C",
+    "TER       3      GLY A   1",
+    "END",
+)
+
+PDB_HEADER_TEXT = "".join(pdb_record(record) for record in PDB_TITLE_RECORDS)
+PDB_COORDINATE_TEXT = "".join(pdb_record(record) for record in PDB_COORDINATE_RECORDS)
+
+
+def _pdb() -> list:
+    """One small structure: a title section, then a few coordinate records.
+
+    The coordinates are the point, as the alignment records are in the SAM
+    sample: a title-section-only fixture cannot tell a handler that stops at the
+    first coordinate record apart from one that reads to end of file.
+    """
+    return [("1abc.pdb", (PDB_HEADER_TEXT + PDB_COORDINATE_TEXT).encode())]
+
+
 def bcf_payload(text: bytes = VCF_HEADER_TEXT, minor: int = 2) -> bytes:
     """The uncompressed bytes of a BCF 2.x container, header and no record.
 
@@ -543,6 +598,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "FASTAHandler": _fasta,
     "BCFHandler": _bcf,
     "CRAMHandler": _cram,
+    "PDBHandler": _pdb,
 }
 
 #: Handlers with no sample, and why.
@@ -681,6 +737,9 @@ __all__ = [
     "OME_NAMESPACE",
     "OME_PIXELS",
     "OME_TIFF",
+    "PDB_COORDINATE_TEXT",
+    "PDB_HEADER_TEXT",
+    "PDB_TITLE_RECORDS",
     "PNG_1X1",
     "SAMPLES",
     "VCF_HEADER_TEXT",
@@ -700,6 +759,7 @@ __all__ = [
     "ome_bomb",
     "ome_image",
     "ome_xml",
+    "pdb_record",
     "record_sets",
     "tiff_bytes",
     "runner",
