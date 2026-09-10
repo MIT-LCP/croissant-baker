@@ -82,6 +82,16 @@ def test_the_label_macro_and_thumbnail_pages_are_not_pyramid_levels() -> None:
     assert header.level_count == 2
 
 
+def test_a_tiled_label_page_is_not_a_pyramid_level() -> None:
+    """Real Ventana and Leica scanners store the label in tiles, so a page walk
+    finds a page that looks like a level. tifffile's vendor series knows the
+    page is the label, and for a vendor file its answer is the only one read."""
+    header = read_bytes(wsi_bytes("aperio", tiled_label=True))
+
+    assert header.level_count == 2
+    assert "label" in header.associated_images
+
+
 @pytest.mark.parametrize(
     ("vendor", "level_count"),
     [
