@@ -177,12 +177,12 @@ def builtin_handlers() -> List[FileTypeHandler]:
         SOFTHandler(),
         HDF5Handler(),
         VCFHandler(),
+        BCFHandler(),
         BAMHandler(),
+        CRAMHandler(),
         SAMHandler(),
         FASTQHandler(),
         FASTAHandler(),
-        BCFHandler(),
-        CRAMHandler(),
     ]
 
 
