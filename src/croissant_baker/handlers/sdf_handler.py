@@ -122,16 +122,30 @@ def item_name(line: str) -> Optional[str]:
     return line[start + 1 : end]
 
 
+def below_the_molfile(lines: Sequence[str]) -> int:
+    """Where the record's own annotations start: the line under ``M  END``.
+
+    The end of the record when there is no ``M  END``, so a record stating no
+    connection table states no data item either. Reporting nothing beats
+    reading a block whose shape is not the one the scan assumes.
+    """
+    for index, line in enumerate(lines):
+        if line.strip() == molfile.END_MARKER:
+            return index + 1
+    return len(lines)
+
+
 def data_items(lines: Sequence[str]) -> List[Tuple[str, str]]:
     """The data items of one record, in the order the record writes them.
 
     A value runs from the line below its header to the blank line closing it,
-    and may span several lines. Lines of the molfile block above are passed
-    over: none of them opens with ``>``, which is what makes the scan safe to
-    run over the whole record rather than only the part below ``M  END``.
+    and may span several lines. The scan starts under the molfile block's
+    ``M  END``, which is where the format puts the items: the block's title and
+    program lines above it are free text a depositor writes, and a title that
+    happens to open with ``>`` is a title rather than a field header.
     """
     items: List[Tuple[str, str]] = []
-    index = 0
+    index = below_the_molfile(lines)
     while index < len(lines):
         name = item_name(lines[index])
         if name is None:
