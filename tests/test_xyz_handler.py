@@ -15,7 +15,11 @@ import mlcroissant as mlc
 import pytest
 
 from croissant_baker.entries import Reason
-from croissant_baker.handlers.xyz_handler import HEAD_BYTES, XYZHandler
+from croissant_baker.handlers.xyz_handler import (
+    HEAD_BYTES,
+    MAX_LISTED_PROPERTIES,
+    XYZHandler,
+)
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
 
@@ -210,6 +214,35 @@ def test_an_extended_xyz_is_detected_with_its_property_names(dataset: Path) -> N
     assert meta["extended_xyz"] is True
     assert meta["properties"] == ["species", "pos"]
     assert "extended XYZ, properties: species, pos" in meta["description"]
+
+
+#: More columns than a description can usefully name, which an extended-XYZ
+#: file written by a simulation post-processor reaches easily.
+MANY_PROPERTIES = [f"p{index}" for index in range(MAX_LISTED_PROPERTIES + 5)]
+
+
+def many_property_frame() -> bytes:
+    terms = ":".join(f"{name}:R:1" for name in MANY_PROPERTIES)
+    return f"1\nProperties={terms}\nO 0.000 0.000 0.000\n".encode()
+
+
+def test_a_long_property_list_is_cut_short_in_the_description(
+    dataset: Path,
+) -> None:
+    """The description is a sentence a person reads. A hundred column names in
+    it say less than the first few and a count of the rest."""
+    meta = extract(write(dataset, "many.xyz", many_property_frame()))
+
+    assert "and 5 more" in meta["description"]
+    assert MANY_PROPERTIES[0] in meta["description"]
+    assert MANY_PROPERTIES[-1] not in meta["description"]
+
+
+def test_the_full_property_list_is_still_reported(dataset: Path) -> None:
+    """Cut in the sentence, not in the metadata: the file declared them all."""
+    meta = extract(write(dataset, "many.xyz", many_property_frame()))
+
+    assert meta["properties"] == MANY_PROPERTIES
 
 
 def test_a_frame_of_no_atoms_is_described(dataset: Path) -> None:
