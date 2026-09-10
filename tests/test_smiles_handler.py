@@ -15,7 +15,11 @@ import mlcroissant as mlc
 import pytest
 
 from croissant_baker.entries import Reason
-from croissant_baker.handlers.smiles_handler import SAMPLE_LINES, SMILESHandler
+from croissant_baker.handlers.smiles_handler import (
+    MAX_FIELDS,
+    SAMPLE_LINES,
+    SMILESHandler,
+)
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
 
@@ -225,6 +229,30 @@ def test_the_column_count_is_the_widest_line_of_the_sample(dataset: Path) -> Non
     meta = extract(path)
 
     assert meta["columns"] == ["smiles", "name"]
+
+
+#: A line carrying far more fields than any molecule table has columns, which
+#: is what a file of another format named ``.smi`` looks like from here.
+WIDE_LINE = b"CCO" + b"\tx" * (MAX_FIELDS + 50) + b"\n"
+WIDE_COLUMNS = MAX_FIELDS + 51
+
+
+def test_a_line_wider_than_the_cap_states_the_cap(dataset: Path) -> None:
+    """One record set field per column, so a line of three hundred thousand
+    fields is three hundred thousand nodes in the output and the minutes and
+    gigabytes it takes to build them."""
+    meta = extract(write(dataset, "wide.smi", WIDE_LINE))
+
+    assert len(meta["columns"]) == MAX_FIELDS
+    assert meta["column_count"] == WIDE_COLUMNS
+
+
+def test_the_description_says_which_columns_it_left_out(dataset: Path) -> None:
+    """Capped in silence is the one thing it must not be."""
+    (record_set,) = build(write(dataset, "wide.smi", WIDE_LINE))
+
+    assert f"the first {MAX_FIELDS} of {WIDE_COLUMNS} columns" in record_set.description
+    assert len(record_set.fields) == MAX_FIELDS
 
 
 # ---------------------------------------------------------------------------
