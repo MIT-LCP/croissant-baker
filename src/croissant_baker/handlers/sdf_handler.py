@@ -81,6 +81,30 @@ STRUCTURE_FIELDS = (
 MIXED_VERSION = "mixed"
 
 
+def _decode(raw: bytes) -> str:
+    """One line as text, with the carriage return of a CRLF file gone.
+
+    Decoded permissively: an SD file is printable ASCII by specification, and a
+    stray byte in a data item is not a reason to refuse a file whose structure
+    is otherwise readable.
+    """
+    return raw.decode("utf-8", "replace").rstrip("\r")
+
+
+def _take_line(line: str, records: List[List[str]], current: List[str]) -> List[str]:
+    """Fold one line into the record being read, and hand back the list the
+    next line goes into.
+
+    The terminator closes the record rather than joining it, so what is
+    returned after one is the empty list the next record is read into.
+    """
+    if line.strip() == RECORD_TERMINATOR:
+        records.append(current)
+        return []
+    current.append(line)
+    return current
+
+
 def item_name(line: str) -> Optional[str]:
     """The field a data item header names, or None if the line is not one.
 
@@ -240,9 +264,9 @@ class SDFHandler(FileTypeHandler):
         exists to avoid. The loop stops as soon as either bound is reached, so
         nothing past the sample is pulled off the stream at all.
 
-        Decoded permissively: an SD file is printable ASCII by specification,
-        and a stray byte in a data item is not a reason to refuse a file whose
-        structure is otherwise readable.
+        A file that ends without a line ending behind its last line is read to
+        its end all the same: the tail is the last line, and a writer that
+        closes the file straight after the terminator leaves it there.
         """
         records: List[List[str]] = []
         current: List[str] = []
@@ -260,16 +284,16 @@ class SDFHandler(FileTypeHandler):
                     # The tail after the last line ending is not yet a line.
                     pending = complete.pop()
                     for raw in complete:
-                        line = raw.decode("utf-8", "replace").rstrip("\r")
-                        if line.strip() == RECORD_TERMINATOR:
-                            records.append(current)
-                            current = []
-                        else:
-                            current.append(line)
+                        current = _take_line(_decode(raw), records, current)
                     if len(records) >= SAMPLE_RECORDS:
                         bounded = bounded or plural(SAMPLE_RECORDS, "record")
                     if bounded:
                         break
+                if pending and not bounded:
+                    # End of file with no line ending behind the last line,
+                    # which is where a writer that closes the file straight
+                    # after the terminator leaves it.
+                    _take_line(_decode(pending), records, current)
         except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
