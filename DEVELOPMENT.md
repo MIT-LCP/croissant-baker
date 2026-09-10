@@ -1,5 +1,7 @@
 # Development Guide
 
+We recommend using test-driven development as much as possible.
+
 ## Setup
 
 This project uses [uv](https://docs.astral.sh/uv/) for environment and dependency management.
