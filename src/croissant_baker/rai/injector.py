@@ -36,8 +36,9 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     - Models that used this dataset → rai:usedBy.
     - Activities → prov:wasGeneratedBy (list of prov:Activity), each with
       optional prov:wasAssociatedWith (agents) and rai:usedPlatform (platforms).
-    - Collection types → rai:dataCollectionType, on each activity that declares
-      one and, unioned, on the dataset node the RAI spec puts the property on.
+    - Collection types → rai:dataCollectionType on the dataset node, unioned
+      across the activities. RAI 1.0 declares the property on sc:Dataset, so
+      it does not go on the prov:Activity that carries the types in the config.
     """
     _ensure_prov_context(metadata, config)
 
@@ -56,8 +57,8 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     if af.has_synthetic_data is not None:
         metadata["rai:hasSyntheticData"] = af.has_synthetic_data
 
-    # rai:dataCollectionType is a dataset-level property, so the activities'
-    # types are unioned onto the dataset as well as kept on their own nodes.
+    # rai:dataCollectionType is declared on sc:Dataset, so the types every
+    # activity declares are unioned onto the dataset rather than left on it.
     collection_types = _unique(
         t for act in config.activities for t in act.collection_types
     )
@@ -127,8 +128,6 @@ def _build_activity(act: Activity) -> dict:
         node["prov:startedAtTime"] = act.start_at
     if act.end_at:
         node["prov:endedAtTime"] = act.end_at
-    if act.collection_types:
-        node["rai:dataCollectionType"] = _one_or_many(_unique(act.collection_types))
 
     if act.agents:
         agent_nodes = []

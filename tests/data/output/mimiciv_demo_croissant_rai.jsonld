@@ -5813,10 +5813,6 @@
       "prov:description": "Retrospective electronic health records collected during routine clinical care at Beth Israel Deaconess Medical Center.",
       "prov:startedAtTime": "2011-01-01",
       "prov:endedAtTime": "2019-12-31",
-      "rai:dataCollectionType": [
-        "observations",
-        "existing_datasets"
-      ],
       "prov:wasAssociatedWith": {
         "@type": "prov:Agent",
         "name": "Beth Israel Deaconess Medical Center Clinical Team",

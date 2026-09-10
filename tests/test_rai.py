@@ -229,7 +229,9 @@ def test_no_collection_types_writes_no_key() -> None:
     assert "rai:dataCollectionType" not in document
 
 
-def test_each_activity_node_carries_its_own_collection_types() -> None:
+def test_no_activity_node_carries_collection_types() -> None:
+    """RAI 1.0 declares the property on sc:Dataset, so a prov:Activity is
+    outside its domain and must not carry a copy."""
     config = _config(
         _activity("ACT-001", "observations", "existing_datasets"),
         _activity("ACT-002"),
@@ -237,11 +239,7 @@ def test_each_activity_node_carries_its_own_collection_types() -> None:
 
     activities = inject_rai({"@context": {}}, config)["prov:wasGeneratedBy"]
 
-    assert activities[0]["rai:dataCollectionType"] == [
-        "observations",
-        "existing_datasets",
-    ]
-    assert "rai:dataCollectionType" not in activities[1]
+    assert all("rai:dataCollectionType" not in act for act in activities)
 
 
 def test_the_reference_output_records_the_fixture_collection_types() -> None:
