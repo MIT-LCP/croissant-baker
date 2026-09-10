@@ -15,3 +15,4 @@
 | VCF | `.vcf` | `.gz`, `.bz2`, `.xz` | Reference, contig count, typed INFO and FORMAT keys, sample count |
 | BAM | `.bam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
 | SAM | `.sam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
+| FASTQ | `.fastq`, `.fq` | `.gz`, `.bz2`, `.xz` | Read length of the first record; no read name or record count |
