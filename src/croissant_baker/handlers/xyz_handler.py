@@ -48,9 +48,16 @@ COORDINATE_TOKENS = 3
 #: and common, so this is a minimum rather than a count.
 ATOM_LINE_TOKENS = SYMBOL_TOKENS + COORDINATE_TOKENS
 
+#: The most digits a count may be spelled with. Twenty covers every atom count
+#: a reader holds, and the bound is what keeps ``int`` from being handed a run
+#: it refuses: past 4300 digits it raises a message of its own, which names no
+#: file. Bounded in the pattern rather than checked after it, so ``claims`` and
+#: ``extract`` are both safe by construction however long the first line is.
+MAX_COUNT_DIGITS = 20
+
 #: An atom count, and nothing else on the line. Spelled out rather than left to
 #: ``str.isdigit``, which is true of superscripts and of digits in every script.
-ATOM_COUNT = re.compile(r"[0-9]+")
+ATOM_COUNT = re.compile(rf"[0-9]{{1,{MAX_COUNT_DIGITS}}}")
 
 #: The term that makes a comment line an extended-XYZ one. Its presence is the
 #: whole test: the dialect is what the file declares, whether or not the value
@@ -285,7 +292,12 @@ def _decode_lines(head: bytes) -> List[str]:
 
 
 def _atom_count_of(line: str) -> Optional[int]:
-    """The line as a non-negative atom count, or None if it is not one."""
+    """The line as a non-negative atom count, or None if it is not one.
+
+    A run of more digits than :data:`MAX_COUNT_DIGITS` is not one: no reader
+    holds the number, and it is the caller that owes the file a refusal naming
+    it, so nothing here is handed to ``int`` that ``int`` will not take.
+    """
     text = line.strip()
     return int(text) if ATOM_COUNT.fullmatch(text) else None
 
