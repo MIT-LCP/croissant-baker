@@ -63,6 +63,15 @@ SAMPLE_BYTES = 4 * 1024 * 1024
 _INTEGER = re.compile(r"[+-]?\d+\Z")
 _DECIMAL = re.compile(r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\Z")
 
+#: The longest a value may be spelled and still be read as a number. Every
+#: integer ``cr:Int64`` carries is twenty characters at most and every float
+#: ``cr:Float64`` carries is spelled in far fewer, sign, point and exponent
+#: included, so nothing longer is a number the file states. Two things go wrong
+#: past it: ``int`` refuses a run of more than 4300 digits outright and raises a
+#: message of its own, which names no file, and ``float`` turns one into
+#: infinity, which is not a value any record wrote down.
+MAX_NUMBER_CHARACTERS = 40
+
 #: The suffix the one record set per file is allocated under.
 RECORD_SET_SUFFIX = "molecules"
 
@@ -173,7 +182,14 @@ def value_type(value: str) -> Optional[str]:
     type a compound name that happens to look like a date, or an identifier that
     happens to open with ``urn:``, as something the format never declared it to
     be.
+
+    A value spelled longer than :data:`MAX_NUMBER_CHARACTERS` is not parsed at
+    all: no number a reader holds is written that way, and both parsers answer
+    a run that long with something other than the value, an exception naming no
+    file or an infinity.
     """
+    if len(value) > MAX_NUMBER_CHARACTERS:
+        return None
     if _INTEGER.match(value):
         return infer_croissant_type(int(value))
     if _DECIMAL.match(value):
