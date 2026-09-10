@@ -263,6 +263,23 @@ def _bam() -> list:
     return [("sample.bam", gzip.compress(bam_payload(), mtime=0))]
 
 
+#: One alignment record, in the eleven mandatory SAM columns. Present so a test
+#: proving the read stops at the first record has a record to stop at.
+SAM_ALIGNMENT_TEXT = (
+    "read1\t0\tchr1\t100\t60\t10M\t*\t0\t0\tACGTACGTAC\tIIIIIIIIII\n"
+    "read2\t16\tchr2\t200\t60\t10M\t*\t0\t0\tTGCATGCATG\tIIIIIIIIII\n"
+)
+
+
+def _sam() -> list:
+    """One SAM carrying the same header as the sample BAM, then two reads.
+
+    The reads are the point: a header-only fixture cannot tell a handler that
+    stops at the first alignment apart from one that reads to end of file.
+    """
+    return [("sample.sam", (BAM_HEADER_TEXT + SAM_ALIGNMENT_TEXT).encode())]
+
+
 def _vcf() -> list:
     """A small multi-sample VCFv4.2 export: two samples, two variant records.
 
@@ -313,6 +330,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "SOFTHandler": _soft,
     "VCFHandler": _vcf,
     "BAMHandler": _bam,
+    "SAMHandler": _sam,
 }
 
 #: Handlers with no sample, and why.
