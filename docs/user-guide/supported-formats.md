@@ -363,6 +363,41 @@ cohort manifest, so they are withheld under the same `--genomic-sample-ids`
 opt-in as the VCF sample columns. Index files (`.bai`, `.csi`, `.tbi`) are
 reported as unsupported; nothing claims them.
 
+## FASTA
+
+FASTA (`.fa`, `.fasta`, `.fna`) is a description line followed by sequence,
+repeated. The handler reads the first description line and stops there. No
+sequence line is ever read: a reference genome is gigabytes of bases and none of
+them is metadata.
+
+A FASTA is claimed on its extension **and** on its first byte, and neither half
+would do alone. `>` is a single character that a quoted email, a shell
+transcript and a diff all begin with, so it is too little to own a file on. The
+extension alone would claim any text a user happened to name `.fa`, and past
+that first byte the format has no other marker to fall back on: a FASTA is
+letters, which is what an unrelated text file is too. A `.fa` that does not open
+with `>` is therefore reported as a file no handler claimed, and an empty file
+or a bare `>` line is reported with that as its reason rather than described.
+
+What is reported is the format and the encoding. Deliberately not reported:
+
+- **Record names.** A description line names the record, and for a per-sample
+  assembly that name is the sample, so it is withheld the way `@RG SM` and the
+  VCF sample columns are. Unlike those, it has no opt-in: one line is read, and
+  which record it names is not a structural fact about the dataset.
+- **The comment text** following the name on the same line, for the same reason.
+- **The number of records**, and the sequence lengths. Counting either means
+  reading the whole file, which is what header-only reading exists to avoid.
+
+**No record set is emitted.** Bases are records of a genome, not of a dataset
+schema, so a FASTA is described as a file: the statement above is carried in the
+`description` of its `cr:FileObject`. `encodingFormat` is `text/x-fasta`, with
+the compression media type added by the input layer when the file arrives under
+one. FASTA has no IANA registration, so the `x-` form follows `text/x-vcf`.
+
+Index and dictionary files (`.fai`, `.dict`, `.gzi`) are reported as unsupported;
+nothing claims them.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
