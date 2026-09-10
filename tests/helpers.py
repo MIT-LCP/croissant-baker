@@ -400,18 +400,22 @@ def cram_payload(
     content_type: int = 0,
     compressed_size: Optional[int] = None,
     raw_size: Optional[int] = None,
+    compress: Optional[Callable[[bytes], bytes]] = None,
 ) -> bytes:
     """The bytes of a header-only CRAM: file definition, container, one block.
 
     Built rather than committed, for the reason ``bam_payload`` is: a container
     states its own lengths, and a fixture nobody can read by eye is one nobody
     can change. ``compressed_size`` and ``raw_size`` override what the block
-    declares, so a test can state a size the file does not hold.
+    declares, so a test can state a size the file does not hold, and
+    ``compress`` overrides how the block is written, so a test can state a
+    method over a spelling of it the default table does not use.
     """
     major, minor = version
     encoded = text.encode()
     content = struct.pack("<i", len(encoded)) + encoded
-    data = _CRAM_COMPRESSORS.get(method, _CRAM_COMPRESSORS[0])(content)
+    compressor = compress or _CRAM_COMPRESSORS.get(method, _CRAM_COMPRESSORS[0])
+    data = compressor(content)
     block = (
         bytes([method, content_type])
         + _itf8(0)

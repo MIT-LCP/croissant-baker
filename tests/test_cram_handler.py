@@ -10,6 +10,8 @@ correctly rather than guessed at.
 from __future__ import annotations
 
 import json
+import tracemalloc
+import zlib
 from pathlib import Path
 
 import mlcroissant as mlc
@@ -228,6 +230,87 @@ def test_a_declared_block_larger_than_the_cap_is_refused_unread(
 
     assert "huge.cram" in str(caught.value)
     assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
+
+
+#: A block that decodes to far more than it declares, and the size it claims.
+#: 32 MiB of NULs is a few hundred bytes of LZMA, so the file on disk is small
+#: and the expansion is the whole of the attack.
+BOMB_BYTES = 32 * 1024 * 1024
+BOMB_DECLARED = 100
+
+#: What a bounded decode may allocate. Far above the hundred bytes the block
+#: declares, and far below what expanding it would take.
+BOUNDED_PEAK = 16 * 1024 * 1024
+
+
+def test_a_block_decoding_to_more_than_it_declares_is_refused_unexpanded(
+    dataset: Path,
+) -> None:
+    """The declared raw size bounds the decode, not just the read behind it.
+
+    A block may state a raw size of a hundred bytes and hold a stream of
+    hundreds of megabytes, and a decoder given the whole stream expands all of
+    it before anyone can compare the two. What is decoded is therefore one byte
+    past what the block declares: enough to see that it holds more, and no more
+    than that.
+    """
+    path = write(
+        dataset,
+        "bomb.cram",
+        cram_payload("\x00" * BOMB_BYTES, method=3, raw_size=BOMB_DECLARED),
+    )
+    assert path.stat().st_size < BOUNDED_PEAK
+
+    tracemalloc.start()
+    try:
+        with pytest.raises(ValueError) as caught:
+            extract(path)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+
+    assert "bomb.cram" in str(caught.value)
+    assert str(BOMB_DECLARED) in str(caught.value)
+    assert peak < BOUNDED_PEAK
+
+
+@pytest.mark.parametrize("method", [0, 1, 2, 3], ids=["raw", "gzip", "bzip2", "lzma"])
+def test_a_block_holding_other_than_its_declared_size_is_refused(
+    method: int, dataset: Path
+) -> None:
+    """The raw size is the block's own statement of what it holds, so a block
+    holding anything else is one this handler cannot describe truthfully."""
+    path = write(dataset, "mismatch.cram", cram_payload(method=method, raw_size=5))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "mismatch.cram" in str(caught.value)
+    assert "5" in str(caught.value)
+
+
+def test_a_header_block_written_as_a_bare_zlib_stream_is_read(dataset: Path) -> None:
+    """CRAM's method 1 names the deflate family, not the gzip spelling of it.
+
+    htslib inflates such a block with a window argument that takes either
+    header, so a writer may emit a bare zlib stream and samtools reads it. A
+    reader accepting only gzip would refuse a file the reference implementation
+    describes.
+    """
+    path = write(dataset, "zlib.cram", cram_payload(method=1, compress=zlib.compress))
+
+    assert extract(path)["sort_order"] == "coordinate"
+
+
+def test_a_compressed_block_cut_short_of_its_end_is_refused(dataset: Path) -> None:
+    """The compressed size says where the stream ends, so a size falling inside
+    it hands the decoder a stream that stops mid-member."""
+    path = write(dataset, "cutshort.cram", cram_payload(method=1, compressed_size=10))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "cutshort.cram" in str(caught.value)
 
 
 def test_a_negative_declared_block_size_is_refused_the_same_way(
