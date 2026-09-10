@@ -114,6 +114,10 @@ activities:
 
 A complete working example is at [`tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml`](https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml).
 
+### Unknown keys are rejected
+
+Every key is checked against the keys its section accepts, at every level of the file. A key that is not recognised stops the run with an error naming the key by its path in the YAML (for example `activities[0].agents[1].nme`) and listing the keys that section does accept. A misspelled key is therefore never dropped in silence, so a field cannot go missing from the output without a word. The config is read before the dataset is scanned, so the error arrives immediately.
+
 ## Apply RAI to an existing file
 
 You can inject RAI into a `.jsonld` file that was already generated:
