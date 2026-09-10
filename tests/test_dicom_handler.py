@@ -474,3 +474,45 @@ def test_the_record_set_description_of_a_batch_without_slides_is_unchanged(
     of cross sections must describe itself the way it did before slides."""
     _, record_sets = handler.build_croissant([_dicom_meta("ct.dcm")], ["file_0"])
     assert record_sets[0].description == "1 DICOM files (512x512): CT (1)"
+
+
+def test_a_batch_holding_a_slide_gains_the_whole_slide_fields(
+    handler: DICOMHandler,
+) -> None:
+    metas = [_dicom_meta("ct.dcm"), _wsi_meta("volume.dcm")]
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+    field_names = {f.name for f in record_sets[0].fields}
+    assert {
+        "wsi_flavor",
+        "total_pixel_matrix_columns",
+        "total_pixel_matrix_rows",
+        "container_identifier",
+    } <= field_names
+
+
+def test_the_whole_slide_field_ids_stay_in_the_dicom_namespace(
+    handler: DICOMHandler,
+) -> None:
+    """Two record sets sharing a field id collide into one node when the graph
+    is serialised, so every field id keeps its record set prefix."""
+    _, record_sets = handler.build_croissant([_wsi_meta("volume.dcm")], ["file_0"])
+    assert all(f.id.startswith("dicom/") for f in record_sets[0].fields)
+
+
+def test_a_batch_without_a_slide_gains_no_whole_slide_fields(
+    handler: DICOMHandler,
+) -> None:
+    """The fields are conditional so that a cross-sectional dataset bakes to
+    the same document it baked to before slides were recognised."""
+    _, record_sets = handler.build_croissant([_dicom_meta("ct.dcm")], ["file_0"])
+    field_names = {f.name for f in record_sets[0].fields}
+    assert field_names == {
+        "modality",
+        "rows",
+        "columns",
+        "num_frames",
+        "bits_allocated",
+        "patient_id",
+        "study_instance_uid",
+        "series_instance_uid",
+    }

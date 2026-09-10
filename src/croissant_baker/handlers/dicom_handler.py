@@ -367,6 +367,54 @@ class DICOMHandler(FileTypeHandler):
             ),
         ]
 
+        # Slide fields are added only when the batch holds a slide, so a
+        # cross-sectional dataset bakes to the document it always baked to.
+        if summary.get("wsi_count"):
+            fields.extend(
+                [
+                    mlc.Field(
+                        id="dicom/wsi_flavor",
+                        name="wsi_flavor",
+                        description="DICOM ImageType (0008,0008) value 3 for whole slide images: VOLUME, LABEL, OVERVIEW, or THUMBNAIL",
+                        data_types=["sc:Text"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/total_pixel_matrix_columns",
+                        name="total_pixel_matrix_columns",
+                        description="DICOM TotalPixelMatrixColumns (0048,0006); width in pixels of the whole slide, across all tiles",
+                        data_types=["sc:Integer"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/total_pixel_matrix_rows",
+                        name="total_pixel_matrix_rows",
+                        description="DICOM TotalPixelMatrixRows (0048,0007); height in pixels of the whole slide, across all tiles",
+                        data_types=["sc:Integer"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/container_identifier",
+                        name="container_identifier",
+                        description="DICOM ContainerIdentifier (0040,0512); the slide barcode, shared by every instance imaged from one glass slide",
+                        data_types=["sc:Text"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                ]
+            )
+
         dicom_record_set = mlc.RecordSet(
             id="dicom",
             name="dicom",
