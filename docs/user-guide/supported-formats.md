@@ -480,6 +480,41 @@ one. FASTA has no IANA registration, so the `x-` form follows `text/x-vcf`.
 
 Index and dictionary files (`.fai`, `.dict`, `.gzi`) are reported as unsupported;
 nothing claims them.
+## CRAM
+
+CRAM (`.cram`) stores the same alignment a BAM does, encoded against the
+reference the reads were placed on rather than storing their bases. That
+reference is not needed to describe the file: the SAM text header sits in the
+first block of the first container, and the header is all that is read, so a
+CRAM whose reference is a URL nobody can reach is still described in full.
+
+A CRAM is claimed on its magic, the four bytes `CRAM` a file definition opens
+with. Reaching the header block after it means walking the first container
+header field by field: those fields are written in CRAM's two variable-width
+integer encodings, ITF8 and LTF8, so the block behind them cannot be seeked to.
+The block is then decoded from raw, gzip, bzip2 or LZMA, whichever it declares.
+The text it holds is read exactly as a BAM's is: `@HD` for the SAM version and
+sort order, `@SQ` for the reference sequences and, from the first, the assembly
+name, `@RG` for the read groups with their platforms and centres, and `@PG` for
+the program chain in declaration order. The CRAM version itself is recorded
+alongside them.
+
+Three things are refused with a reason rather than guessed at. Major versions
+other than 2 and 3: CRAM 1 is obsolete and CRAM 4 changes the integer encodings
+a container header is written in, so neither can be walked with this layout. A
+file header block coded with rANS, CRAM's own entropy coder, which has no
+decoder in the standard library. And a block or header text whose declared size
+is larger than any real header, which is refused before a byte behind it is
+read. CRC32 values are read past rather than checked: what is described is the
+header text, and a mismatch is a decoder's corruption report, not metadata.
+
+**No record set is emitted**, for the reason a BAM emits none: aligned reads are
+records of a genome, not of a dataset schema. The properties above are stated in
+the `description` of the file's `cr:FileObject`, and `encodingFormat` is
+`application/x-cram`, with the compression media type added by the input layer
+when the file arrives under one. `@RG SM` sample tags are withheld under the
+same `--genomic-sample-ids` opt-in as the BAM tags and the VCF sample columns.
+Index files (`.crai`) are reported as unsupported; nothing claims them.
 
 ## Hidden files and directories
 

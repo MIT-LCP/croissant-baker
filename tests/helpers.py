@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import base64
+import bz2
 import gzip
 import io
+import lzma
 import struct
+import zlib
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
@@ -302,6 +305,135 @@ VCF_HEADER_TEXT = (
 )
 
 
+def _tf8(value: int, forms: int) -> bytes:
+    """The shared body of ITF8 and LTF8, or ``b""`` when neither form fits.
+
+    Both encodings spell a number the same way: the leading one-bits of the
+    first byte count the bytes that follow, and the bits left over in that
+    first byte are the number's most significant ones. Only the widest form of
+    each differs, so only that is written out per encoding.
+    """
+    for extra in range(forms):
+        if value < 1 << (7 + 7 * extra):
+            prefix = (0xFF << (8 - extra)) & 0xFF
+            tail = value & ((1 << (8 * extra)) - 1)
+            return bytes([prefix | (value >> (8 * extra))]) + tail.to_bytes(
+                extra, "big"
+            )
+    return b""
+
+
+def _itf8(value: int) -> bytes:
+    """One non-negative integer in CRAM's ITF8 encoding.
+
+    Non-negative only: every field a header-only fixture writes is a count, an
+    offset or an identifier, and the negative form exists for the unmapped
+    reference id such a container never declares.
+
+    The five-byte form is the odd one, and the reason this is not just
+    ``_tf8``: the first byte carries the top four bits and the last carries
+    only its own low four, so the five together hold exactly 32.
+    """
+    if value < 0:
+        raise ValueError(f"ITF8 encodes no negative value; got {value}")
+    return _tf8(value, 4) or bytes(
+        [
+            0xF0 | ((value >> 28) & 0x0F),
+            (value >> 20) & 0xFF,
+            (value >> 12) & 0xFF,
+            (value >> 4) & 0xFF,
+            value & 0x0F,
+        ]
+    )
+
+
+def _ltf8(value: int) -> bytes:
+    """One non-negative integer in CRAM's LTF8 encoding, the 64-bit ITF8.
+
+    The widest form is regular where ITF8's is not: a first byte of all ones,
+    then the whole number in the eight that follow.
+    """
+    if value < 0:
+        raise ValueError(f"LTF8 encodes no negative value; got {value}")
+    return _tf8(value, 8) or b"\xff" + value.to_bytes(8, "big")
+
+
+#: The compressors CRAM's block methods name, by method number. 4 is rANS,
+#: which has no stdlib codec and which the handler refuses; a fixture asking
+#: for it declares the method over uncompressed bytes, because the refusal is
+#: reached before anything is decoded.
+_CRAM_COMPRESSORS = {
+    0: lambda data: data,
+    1: lambda data: gzip.compress(data, mtime=0),
+    2: bz2.compress,
+    3: lzma.compress,
+}
+
+
+def _cram_container_header(major: int, length: int) -> bytes:
+    """The first container's header: every field zero but the block count.
+
+    A header-only container spans no reference and holds no record, so the one
+    field with anything to say is that a single block follows. Written in the
+    major-2 layout below version 3, which is what the handler reads there; a
+    version-1 fixture is given the same bytes, and is refused on its version
+    long before the handler reaches them.
+    """
+    header = (
+        struct.pack("<i", length)
+        # Reference id, alignment start, alignment span, record count.
+        + _itf8(0) * 4
+        + (_ltf8(0) if major >= 3 else _itf8(0))
+        + _ltf8(0)
+        + _itf8(1)
+        + _itf8(0)
+    )
+    if major >= 3:
+        header += struct.pack("<I", zlib.crc32(header))
+    return header
+
+
+def cram_payload(
+    text: str = BAM_HEADER_TEXT,
+    version: tuple = (3, 0),
+    method: int = 0,
+    content_type: int = 0,
+    compressed_size: Optional[int] = None,
+    raw_size: Optional[int] = None,
+) -> bytes:
+    """The bytes of a header-only CRAM: file definition, container, one block.
+
+    Built rather than committed, for the reason ``bam_payload`` is: a container
+    states its own lengths, and a fixture nobody can read by eye is one nobody
+    can change. ``compressed_size`` and ``raw_size`` override what the block
+    declares, so a test can state a size the file does not hold.
+    """
+    major, minor = version
+    encoded = text.encode()
+    content = struct.pack("<i", len(encoded)) + encoded
+    data = _CRAM_COMPRESSORS.get(method, _CRAM_COMPRESSORS[0])(content)
+    block = (
+        bytes([method, content_type])
+        + _itf8(0)
+        + _itf8(len(data) if compressed_size is None else compressed_size)
+        + _itf8(len(content) if raw_size is None else raw_size)
+        + data
+    )
+    if major >= 3:
+        block += struct.pack("<I", zlib.crc32(block))
+    definition = b"CRAM" + bytes([major, minor]) + bytes(20)
+    return definition + _cram_container_header(major, len(block)) + block
+
+
+def _cram() -> list:
+    """One header-only CRAM 3.0, carrying the SAM header the BAM sample carries.
+
+    The same text on purpose: a difference between the two handlers is then a
+    difference in what they read, not in what they were given.
+    """
+    return [("sample.cram", cram_payload())]
+
+
 def _vcf() -> list:
     """A small multi-sample VCFv4.2 export: two samples, two variant records.
 
@@ -398,6 +530,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "FASTQHandler": _fastq,
     "FASTAHandler": _fasta,
     "BCFHandler": _bcf,
+    "CRAMHandler": _cram,
 }
 
 #: Handlers with no sample, and why.
@@ -535,6 +668,7 @@ __all__ = [
     "bcf_payload",
     "by_name",
     "cli",
+    "cram_payload",
     "file_objects",
     "file_sets",
     "file_set_members",
