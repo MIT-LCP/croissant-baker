@@ -609,6 +609,100 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hdf5-h5-h5ad-hdf5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HDF5 (.h5, .h5ad, .hdf5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HDF5 (.h5, .h5ad, .hdf5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-becomes-a-record-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What becomes a record set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-find-a-field-in-the-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to find a field in the file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#types-and-where-they-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Types, and where they come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arrays-attach-to-the-axis-that-indexes-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arrays attach to the axis that indexes them
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-described" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is not described
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-value-from-inside-the-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No value from inside the file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-a-wrapper-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a wrapper costs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hidden-files-and-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1010,6 +1104,100 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hdf5-h5-h5ad-hdf5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HDF5 (.h5, .h5ad, .hdf5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HDF5 (.h5, .h5ad, .hdf5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-becomes-a-record-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What becomes a record set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-find-a-field-in-the-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to find a field in the file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#types-and-where-they-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Types, and where they come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arrays-attach-to-the-axis-that-indexes-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arrays attach to the axis that indexes them
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-described" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is not described
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-value-from-inside-the-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No value from inside the file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-a-wrapper-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a wrapper costs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hidden-files-and-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1155,6 +1343,12 @@ or <code>would_process</code> (<code>--dry-run</code> only). <code>reason</code>
 <td><code>.soft</code></td>
 <td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Entity attribute names, sample characteristic keys, data table columns</td>
+</tr>
+<tr>
+<td>HDF5</td>
+<td><code>.h5</code>, <code>.h5ad</code>, <code>.hdf5</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>Dataset paths, dtypes and shapes; AnnData and 10x table columns where the layout is recognised</td>
 </tr>
 </tbody>
 </table>
@@ -1390,6 +1584,95 @@ still open at end of file or undecodable UTF-8 produces a partial-parse warning
 on every emitted record set. A complete attribute line at end of file is valid:
 attribute blocks have no closing marker. A leading UTF-8 byte order mark is
 accepted.</p>
+<h2 id="hdf5-h5-h5ad-hdf5">HDF5 (<code>.h5</code>, <code>.h5ad</code>, <code>.hdf5</code>)</h2>
+<p>HDF5 is the default container for scientific array data, and the handler reads <code>h5py</code>. <strong>Nothing but structure is read</strong> — dataset paths, dtypes, shapes, and the named attributes a recognised layout defines — so describing a 5 GB file costs what describing a 5 MB one with the same structure costs. Attributes are asked for by name and never as a set, because an attribute holds a value: a Keras <code>model_config</code> or a MATLAB header can be megabytes.</p>
+<p>A file is claimed on the HDF5 signature, which does not have to sit at offset 0: HDF5 permits a user block before the superblock, and MATLAB v7.3 puts a text header in a 512-byte one. The first 8 KiB are searched, at offsets 0 and 512·2ⁿ. A legal file behind a larger user block is reported as having no handler.</p>
+<h3 id="what-becomes-a-record-set">What becomes a record set</h3>
+<p>Every file gets one of two views, never both.</p>
+<table>
+<thead>
+<tr>
+<th>Layout</th>
+<th>Recognised by</th>
+<th>Record sets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AnnData (<code>.h5ad</code>)</td>
+<td>root <code>encoding-type: anndata</code>, or an <code>obs</code> and a <code>var</code> with no root <code>encoding-type</code> at all</td>
+<td><code>&lt;stem&gt;_obs</code>, <code>&lt;stem&gt;_var</code></td>
+</tr>
+<tr>
+<td>10x feature-barcode matrix</td>
+<td>a <code>matrix</code> group holding a <code>features</code> group and an <code>indptr</code> that declares a width</td>
+<td><code>&lt;stem&gt;_features</code>, <code>&lt;stem&gt;_barcodes</code></td>
+</tr>
+<tr>
+<td>10x, Cell Ranger 2</td>
+<td>any group holding <code>genes</code>, <code>gene_names</code>, <code>barcodes</code>, <code>data</code> and an <code>indptr</code> that declares a width, under no root <code>filetype</code> or <code>filetype: matrix</code></td>
+<td><code>&lt;stem&gt;_genes</code>, <code>&lt;stem&gt;_barcodes</code>, one pair per genome</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>—</td>
+<td><code>&lt;stem&gt;</code>, one field per leaf dataset</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing is refused. A Keras model, a NetCDF4 file, a MATLAB v7.3 session, an NWB recording and a BigDataViewer volume all fall to the generic view and are described by their datasets — and so does anything that only partly matches a layout: a <code>matrix</code> group missing its <code>features</code>, either 10x shape whose <code>indptr</code> says nothing about how many barcodes there are, or a legacy shape under a <code>filetype</code> naming some other format. A partial match is described for what it holds rather than claimed as a layout, since a field standing in for an absent array would name something that is not there.</p>
+<p><strong>A barnyard run gets one table pair per genome.</strong> Cell Ranger 2 wrote one group per reference genome, and a human–mouse mixing experiment has two. Both are wholly present, so both are described, and the record set identifiers carry the genome only when there is more than one: <code>&lt;stem&gt;_hg19_genes</code>, <code>&lt;stem&gt;_mm10_genes</code>. scanpy and DropletUtils refuse such a file outright and Seurat returns one matrix per genome; the two that refuse do so because their readers return exactly one matrix, which a manifest is not obliged to. Cell Ranger 3 and later express multiple genomes as a <code>genome</code> column instead, so this only arises for files written before 2018.</p>
+<h3 id="how-to-find-a-field-in-the-file">How to find a field in the file</h3>
+<p><strong>Every field's description states its HDF5 path</strong>, so nothing has to be inferred from a naming convention:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Column &#39;cell_type&#39; at /obs/cell_type in integrated.h5ad
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>Array /obsm/X_pca, indexed by the obs axis, in integrated.h5ad
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Column &#39;genes&#39; at /GRCh38/genes in filtered_gene_bc_matrices_h5.h5
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>HDF5 dataset /model_weights/dense/kernel:0 in model.h5
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>Member &#39;age&#39; of the record array /obs in legacy.h5ad
+</span></code></pre></div>
+<p>A column name is not enough on its own, which is why the path is spelled out. <code>genes</code> on a Cell Ranger 2 file lives under a group named for the reference genome, and the record-set identifier is derived from the file name, so nothing else in the document would record <code>GRCh38</code>. An array is a second case: <code>X</code> is indexed by the observation axis but stored at the root, not under <code>/obs</code>. Each table's record set also names the group its columns are in (<code>columns at /matrix/features</code>).</p>
+<p>In the generic view the field's <code>name</code> is itself the path. In a recognised layout the <code>name</code> is the column, as it is for a CSV.</p>
+<p><strong>No field carries an <code>extract</code>.</strong> mlcroissant validates one and cannot execute it: its reader dispatches on <code>encodingFormat</code> over CSV, TSV, JSON, Parquet, text, image, audio, video, DICOM and archive types, and has no HDF5 reader at any media type. A field claiming a readable column would be a promise nobody can keep, and the validator would not catch it. The record sets are descriptive, as this tool's Parquet, JSONL and DICOM record sets already are.</p>
+<h3 id="types-and-where-they-come-from">Types, and where they come from</h3>
+<p>For a recognised layout the AnnData <code>encoding-type</code> decides, not the dtype of the object carrying it. A <code>categorical</code> is typed from its <code>categories</code> and never from its <code>codes</code> — the codes are <code>int8</code> below 127 categories and <code>int32</code> at 40 000, so their width is the encoding rather than the type. A <code>nullable-integer</code> is typed from its <code>values</code> and not its <code>mask</code>.</p>
+<p>Older files are read too, because that is what the archives hold. Three vintages wrote a categorical with no encoding of its own, and all three are typed from their labels rather than from their codes:</p>
+<table>
+<thead>
+<tr>
+<th>Vintage</th>
+<th>Where the labels are</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>current</td>
+<td><code>&lt;column&gt;/categories</code>, under <code>encoding-type: categorical</code></td>
+</tr>
+<tr>
+<td>0.7.0 – 0.7.8</td>
+<td><code>&lt;frame&gt;/__categories/&lt;column&gt;</code>, beside int8 codes</td>
+</tr>
+<tr>
+<td>pre-0.7</td>
+<td><code>uns/&lt;column&gt;_categories</code>, beside int8 codes</td>
+</tr>
+</tbody>
+</table>
+<p>The 0.7 codes also carry a <code>categories</code> attribute holding an object reference. The reference is not what is followed: it names something rather than holding a value, and this reader never resolves one. The sibling's name is what is matched, and anndata's writer composes that exact path. <code>__categories</code> itself is never described as a column — anndata reserves the name.</p>
+<p>Two more pre-0.7 shapes: <code>obs</code> as a compound-dtype dataset gives its members as columns, and a sparse <code>X</code> written as a group under <code>h5sparse_format</code> / <code>h5sparse_shape</code> is one array field, not the three CSR arrays underneath it.</p>
+<p>A plain string column arrives in either of two shapes, and which one depends on the pandas version that wrote the file rather than on the anndata version: a <code>string-array</code> dataset under pandas 2, a <code>nullable-string-array</code> group under pandas 3, where <code>StringDtype</code> became the default. Both read as text.</p>
+<p>Elsewhere the dtype maps directly, with three cases worth naming. A fixed-length string reports <code>sc:Text</code>, which loses the byte width — every string in a Cell Ranger file is one of these. An object or region reference also reports <code>sc:Text</code>, because Croissant has nothing better, but its description says it is a reference — <code>dtype.kind</code> alone cannot tell one from a variable-length string, and calling it text without saying so would invite a reader to expect labels where there are only pointers. A dataset with a <strong>null dataspace</strong>, which declares no dimensions at all and holds no values, is described as a scalar; that it holds nothing rather than one value is a stated loss.</p>
+<h3 id="arrays-attach-to-the-axis-that-indexes-them">Arrays attach to the axis that indexes them</h3>
+<p><code>X</code> is <em>n_obs</em> × <em>n_var</em>, so on <code>&lt;stem&gt;_obs</code> it is one field of <em>n_var</em> values per row; <code>layers/*</code> and <code>obsm/*</code> join it, and <code>varm/*</code> go to <code>&lt;stem&gt;_var</code>. A 10x matrix is features × barcodes, so it attaches to <code>&lt;stem&gt;_features</code> with the barcode count as its shape. The generic view has no declared axes, so each dataset carries its full shape.</p>
+<h3 id="what-is-not-described">What is not described</h3>
+<p><code>uns</code>, <code>obsp</code>, <code>varp</code> and <code>raw</code> are named in the record-set description and not described: the first is arbitrary, the middle two are graphs over one axis rather than per-row features, and <code>raw</code> holds a second copy of <code>X</code> and <code>var</code>. Every recognised layout names its other top-level entries the same way, so nothing in a file goes unmentioned by both views.</p>
+<p>The generic view describes at most 300 leaf datasets. When it runs out of room it says the cap was reached and that at least one further dataset is not described — not how many, because counting them means walking the whole file, which is the cost the cap exists to avoid. A file holding exactly 300 claims no omission.</p>
+<p>An <strong>external link is never followed</strong>, including a valid one. It can name any HDF5 file on the machine, so following it would describe structure the dataset does not contain and record a path outside its root. The count of links not followed is in the description; the targets are not.</p>
+<h3 id="no-value-from-inside-the-file">No value from inside the file</h3>
+<p>Column names, dataset paths, dtypes, shapes and row counts only. A categorical's labels in particular do not appear: HDF5 guarantees nothing about what they describe, so nothing here can tell an assay vocabulary from a clinical one. Barcodes, feature ids, cell ids and library ids are record-level identifiers and never appear.</p>
+<h3 id="what-a-wrapper-costs">What a wrapper costs</h3>
+<p><code>.h5.gz</code> is described identically to <code>.h5</code>, but not as cheaply. h5py seeks backwards through the file, and a non-seekable codec pays for that by decompressing and discarding everything it skips.</p>
+<p>Measured on a 120 MB <code>.h5ad</code> holding incompressible data, reading its structure took 2 ms uncompressed, 0.7 s gzipped, 6 s xz-wrapped and 7 s bz2-wrapped. That cost tracks the file's size rather than its structure — uncompressed does not — so a 5 GB <code>.h5ad.gz</code> is of the order of half a minute, and the same file bz2-wrapped is several minutes. Uncompressed is worth it for this format, and gzip is worth it over the other two.</p>
 <h2 id="hidden-files-and-directories">Hidden files and directories</h2>
 <p>Files inside hidden directories (any path component starting with <code>.</code>) are always skipped, and do not appear in the coverage report. Use <code>--include</code> and <code>--exclude</code> glob patterns to further control which files are processed.</p>
 
