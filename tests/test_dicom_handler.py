@@ -13,7 +13,7 @@ from croissant_baker.handlers.dicom_handler import (
 )
 from croissant_baker.sources import make_source
 
-from tests.helpers import bake
+from tests.helpers import bake, by_name, record_sets
 
 
 def _make_dicom(
@@ -516,3 +516,22 @@ def test_a_batch_without_a_slide_gains_no_whole_slide_fields(
         "study_instance_uid",
         "series_instance_uid",
     }
+
+
+def test_a_bake_of_a_slide_directory_describes_the_slides(tmp_path: Path) -> None:
+    """The whole path end to end: a scanner export of one VOLUME image beside
+    its LABEL and OVERVIEW snapshots, read, summarised, and described."""
+    _make_wsi_dicom(tmp_path / "volume.dcm", flavor="VOLUME")
+    _make_wsi_dicom(tmp_path / "label.dcm", flavor="LABEL")
+    _make_wsi_dicom(tmp_path / "overview.dcm", flavor="OVERVIEW")
+
+    dicom_record_set = by_name(record_sets(bake(tmp_path)))["dicom"]
+    field_names = {f["name"] for f in dicom_record_set["field"]}
+
+    assert "3 whole-slide microscopy instances" in dicom_record_set["description"]
+    assert {
+        "wsi_flavor",
+        "total_pixel_matrix_columns",
+        "total_pixel_matrix_rows",
+        "container_identifier",
+    } <= field_names
