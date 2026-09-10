@@ -48,6 +48,12 @@ COUNTS_PREFIX = "M  V30 COUNTS"
 V3000_ATOM_TOKEN = 3
 V3000_BOND_TOKEN = 4
 
+#: The line closing the connection table, and the last line of a molfile block
+#: wherever one sits. Everything above it belongs to the molecule, the free
+#: text of the title lines included; whatever a container writes below it is
+#: the container's own.
+END_MARKER = "M  END"
+
 #: How much of the head a caller has to offer for the version literal to be
 #: readable. The three lines above the counts line are 80 characters each by
 #: specification, so this is an order of magnitude more than a molfile needs and
