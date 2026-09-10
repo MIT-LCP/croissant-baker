@@ -1691,9 +1691,7 @@ def test_spreadsheets_bake_to_the_committed_document(
     )
 
 
-# ---------------------------------------------------------------------------
 # Whole-slide images (one slide per vendor, and a DICOM slide beside them)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
