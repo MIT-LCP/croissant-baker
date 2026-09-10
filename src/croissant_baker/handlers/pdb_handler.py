@@ -319,6 +319,7 @@ class PDBHandler(FileTypeHandler):
 
     EXTENSIONS = (".pdb", ".ent")
     FORMAT_NAME = "PDB"
+    ENCODING_FORMAT = ENCODING_FORMAT
     FORMAT_DESCRIPTION = (
         "ID code, classification, title, experimental method, resolution, "
         "chain count (header only)"
@@ -364,7 +365,7 @@ class PDBHandler(FileTypeHandler):
             "file_name": source.name,
             "file_size": source.size,
             "sha256": source.sha256,
-            "encoding_format": ENCODING_FORMAT,
+            "encoding_format": self.ENCODING_FORMAT,
         }
         metadata.update(self._header_fields(lines))
         for key, value in (
