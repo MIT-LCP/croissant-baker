@@ -73,6 +73,55 @@ def test_a_third_line_that_is_not_an_atom_line_is_not_claimed(dataset: Path) -> 
     assert not HANDLER.claims(source_for(path))
 
 
+#: One frame whose atom lines carry a string column after the coordinates,
+#: which is what an extended-XYZ ``tags`` or ``molecule`` property looks like on
+#: the line. The coordinates sit where they always sit; only the tail differs.
+TRAILING_COLUMN = (
+    b"2\nlabelled\nO 0.000 0.000 0.117 solvent\nH 0.000 0.757 -0.469 solvent\n"
+)
+
+
+def test_an_atom_line_with_a_trailing_string_column_is_claimed(dataset: Path) -> None:
+    """The coordinates are the columns that make a line an atom line, and they
+    sit after the symbol. What a frame carries past them is the writer's own:
+    an extended-XYZ file declaring ``tags:S:1`` ends every atom line in a word,
+    and refusing it would refuse the dialect the format is mostly written in."""
+    path = write(dataset, "labelled.xyz", TRAILING_COLUMN)
+
+    assert HANDLER.claims(source_for(path))
+
+
+def test_an_atom_line_with_a_trailing_string_column_is_described(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "labelled.xyz", TRAILING_COLUMN)
+
+    meta = extract(path)
+
+    assert meta["atom_count"] == 2
+    assert meta["comment"] == "labelled"
+
+
+def test_an_extended_frame_whose_last_property_is_a_string_is_described(
+    dataset: Path,
+) -> None:
+    """The whole case, as an extended-XYZ writer emits it: the property list
+    declares a string column last, and every atom line ends in one."""
+    path = write(
+        dataset,
+        "tagged.xyz",
+        b"2\nProperties=species:S:1:pos:R:3:tags:S:1\n"
+        b"Si 0.000 0.000 0.000 bulk\n"
+        b"Si 1.000 1.000 1.000 surface\n",
+    )
+
+    assert HANDLER.claims(source_for(path))
+    meta = extract(path)
+
+    assert meta["properties"] == ["species", "pos", "tags"]
+    assert "extended XYZ, properties: species, pos, tags" in meta["description"]
+
+
 def test_the_same_bytes_under_another_extension_are_not_claimed(dataset: Path) -> None:
     """Structure is not enough on its own: an XYZ is named like one."""
     path = write(dataset, "water.txt", sample_bytes())

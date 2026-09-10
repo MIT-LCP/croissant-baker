@@ -37,12 +37,16 @@ HEADER_LINES = 2
 #: line under them that tells a real frame from a numbered list.
 FRAME_LINES = HEADER_LINES + 1
 
-#: An atom line is a symbol and three coordinates. Extra columns are allowed and
-#: common, so this is a minimum rather than a count.
-ATOM_LINE_TOKENS = 4
+#: The symbol an atom line opens with, in one column: an element symbol, or the
+#: atomic number half the writers put there instead.
+SYMBOL_TOKENS = 1
 
-#: The coordinates at the end of an atom line, which are what makes it one.
+#: The coordinates that follow it, which are what makes the line an atom line.
 COORDINATE_TOKENS = 3
+
+#: An atom line is the symbol and those coordinates. Further columns are allowed
+#: and common, so this is a minimum rather than a count.
+ATOM_LINE_TOKENS = SYMBOL_TOKENS + COORDINATE_TOKENS
 
 #: An atom count, and nothing else on the line. Spelled out rather than left to
 #: ``str.isdigit``, which is true of superscripts and of digits in every script.
@@ -280,18 +284,25 @@ def _atom_count_of(line: str) -> Optional[int]:
 
 
 def _is_atom_line(line: str) -> bool:
-    """Whether a line is a symbol and its coordinates.
+    """Whether a line is a symbol followed by its three coordinates.
 
-    The last three tokens rather than the three after the symbol, because the
-    columns a frame carries past ``x y z`` are the writer's own and a symbol may
-    be an element symbol or an atomic number; what every atom line has in common
-    is that it ends in numbers.
+    The three columns after the symbol, which is where the format puts them,
+    rather than the last three on the line. What a frame carries past ``x y z``
+    is the writer's own and need not be numeric at all: an extended-XYZ file
+    declaring ``tags:S:1`` or ``molecule:S:1`` ends every atom line in a word,
+    and judging the line by its tail would refuse a dialect the format is
+    routinely written in.
+
+    The symbol itself is only required to be present, not to be an element:
+    half the writers put an atomic number there instead. ``str.split`` on
+    whitespace yields no empty token, so a line of at least four of them has a
+    symbol in the first column by construction.
     """
     tokens = line.split()
     if len(tokens) < ATOM_LINE_TOKENS:
         return False
     try:
-        for token in tokens[-COORDINATE_TOKENS:]:
+        for token in tokens[SYMBOL_TOKENS : SYMBOL_TOKENS + COORDINATE_TOKENS]:
             float(token)
     except ValueError:
         return False
