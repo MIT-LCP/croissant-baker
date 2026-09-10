@@ -195,6 +195,47 @@ def test_a_frame_of_no_atoms_is_described(dataset: Path) -> None:
     assert extract(path)["atom_count"] == 0
 
 
+#: The two spellings of an empty frame, as the writers emit them: ASE's
+#: ``write(f, Atoms(), format="xyz")`` leaves the comment line blank, and its
+#: extended-XYZ writer fills the same line with the property list.
+EMPTY_FRAMES = [
+    b"0\n\n",
+    b'0\nProperties=species:S:1:pos:R:3 pbc="F F F"\n',
+]
+
+
+@pytest.mark.parametrize("payload", EMPTY_FRAMES, ids=["plain", "extended"])
+def test_a_frame_of_no_atoms_is_claimed(payload: bytes, dataset: Path) -> None:
+    """A count of zero promises no atom line, so there is none to check for.
+    The blank line under it is the comment, not a malformed atom line, and
+    ``extract`` has always read the frame this way."""
+    path = write(dataset, "empty_cell.xyz", payload)
+
+    assert HANDLER.claims(source_for(path))
+
+
+@pytest.mark.parametrize("payload", EMPTY_FRAMES, ids=["plain", "extended"])
+def test_a_frame_of_no_atoms_is_described_by_a_bake(
+    payload: bytes, dataset: Path
+) -> None:
+    write(dataset, "empty_cell.xyz", payload)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["empty_cell.xyz"]
+    assert report.undescribed == []
+
+
+def test_a_frame_promising_atoms_with_no_atom_line_is_still_not_claimed(
+    dataset: Path,
+) -> None:
+    """The rule is unchanged where the count is not zero: a header promising
+    three atoms and carrying none is not a frame this handler can read."""
+    path = write(dataset, "promised.xyz", b"3\nwater\n")
+
+    assert not HANDLER.claims(source_for(path))
+
+
 class _Counted(io.RawIOBase):
     """A raw stream that remembers how many bytes were pulled through it."""
 
