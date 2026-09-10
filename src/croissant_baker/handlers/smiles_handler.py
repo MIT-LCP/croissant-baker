@@ -21,11 +21,12 @@ import mlcroissant as mlc
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.utils import (
+    PrefixLines,
     allocate_record_set_ids,
+    decode_line,
     display_name,
     make_field_id,
     plural,
-    read_prefix_chunks,
 )
 from croissant_baker.sources import UNREADABLE, FileSource
 
@@ -213,16 +214,6 @@ def split_fields(line: str, delimiter: str) -> List[str]:
     return fields
 
 
-def _decode(raw: bytes) -> str:
-    """One line as text, with the carriage return of a CRLF file gone.
-
-    Decoded permissively: a stray byte in a compound name is not a reason to
-    refuse a file whose layout is otherwise readable, and a name is not emitted
-    anyway.
-    """
-    return raw.decode("utf-8", "replace").rstrip("\r")
-
-
 class SMILESHandler(FileTypeHandler):
     """Handler for SMILES chemical structure files (``.smi``, ``.smiles``).
 
@@ -269,7 +260,7 @@ class SMILESHandler(FileTypeHandler):
         head = source.peek(CLAIM_BYTES)
         if not head:
             return False
-        lines = [_decode(raw) for raw in head.split(b"\n")]
+        lines = [decode_line(raw) for raw in head.split(b"\n")]
         if len(head) == CLAIM_BYTES:
             # The peek stopped mid-line, and half a structure is not one.
             lines.pop()
@@ -320,40 +311,26 @@ class SMILESHandler(FileTypeHandler):
     def _read_sample(self, source: FileSource, name: str) -> Tuple[List[str], bool]:
         """The head of the file as lines, and whether the file ended inside it.
 
-        Taken a chunk at a time rather than a line at a time, because a stream
-        iterated by line hands back the whole file as one line when the file
-        holds no line ending, and reading the whole file is the one thing a
-        sampled read exists not to do.
+        Read through :class:`~croissant_baker.handlers.utils.PrefixLines`,
+        which is bounded in bytes; the line bound stops the read here.
 
         A file whose bytes run out exactly at the byte bound is reported as not
         exhausted: what stopped the read was the bound, and the tail behind it
         cannot be told from a line the read cut in half.
         """
         lines: List[str] = []
-        pending = b""
-        read = 0
         try:
             with source.open() as stream:
-                for chunk in read_prefix_chunks(stream, SAMPLE_BYTES):
-                    read += len(chunk)
-                    complete = (pending + chunk).split(b"\n")
-                    # The tail after the last line ending is not yet a line.
-                    pending = complete.pop()
-                    for raw in complete:
-                        lines.append(_decode(raw))
-                        if len(lines) == SAMPLE_LINES:
-                            return lines, False
+                reader = PrefixLines(stream, SAMPLE_BYTES)
+                for line in reader:
+                    lines.append(line)
+                    if len(lines) == SAMPLE_LINES:
+                        return lines, False
         except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
             ) from exc
-
-        if read == SAMPLE_BYTES:
-            return lines, False
-        if pending:
-            # End of file with no line ending behind the last line.
-            lines.append(_decode(pending))
-        return lines, True
+        return lines, not reader.bounded
 
     def _layout(
         self, lines: List[str], delimiter: str, name: str

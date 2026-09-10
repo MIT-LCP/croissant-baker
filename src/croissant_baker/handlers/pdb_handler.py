@@ -27,7 +27,12 @@ the ``description`` key the generator honours.
 from typing import List, Optional, Tuple
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.utils import MAX_HEADER_BYTES, plural, read_prefix_chunks
+from croissant_baker.handlers.utils import (
+    MAX_HEADER_BYTES,
+    PrefixLines,
+    decode_line,
+    plural,
+)
 from croissant_baker.sources import UNREADABLE, FileSource
 
 #: PDB has no IANA registration. ``chemical/x-pdb`` is the spelling the
@@ -149,16 +154,6 @@ MAX_LINE_BYTES = 4096
 
 #: Enough of the head to read the first record's name.
 CLAIM_BYTES = RECORD_NAME_COLUMNS
-
-
-def _decode(line: bytes) -> str:
-    """One record as text, with the carriage return of a CRLF file gone.
-
-    Decoded permissively: a PDB file is printable ASCII by specification, and a
-    stray byte in a REMARK is not a reason to refuse a file whose structure is
-    otherwise readable.
-    """
-    return line.decode("utf-8", "replace").rstrip("\r")
 
 
 def _record_name(line: str) -> str:
@@ -344,7 +339,7 @@ class PDBHandler(FileTypeHandler):
         if source.suffix not in self.EXTENSIONS:
             return False
         head = source.peek(CLAIM_BYTES)
-        return _record_name(_decode(head.split(b"\n", 1)[0])) in KNOWN_RECORDS
+        return _record_name(decode_line(head.split(b"\n", 1)[0])) in KNOWN_RECORDS
 
     def extract(self, source: FileSource, **kwargs) -> dict:
         """Read one title section, stopping at the first coordinate record.
@@ -433,10 +428,11 @@ class PDBHandler(FileTypeHandler):
     ) -> Tuple[List[str], Optional[str]]:
         """Every record up to the first coordinate record, and the first name.
 
-        Taken a chunk at a time rather than a line at a time, for the reason the
-        SAM handler is: a stream iterated by line hands back the whole file as
-        one line when the file holds no line ending, and reading the whole file
-        is the one thing this handler exists not to do.
+        Read through :class:`~croissant_baker.handlers.utils.PrefixLines`, which
+        is bounded in bytes and delivers the tail of a file that ends without a
+        line ending as the record it is. The two caps below are checked once a
+        chunk, because a record that never ends is owed a refusal before it
+        does.
 
         The first record's name is returned whether or not the record was kept,
         because it is what says the file is a PDB at all, and a fragment opening
@@ -444,31 +440,21 @@ class PDBHandler(FileTypeHandler):
         """
         lines: List[str] = []
         first: Optional[str] = None
-        pending = b""
-        read = 0
         try:
             with source.open() as stream:
-                for chunk in read_prefix_chunks(stream, MAX_HEADER_BYTES + 1):
-                    read += len(chunk)
-                    complete = (pending + chunk).split(b"\n")
-                    # The tail after the last line ending is not yet a line.
-                    pending = complete.pop()
-                    for raw in complete:
-                        line = _decode(raw)
-                        record = _record_name(line)
-                        first = record if first is None else first
-                        if record in STOP_RECORDS:
-                            return lines, first
-                        lines.append(line)
-                    self._still_a_title_section(len(pending), read, name)
-                # End of file inside the title section: what is left of it is
-                # the last record, written without a line ending.
-                if pending:
-                    line = _decode(pending)
+                reader = PrefixLines(
+                    stream,
+                    MAX_HEADER_BYTES + 1,
+                    on_chunk=lambda read, pending: self._still_a_title_section(
+                        pending, read, name
+                    ),
+                )
+                for line in reader:
                     record = _record_name(line)
                     first = record if first is None else first
-                    if record not in STOP_RECORDS:
-                        lines.append(line)
+                    if record in STOP_RECORDS:
+                        break
+                    lines.append(line)
         except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
