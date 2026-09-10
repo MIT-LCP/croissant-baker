@@ -306,8 +306,8 @@ def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None
 def test_the_record_set_carries_the_molecule_and_its_data_items(
     dataset: Path,
 ) -> None:
-    """Two fields the file does not name as data items — the molecule's own name
-    and its connection table — and then one per item the records carry."""
+    """Two fields the file does not name as data items, the molecule's own
+    name and its connection table, and then one per item the records carry."""
     meta = extract(write(dataset, "molecules.sdf", SDF_PAYLOAD))
     meta["relative_path"] = "molecules.sdf"
 

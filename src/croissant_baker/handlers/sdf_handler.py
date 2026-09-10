@@ -109,8 +109,8 @@ def item_name(line: str) -> Optional[str]:
     """The field a data item header names, or None if the line is not one.
 
     The name is the text inside the first ``<...>``. The decorations a header
-    line may carry around it — an external registry number, a ``DT`` field code
-    — are deliberately not read: they name the field's provenance in the
+    line may carry around it, an external registry number or a ``DT`` field
+    code, are deliberately not read: they name the field's provenance in the
     depositor's own system, not its place in this schema.
     """
     if not line.startswith(ITEM_MARKER):

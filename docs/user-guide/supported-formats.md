@@ -748,6 +748,7 @@ file.
 added by the input layer when the file arrives under one. SMILES has no IANA
 registration, so the media type follows the `chemical/x-*` family cheminformatics
 tools register theirs under.
+
 ## PDB
 
 A wwPDB structure file (`.pdb`, `.ent`) is fixed-column text: eighty columns per
@@ -781,8 +782,8 @@ entry (`pdb1abc.ent.gz`). A file whose header runs past the cap without reaching
 a coordinate record, or whose first line runs to kilobytes with no line ending,
 is reported with that as its reason rather than read on for.
 
-A file carrying no `HEADER` record — a fragment written by a modelling tool,
-which opens at `ATOM` — is still described, with the fields it has; the
+A file carrying no `HEADER` record, a fragment written by a modelling tool,
+which opens at `ATOM`, is still described, with the fields it has; the
 description then says the header carries no ID code.
 
 Deliberately not reported:
@@ -807,6 +808,7 @@ mmCIF/PDBx (`.cif`, `.mmcif`) is not covered yet. It is the format the archive
 now treats as primary, and the only one that can hold a structure too large for
 eighty columns; those files are reported as unsupported, and nothing claims
 them.
+
 ## XYZ
 
 XYZ (`.xyz`) is an atom count, a comment line, and then one line of `symbol x y
@@ -856,6 +858,7 @@ the compression media type added by the input layer when the file arrives under
 one. XYZ has no IANA registration; `chemical/*` is the family the chemistry
 tools have used for these files for decades, and the `x-` form marks it as
 unregistered the way `text/x-fasta` does.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
