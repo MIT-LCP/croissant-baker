@@ -363,6 +363,40 @@ cohort manifest, so they are withheld under the same `--genomic-sample-ids`
 opt-in as the VCF sample columns. Index files (`.bai`, `.csi`, `.tbi`) are
 reported as unsupported; nothing claims them.
 
+## FASTQ
+
+FASTQ (`.fastq`, `.fq`) is the same four lines repeated until the run is
+exhausted: a read name, the bases, a `+` separator, and one quality character
+per base. The handler reads the first record and stops. Nothing behind it is
+opened, so a run of a hundred million reads costs the same read as a run of
+one.
+
+The claim needs both the extension and the structure, because neither holds on
+its own. `@` opens a record's name line, but it also opens every line of a SAM
+header, so the first byte cannot decide; the extension cannot decide either,
+because it would claim any text a user happened to name `.fq`. Together they
+are the record's own shape: a name line, a sequence, and a separator on the
+third line. A `.fastq` whose third line is not `+` is left to the other
+handlers and reported with a reason.
+
+What is extracted is the length of the first read. A record whose quality line
+does not match its sequence in length, or that has no `+` on its third line, is
+a record this handler cannot describe truthfully, and the file is reported with
+that reason rather than described. Multi-line FASTQ, where a read is wrapped
+across several lines, is deliberately unsupported for the same reason.
+
+**Read names are never reported.** An Illumina read name spells out the
+instrument, run, flowcell and lane the read came from, and none of that is
+structure. It reaches neither the metadata nor the description, and there is no
+flag to turn it on. Records are not counted either: counting them means reading
+the whole file, which is the one thing this handler exists not to do.
+
+**No record set is emitted.** Sequencing reads are records of a run, not of a
+dataset schema, so a FASTQ is described as a file: the read length is stated in
+the `description` of its `cr:FileObject`. `encodingFormat` is `text/x-fastq`,
+with the compression media type added by the input layer when the file arrives
+under one, so `reads.fastq.gz` is described exactly as `reads.fastq` is.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
