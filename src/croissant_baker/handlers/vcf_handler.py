@@ -18,7 +18,7 @@ from croissant_baker.handlers.utils import (
     make_field_id,
     plural,
 )
-from croissant_baker.sources import FileSource
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: The declaration every VCF and gVCF opens with, and the whole claim. The
 #: extension cannot carry it: ``.vcf`` is also the vCard extension.
@@ -345,7 +345,7 @@ class VCFHandler(FileTypeHandler):
                 return read_header_lines(
                     raw.decode("utf-8", "replace") for raw in stream
                 )
-        except OSError as exc:
+        except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {source.relative_path}: {exc}"
             ) from exc

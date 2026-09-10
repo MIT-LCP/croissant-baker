@@ -23,6 +23,7 @@ from tests.helpers import (
     SAMPLES,
     bake,
     cli,
+    cut_gzip,
     file_objects,
     record_sets,
     write_wrapped,
@@ -264,6 +265,21 @@ def test_a_header_spanning_many_chunks_is_read_whole(dataset: Path) -> None:
     assert path.stat().st_size > 128 * 1024
 
     assert extract(path)["sq_count"] == references
+
+
+def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
+    dataset: Path,
+) -> None:
+    """A member intact for its first bytes opens, and then ends where the
+    download stopped. What that raises is not an ``OSError``, and a file is
+    owed a reason naming it either way."""
+    path = write(dataset, "cut.sam.gz", cut_gzip(BAM_HEADER_TEXT.encode()))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "cut.sam" in str(caught.value)
+    assert "SAM" in str(caught.value)
 
 
 def test_no_alignment_record_becomes_a_record_set(dataset: Path) -> None:

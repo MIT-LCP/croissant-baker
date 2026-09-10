@@ -21,6 +21,7 @@ from tests.helpers import (
     BAM_HEADER_TEXT,
     SAMPLES,
     bake,
+    cut_gzip,
     file_objects,
     record_sets,
     write_wrapped,
@@ -281,6 +282,21 @@ def test_a_record_with_no_quality_line_is_refused(dataset: Path) -> None:
         extract(path)
 
     assert "short.fastq" in str(caught.value)
+
+
+def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
+    dataset: Path,
+) -> None:
+    """A member intact for its first bytes opens, and then ends where the
+    download stopped. What that raises is not an ``OSError``, and a file is
+    owed a reason naming it either way."""
+    path = write(dataset, "cut.fastq.gz", cut_gzip(sample_bytes() * 20))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "cut.fastq" in str(caught.value)
+    assert "FASTQ" in str(caught.value)
 
 
 def test_no_read_becomes_a_record_set(dataset: Path) -> None:

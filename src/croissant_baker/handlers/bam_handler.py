@@ -13,7 +13,6 @@ generator honours.
 import gzip
 import logging
 import struct
-import zlib
 from typing import BinaryIO
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
@@ -23,7 +22,7 @@ from croissant_baker.handlers.utils import (
     decompress_prefix,
     read_exactly,
 )
-from croissant_baker.sources import FileSource
+from croissant_baker.sources import UNREADABLE, FileSource
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +102,7 @@ class BAMHandler(FileTypeHandler):
             return False
         try:
             return decompress_prefix(head, len(MAGIC)) == MAGIC
-        except (OSError, EOFError, zlib.error):
+        except UNREADABLE:
             return False
 
     def extract(
@@ -162,7 +161,7 @@ class BAMHandler(FileTypeHandler):
                     return self._read_payload(stored, name)
                 with gzip.GzipFile(fileobj=stored, mode="rb") as payload:
                     return self._read_payload(payload, name)
-        except (OSError, EOFError, struct.error) as exc:
+        except (*UNREADABLE, struct.error) as exc:
             raise ValueError(f"Failed to read BAM file {name}: {exc}") from exc
 
     def _read_payload(self, payload: BinaryIO, name: str):
