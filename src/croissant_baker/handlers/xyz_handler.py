@@ -109,9 +109,13 @@ class XYZHandler(FileTypeHandler):
         may say anything at all, and under them a line of a symbol and three
         numbers.
 
-        The third line is checked only when the head holds one. A file of two
-        lines is a frame of no atoms, which is legal, and a peek that stops
-        short of the third line leaves ``extract`` to report what it finds.
+        The third line is checked only when there is an atom line to check.
+        A count of zero promises none, which is legal and is what a trajectory
+        writer emits for an empty cell, and the line under the comment is then
+        whatever follows the frame; a peek that stops short of the third line
+        leaves ``extract`` to report what it finds. Both are the rule
+        ``extract`` reads the frame by, so the two cannot disagree about a
+        file.
 
         A file that cannot be read peeks as ``b""`` and is therefore not
         claimed; that is
@@ -121,9 +125,12 @@ class XYZHandler(FileTypeHandler):
         if source.suffix not in self.EXTENSIONS:
             return False
         lines = _decode_lines(source.peek(CLAIM_BYTES))
-        if not lines or _atom_count_of(lines[0]) is None:
+        if not lines:
             return False
-        if len(lines) < FRAME_LINES:
+        count = _atom_count_of(lines[0])
+        if count is None:
+            return False
+        if count == 0 or len(lines) < FRAME_LINES:
             return True
         return _is_atom_line(lines[HEADER_LINES])
 
