@@ -80,6 +80,13 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
 | GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
 | HDF5 | `.h5`, `.h5ad`, `.hdf5` | Dataset paths, dtypes and shapes via h5py (structure only); AnnData and 10x table columns where the layout is recognised |
+| VCF / gVCF | `.vcf` | Variant callsets: reference, contigs, typed INFO and FORMAT keys, sample count (header only) |
+| BCF | `.bcf` | Binary VCF: the same record set as VCF, read from the BGZF header |
+| BAM | `.bam` | Sort order, reference sequences and assembly, read groups, program chain (header only) |
+| CRAM | `.cram` | As BAM, plus the CRAM version; versions 2.x and 3.x, no reference needed (header only) |
+| SAM | `.sam` | As BAM, from the text header |
+| FASTQ | `.fastq`, `.fq` | Sequencing reads: read length of the first record; read names are not reported |
+| FASTA | `.fa`, `.fasta`, `.fna` | Sequences and references: format only; record names and sequences are not read |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly
@@ -92,6 +99,7 @@ describes are reported with a reason rather than skipped in silence.
 
 - **Automatic type inference** for all supported formats
 - **RAI metadata** via `--rai-*` CLI flags or `--rai-config rai.yaml`
+- **Genomic sample identifiers withheld by default**: VCF and BCF sample columns and `@RG SM` tags in BAM, CRAM and SAM are counted, not listed, unless `--genomic-sample-ids` is passed
 - **Validation** against the Croissant spec via `mlcroissant`
 - **Dry-run mode**, include/exclude glob filters, multiple creators
 
