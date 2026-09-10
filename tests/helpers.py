@@ -515,6 +515,108 @@ def _bcf() -> list:
     return [("calls.bcf", gzip.compress(bcf_payload(), mtime=0))]
 
 
+#: An ethanol connection table, V2000, written to the fixed-width columns the
+#: format specifies: three atoms in columns 1-3 of the counts line, two bonds in
+#: columns 4-6, and the version literal in columns 34-39. Written out by hand
+#: rather than by a toolkit because the columns are the thing under test, and a
+#: fixture nobody can check by eye is one nobody can change.
+MOL_V2000 = (
+    b"ethanol\n"
+    b"  Baker   01012000002D\n"
+    b"\n"
+    b"  3  2  0  0  0  0  0  0  0  0999 V2000\n"
+    b"    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"    1.2990    0.7500    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"    2.5981    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"  1  2  1  0  0  0  0\n"
+    b"  2  3  1  0  0  0  0\n"
+    b"M  END\n"
+)
+
+#: Methane: one atom and no bond at all, so a zero count is exercised as well as
+#: a positive one.
+MOL_METHANE = (
+    b"methane\n"
+    b"  Baker   01012000002D\n"
+    b"\n"
+    b"  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+    b"    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"M  END\n"
+)
+
+#: The same molecule in the V3000 layout, whose counts line carries only the
+#: version: the real counts sit on the ``COUNTS`` line inside the CTAB block.
+MOL_V3000 = (
+    b"ethanol\n"
+    b"  Baker   01012000003D\n"
+    b"\n"
+    b"  0  0  0     0  0            999 V3000\n"
+    b"M  V30 BEGIN CTAB\n"
+    b"M  V30 COUNTS 3 2 0 0 0\n"
+    b"M  V30 BEGIN ATOM\n"
+    b"M  V30 1 C 0.0000 0.0000 0.0000 0\n"
+    b"M  V30 2 C 1.2990 0.7500 0.0000 0\n"
+    b"M  V30 3 O 2.5981 0.0000 0.0000 0\n"
+    b"M  V30 END ATOM\n"
+    b"M  V30 BEGIN BOND\n"
+    b"M  V30 1 1 1 2\n"
+    b"M  V30 2 1 2 3\n"
+    b"M  V30 END BOND\n"
+    b"M  V30 END CTAB\n"
+    b"M  END\n"
+)
+
+
+def _mol() -> list:
+    """One ethanol molfile, the smallest thing that is a whole connection table."""
+    return [("ethanol.mol", MOL_V2000)]
+
+
+def sdf_record(block: bytes, items: Iterable[tuple] = ()) -> bytes:
+    """One SD file record: a molfile block, its data items, and the terminator.
+
+    A data item is a header line naming the field between angle brackets, the
+    value on the lines below it, and a blank line closing it. Built rather than
+    written out so a test needing two hundred records does not carry them.
+    """
+    out = block
+    for name, value in items:
+        out += f"> <{name}>\n{value}\n\n".encode()
+    return out + b"$$$$\n"
+
+
+def _sdf() -> list:
+    """Two records, carrying an integer, a float, a text and a multi-line item.
+
+    Two rather than one, so the sweep sees a file with a record terminator in
+    the middle of it as well as at the end, and so a field whose type has to
+    agree across records has a second record to agree with.
+    """
+    return [
+        (
+            "molecules.sdf",
+            sdf_record(
+                MOL_V2000,
+                [
+                    ("ID", "1"),
+                    ("LogP", "-0.31"),
+                    ("Name", "ethanol"),
+                    ("Notes", "primary alcohol\nmiscible with water"),
+                ],
+            )
+            + sdf_record(
+                MOL_METHANE,
+                [
+                    ("ID", "2"),
+                    ("LogP", "1.09"),
+                    ("Name", "methane"),
+                    ("Notes", "simplest alkane\ngas at room temperature"),
+                ],
+            ),
+        )
+    ]
+
+
 def _nifti() -> list:
     source = next(_SPECT.rglob("*.nii.gz"), None)
     assert source is not None, f"tracked NIfTI fixture missing under {_SPECT}"
@@ -543,6 +645,8 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "FASTAHandler": _fasta,
     "BCFHandler": _bcf,
     "CRAMHandler": _cram,
+    "MOLHandler": _mol,
+    "SDFHandler": _sdf,
 }
 
 #: Handlers with no sample, and why.
@@ -678,6 +782,9 @@ WRAPPER_SUFFIXES = [c.suffix for c in compression.BUILTIN_COMPRESSIONS]
 __all__ = [
     "DATA",
     "EXEMPT",
+    "MOL_METHANE",
+    "MOL_V2000",
+    "MOL_V3000",
     "OME_NAMESPACE",
     "OME_PIXELS",
     "OME_TIFF",
@@ -701,6 +808,7 @@ __all__ = [
     "ome_image",
     "ome_xml",
     "record_sets",
+    "sdf_record",
     "tiff_bytes",
     "runner",
     "write_all",
