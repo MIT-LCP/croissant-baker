@@ -32,6 +32,7 @@ dependencies = [
     "pyyaml>=6.0",
     "pydicom>=2.4",
     "nibabel>=5.0",
+    "h5py>=3.11",
 ]
 
 [project.scripts]
