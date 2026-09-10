@@ -6,7 +6,7 @@ with a type and a cardinality. That is a RecordSet schema written down by the
 producer, so this handler reads the header and stops at the first record.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 import mlcroissant as mlc
 
@@ -219,6 +219,29 @@ class _Header:
             self.sample_ids = [f.strip() for f in fields[len(FIXED_COLUMNS) :]]
 
 
+def read_header_lines(lines: Iterable[str]) -> _Header:
+    """The header the leading ``#`` lines declare; stops at the first record.
+
+    What is read is bounded by the size of the header, not by the size of the
+    file: the loop stops at the first line that does not start with ``#``, so
+    a callset of a hundred million records costs the same read as one of ten.
+    There is deliberately no cap on the number of header lines, because a
+    cohort VCF legitimately declares thousands of contigs and keys, and every
+    one of them is a field this handler emits.
+    """
+    header = _Header()
+    for line in lines:
+        line = line.rstrip("\r\n")
+        if not line.startswith("#"):
+            break
+        if line.startswith("##"):
+            header.meta_line(line)
+        else:
+            header.column_line(line)
+            break
+    return header
+
+
 class VCFHandler(FileTypeHandler):
     """Handler for VCF and gVCF variant call files (``.vcf``).
 
@@ -231,6 +254,7 @@ class VCFHandler(FileTypeHandler):
 
     EXTENSIONS = (".vcf",)
     FORMAT_NAME = "VCF"
+    ENCODING_FORMAT = ENCODING_FORMAT
     FORMAT_DESCRIPTION = (
         "Reference, contig count, typed INFO and FORMAT keys, sample count"
     )
@@ -262,24 +286,27 @@ class VCFHandler(FileTypeHandler):
                 question without publishing one.
         """
         if not source.exists:
-            raise FileNotFoundError(f"VCF file not found: {source.relative_path}")
+            raise FileNotFoundError(
+                f"{self.FORMAT_NAME} file not found: {source.relative_path}"
+            )
 
         header = self._read_header(source)
 
         if not header.fileformat.startswith("VCF"):
             raise ValueError(
-                f"Not a VCF file: {source.relative_path} carries no "
+                f"Not a {self.FORMAT_NAME} file: {source.relative_path} carries no "
                 "'##fileformat=VCF' declaration"
             )
         if not header.saw_columns:
             raise ValueError(
-                f"Incomplete VCF header in {source.relative_path}: no '#CHROM' "
+                f"Incomplete {self.FORMAT_NAME} header in {source.relative_path}: "
+                "no '#CHROM' "
                 "line, so the file declares no columns"
             )
         if tuple(header.columns[: len(MANDATORY_COLUMNS)]) != MANDATORY_COLUMNS:
             raise ValueError(
-                f"Incomplete VCF header in {source.relative_path}: the '#CHROM' "
-                "line declares "
+                f"Incomplete {self.FORMAT_NAME} header in {source.relative_path}: "
+                "the '#CHROM' line declares "
                 + (", ".join(header.columns) if header.columns else "no column")
                 + ", not the tab-separated "
                 + " ".join(MANDATORY_COLUMNS)
@@ -290,7 +317,7 @@ class VCFHandler(FileTypeHandler):
             "file_name": source.name,
             "file_size": source.size,
             "sha256": source.sha256,
-            "encoding_format": ENCODING_FORMAT,
+            "encoding_format": self.ENCODING_FORMAT,
             "fileformat": header.fileformat,
             "contig_count": header.contig_count,
             "info": header.info,
@@ -308,34 +335,19 @@ class VCFHandler(FileTypeHandler):
     def _read_header(self, source: FileSource) -> _Header:
         """Every line up to the first that is not a header line.
 
-        What is read is bounded by the size of the header, not by the size of
-        the file: the loop stops at the first line that does not start with
-        ``#``, so a callset of a hundred million records costs the same read as
-        one of ten. There is deliberately no cap on the number of header lines,
-        because a cohort VCF legitimately declares thousands of contigs and
-        keys, and every one of them is a field this handler emits.
-
         Decoded permissively: a header is ASCII by specification, and a stray
         byte in a description is not a reason to refuse a file whose structure
         is otherwise readable.
         """
-        header = _Header()
         try:
             with source.open() as stream:
-                for raw in stream:
-                    line = raw.decode("utf-8", "replace").rstrip("\r\n")
-                    if not line.startswith("#"):
-                        break
-                    if line.startswith("##"):
-                        header.meta_line(line)
-                    else:
-                        header.column_line(line)
-                        break
+                return read_header_lines(
+                    raw.decode("utf-8", "replace") for raw in stream
+                )
         except OSError as exc:
             raise ValueError(
-                f"Failed to read VCF file {source.relative_path}: {exc}"
+                f"Failed to read {self.FORMAT_NAME} file {source.relative_path}: {exc}"
             ) from exc
-        return header
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
         """One record set per callset: its columns, as the header declares them."""

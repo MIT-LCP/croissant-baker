@@ -15,9 +15,13 @@ import io
 import logging
 import struct
 import zlib
-from typing import BinaryIO, Dict, List, Optional
+from typing import BinaryIO
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.handlers.sam_header import (
+    describe_alignment,
+    parse_sam_header,
+)
 from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
@@ -49,72 +53,6 @@ INT32_BYTES = 4
 MAX_TEXT_BYTES = 64 * 1024 * 1024
 
 
-class _SamHeader:
-    """The SAM text header, read line by line into what is described."""
-
-    def __init__(self) -> None:
-        self.sam_version = ""
-        self.sort_order = ""
-        self.sq_count = 0
-        self.assembly = ""
-        self.read_group_count = 0
-        self.platforms: List[str] = []
-        self.centres: List[str] = []
-        self.sample_ids: List[str] = []
-        self.programs: List[Dict[str, str]] = []
-
-    def read(self, text: str) -> None:
-        for line in text.splitlines():
-            if not line.startswith("@"):
-                continue
-            fields = line.split("\t")
-            tags = _tags(fields[1:])
-            record = fields[0]
-            if record == "@HD":
-                self.sam_version = tags.get("VN", "")
-                self.sort_order = tags.get("SO", "")
-            elif record == "@SQ":
-                self.sq_count += 1
-                # From the first reference only: an assembly is a property of
-                # the header, and reading it off every line would say a
-                # mixed-assembly file has one.
-                if self.sq_count == 1:
-                    self.assembly = tags.get("AS", "")
-            elif record == "@RG":
-                self.read_group_count += 1
-                _collect(self.platforms, tags.get("PL"))
-                _collect(self.centres, tags.get("CN"))
-                _collect(self.sample_ids, tags.get("SM"))
-            elif record == "@PG":
-                self.programs.append(
-                    {
-                        "id": tags.get("ID", ""),
-                        "name": tags.get("PN", ""),
-                        "version": tags.get("VN", ""),
-                    }
-                )
-
-
-def _tags(fields: List[str]) -> Dict[str, str]:
-    """The ``TAG:value`` pairs of one header line, in declaration order."""
-    pairs: Dict[str, str] = {}
-    for field in fields:
-        tag, sep, value = field.partition(":")
-        if sep:
-            pairs.setdefault(tag.strip(), value.strip())
-    return pairs
-
-
-def _collect(into: List[str], value: Optional[str]) -> None:
-    """Add ``value`` once, keeping the order the header declared it in.
-
-    Declaration order rather than sorted: read groups are written in the order
-    the file was assembled, and that order is itself header content.
-    """
-    if value and value not in into:
-        into.append(value)
-
-
 def _read_exactly(stream: BinaryIO, count: int, what: str, name: str) -> bytes:
     """``count`` bytes, or a refusal naming the file and what was missing."""
     data = stream.read(count)
@@ -128,54 +66,6 @@ def _read_exactly(stream: BinaryIO, count: int, what: str, name: str) -> bytes:
 
 def _int32(stream: BinaryIO, what: str, name: str) -> int:
     return struct.unpack(INT32, _read_exactly(stream, INT32_BYTES, what, name))[0]
-
-
-def _plural(count: int, noun: str) -> str:
-    """``1 read group``, ``2 reference sequences``."""
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
-
-
-def _program_chain(programs: List[Dict[str, str]]) -> str:
-    """``bwa 0.7.17, samtools 1.19``, in the order the header declares."""
-    named = []
-    for program in programs:
-        name = program["name"] or program["id"]
-        if not name:
-            continue
-        named.append(f"{name} {program['version']}" if program["version"] else name)
-    return ", ".join(named)
-
-
-def _description(
-    header: _SamHeader, reference_count: int, name: str, sample_ids: List[str]
-) -> str:
-    """What the header says, in one deterministic sentence.
-
-    Prose rather than new keys: sort order, assembly, sequencing platform and
-    the program chain have no home in the Croissant or Schema.org vocabularies,
-    and an invented JSON-LD key is one no consumer reads.
-    """
-    stated = []
-    if header.sort_order:
-        stated.append(f"{header.sort_order}-sorted")
-    references = _plural(reference_count, "reference sequence")
-    stated.append(
-        f"{references} ({header.assembly})" if header.assembly else references
-    )
-    stated.append(_plural(header.read_group_count, "read group"))
-    for label, values in (("platform", header.platforms), ("centre", header.centres)):
-        if values:
-            stated.append(f"{label}: {', '.join(values)}")
-    chain = _program_chain(header.programs)
-    if chain:
-        stated.append(f"aligned with {chain}")
-    described = (
-        f"BAM alignment file {name} ({'; '.join(stated)}). "
-        "Described from its header; no alignment record was read."
-    )
-    if sample_ids:
-        described += " Sample identifiers: " + ", ".join(sample_ids) + "."
-    return described
 
 
 class BAMHandler(FileTypeHandler):
@@ -263,8 +153,8 @@ class BAMHandler(FileTypeHandler):
         # The one thing this handler emits. Built here rather than in
         # build_croissant, which runs after the FileObject is staged, and from
         # the logical name, which is the only one extraction is given.
-        metadata["description"] = _description(
-            header, reference_count, source.name, sample_ids
+        metadata["description"] = describe_alignment(
+            self.FORMAT_NAME, header, reference_count, source.name, sample_ids
         )
         return metadata
 
@@ -296,8 +186,7 @@ class BAMHandler(FileTypeHandler):
                 "header can be"
             )
         text = _read_exactly(payload, text_length, "the SAM header", name)
-        header = _SamHeader()
-        header.read(text.decode("utf-8", "replace"))
+        header = parse_sam_header(text.decode("utf-8", "replace"))
         return header, _int32(payload, "n_ref", name)
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
