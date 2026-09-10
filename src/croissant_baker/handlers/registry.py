@@ -186,14 +186,14 @@ def builtin_handlers() -> List[FileTypeHandler]:
         SAMHandler(),
         FASTQHandler(),
         FASTAHandler(),
-        PDBHandler(),
-        SMILESHandler(),
-        XYZHandler(),
         # MOL before SDF, as the narrower claim. Both look at the same fourth
         # line, and their extensions do not overlap, so this is convention
         # rather than a dependency.
         MOLHandler(),
         SDFHandler(),
+        SMILESHandler(),
+        PDBHandler(),
+        XYZHandler(),
     ]
 
 

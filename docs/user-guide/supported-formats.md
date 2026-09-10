@@ -615,164 +615,6 @@ one. FASTA has no IANA registration, so the `x-` form follows `text/x-vcf`.
 Index and dictionary files (`.fai`, `.dict`, `.gzi`) are reported as unsupported;
 nothing claims them.
 
-## PDB
-
-A wwPDB structure file (`.pdb`, `.ent`) is fixed-column text: eighty columns per
-record, each named by columns 1 to 6, with the title section written before the
-coordinates. The handler reads that title section and stops at the first
-`MODEL`, `ATOM` or `HETATM` record, so a structure of a hundred thousand atoms
-costs the same read as a fragment of three. No coordinate line is ever read.
-
-What is reported, each field from the columns the format fixes it to:
-
-- **ID code, classification and deposition date**, from `HEADER`. The date is
-  reported as written (`12-JAN-98`); converting it would invent a century the
-  file does not state.
-- **Title**, with its continuation lines joined into one run of words.
-- **Experimental methods**, from `EXPDTA`, split on the semicolons a structure
-  determined two ways separates them with.
-- **Resolution** in angstroms, from `REMARK   2 RESOLUTION.`, when that remark
-  carries a number. A structure determined without diffraction writes
-  `NOT APPLICABLE` there, and then no resolution is reported.
-- **Chain count**, from the `CHAIN:` tokens of the `COMPND` specification list,
-  or from the SEQRES chain column when `COMPND` names none.
-- **Model count**, from `NUMMDL`, and **keywords**, from `KEYWDS`.
-
-A PDB file is claimed on its extension **and** on its first record name, and
-neither half would do alone. `.pdb` is also the Microsoft program database, a
-binary of debugging symbols that carries no structure and must not be described
-as one; six columns of upper-case letters are a shape any text file can wear, so
-the record name cannot own a file on its own either. `.ent` is the second
-extension, because that is what the RCSB archive calls its own copies of an
-entry (`pdb1abc.ent.gz`). A file whose header runs past the cap without reaching
-a coordinate record, or whose first line runs to kilobytes with no line ending,
-is reported with that as its reason rather than read on for.
-
-A file carrying no `HEADER` record — a fragment written by a modelling tool,
-which opens at `ATOM` — is still described, with the fields it has; the
-description then says the header carries no ID code.
-
-Deliberately not reported:
-
-- **Depositors.** The `AUTHOR` record names people. It is bibliographic rather
-  than structural, and the dataset's own creator is a command-line input rather
-  than something read out of a file.
-- **The chain identifiers themselves.** How many chains a structure holds is
-  structure; which letters they were given is not.
-- **Atom counts, coordinates and B-factors.** Reaching any of them means reading
-  the coordinate section, which is what header-only reading exists to avoid.
-
-**No record set is emitted.** Atom records are records of a molecule, not of a
-dataset schema, so a structure is described as a file: the statement above is
-carried in the `description` of its `cr:FileObject`. `encodingFormat` is
-`chemical/x-pdb`, with the compression media type added by the input layer when
-the file arrives under one. PDB has no IANA registration; `chemical/x-pdb` is
-the spelling the chemical MIME family gave it, and the one the archive and the
-molecular viewers use.
-
-mmCIF/PDBx (`.cif`, `.mmcif`) is not covered yet. It is the format the archive
-now treats as primary, and the only one that can hold a structure too large for
-eighty columns; those files are reported as unsupported, and nothing claims
-them.
-## SMILES
-
-SMILES (`.smi`, `.smiles`) is one molecule per line: the structure first, then
-usually whitespace and a name or a registry identifier, and sometimes further
-columns after that. The format declares none of it. There are no magic bytes, no
-header line it requires, no delimiter it fixes and no column count it states, so
-the layout is read off a **bounded sample** of the head: the first 1000 lines, or
-the first 1 MiB, whichever ends first. A library of a million molecules therefore
-costs the same read as one of a thousand.
-
-What is reported is the delimiter (`tab` when the sample holds tabs, otherwise
-runs of spaces), the column count, and one `sc:Text` field per column. The column
-count is the widest line of the sample; a line carrying fewer fields has simply
-left the trailing ones off, which is what a molecule with no name looks like, and
-that is not an error.
-
-The record set description states the sample the layout came from, either
-`from all 42 lines` or `from the first 1000 lines`. A column count read off a
-sample is a claim about that sample, and a consumer deciding whether to trust it
-needs to know how many lines it was read from.
-
-A SMILES file is claimed on its extension **and** on its first record, and
-neither half would do alone. The extension alone would claim any text a user
-happened to name `.smi`. The first record alone would not do either, because a
-short structure is also a plausible line of many other things. The record is read
-as symbols rather than as characters: each letter run outside a bracket atom has
-to spell an atom of the OpenSMILES organic subset, so `CCO` and `c1ccccc1` are
-structures while `ethanol` and `SMILES` are not. Lines opening with `#` are
-comments in the dialects that have one, and are skipped before the check; `#` is
-a triple bond, and no structure opens with a bond.
-
-**Column names come from a header line when the file wrote one.** A header is
-detected, not declared: a first record whose first field is no structure,
-followed by one whose first field is, is a file that named its columns, and the
-names are taken from it. Otherwise the columns are named by position, `smiles`
-and `name` and then `column_3`, `column_4`, because the file states nothing for
-them to be named after. A file whose first record is no structure and whose
-second is none either is reported with that as its reason rather than described
-as a molecule table it is not, as is an empty file and one holding only comments.
-
-**Nothing from a data line is emitted.** A structure is the data, and the name
-beside it is a depositor's label for a compound; neither reaches the metadata,
-and the column names from a header line are the only text out of the file that
-does. Molecules are not counted either: counting them means reading the whole
-file.
-
-`encodingFormat` is `chemical/x-daylight-smiles`, with the compression media type
-added by the input layer when the file arrives under one. SMILES has no IANA
-registration, so the media type follows the `chemical/x-*` family cheminformatics
-tools register theirs under.
-## XYZ
-
-XYZ (`.xyz`) is an atom count, a comment line, and then one line of `symbol x y
-z` per atom; a trajectory or a multi-structure export repeats that frame back to
-back. The handler reads the first frame's header and stops there. No further
-frame is opened and no coordinate is read: the geometry is the data, and a
-molecular dynamics run is gigabytes of it.
-
-An XYZ is claimed on its extension **and** on the shape of its head, and neither
-half would do alone. A leading integer on a line of its own is also how a
-numbered list, a record count and a line-oriented log all open, so it is too
-little to own a file on; the extension alone would claim anything a user
-happened to name `.xyz`, which several unrelated formats have. Together they are
-a frame: a count, a comment line that may say anything at all, and under them a
-line of a symbol and three numbers. A `.xyz` whose first line is not a count, or
-whose third line is not an atom line, is therefore reported as a file no handler
-claimed.
-
-What is reported is the first frame's atom count and its comment line, verbatim
-and stripped of surrounding whitespace. The comment is usually a title and is
-often empty, and either way it is bytes the file states rather than a reading of
-them. When it carries the extended-XYZ `Properties=species:S:1:pos:R:3` term,
-the file is reported as extended XYZ and the property names in that term are
-reported with it: they are the columns the file declares its atom lines to
-carry.
-
-Deliberately not reported:
-
-- **The number of frames.** Counting them means reading the whole file, which is
-  what header-only reading exists to avoid. One structure and a million-frame
-  trajectory cost the same read.
-- **The coordinates**, and anything derived from them: no cell, no bounding box,
-  no per-element tally. The first atom line is looked at only to confirm the
-  frame is one, and is then discarded.
-- **What the extended-XYZ columns hold.** The names come off the `Properties=`
-  declaration; the values under them are never parsed.
-
-A frame of zero atoms is legal and is described as one, because a trajectory
-writer emits it for an empty cell. A header that declares atoms with no atom
-line under it, an empty file, and a first atom line that is not a symbol and
-three numbers are each reported with that as the reason rather than described.
-
-**No record set is emitted.** Atoms are records of a structure, not of a dataset
-schema, so an XYZ is described as a file: the statement above is carried in the
-`description` of its `cr:FileObject`. `encodingFormat` is `chemical/x-xyz`, with
-the compression media type added by the input layer when the file arrives under
-one. XYZ has no IANA registration; `chemical/*` is the family the chemistry
-tools have used for these files for decades, and the `x-` form marks it as
-unregistered the way `text/x-fasta` does.
 ## MOL
 
 MOL (`.mol`) is an MDL molfile: one molecule, written as a title line, a program
@@ -856,6 +698,164 @@ file that states no complete record inside the byte bound is reported with that
 as its reason, as is one whose sampled records include a molfile header that
 cannot be read.
 
+## SMILES
+
+SMILES (`.smi`, `.smiles`) is one molecule per line: the structure first, then
+usually whitespace and a name or a registry identifier, and sometimes further
+columns after that. The format declares none of it. There are no magic bytes, no
+header line it requires, no delimiter it fixes and no column count it states, so
+the layout is read off a **bounded sample** of the head: the first 1000 lines, or
+the first 1 MiB, whichever ends first. A library of a million molecules therefore
+costs the same read as one of a thousand.
+
+What is reported is the delimiter (`tab` when the sample holds tabs, otherwise
+runs of spaces), the column count, and one `sc:Text` field per column. The column
+count is the widest line of the sample; a line carrying fewer fields has simply
+left the trailing ones off, which is what a molecule with no name looks like, and
+that is not an error.
+
+The record set description states the sample the layout came from, either
+`from all 42 lines` or `from the first 1000 lines`. A column count read off a
+sample is a claim about that sample, and a consumer deciding whether to trust it
+needs to know how many lines it was read from.
+
+A SMILES file is claimed on its extension **and** on its first record, and
+neither half would do alone. The extension alone would claim any text a user
+happened to name `.smi`. The first record alone would not do either, because a
+short structure is also a plausible line of many other things. The record is read
+as symbols rather than as characters: each letter run outside a bracket atom has
+to spell an atom of the OpenSMILES organic subset, so `CCO` and `c1ccccc1` are
+structures while `ethanol` and `SMILES` are not. Lines opening with `#` are
+comments in the dialects that have one, and are skipped before the check; `#` is
+a triple bond, and no structure opens with a bond.
+
+**Column names come from a header line when the file wrote one.** A header is
+detected, not declared: a first record whose first field is no structure,
+followed by one whose first field is, is a file that named its columns, and the
+names are taken from it. Otherwise the columns are named by position, `smiles`
+and `name` and then `column_3`, `column_4`, because the file states nothing for
+them to be named after. A file whose first record is no structure and whose
+second is none either is reported with that as its reason rather than described
+as a molecule table it is not, as is an empty file and one holding only comments.
+
+**Nothing from a data line is emitted.** A structure is the data, and the name
+beside it is a depositor's label for a compound; neither reaches the metadata,
+and the column names from a header line are the only text out of the file that
+does. Molecules are not counted either: counting them means reading the whole
+file.
+
+`encodingFormat` is `chemical/x-daylight-smiles`, with the compression media type
+added by the input layer when the file arrives under one. SMILES has no IANA
+registration, so the media type follows the `chemical/x-*` family cheminformatics
+tools register theirs under.
+## PDB
+
+A wwPDB structure file (`.pdb`, `.ent`) is fixed-column text: eighty columns per
+record, each named by columns 1 to 6, with the title section written before the
+coordinates. The handler reads that title section and stops at the first
+`MODEL`, `ATOM` or `HETATM` record, so a structure of a hundred thousand atoms
+costs the same read as a fragment of three. No coordinate line is ever read.
+
+What is reported, each field from the columns the format fixes it to:
+
+- **ID code, classification and deposition date**, from `HEADER`. The date is
+  reported as written (`12-JAN-98`); converting it would invent a century the
+  file does not state.
+- **Title**, with its continuation lines joined into one run of words.
+- **Experimental methods**, from `EXPDTA`, split on the semicolons a structure
+  determined two ways separates them with.
+- **Resolution** in angstroms, from `REMARK   2 RESOLUTION.`, when that remark
+  carries a number. A structure determined without diffraction writes
+  `NOT APPLICABLE` there, and then no resolution is reported.
+- **Chain count**, from the `CHAIN:` tokens of the `COMPND` specification list,
+  or from the SEQRES chain column when `COMPND` names none.
+- **Model count**, from `NUMMDL`, and **keywords**, from `KEYWDS`.
+
+A PDB file is claimed on its extension **and** on its first record name, and
+neither half would do alone. `.pdb` is also the Microsoft program database, a
+binary of debugging symbols that carries no structure and must not be described
+as one; six columns of upper-case letters are a shape any text file can wear, so
+the record name cannot own a file on its own either. `.ent` is the second
+extension, because that is what the RCSB archive calls its own copies of an
+entry (`pdb1abc.ent.gz`). A file whose header runs past the cap without reaching
+a coordinate record, or whose first line runs to kilobytes with no line ending,
+is reported with that as its reason rather than read on for.
+
+A file carrying no `HEADER` record — a fragment written by a modelling tool,
+which opens at `ATOM` — is still described, with the fields it has; the
+description then says the header carries no ID code.
+
+Deliberately not reported:
+
+- **Depositors.** The `AUTHOR` record names people. It is bibliographic rather
+  than structural, and the dataset's own creator is a command-line input rather
+  than something read out of a file.
+- **The chain identifiers themselves.** How many chains a structure holds is
+  structure; which letters they were given is not.
+- **Atom counts, coordinates and B-factors.** Reaching any of them means reading
+  the coordinate section, which is what header-only reading exists to avoid.
+
+**No record set is emitted.** Atom records are records of a molecule, not of a
+dataset schema, so a structure is described as a file: the statement above is
+carried in the `description` of its `cr:FileObject`. `encodingFormat` is
+`chemical/x-pdb`, with the compression media type added by the input layer when
+the file arrives under one. PDB has no IANA registration; `chemical/x-pdb` is
+the spelling the chemical MIME family gave it, and the one the archive and the
+molecular viewers use.
+
+mmCIF/PDBx (`.cif`, `.mmcif`) is not covered yet. It is the format the archive
+now treats as primary, and the only one that can hold a structure too large for
+eighty columns; those files are reported as unsupported, and nothing claims
+them.
+## XYZ
+
+XYZ (`.xyz`) is an atom count, a comment line, and then one line of `symbol x y
+z` per atom; a trajectory or a multi-structure export repeats that frame back to
+back. The handler reads the first frame's header and stops there. No further
+frame is opened and no coordinate is read: the geometry is the data, and a
+molecular dynamics run is gigabytes of it.
+
+An XYZ is claimed on its extension **and** on the shape of its head, and neither
+half would do alone. A leading integer on a line of its own is also how a
+numbered list, a record count and a line-oriented log all open, so it is too
+little to own a file on; the extension alone would claim anything a user
+happened to name `.xyz`, which several unrelated formats have. Together they are
+a frame: a count, a comment line that may say anything at all, and under them a
+line of a symbol and three numbers. A `.xyz` whose first line is not a count, or
+whose third line is not an atom line, is therefore reported as a file no handler
+claimed.
+
+What is reported is the first frame's atom count and its comment line, verbatim
+and stripped of surrounding whitespace. The comment is usually a title and is
+often empty, and either way it is bytes the file states rather than a reading of
+them. When it carries the extended-XYZ `Properties=species:S:1:pos:R:3` term,
+the file is reported as extended XYZ and the property names in that term are
+reported with it: they are the columns the file declares its atom lines to
+carry.
+
+Deliberately not reported:
+
+- **The number of frames.** Counting them means reading the whole file, which is
+  what header-only reading exists to avoid. One structure and a million-frame
+  trajectory cost the same read.
+- **The coordinates**, and anything derived from them: no cell, no bounding box,
+  no per-element tally. The first atom line is looked at only to confirm the
+  frame is one, and is then discarded.
+- **What the extended-XYZ columns hold.** The names come off the `Properties=`
+  declaration; the values under them are never parsed.
+
+A frame of zero atoms is legal and is described as one, because a trajectory
+writer emits it for an empty cell. A header that declares atoms with no atom
+line under it, an empty file, and a first atom line that is not a symbol and
+three numbers are each reported with that as the reason rather than described.
+
+**No record set is emitted.** Atoms are records of a structure, not of a dataset
+schema, so an XYZ is described as a file: the statement above is carried in the
+`description` of its `cr:FileObject`. `encodingFormat` is `chemical/x-xyz`, with
+the compression media type added by the input layer when the file arrives under
+one. XYZ has no IANA registration; `chemical/*` is the family the chemistry
+tools have used for these files for decades, and the `x-` form marks it as
+unregistered the way `text/x-fasta` does.
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
