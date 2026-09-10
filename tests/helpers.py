@@ -327,6 +327,8 @@ def _fastq() -> list:
             b"IIIIFFFF\n",
         )
     ]
+
+
 def _fasta() -> list:
     """Two records, so the sweep sees a file whose first line is not its only one.
 
