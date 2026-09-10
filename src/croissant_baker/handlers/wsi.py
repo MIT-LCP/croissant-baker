@@ -416,6 +416,9 @@ def _levels_from_series(series: tuple) -> Tuple[Tuple[int, int], ...]:
     return tuple(
         (int(level.keyframe.imagewidth), int(level.keyframe.imagelength))
         for level in series[0].levels
+        # tifffile leaves the keyframe unset for a page it could not read, and
+        # dereferencing it would cost the whole file its description.
+        if getattr(level, "keyframe", None) is not None
     )
 
 
