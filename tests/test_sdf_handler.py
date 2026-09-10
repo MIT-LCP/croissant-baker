@@ -101,6 +101,19 @@ def test_the_data_items_are_named_in_first_seen_order_and_typed(
     ]
 
 
+def test_a_title_line_that_opens_like_a_data_item_is_not_read_as_one(
+    dataset: Path,
+) -> None:
+    """The molfile block's first three lines are free text a depositor writes,
+    and a title opening with ``>`` is a title, not a field header. The data
+    items open under ``M  END``, which is where they are looked for."""
+    block = MOL_V2000.replace(b"ethanol\n", b"> <Trap>\n", 1)
+
+    meta = extract(write(dataset, "titled.sdf", sdf_record(block, [("ID", "1")])))
+
+    assert meta["fields"] == [{"name": "ID", "type": "cr:Int64"}]
+
+
 def test_a_value_spanning_several_lines_is_text(dataset: Path) -> None:
     """A value the file writes across lines is not a number whatever those lines
     hold, and typing it as one would promise a reader something the file does
