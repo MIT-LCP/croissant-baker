@@ -96,7 +96,7 @@ def test_a_tiled_label_page_is_not_a_pyramid_level() -> None:
     ("vendor", "level_count"),
     [
         ("aperio", 2),
-        ("hamamatsu", 1),
+        ("hamamatsu", 2),
         ("leica", 2),
         ("ventana", 2),
         ("akoya", 2),

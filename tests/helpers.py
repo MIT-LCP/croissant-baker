@@ -288,29 +288,40 @@ def aperio_bytes(
 def hamamatsu_bytes(*, mpp: float = 0.46, objective: float = 20.0) -> bytes:
     """A Hamamatsu NDPI: tags 65420 and 271, and a resolution in centimetres.
 
+    Two pages, the second a reduced level, so the NDPI branch of the pyramid
+    walk describes a pyramid rather than a single page.
+
     Written big-endian. tifffile decides a little-endian classic TIFF named
     ``.ndpi`` has 64-bit IFD offsets, which a real NDPI does and this
     synthetic one does not, and then finds no page in it at all. A
     big-endian file never takes that branch, and no real NDPI is big-endian,
     so nothing else in the suite is misled by the choice.
     """
+    ndpi = [
+        (65420, 3, 1, 1, True),  # NDPI version
+        (65421, 11, 1, objective, True),  # SourceLens
+        (271, 2, None, "Hamamatsu", True),  # Make
+        (272, 2, None, "C13220", True),  # Model
+    ]
     buffer = io.BytesIO()
-    tifffile.imwrite(
-        buffer,
-        _rgb(64, 64),
-        photometric="rgb",
-        metadata=None,
-        byteorder=">",
-        compression="deflate",
-        resolution=(10000 / mpp, 10000 / mpp),
-        resolutionunit="CENTIMETER",
-        extratags=[
-            (65420, 3, 1, 1, True),  # NDPI version
-            (65421, 11, 1, objective, True),  # SourceLens
-            (271, 2, None, "Hamamatsu", True),  # Make
-            (272, 2, None, "C13220", True),  # Model
-        ],
-    )
+    with tifffile.TiffWriter(buffer, byteorder=">") as writer:
+        writer.write(
+            _rgb(64, 64),
+            photometric="rgb",
+            metadata=None,
+            compression="deflate",
+            resolution=(10000 / mpp, 10000 / mpp),
+            resolutionunit="CENTIMETER",
+            extratags=ndpi,
+        )
+        writer.write(
+            _rgb(32, 32),
+            photometric="rgb",
+            metadata=None,
+            compression="deflate",
+            tile=(16, 16),
+            extratags=ndpi,
+        )
     return buffer.getvalue()
 
 
