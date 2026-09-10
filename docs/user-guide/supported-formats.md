@@ -773,6 +773,88 @@ the compression media type added by the input layer when the file arrives under
 one. XYZ has no IANA registration; `chemical/*` is the family the chemistry
 tools have used for these files for decades, and the `x-` form marks it as
 unregistered the way `text/x-fasta` does.
+## MOL
+
+MOL (`.mol`) is an MDL molfile: one molecule, written as a title line, a program
+line, a comment line, a counts line, and then the connection table. The handler
+reads as far as the counts and stops. The atom block and the bond block below
+them are the molecule, not metadata about it.
+
+The counts line is also the only line that says which of the two layouts the
+file is written in, and the layouts disagree about where the counts live. A
+**V2000** file puts them on the counts line itself, in fixed-width fields: atoms
+in columns 1-3, bonds in columns 4-6, the version literal in columns 34-39. A
+**V3000** file puts zeros there and writes the real counts further down, on the
+`M  V30 COUNTS` line inside `M  V30 BEGIN CTAB`. Both are read; nothing below
+either is.
+
+A molfile is claimed on its extension **and** on that version literal, and
+neither half would do alone. `.mol` is shared with several unrelated tools that
+write a save file under it, so the extension is not evidence on its own; and the
+literal is five characters a text file could carry anywhere, so what makes it a
+declaration is sitting on the counts line, which is where the extension says to
+look. A `.mol` whose fourth line declares neither version is therefore reported
+as a file no handler claimed.
+
+What is reported is the molfile version, the title, the atom count and the bond
+count. The title may be empty, and a file with a blank first line simply has the
+title left out of its description rather than stated as nothing.
+
+**No record set is emitted.** One molecule is a file, not a table: there is no
+second row for a record set to hold, and a record set over a single record would
+state a schema the file never declares. The statement above is carried in the
+`description` of the file's `cr:FileObject`. `encodingFormat` is
+`chemical/x-mdl-molfile`, with the compression media type added by the input
+layer when the file arrives under one. The `chemical/` family is not
+IANA-registered, but it is what toolkits, journals and structure databases have
+served molfiles as for decades.
+
+The read is bounded at 64 KiB, which is orders of magnitude more than either
+layout's header needs. A V3000 file whose `COUNTS` line does not arrive inside
+it is reported with that as its reason, as is a counts line whose atom and bond
+fields do not parse.
+
+## SDF
+
+SDF (`.sdf`, `.sd`) is molfile blocks concatenated, each followed by the
+depositor's own annotations and closed by a `$$$$` terminator. Those annotations
+are what makes an SD file a table where a lone molfile is not: a header line
+naming the field between angle brackets, the value on the lines below it, and a
+blank line closing it, repeated across a library.
+
+Nothing declares those fields up front, so they are read off the records. Each
+file produces one record set with two fields the data items do not name,
+`title` (`sc:Text`, the molecule's own name line) and `molfile` (`sc:Text`, the
+connection table as text), and then one field per data item, in the order the
+sample first saw it.
+
+A field's type is the one every sampled value agrees on: `cr:Int64` when they
+are all integers, `cr:Float64` when they are all numbers, `sc:Text` otherwise.
+Agreement rather than a majority vote, because a consumer that reads a column as
+numeric and meets a compound name in it has been told something untrue. A value
+spanning several lines is `sc:Text` whatever those lines hold, and an empty value
+is passed over as missing rather than counted as text.
+
+**The field list comes from a sample**, because reading every record of a
+screening library means reading the whole file. The sample is the first 100
+records or the first 4 MiB, whichever ends first, and nothing past it is read.
+The record set description says which it was: *from all 12 records* when the file
+ended inside the sample, *from the first 100 records* when it did not. The
+molfile version is stated the same way, and reads `mixed` when the sampled
+records do not all declare the same one.
+
+Fields carry `source: {fileObject: …}` and **no `extract`**, for the reason given
+under VCF: `mlcroissant` does not read SD files, so a column reference would be a
+promise nothing can keep. `encodingFormat` is `chemical/x-mdl-sdfile`, with the
+compression media type added by the input layer.
+
+An SD file is claimed on its extension **and** on either marker below it: a
+fourth line declaring a molfile version, or a `$$$$` terminator in the head.
+Either can be the one in reach, and the extension alone is not evidence, since
+`.sdf` is also a spatial data format and more than one tool's session file. A
+file that states no complete record inside the byte bound is reported with that
+as its reason, as is one whose sampled records include a molfile header that
+cannot be read.
 
 ## Hidden files and directories
 

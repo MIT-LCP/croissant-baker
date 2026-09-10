@@ -162,6 +162,8 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.bcf_handler import BCFHandler
     from croissant_baker.handlers.cram_handler import CRAMHandler
     from croissant_baker.handlers.xyz_handler import XYZHandler
+    from croissant_baker.handlers.mol_handler import MOLHandler
+    from croissant_baker.handlers.sdf_handler import SDFHandler
 
     return [
         CSVHandler(),
@@ -187,6 +189,11 @@ def builtin_handlers() -> List[FileTypeHandler]:
         PDBHandler(),
         SMILESHandler(),
         XYZHandler(),
+        # MOL before SDF, as the narrower claim. Both look at the same fourth
+        # line, and their extensions do not overlap, so this is convention
+        # rather than a dependency.
+        MOLHandler(),
+        SDFHandler(),
     ]
 
 
