@@ -291,6 +291,27 @@ def _vcf() -> list:
     ]
 
 
+def _fastq() -> list:
+    """Two well-formed reads, named the way an Illumina sequencer names them.
+
+    Two rather than one, so the sweep sees a file the handler has to stop part
+    way through rather than one it happens to reach the end of.
+    """
+    return [
+        (
+            "reads.fastq",
+            b"@A00123:45:HVXXXDSXX:1:1101:1000:1000 1:N:0:ATCACG\n"
+            b"ACGTACGT\n"
+            b"+\n"
+            b"IIIIIIII\n"
+            b"@A00123:45:HVXXXDSXX:1:1101:1000:2000 1:N:0:ATCACG\n"
+            b"TTGGCCAA\n"
+            b"+\n"
+            b"IIIIFFFF\n",
+        )
+    ]
+
+
 def _nifti() -> list:
     source = next(_SPECT.rglob("*.nii.gz"), None)
     assert source is not None, f"tracked NIfTI fixture missing under {_SPECT}"
@@ -313,6 +334,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "SOFTHandler": _soft,
     "VCFHandler": _vcf,
     "BAMHandler": _bam,
+    "FASTQHandler": _fastq,
 }
 
 #: Handlers with no sample, and why.
