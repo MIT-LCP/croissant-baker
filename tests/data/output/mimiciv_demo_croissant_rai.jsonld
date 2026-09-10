@@ -5790,6 +5790,10 @@
   "rai:dataUseCases": "Benchmarking clinical natural language processing and machine learning models. Supporting research into hospital readmission, mortality prediction, and clinical decision support. Not intended for direct clinical decision-making.",
   "rai:dataSocialImpact": "This dataset enables research that could improve clinical AI tools and patient outcomes. However, models trained on biased data risk perpetuating health disparities if deployed without careful evaluation.",
   "rai:hasSyntheticData": false,
+  "rai:dataCollectionType": [
+    "observations",
+    "existing_datasets"
+  ],
   "prov:wasDerivedFrom": [
     {
       "url": "https://physionet.org/content/mimiciii/",

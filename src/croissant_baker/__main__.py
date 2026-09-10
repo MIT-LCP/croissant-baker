@@ -755,6 +755,51 @@ def main(
         )
         raise typer.Exit(code=1)
 
+    # The RAI inputs are read before anything looks at the dataset: they are
+    # inputs like any other flag, so a conflict or a typo in the config is
+    # reported now, including under --dry-run, and not after a discarded bake.
+    try:
+        native_rai_fields = _build_native_rai_fields(
+            rai_data_collection=rai_data_collection,
+            rai_data_collection_type=rai_data_collection_type,
+            rai_data_collection_missing_data=rai_data_collection_missing_data,
+            rai_data_collection_raw_data=rai_data_collection_raw_data,
+            rai_data_collection_timeframe=rai_data_collection_timeframe,
+            rai_data_imputation_protocol=rai_data_imputation_protocol,
+            rai_data_preprocessing_protocol=rai_data_preprocessing_protocol,
+            rai_data_manipulation_protocol=rai_data_manipulation_protocol,
+            rai_data_annotation_protocol=rai_data_annotation_protocol,
+            rai_data_annotation_platform=rai_data_annotation_platform,
+            rai_data_annotation_analysis=rai_data_annotation_analysis,
+            rai_annotations_per_item=rai_annotations_per_item,
+            rai_annotator_demographics=rai_annotator_demographics,
+            rai_machine_annotation_tools=rai_machine_annotation_tools,
+            rai_data_biases=rai_data_biases,
+            rai_data_use_cases=rai_data_use_cases,
+            rai_data_limitations=rai_data_limitations,
+            rai_data_social_impact=rai_data_social_impact,
+            rai_personal_sensitive_information=rai_personal_sensitive_information,
+            rai_data_release_maintenance_plan=rai_data_release_maintenance_plan,
+        )
+
+        if rai_config and native_rai_fields:
+            typer.echo(
+                "Error: native --rai-* flags cannot be combined with --rai-config. "
+                "Use direct flags for native mlcroissant RAI fields, or --rai-config "
+                "for the richer YAML-based workflow.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        rai = None
+        if rai_config:
+            from croissant_baker.rai import load_rai_config
+
+            rai = load_rai_config(rai_config)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
     # Listing every file is the point of this mode, so the fixed-size rule
     # governing the default bake summary does not apply here.
     if dry_run:
@@ -799,38 +844,6 @@ def main(
 
     generator: Optional[MetadataGenerator] = None
     try:
-        native_rai_fields = _build_native_rai_fields(
-            rai_data_collection=rai_data_collection,
-            rai_data_collection_type=rai_data_collection_type,
-            rai_data_collection_missing_data=rai_data_collection_missing_data,
-            rai_data_collection_raw_data=rai_data_collection_raw_data,
-            rai_data_collection_timeframe=rai_data_collection_timeframe,
-            rai_data_imputation_protocol=rai_data_imputation_protocol,
-            rai_data_preprocessing_protocol=rai_data_preprocessing_protocol,
-            rai_data_manipulation_protocol=rai_data_manipulation_protocol,
-            rai_data_annotation_protocol=rai_data_annotation_protocol,
-            rai_data_annotation_platform=rai_data_annotation_platform,
-            rai_data_annotation_analysis=rai_data_annotation_analysis,
-            rai_annotations_per_item=rai_annotations_per_item,
-            rai_annotator_demographics=rai_annotator_demographics,
-            rai_machine_annotation_tools=rai_machine_annotation_tools,
-            rai_data_biases=rai_data_biases,
-            rai_data_use_cases=rai_data_use_cases,
-            rai_data_limitations=rai_data_limitations,
-            rai_data_social_impact=rai_data_social_impact,
-            rai_personal_sensitive_information=rai_personal_sensitive_information,
-            rai_data_release_maintenance_plan=rai_data_release_maintenance_plan,
-        )
-
-        if rai_config and native_rai_fields:
-            typer.echo(
-                "Error: native --rai-* flags cannot be combined with --rai-config. "
-                "Use direct flags for native mlcroissant RAI fields, or --rai-config "
-                "for the richer YAML-based workflow.",
-                err=True,
-            )
-            raise typer.Exit(code=1)
-
         # Parse creators following mlcroissant specification
         # Allows flexible Person/Organization objects with optional properties
         parsed_creators = []
@@ -944,10 +957,9 @@ def main(
             )
 
         # Inject RAI attributes when a config file is provided
-        if rai_config:
-            from croissant_baker.rai import inject_rai, load_rai_config
+        if rai is not None:
+            from croissant_baker.rai import inject_rai
 
-            rai = load_rai_config(rai_config)
             metadata_dict = inject_rai(metadata_dict, rai)
 
         _ensure_rai_conforms_to(
@@ -996,6 +1008,9 @@ def main(
             date_published=date_published,
         )
 
+    except typer.Exit:
+        # Already reported by whoever raised it; do not relabel it below.
+        raise
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         # A bake that described nothing is when coverage matters most.
