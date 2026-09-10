@@ -76,7 +76,6 @@ relative_files = true
 
 [tool.coverage.report]
 show_missing = true
-skip_covered = false
 exclude_also = [
     "if TYPE_CHECKING:",
     "pragma: no cover",

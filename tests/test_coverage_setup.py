@@ -122,3 +122,35 @@ def test_the_readme_badge_links_to_the_html_report() -> None:
         f"{DEFAULT_DATA_BRANCH}/htmlcov/index.html"
     )
     assert report in readme
+
+
+def test_the_artifact_carries_the_name_the_action_looks_for() -> None:
+    # The posting workflow asks the action for an artifact by name, and the
+    # action treats a missing one as "nothing to post" and exits 0. Renaming
+    # either half here would end comments on pull requests from forks silently.
+    workflow = _workflow("test.yaml")
+    uploads = [s for s in _steps(workflow) if "upload-artifact" in s.get("uses", "")]
+    assert len(uploads) == 1, uploads
+    assert uploads[0]["with"]["name"] == "python-coverage-comment-action"
+    assert uploads[0]["with"]["path"] == "python-coverage-comment-action.txt"
+
+
+def test_neither_workflow_renames_the_artifact_the_other_reads() -> None:
+    for name in ("test.yaml", "coverage-comment.yaml"):
+        inputs = _coverage_step(_workflow(name))["with"]
+        assert "COMMENT_ARTIFACT_NAME" not in inputs, name
+        assert "COMMENT_FILENAME" not in inputs, name
+
+
+def test_only_one_matrix_leg_reports_coverage() -> None:
+    # Two legs would upload the same artifact name and race each other's commit
+    # to the data branch.
+    assert "matrix.python-version ==" in _coverage_step(_workflow("test.yaml"))["if"]
+
+
+def test_the_test_workflow_queues_runs_instead_of_cancelling_them() -> None:
+    # A cancelled run is a lost coverage comment, and two runs pushing the data
+    # branch at once is a lost commit, so runs queue and none is cancelled.
+    concurrency = _workflow("test.yaml")["concurrency"]
+    assert concurrency["group"] == "${{ github.workflow }}-${{ github.ref }}"
+    assert "cancel-in-progress" not in concurrency
