@@ -13,6 +13,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.fastq_handler import FASTQHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -21,6 +22,7 @@ from tests.helpers import (
     BAM_HEADER_TEXT,
     SAMPLES,
     bake,
+    bake_with_report,
     cut_gzip,
     file_objects,
     record_sets,
@@ -297,6 +299,22 @@ def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
 
     assert "cut.fastq" in str(caught.value)
     assert "FASTQ" in str(caught.value)
+
+
+def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None:
+    """A file this handler claims and cannot read is reported by name, with the
+    reason it was refused for, and the run beside it is still described: the
+    loss is per-file, never the run."""
+    write(dataset, "ragged.fastq", b"@r1\nACGTACGT\n+\nIIII\n")
+    sample_fastq(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["reads.fastq"]
+    (refused,) = report.undescribed
+    assert refused.name == "ragged.fastq"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "ragged.fastq" in refused.detail
 
 
 def test_no_read_becomes_a_record_set(dataset: Path) -> None:

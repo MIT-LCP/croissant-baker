@@ -14,6 +14,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.bam_handler import BAMHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -21,6 +22,7 @@ from croissant_baker.sources import FileSource, make_source
 from tests.helpers import (
     SAMPLES,
     bake,
+    bake_with_report,
     bam_payload,
     cli,
     file_objects,
@@ -244,6 +246,22 @@ def test_a_negative_declared_header_is_refused_the_same_way(dataset: Path) -> No
         extract(path)
 
     assert "negative.bam" in str(caught.value)
+
+
+def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None:
+    """A file this handler claims and cannot read is reported by name, with the
+    reason it was refused for, and the alignment beside it is still described:
+    the loss is per-file, never the run."""
+    write(dataset, "truncated.bam", gzip.compress(b"BAM\x01\x10"))
+    sample_bam(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["sample.bam"]
+    (refused,) = report.undescribed
+    assert refused.name == "truncated.bam"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "truncated.bam" in refused.detail
 
 
 def test_no_alignment_record_becomes_a_record_set(dataset: Path) -> None:

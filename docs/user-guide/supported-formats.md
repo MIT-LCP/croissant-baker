@@ -343,12 +343,14 @@ transport wrapper, so the handler decompresses it itself, exactly as the BAM
 handler does. It reads the magic, the declared header length and the header
 text, then stops. No record is decoded.
 
-A BCF is claimed on that magic, in either of the two forms the pipeline can hand
-over: a stream whose payload starts with `BCF\2`, or one that already starts
-with it because a second wrapper was taken off on the way in. Both minor
-versions of BCF 2 are read, because they differ in how records are encoded and
-not in the header. BCF1, samtools' own first-generation encoding, declares no
-VCF header text at all and is reported rather than half-described.
+A BCF is claimed on the `BCF` every generation of the format opens with, in
+either of the two forms the pipeline can hand over: a stream whose payload
+starts with it, or one that already starts with it because a second wrapper was
+taken off on the way in. Both minor versions of BCF 2 are read, because they
+differ in how records are encoded and not in the header. BCF1, samtools' own
+first-generation encoding, declares no VCF header text at all: it is claimed so
+that it can be reported as the BCF it is, with that as its reason, rather than
+left to be reported as a file nothing recognised.
 
 The header is then the VCF handler's, so a callset describes the same way in
 either container: one record set per file, whose fields are the columns the

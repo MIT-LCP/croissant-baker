@@ -17,6 +17,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.cram_handler import MAX_HEADER_BYTES, CRAMHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -25,6 +26,7 @@ from tests.helpers import (
     BAM_HEADER_TEXT,
     SAMPLES,
     bake,
+    bake_with_report,
     cli,
     cram_payload,
     file_objects,
@@ -403,6 +405,22 @@ def test_the_description_names_the_samples_when_asked_to(dataset: Path) -> None:
     described = extract(sample_cram(dataset), genomic_sample_ids=True)["description"]
 
     assert "NA00001" in described
+
+
+def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None:
+    """A file this handler claims and cannot read is reported by name, with the
+    reason it was refused for, and the alignment beside it is still described:
+    the loss is per-file, never the run."""
+    write(dataset, "rans.cram", cram_payload(method=4))
+    sample_cram(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["sample.cram"]
+    (refused,) = report.undescribed
+    assert refused.name == "rans.cram"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "rANS" in refused.detail
 
 
 def test_no_alignment_record_becomes_a_record_set(dataset: Path) -> None:
