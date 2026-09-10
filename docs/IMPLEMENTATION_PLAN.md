@@ -20,7 +20,7 @@ space group, formula, site count) described from the same handler.
 `ValueError` naming the file; upper-case suffix claims; empty batch describes
 nothing.
 **Tests**: `tests/test_structure_handler.py`
-**Status**: Not Started
+**Status**: Complete
 
 ## Stage 2: STAR files
 **Goal**: `cif.py` (shared CIF and STAR document description through
@@ -31,7 +31,7 @@ data block per file with typed columns.
 sets with the right column names and types; a pair block becomes a one-row
 record set; empty document raises `ValueError` naming the file.
 **Tests**: `tests/test_star_handler.py`, `tests/test_structural_cif.py`
-**Status**: Not Started
+**Status**: Complete
 
 ## Stage 3: MRC/CCP4 maps and MTZ reflections
 **Goal**: `MRCHandler` in `map_handler.py` (`.mrc`, `.mrcs`, `.map`,
@@ -43,7 +43,7 @@ resolution, datasets).
 **Success Criteria**: values match files written by gemmi and by hand;
 `.map` needs the `MAP ` signature; MTZ needs the `MTZ ` signature.
 **Tests**: `tests/test_map_handler.py`, `tests/test_mtz_handler.py`
-**Status**: Not Started
+**Status**: Complete
 
 ## Stage 4: SerialEM mdoc and small molecules
 **Goal**: `MdocHandler` in `mdoc_handler.py` (`.mdoc`; global keys,
@@ -53,7 +53,7 @@ SDF property tags as typed fields).
 **Success Criteria**: section and tag schemas match hand-written fixtures;
 malformed input raises `ValueError` naming the file.
 **Tests**: `tests/test_mdoc_handler.py`, `tests/test_molecule_handler.py`
-**Status**: Not Started
+**Status**: Complete
 
 ## Stage 5: Integration, docs, golden end-to-end
 **Goal**: register the six handlers, add `SAMPLES` entries so the contract
@@ -64,4 +64,4 @@ discovery-order-independent end-to-end test, DEVELOPMENT.md dataset list.
 **Success Criteria**: full suite green; `docs/generate.py` output committed;
 README lists every new extension.
 **Tests**: contract sweep, `tests/test_end_to_end.py`
-**Status**: Not Started
+**Status**: In Progress
