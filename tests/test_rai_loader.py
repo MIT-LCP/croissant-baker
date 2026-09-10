@@ -146,3 +146,54 @@ def test_a_yaml_syntax_error_is_refused(tmp_path: Path) -> None:
         load_rai_config(path)
 
     assert str(path) in str(excinfo.value)
+
+
+def test_a_string_of_collection_types_is_refused(tmp_path: Path) -> None:
+    """Iterating a string yields characters, which is never what was meant."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types: observations\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "activities[0].collection_types" in message
+
+
+def test_a_mapping_of_collection_types_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types:\n"
+        "      observations: true\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "activities[0].collection_types" in str(excinfo.value)
+
+
+def test_a_nested_collection_type_is_refused(tmp_path: Path) -> None:
+    """A list entry has to be a value, not another structure."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types:\n"
+        "      - name: observations\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "activities[0].collection_types[0]" in str(excinfo.value)

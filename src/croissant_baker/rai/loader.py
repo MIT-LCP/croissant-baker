@@ -80,6 +80,31 @@ def _entries(value, path: str, file: Path) -> list[dict]:
     return [_mapping(entry, f"{path}[{i}]", file) for i, entry in enumerate(value)]
 
 
+def _scalars(value, path: str, file: Path) -> list[str]:
+    """Return ``value`` as a list of plain values, dropping the blank ones.
+
+    A bare string is refused rather than iterated: its characters are never
+    what the author meant, and a mapping's keys are not either.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(
+            f"{file}: expected a list of values at {path}, "
+            f"found {type(value).__name__}."
+        )
+    scalars = []
+    for i, item in enumerate(value):
+        if isinstance(item, (dict, list)):
+            raise ValueError(
+                f"{file}: expected a value at {path}[{i}], found {type(item).__name__}."
+            )
+        text = _str(item)
+        if text:
+            scalars.append(text)
+    return scalars
+
+
 def _load_yaml(path: Path):
     try:
         with open(path, encoding="utf-8") as fh:
@@ -184,9 +209,9 @@ def load_rai_config(path: Path) -> RAIConfig:
                 )
             )
 
-        collection_types = [
-            str(t).strip() for t in (act_raw.get("collection_types") or []) if t
-        ]
+        collection_types = _scalars(
+            act_raw.get("collection_types"), f"{act_path}.collection_types", path
+        )
 
         activities.append(
             Activity(
