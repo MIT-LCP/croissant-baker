@@ -492,6 +492,15 @@ def _fasta() -> list:
     return [("reference.fa", b">chr1 test contig\nACGTACGTNN\n>chr2\nGGCCAATT\n")]
 
 
+def _smiles() -> list:
+    """Three molecules with a name beside each, which is the common layout.
+
+    Three rather than one, so the sweep sees a file whose column count is
+    agreed on by several lines rather than declared by the only one there is.
+    """
+    return [("molecules.smi", b"CCO\tethanol\nC\tmethane\nc1ccccc1\tbenzene\n")]
+
+
 def bcf_payload(text: bytes = VCF_HEADER_TEXT, minor: int = 2) -> bytes:
     """The uncompressed bytes of a BCF 2.x container, header and no record.
 
@@ -541,6 +550,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "SAMHandler": _sam,
     "FASTQHandler": _fastq,
     "FASTAHandler": _fasta,
+    "SMILESHandler": _smiles,
     "BCFHandler": _bcf,
     "CRAMHandler": _cram,
 }
