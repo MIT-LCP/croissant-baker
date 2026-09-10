@@ -23,13 +23,19 @@ from croissant_baker.handlers.vcf_handler import (
 )
 from croissant_baker.sources import UNREADABLE, FileSource
 
-#: The first four bytes of a BCF 2.x payload. The fifth is the minor version,
-#: which says how the records are encoded and so says nothing about the header
-#: this handler reads: 2.1 and 2.2 are both accepted.
-MAGIC_PREFIX = b"BCF\x02"
+#: The three bytes every generation of BCF opens with, and the whole claim. The
+#: generation is the byte behind them, and a file of the wrong one is claimed so
+#: that it can be reported as the BCF it is rather than as a file nothing
+#: recognised.
+MAGIC_PREFIX = b"BCF"
+
+#: The four bytes of a BCF 2.x payload. The fifth is the minor version, which
+#: says how the records are encoded and so says nothing about the header this
+#: handler reads: 2.1 and 2.2 are both accepted.
+BCF2_MAGIC = MAGIC_PREFIX + b"\x02"
 
 #: Magic and minor version together.
-MAGIC_BYTES = len(MAGIC_PREFIX) + 1
+MAGIC_BYTES = len(BCF2_MAGIC) + 1
 
 #: The two bytes every member of a gzip stream opens with. BCF is BGZF, which
 #: is gzip with an extra field Python's gzip module ignores.
@@ -88,6 +94,11 @@ class BCFHandler(VCFHandler):
         wrapper has had one layer taken off already, and the magic is the first
         thing in the stream.
 
+        On the three bytes every generation shares, not on the generation this
+        handler reads: a BCF1 claimed here is reported as a BCF whose header
+        cannot be read, and one left unclaimed is reported as a file nothing
+        recognised, which says less about it than is known.
+
         A file that cannot be read peeks as ``b""`` and is therefore not
         claimed; that is
         :meth:`~croissant_baker.sources.FileSource.peek`'s contract. The prefix
@@ -126,7 +137,7 @@ class BCFHandler(VCFHandler):
 
     def _read_payload(self, payload: BinaryIO, name: str) -> _Header:
         magic = _read_exactly(payload, MAGIC_BYTES, "the magic", name)
-        if not magic.startswith(MAGIC_PREFIX):
+        if not magic.startswith(BCF2_MAGIC):
             raise ValueError(
                 f"Not a BCF file: {name} does not carry the BCF 2 magic at the "
                 "start of its payload. BCF1 is samtools' own encoding and "

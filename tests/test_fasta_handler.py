@@ -14,6 +14,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.fasta_handler import FASTAHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -21,6 +22,7 @@ from croissant_baker.sources import FileSource, make_source
 from tests.helpers import (
     SAMPLES,
     bake,
+    bake_with_report,
     cut_gzip,
     file_objects,
     record_sets,
@@ -188,6 +190,22 @@ def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
 
     assert "cut.fa" in str(caught.value)
     assert "FASTA" in str(caught.value)
+
+
+def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None:
+    """A file this handler claims and cannot read is reported by name, with the
+    reason it was refused for, and the assembly beside it is still described:
+    the loss is per-file, never the run."""
+    write(dataset, "bare.fa", b">\nACGTACGT\n")
+    sample_fasta(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["reference.fa"]
+    (refused,) = report.undescribed
+    assert refused.name == "bare.fa"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "bare.fa" in refused.detail
 
 
 def test_no_sequence_becomes_a_record_set(dataset: Path) -> None:

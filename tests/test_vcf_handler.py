@@ -12,6 +12,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.vcf_handler import VCFHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import make_source
@@ -516,6 +517,22 @@ def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
 
     assert "cut.vcf" in str(caught.value)
     assert "VCF" in str(caught.value)
+
+
+def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None:
+    """A file this handler claims and cannot read is reported by name, with the
+    reason it was refused for, and the callset beside it is still described:
+    the loss is per-file, never the run."""
+    write(dataset, "nocolumns.vcf", b"##fileformat=VCFv4.2\n##contig=<ID=chr1>\n")
+    sample_vcf(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["calls.vcf"]
+    (refused,) = report.undescribed
+    assert refused.name == "nocolumns.vcf"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "nocolumns.vcf" in refused.detail
 
 
 def test_a_bake_over_a_callset_validates(dataset: Path, tmp_path: Path) -> None:

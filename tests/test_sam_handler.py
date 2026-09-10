@@ -13,6 +13,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.sam_handler import SAMHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -22,6 +23,7 @@ from tests.helpers import (
     SAM_ALIGNMENT_TEXT,
     SAMPLES,
     bake,
+    bake_with_report,
     cli,
     cut_gzip,
     file_objects,
@@ -280,6 +282,22 @@ def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
 
     assert "cut.sam" in str(caught.value)
     assert "SAM" in str(caught.value)
+
+
+def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None:
+    """A file this handler claims and cannot read is reported by name, with the
+    reason it was refused for, and the alignment beside it is still described:
+    the loss is per-file, never the run."""
+    write(dataset, "cut.sam.gz", cut_gzip(BAM_HEADER_TEXT.encode()))
+    sample_sam(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["sample.sam"]
+    (refused,) = report.undescribed
+    assert refused.name == "cut.sam.gz"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "cut.sam" in refused.detail
 
 
 def test_no_alignment_record_becomes_a_record_set(dataset: Path) -> None:

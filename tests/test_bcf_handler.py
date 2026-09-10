@@ -15,6 +15,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.bcf_handler import BCFHandler
 from croissant_baker.handlers.vcf_handler import VCFHandler
 from croissant_baker.identifiers import serialize_datetime
@@ -24,6 +25,7 @@ from tests.helpers import (
     SAMPLES,
     VCF_HEADER_TEXT,
     bake,
+    bake_with_report,
     bcf_payload,
     cli,
     file_objects,
@@ -89,18 +91,46 @@ def test_the_earlier_minor_version_is_read_the_same_way(dataset: Path) -> None:
     assert extract(path)["fileformat"] == "VCFv4.2"
 
 
-def test_the_obsolete_first_generation_is_refused_with_a_reason(
+def legacy_bcf(dataset: Path) -> Path:
+    """A BCF1: samtools' own first-generation encoding, header text and all."""
+    return write(dataset, "legacy.bcf", gzip.compress(b"BCF\x01\x00" + b"\x00" * 16))
+
+
+def test_the_obsolete_first_generation_is_claimed_so_that_it_can_be_refused(
     dataset: Path,
 ) -> None:
-    """BCF1 is samtools' own encoding and carries no VCF text header, so there
-    is nothing here to read: it is reported rather than half-described."""
-    path = write(dataset, "legacy.bcf", gzip.compress(b"BCF\x01\x00" + b"\x00" * 16))
+    """The claim is on ``BCF``, not on ``BCF\\2``.
+
+    BCF1 carries no VCF text header, so there is nothing in it to read, and a
+    reader that claimed only the generation it understands would leave the file
+    to be reported as one nothing recognised. Claiming it is what lets it be
+    reported as the format it is.
+    """
+    path = legacy_bcf(dataset)
+
+    assert HANDLER.claims(source_for(path))
 
     with pytest.raises(ValueError) as caught:
         extract(path)
 
     assert "legacy.bcf" in str(caught.value)
     assert "BCF 2" in str(caught.value)
+
+
+def test_the_obsolete_first_generation_is_reported_by_a_bake(dataset: Path) -> None:
+    """Through the registry rather than the handler, because which handler is
+    offered the file is half of what makes the refusal reachable. The readable
+    callset beside it is there because the loss is per-file, never the run."""
+    legacy_bcf(dataset)
+    sample_bcf(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["calls.bcf"]
+    (refused,) = report.undescribed
+    assert refused.name == "legacy.bcf"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "BCF 2" in refused.detail
 
 
 def test_a_truncated_header_is_refused_with_a_reason(dataset: Path) -> None:
