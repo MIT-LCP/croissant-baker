@@ -22,7 +22,7 @@ gets its own synthetic fixture; `select_handler` routes each extension to it;
 a bake produces a FileSet plus a `slides` RecordSet validated by mlcroissant.
 **Tests**: `tests/test_wsi.py` (reader), `tests/test_wsi_handler.py`
 (handler), `SAMPLES` entry in `tests/helpers.py`.
-**Status**: Not Started
+**Status**: In Progress
 
 ## Stage 2: DICOM whole-slide microscopy awareness
 **Goal**: The DICOM handler recognises the VL Whole Slide Microscopy Image SOP

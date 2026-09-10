@@ -158,6 +158,234 @@ def ome_bomb(levels: int = 6) -> str:
 OME_TIFF = tiff_bytes(ome_xml(ome_image()), planes=3)
 
 
+# --------------------------------------------------------------------------
+# Whole-slide images
+#
+# One synthetic slide per vendor, small enough to build in memory on every
+# run. Each carries the signal tifffile identifies that vendor by, and
+# ``tests/test_wsi.py`` asserts the corresponding ``is_*`` property before any
+# other test relies on it.
+# --------------------------------------------------------------------------
+
+
+def _rgb(width: int, height: int) -> np.ndarray:
+    """One RGB plane. Zeros, so a deflated page costs a few hundred bytes."""
+    return np.zeros((height, width, 3), np.uint8)
+
+
+APERIO_HEADER = "Aperio Image Library v12.0.15"
+
+#: What an Aperio scanner writes into tag 270: a two-line header, then
+#: pipe-separated ``key = value`` items. The dimensions are the fixture's own,
+#: so nothing in the file contradicts anything else in it.
+APERIO_DESCRIPTION = (
+    f"{APERIO_HEADER}\r\n256x256 [0,0 256x256] (128x128) JPEG/RGB Q=30"
+    "|AppMag = 20|StripeWidth = 2040|ScanScope ID = CPAPERIOCS"
+    "|MPP = 0.4990|Left = 25.7|Top = 23.4"
+)
+
+#: A Leica SCN document, cut down to the elements a slide always carries.
+#: The root element decides the format: tifffile calls a page SCN when its
+#: description ends in ``</scn>``.
+SCN_XML = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<scn xmlns="http://www.leica-microsystems.com/scn/2010/10/01">'
+    '<collection name="collection" sizeX="256" sizeY="256">'
+    '<image name="Image1">'
+    "<scanSettings><objectiveSettings><objective>40</objective>"
+    "</objectiveSettings></scanSettings>"
+    '<pixels sizeX="256" sizeY="256">'
+    '<dimension sizeX="256" sizeY="256" r="0" ifd="0"/>'
+    '<dimension sizeX="128" sizeY="128" r="1" ifd="1"/>'
+    "</pixels>"
+    '<view sizeX="64000" sizeY="64000" offsetX="0" offsetY="0"/>'
+    "</image></collection></scn>"
+)
+
+#: The XMP packet a Ventana scanner puts in tag 700. ``ScanRes`` is microns
+#: per pixel and ``Magnification`` the objective power.
+VENTANA_XMP = (
+    '<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>'
+    '<x:xmpmeta xmlns:x="adobe:ns:meta/">'
+    '<iScan Magnification="40" ScanRes="0.2500" Z="0"/>'
+    "</x:xmpmeta><?xpacket end='w'?>"
+).encode("utf-8")
+
+#: The XML an Akoya scanner writes into tag 270, trimmed to the elements that
+#: describe the optics. The scan profile is a large opaque blob in a real file.
+QPI_XML = (
+    "<PerkinElmer-QPI-ImageDescription>"
+    "<DescriptionVersion>2</DescriptionVersion>"
+    "<ImageType>FullResolution</ImageType>"
+    "<Name>DAPI</Name>"
+    "<Objective>20x</Objective>"
+    "<ScanProfile>{}</ScanProfile>"
+    "</PerkinElmer-QPI-ImageDescription>"
+)
+
+
+def aperio_bytes(description: Optional[str] = None) -> bytes:
+    """An Aperio SVS, in the page order tifffile's SVS series builder assumes.
+
+    Base, thumbnail, one further level, label, macro. The thumbnail sits at
+    page 1 whatever it holds, so a fixture that omits it hands page 1 to the
+    builder as the thumbnail and loses a pyramid level.
+    """
+    buffer = io.BytesIO()
+    plane = {"photometric": "rgb", "metadata": None}
+    tiled = {**plane, "tile": (128, 128), "compression": "deflate"}
+    with tifffile.TiffWriter(buffer) as writer:
+        writer.write(
+            _rgb(256, 256),
+            description=APERIO_DESCRIPTION if description is None else description,
+            **tiled,
+        )
+        writer.write(
+            _rgb(64, 64),
+            description=f"{APERIO_HEADER}\r\n256x256 -> 64x64 - |AppMag = 20",
+            **plane,
+        )
+        writer.write(
+            _rgb(128, 128),
+            description=f"{APERIO_HEADER}\r\n256x256 -> 128x128 - |AppMag = 20",
+            **tiled,
+        )
+        writer.write(
+            _rgb(32, 32),
+            subfiletype=1,
+            description=f"{APERIO_HEADER}\r\nlabel 32x32",
+            **plane,
+        )
+        writer.write(
+            _rgb(48, 48),
+            subfiletype=9,
+            description=f"{APERIO_HEADER}\r\nmacro 48x48",
+            **plane,
+        )
+    return buffer.getvalue()
+
+
+def hamamatsu_bytes(*, mpp: float = 0.46, objective: float = 20.0) -> bytes:
+    """A Hamamatsu NDPI: tags 65420 and 271, and a resolution in centimetres.
+
+    Written big-endian. tifffile decides a little-endian classic TIFF named
+    ``.ndpi`` has 64-bit IFD offsets — which a real NDPI does and this
+    synthetic one does not — and then finds no page in it at all. A
+    big-endian file never takes that branch, and no real NDPI is big-endian,
+    so nothing else in the suite is misled by the choice.
+    """
+    buffer = io.BytesIO()
+    tifffile.imwrite(
+        buffer,
+        _rgb(64, 64),
+        photometric="rgb",
+        metadata=None,
+        byteorder=">",
+        compression="deflate",
+        resolution=(10000 / mpp, 10000 / mpp),
+        resolutionunit="CENTIMETER",
+        extratags=[
+            (65420, 3, 1, 1, True),  # NDPI version
+            (65421, 11, 1, objective, True),  # SourceLens
+            (271, 2, None, "Hamamatsu", True),  # Make
+            (272, 2, None, "C13220", True),  # Model
+        ],
+    )
+    return buffer.getvalue()
+
+
+def leica_bytes(xml: str = SCN_XML) -> bytes:
+    """A Leica SCN: two tiled levels, the XML on the first page."""
+    buffer = io.BytesIO()
+    tiled = {
+        "photometric": "rgb",
+        "metadata": None,
+        "tile": (128, 128),
+        "compression": "deflate",
+    }
+    with tifffile.TiffWriter(buffer) as writer:
+        writer.write(_rgb(256, 256), description=xml, **tiled)
+        writer.write(_rgb(128, 128), description="", **tiled)
+    return buffer.getvalue()
+
+
+def ventana_bytes(xmp: bytes = VENTANA_XMP) -> bytes:
+    """A Ventana BIF: tag 700, ``Ventana`` software, and a label page.
+
+    tifffile reads the level order out of the ``level=`` items in each page's
+    description and the label out of the literal description ``Label Image``.
+    """
+    buffer = io.BytesIO()
+    tiled = {
+        "photometric": "rgb",
+        "metadata": None,
+        "tile": (128, 128),
+        "compression": "deflate",
+    }
+    with tifffile.TiffWriter(buffer) as writer:
+        writer.write(
+            _rgb(256, 256),
+            description="level=0 mag=40 quality=90",
+            software="Ventana Scanner",
+            extratags=[(700, 1, len(xmp), xmp, True)],
+            **tiled,
+        )
+        writer.write(_rgb(128, 128), description="level=1 mag=20 quality=90", **tiled)
+        writer.write(
+            _rgb(32, 32),
+            photometric="rgb",
+            metadata=None,
+            description="Label Image",
+        )
+    return buffer.getvalue()
+
+
+def akoya_bytes(description: str = QPI_XML, *, mpp: float = 0.5) -> bytes:
+    """An Akoya qptiff: ``PerkinElmer-QPI`` software, base, thumbnail, level.
+
+    The thumbnail sits between the base and the first reduced level, which is
+    the order tifffile's QPI series builder walks.
+    """
+    buffer = io.BytesIO()
+    plane = {"photometric": "rgb", "metadata": None, "software": "PerkinElmer-QPI"}
+    tiled = {**plane, "tile": (128, 128), "compression": "deflate"}
+    with tifffile.TiffWriter(buffer) as writer:
+        writer.write(
+            _rgb(256, 256),
+            description=description,
+            resolution=(10000 / mpp, 10000 / mpp),
+            resolutionunit="CENTIMETER",
+            **tiled,
+        )
+        writer.write(_rgb(64, 64), description=description, **plane)
+        writer.write(_rgb(128, 128), description=description, **tiled)
+    return buffer.getvalue()
+
+
+#: Vendor name -> builder. The names are the ones the reader reports.
+WSI_BUILDERS: dict[str, Callable[..., bytes]] = {
+    "aperio": aperio_bytes,
+    "hamamatsu": hamamatsu_bytes,
+    "leica": leica_bytes,
+    "ventana": ventana_bytes,
+    "akoya": akoya_bytes,
+}
+
+
+def wsi_bytes(vendor: str = "aperio", **kwargs) -> bytes:
+    """One synthetic whole-slide image, by the vendor that would have written it."""
+    return WSI_BUILDERS[vendor](**kwargs)
+
+
+#: One Aperio slide, built once so the bytes are the same on every run.
+APERIO_SVS = aperio_bytes()
+
+
+def _wsi() -> list:
+    """Aperio is the vendor most public pathology archives publish."""
+    return [("slide.svs", APERIO_SVS)]
+
+
 def _images() -> list:
     """A PNG and a three-channel OME-TIFF: the two collections the handler splits.
 
@@ -383,7 +611,19 @@ __all__ = [
     "OME_TIFF",
     "PNG_1X1",
     "SAMPLES",
+    "APERIO_DESCRIPTION",
+    "APERIO_HEADER",
+    "APERIO_SVS",
+    "QPI_XML",
+    "SCN_XML",
+    "VENTANA_XMP",
     "WRAPPER_SUFFIXES",
+    "aperio_bytes",
+    "akoya_bytes",
+    "hamamatsu_bytes",
+    "leica_bytes",
+    "ventana_bytes",
+    "wsi_bytes",
     "bake",
     "bake_with",
     "bake_with_report",
