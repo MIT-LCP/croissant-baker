@@ -41,7 +41,7 @@ croissant-baker = "croissant_baker.__main__:app"
 # PEP 735 dependency groups — not propagated to downstream consumers.
 # Install with: uv sync --group dev
 [dependency-groups]
-test = ["pytest>=7.0"]
+test = ["pytest>=7.0", "pytest-cov>=5"]
 dev = [
     "ruff>=0.1.0",
     "pre-commit>=4.5.1",
@@ -64,6 +64,21 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 # Suppress rdflib warning from mlcroissant (external dependency)
 filterwarnings = ["ignore::DeprecationWarning:rdflib.*"]
+
+[tool.coverage.run]
+source = ["croissant_baker"]
+branch = true
+# python-coverage-comment-action reads the .coverage file from a checkout whose
+# paths differ from the runner's, so record repository-relative paths.
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "pragma: no cover",
+]
 
 [tool.ruff]
 src = ["src"]
