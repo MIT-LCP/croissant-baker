@@ -306,7 +306,11 @@ class SDFHandler(FileTypeHandler):
                 reader = PrefixLines(stream, SAMPLE_BYTES)
                 for line in reader:
                     current = _take_line(line, records, current)
-                    if len(records) >= SAMPLE_RECORDS:
+                    # One record past the bound, because that is what says
+                    # there is one: a file holding exactly the sample was read
+                    # to its end, and reporting it as cut short is untrue. The
+                    # byte bound is what stops a record that never terminates.
+                    if len(records) > SAMPLE_RECORDS:
                         bounded = plural(SAMPLE_RECORDS, "record")
                         break
                 else:
