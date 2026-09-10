@@ -29,9 +29,7 @@ def handler() -> WSIHandler:
     return WSIHandler()
 
 
-# --------------------------------------------------------------------------
 # Claiming
-# --------------------------------------------------------------------------
 
 
 #: Classic TIFF and BigTIFF, in both byte orders. Every vendor here writes a
@@ -95,9 +93,7 @@ def test_a_plain_tiff_is_left_to_the_image_handler(
     assert handler.claims(make_source(path)) is False
 
 
-# --------------------------------------------------------------------------
 # Reading one file
-# --------------------------------------------------------------------------
 
 
 def test_a_slide_is_described_by_the_keys_the_generator_needs(
@@ -176,9 +172,7 @@ def test_a_refused_vendor_document_is_logged_against_the_file(
     assert [r for r in caplog.records if "slide.scn" in r.message]
 
 
-# --------------------------------------------------------------------------
 # Describing a batch
-# --------------------------------------------------------------------------
 
 
 def batch(handler: WSIHandler, dataset: Path, *names: str) -> tuple:
@@ -310,9 +304,7 @@ def test_the_record_set_description_counts_the_slides_it_could_not_read(
     assert "it is not well-formed" in record_set.description
 
 
-# --------------------------------------------------------------------------
 # Through the pipeline
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
