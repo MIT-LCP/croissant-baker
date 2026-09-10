@@ -222,16 +222,23 @@ QPI_XML = (
 )
 
 
-def aperio_bytes(description: Optional[str] = None) -> bytes:
+def aperio_bytes(
+    description: Optional[str] = None, *, tiled_label: bool = False
+) -> bytes:
     """An Aperio SVS, in the page order tifffile's SVS series builder assumes.
 
     Base, thumbnail, one further level, label, macro. The thumbnail sits at
     page 1 whatever it holds, so a fixture that omits it hands page 1 to the
     builder as the thumbnail and loses a pyramid level.
+
+    ``tiled_label`` stores the label in tiles rather than strips, which real
+    Ventana and Leica scanners do: a page walk then finds a page that looks
+    like a level, and only the vendor series tells the two apart.
     """
     buffer = io.BytesIO()
     plane = {"photometric": "rgb", "metadata": None}
     tiled = {**plane, "tile": (128, 128), "compression": "deflate"}
+    label = {**tiled, "tile": (16, 16)} if tiled_label else plane
     with tifffile.TiffWriter(buffer) as writer:
         writer.write(
             _rgb(256, 256),
@@ -252,7 +259,7 @@ def aperio_bytes(description: Optional[str] = None) -> bytes:
             _rgb(32, 32),
             subfiletype=1,
             description=f"{APERIO_HEADER}\r\nlabel 32x32",
-            **plane,
+            **label,
         )
         writer.write(
             _rgb(48, 48),

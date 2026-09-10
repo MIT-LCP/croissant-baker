@@ -59,6 +59,11 @@ _VENDOR_FLAGS = (
     (VENTANA, "is_bif"),
 )
 
+#: The series kinds tifffile builds out of vendor knowledge, one per vendor
+#: this module names. A series of one of these kinds holds the pyramid and
+#: nothing else, whatever the pages around it look like.
+VENDOR_SERIES_KINDS = frozenset({"svs", "scn", "qpi", "ndpi", "bif"})
+
 #: The pictures of the slide, rather than of the tissue, that a scanner files
 #: alongside the pyramid. tifffile names the series it recognises after these,
 #: and anything it could not place is left unnamed rather than guessed at.
@@ -389,12 +394,16 @@ def _associated_images(series: tuple) -> Tuple[str, ...]:
 def _levels(tif, series: tuple) -> Tuple[Tuple[int, int], ...]:
     """The pyramid, largest level first.
 
-    tifffile builds a vendor-aware series for every format here, and its
-    answer already leaves out the label, macro and thumbnail pages, so it is
-    preferred. It falls back to a plain series for a file whose vendor
-    signature is missing or unreadable, and that series reports one level for
-    a slide that has several, so the page walk wins whenever it finds more.
+    A series tifffile built with vendor knowledge is the whole answer: it
+    already leaves out the label, macro and thumbnail pages, and some scanners
+    store those in tiles, where a page walk cannot tell one from a level.
+
+    The walk is for a file whose vendor signature is missing or unreadable.
+    tifffile builds a generic series for one of those, and that series reports
+    one level for a slide that has several, so the walk wins when it finds more.
     """
+    if series and getattr(series[0], "kind", "") in VENDOR_SERIES_KINDS:
+        return _levels_from_series(series)
     by_page = _levels_from_pages(tif)
     by_series = _levels_from_series(series)
     return by_series if len(by_series) >= len(by_page) else by_page
