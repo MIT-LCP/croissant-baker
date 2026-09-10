@@ -16,6 +16,7 @@ import pytest
 
 from croissant_baker.entries import Reason
 from croissant_baker.handlers.sdf_handler import (
+    MAX_FIELDS,
     SAMPLE_BYTES,
     SAMPLE_RECORDS,
     SDFHandler,
@@ -169,6 +170,35 @@ def test_a_field_typed_integer_by_one_record_and_text_by_another_is_text(
     meta = extract(write(dataset, "mixed.sdf", payload))
 
     assert meta["fields"] == [{"name": "ID", "type": "sc:Text"}]
+
+
+#: More distinct data items than any compound library states, which is what a
+#: file of another format named ``.sdf`` looks like from here.
+WIDE_ITEMS = [(f"item_{i}", str(i)) for i in range(MAX_FIELDS + 50)]
+
+
+def test_more_data_items_than_the_cap_stop_at_the_cap(dataset: Path) -> None:
+    """One record set field per data item, so a record naming three hundred
+    thousand of them is three hundred thousand nodes in the output and the
+    minutes and gigabytes it takes to build them."""
+    payload = sdf_record(MOL_V2000, WIDE_ITEMS)
+
+    meta = extract(write(dataset, "wide.sdf", payload))
+
+    assert len(meta["fields"]) == MAX_FIELDS
+    assert meta["field_count"] == MAX_FIELDS + 50
+
+
+def test_the_description_says_which_data_fields_it_left_out(dataset: Path) -> None:
+    """Capped in silence is the one thing it must not be."""
+    write(dataset, "wide.sdf", sdf_record(MOL_V2000, WIDE_ITEMS))
+
+    (record_set,) = record_sets(bake(dataset))
+
+    assert (
+        f"the first {MAX_FIELDS} of {MAX_FIELDS + 50} data fields"
+        in record_set["description"]
+    )
 
 
 def test_a_file_read_to_its_end_reports_the_exact_record_count(

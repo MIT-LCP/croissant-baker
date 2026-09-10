@@ -76,6 +76,16 @@ STRUCTURE_CHARACTERS = frozenset(string.digits + "()=#-+@/\\.%*:$~>{}")
 #: its hydrogen count, its charge and its atom class.
 BRACKET_CHARACTERS = frozenset(string.ascii_letters + string.digits + "+-@:*#")
 
+#: The most columns one record set states. Every column is a field node in the
+#: output, so a line carrying a hundred thousand of them costs minutes and
+#: gigabytes to build and describes nothing anyone will read. A molecule table
+#: is a structure, a name and a handful of properties; a line far past this is
+#: a file of another format that happens to be named ``.smi``, and describing
+#: it to here and saying so beats both truncating in silence and emitting a
+#: record set the width of the line. The HDF5 handler caps its generic view the
+#: same way, at the same number.
+MAX_FIELDS = 300
+
 #: The suffix the one record set per file is allocated under.
 RECORD_SET_SUFFIX = "molecules"
 
@@ -297,7 +307,10 @@ class SMILESHandler(FileTypeHandler):
             "encoding_format": self.ENCODING_FORMAT,
             "delimiter": delimiter,
             "has_header": has_header,
-            "columns": self._columns(rows[0] if has_header else [], count),
+            "columns": self._columns(
+                rows[0] if has_header else [], min(count, MAX_FIELDS)
+            ),
+            "column_count": count,
             "sampled_lines": len(lines),
             "sample_exhausted": exhausted,
         }
@@ -430,6 +443,20 @@ class SMILESHandler(FileTypeHandler):
         )
 
 
+def _columns_stated(meta: dict) -> str:
+    """How many columns the record set names, and how many the file carried.
+
+    The two differ only where :data:`MAX_FIELDS` stopped the list, and then the
+    difference is the whole point: a reader is owed the columns that are not
+    described here.
+    """
+    described = len(meta["columns"])
+    total = meta.get("column_count", described)
+    if total > described:
+        return f"the first {described} of {plural(total, 'column')}"
+    return plural(described, "column")
+
+
 def _field_description(index: int, has_header: bool) -> str:
     """What one column is, said from where its name came."""
     if index == 0:
@@ -452,10 +479,7 @@ def _description(meta: dict) -> str:
     first thousand lines of a library is a claim about those lines, and a
     consumer deciding whether to trust it needs to know how many there were.
     """
-    stated = [
-        f"{meta['delimiter']}-separated",
-        plural(len(meta["columns"]), "column"),
-    ]
+    stated = [f"{meta['delimiter']}-separated", _columns_stated(meta)]
     if meta["has_header"]:
         stated.append("header line")
     scope = "all" if meta["sample_exhausted"] else "the first"
