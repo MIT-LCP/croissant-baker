@@ -308,3 +308,64 @@ def test_the_record_set_description_counts_the_slides_it_could_not_read(
 
     assert "1 of 2" in record_set.description
     assert "it is not well-formed" in record_set.description
+
+
+# --------------------------------------------------------------------------
+# Through the pipeline
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("extension", "vendor"), list(VENDOR_EXTENSIONS.items()), ids=VENDOR_EXTENSIONS
+)
+def test_the_registry_routes_every_vendor_extension_here(
+    dataset: Path, extension: str, vendor: str
+) -> None:
+    from croissant_baker.handlers.registry import select_handler
+
+    name = f"slide{extension}"
+    path = write_wrapped(dataset, name, wsi_bytes(vendor))
+
+    selection = select_handler(path, Path(name))
+
+    assert type(selection.handler).__name__ == "WSIHandler"
+
+
+def test_a_slide_dataset_bakes_into_a_document_mlcroissant_validates(
+    dataset: Path,
+) -> None:
+    """The one thing no unit test can show: the nodes pass the validator.
+
+    A record set mixing an ``sc:ImageObject`` extract with scalar fields over
+    the same FileSet is new here, and so is a ``filename`` file property.
+    """
+    from croissant_baker.metadata_generator import MetadataGenerator
+
+    for extension, vendor in VENDOR_EXTENSIONS.items():
+        write_wrapped(dataset, f"slide{extension}", wsi_bytes(vendor))
+    output = dataset / "croissant.jsonld"
+
+    MetadataGenerator(
+        str(dataset),
+        name="slides",
+        description="One synthetic slide per vendor",
+        creators=[{"name": "Tester"}],
+        date_published="2024-01-01",
+    ).save_metadata(str(output), validate=True)
+
+    assert output.exists()
+
+
+def test_a_baked_slide_dataset_describes_every_slide_once(dataset: Path) -> None:
+    from tests.helpers import bake, file_sets, record_sets
+
+    for extension, vendor in VENDOR_EXTENSIONS.items():
+        write_wrapped(dataset, f"slide{extension}", wsi_bytes(vendor))
+
+    document = bake(dataset)
+
+    (file_set,) = file_sets(document)
+    (record_set,) = record_sets(document)
+    assert file_set["@id"] == "wsi-files"
+    assert record_set["@id"] == "slides"
+    assert "aperio (1)" in record_set["description"]
