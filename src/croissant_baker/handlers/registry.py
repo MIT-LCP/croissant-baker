@@ -152,6 +152,13 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.nifti_handler import NIfTIHandler
     from croissant_baker.handlers.soft_handler import SOFTHandler
     from croissant_baker.handlers.hdf5_handler import HDF5Handler
+    from croissant_baker.handlers.vcf_handler import VCFHandler
+    from croissant_baker.handlers.bam_handler import BAMHandler
+    from croissant_baker.handlers.sam_handler import SAMHandler
+    from croissant_baker.handlers.fastq_handler import FASTQHandler
+    from croissant_baker.handlers.fasta_handler import FASTAHandler
+    from croissant_baker.handlers.bcf_handler import BCFHandler
+    from croissant_baker.handlers.cram_handler import CRAMHandler
 
     return [
         CSVHandler(),
@@ -167,6 +174,13 @@ def builtin_handlers() -> List[FileTypeHandler]:
         NIfTIHandler(),
         SOFTHandler(),
         HDF5Handler(),
+        VCFHandler(),
+        BCFHandler(),
+        BAMHandler(),
+        CRAMHandler(),
+        SAMHandler(),
+        FASTQHandler(),
+        FASTAHandler(),
     ]
 
 

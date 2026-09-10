@@ -13,3 +13,10 @@
 | NIfTI | `.nii` | `.gz`, `.bz2`, `.xz` | Spatial dimensions, voxel spacing, data type, TR for fMRI volumes |
 | GEO SOFT | `.soft` | `.gz`, `.bz2`, `.xz` | Entity attribute names, sample characteristic keys, data table columns |
 | HDF5 | `.h5`, `.h5ad`, `.hdf5` | `.gz`, `.bz2`, `.xz` | Dataset paths, dtypes and shapes; AnnData and 10x table columns where the layout is recognised |
+| VCF | `.vcf` | `.gz`, `.bz2`, `.xz` | Reference, contig count, typed INFO and FORMAT keys, sample count |
+| BCF | `.bcf` | `.gz`, `.bz2`, `.xz` | Reference, contig count, typed INFO and FORMAT keys, sample count |
+| BAM | `.bam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
+| CRAM | `.cram` | `.gz`, `.bz2`, `.xz` | CRAM version, sort order, reference count and assembly, read groups, program chain |
+| SAM | `.sam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
+| FASTQ | `.fastq`, `.fq` | `.gz`, `.bz2`, `.xz` | Read length of the first record; no read name or record count |
+| FASTA | `.fa`, `.fasta`, `.fna` | `.gz`, `.bz2`, `.xz` | Format and encoding; record names and sequences are not read |
