@@ -157,7 +157,12 @@ class FASTQHandler(FileTypeHandler):
                 "does not fit the four lines this handler reads"
             )
         sequence = lines[1]
-        if len(lines) > 3 and len(lines[3]) != len(sequence):
+        if len(lines) < RECORD_LINES:
+            raise ValueError(
+                f"Malformed {self.FORMAT_NAME} record in {name}: the first read "
+                "ends before its quality line, so it is not a record to describe"
+            )
+        if len(lines[3]) != len(sequence):
             raise ValueError(
                 f"Malformed {self.FORMAT_NAME} record in {name}: the first read "
                 f"is {len(sequence)} bases and carries {len(lines[3])} quality "
