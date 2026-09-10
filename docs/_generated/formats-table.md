@@ -20,3 +20,4 @@
 | SAM | `.sam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
 | FASTQ | `.fastq`, `.fq` | `.gz`, `.bz2`, `.xz` | Read length of the first record; no read name or record count |
 | FASTA | `.fa`, `.fasta`, `.fna` | `.gz`, `.bz2`, `.xz` | Format and encoding; record names and sequences are not read |
+| PDB | `.pdb`, `.ent` | `.gz`, `.bz2`, `.xz` | ID code, classification, title, experimental method, resolution, chain count (header only) |

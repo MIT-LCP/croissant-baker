@@ -615,6 +615,66 @@ one. FASTA has no IANA registration, so the `x-` form follows `text/x-vcf`.
 Index and dictionary files (`.fai`, `.dict`, `.gzi`) are reported as unsupported;
 nothing claims them.
 
+## PDB
+
+A wwPDB structure file (`.pdb`, `.ent`) is fixed-column text: eighty columns per
+record, each named by columns 1 to 6, with the title section written before the
+coordinates. The handler reads that title section and stops at the first
+`MODEL`, `ATOM` or `HETATM` record, so a structure of a hundred thousand atoms
+costs the same read as a fragment of three. No coordinate line is ever read.
+
+What is reported, each field from the columns the format fixes it to:
+
+- **ID code, classification and deposition date**, from `HEADER`. The date is
+  reported as written (`12-JAN-98`); converting it would invent a century the
+  file does not state.
+- **Title**, with its continuation lines joined into one run of words.
+- **Experimental methods**, from `EXPDTA`, split on the semicolons a structure
+  determined two ways separates them with.
+- **Resolution** in angstroms, from `REMARK   2 RESOLUTION.`, when that remark
+  carries a number. A structure determined without diffraction writes
+  `NOT APPLICABLE` there, and then no resolution is reported.
+- **Chain count**, from the `CHAIN:` tokens of the `COMPND` specification list,
+  or from the SEQRES chain column when `COMPND` names none.
+- **Model count**, from `NUMMDL`, and **keywords**, from `KEYWDS`.
+
+A PDB file is claimed on its extension **and** on its first record name, and
+neither half would do alone. `.pdb` is also the Microsoft program database, a
+binary of debugging symbols that carries no structure and must not be described
+as one; six columns of upper-case letters are a shape any text file can wear, so
+the record name cannot own a file on its own either. `.ent` is the second
+extension, because that is what the RCSB archive calls its own copies of an
+entry (`pdb1abc.ent.gz`). A file whose header runs past the cap without reaching
+a coordinate record, or whose first line runs to kilobytes with no line ending,
+is reported with that as its reason rather than read on for.
+
+A file carrying no `HEADER` record — a fragment written by a modelling tool,
+which opens at `ATOM` — is still described, with the fields it has; the
+description then says the header carries no ID code.
+
+Deliberately not reported:
+
+- **Depositors.** The `AUTHOR` record names people. It is bibliographic rather
+  than structural, and the dataset's own creator is a command-line input rather
+  than something read out of a file.
+- **The chain identifiers themselves.** How many chains a structure holds is
+  structure; which letters they were given is not.
+- **Atom counts, coordinates and B-factors.** Reaching any of them means reading
+  the coordinate section, which is what header-only reading exists to avoid.
+
+**No record set is emitted.** Atom records are records of a molecule, not of a
+dataset schema, so a structure is described as a file: the statement above is
+carried in the `description` of its `cr:FileObject`. `encodingFormat` is
+`chemical/x-pdb`, with the compression media type added by the input layer when
+the file arrives under one. PDB has no IANA registration; `chemical/x-pdb` is
+the spelling the chemical MIME family gave it, and the one the archive and the
+molecular viewers use.
+
+mmCIF/PDBx (`.cif`, `.mmcif`) is not covered yet. It is the format the archive
+now treats as primary, and the only one that can hold a structure too large for
+eighty columns; those files are reported as unsupported, and nothing claims
+them.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
