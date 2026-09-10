@@ -241,8 +241,13 @@ def make_record_set_ids(file_metas: list) -> list:
     return _disambiguate_ids(items)
 
 
+#: Key under which :func:`allocate_record_set_ids` returns a file's own base
+#: when asked for it. The empty string is not a suffix, so it cannot collide.
+BASE = ""
+
+
 def allocate_record_set_ids(
-    file_metas: list, suffixes: Sequence[str]
+    file_metas: list, suffixes: Sequence[str], *, include_base: bool = False
 ) -> List[Dict[str, str]]:
     """One RecordSet @id per (file, suffix), unique across the whole batch.
 
@@ -270,6 +275,11 @@ def allocate_record_set_ids(
             deterministic order and reads back only the ids it emits; a
             reserved id nothing uses costs a string and changes no other id,
             because every candidate is already prefixed by its own file's base.
+        include_base: Also return each file's own base, under :data:`BASE`.
+            For a handler that emits one unsuffixed record set for some of its
+            files — the HDF5 handler does, for a container whose layout it did
+            not recognise. Step 2 reserves the base either way, so asking for
+            it moves no other id.
 
     Returns:
         One ``{suffix: @id}`` dict per file, parallel to ``file_metas``.
@@ -295,7 +305,9 @@ def allocate_record_set_ids(
         bases[i] = base
 
     taken = set(bases)
-    allocated: List[Dict[str, str]] = [{} for _ in items]
+    allocated: List[Dict[str, str]] = [
+        {BASE: base} if include_base else {} for base in bases
+    ]
     for i in order:
         for suffix in suffixes:
             candidate = f"{bases[i]}_{sanitize_id(suffix)}"

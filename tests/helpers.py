@@ -230,6 +230,13 @@ def _soft() -> list:
     ]
 
 
+def _hdf5() -> list:
+    """A 10x feature matrix: the smallest sample that exercises a layout."""
+    from tests.hdf5_fixtures import tenx_bytes
+
+    return [("filtered_feature_bc_matrix.h5", tenx_bytes())]
+
+
 #: The SAM text header of the sample BAM, which its own test also reads.
 BAM_HEADER_TEXT = (
     "@HD\tVN:1.6\tSO:coordinate\n"
@@ -528,6 +535,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "DICOMHandler": _dicom,
     "NIfTIHandler": _nifti,
     "SOFTHandler": _soft,
+    "HDF5Handler": _hdf5,
     "VCFHandler": _vcf,
     "BAMHandler": _bam,
     "SAMHandler": _sam,

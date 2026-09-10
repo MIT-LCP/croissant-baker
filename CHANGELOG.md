@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.4.0...croissant-baker-v0.5.0) (2026-09-10)
+
+
+### Features
+
+* add BigTIFF and OME-TIFF header metadata ([#119](https://github.com/MIT-LCP/croissant-baker/issues/119)) ([f5af165](https://github.com/MIT-LCP/croissant-baker/commit/f5af165664a6702cefe484a69ac589fbb13eb024))
+* add GEO SOFT metadata support ([#118](https://github.com/MIT-LCP/croissant-baker/issues/118)) ([e554a5e](https://github.com/MIT-LCP/croissant-baker/commit/e554a5e5edbbf2e3bdb05346cc4010fbcf5587eb))
+* detect foreign keys and emit cr:references between RecordSets ([1c6fc03](https://github.com/MIT-LCP/croissant-baker/commit/1c6fc03650efc1dd2cd442992785c9114998cb69))
+* HDF5 handler, with AnnData and 10x layouts (depend on [#117](https://github.com/MIT-LCP/croissant-baker/issues/117)) ([#120](https://github.com/MIT-LCP/croissant-baker/issues/120)) ([5af7c2a](https://github.com/MIT-LCP/croissant-baker/commit/5af7c2a251834125b42115911fd890a7f1d46dd9))
+
 ## [0.4.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.3.2...croissant-baker-v0.4.0) (2026-09-07)
 
 
