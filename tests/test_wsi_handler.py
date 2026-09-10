@@ -147,6 +147,44 @@ def test_bytes_that_are_not_a_tiff_raise_a_value_error_naming_the_file(
     assert "nested/slide.svs" in str(caught.value)
 
 
+def test_a_reader_error_with_a_bare_number_for_a_message_names_its_type(
+    handler: WSIHandler, dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """tifffile raises with a file offset for a message often enough that
+    "Failed to read whole-slide image slide.svs: 0" is what a user is left
+    with in ``--report``."""
+    from croissant_baker.handlers import wsi
+
+    def fail(tif) -> None:
+        raise IndexError("0")
+
+    monkeypatch.setattr(wsi, "read", fail)
+    path = write_wrapped(dataset, "slide.svs", APERIO_SVS)
+
+    with pytest.raises(ValueError) as caught:
+        handler.extract(make_source(path, Path("slide.svs")))
+
+    assert "IndexError: 0" in str(caught.value)
+
+
+def test_a_reader_error_that_says_something_is_quoted_as_it_stands(
+    handler: WSIHandler, dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A message a user can act on needs no type name in front of it."""
+    from croissant_baker.handlers import wsi
+
+    def fail(tif) -> None:
+        raise ValueError("not a TIFF file")
+
+    monkeypatch.setattr(wsi, "read", fail)
+    path = write_wrapped(dataset, "slide.svs", APERIO_SVS)
+
+    with pytest.raises(ValueError) as caught:
+        handler.extract(make_source(path, Path("slide.svs")))
+
+    assert str(caught.value).endswith("slide.svs: not a TIFF file")
+
+
 def test_a_missing_slide_raises_file_not_found(
     handler: WSIHandler, dataset: Path
 ) -> None:

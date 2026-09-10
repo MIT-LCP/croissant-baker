@@ -5,6 +5,7 @@ vendors and no Croissant, and this module knows Croissant and no vendor.
 """
 
 import logging
+import re
 from typing import Dict, List
 
 import mlcroissant as mlc
@@ -94,7 +95,7 @@ class WSIHandler(FileTypeHandler):
                 header = wsi.read(tif)
         except Exception as e:
             raise ValueError(
-                f"Failed to read whole-slide image {source.relative_path}: {e}"
+                f"Failed to read whole-slide image {source.relative_path}: {_reason(e)}"
             ) from e
 
         if header.refusal:
@@ -133,6 +134,24 @@ class WSIHandler(FileTypeHandler):
         if not file_metas:
             return BuildResult([], [])
         return BuildResult([_file_set(file_metas)], [_record_set(file_metas)])
+
+
+#: A message that is only a number says nothing on its own.
+_BARE_NUMBER = re.compile(r"[-+]?\d+(?:\.\d+)?")
+
+
+def _reason(exc: Exception) -> str:
+    """The message to quote for a read that failed, named by type where needed.
+
+    tifffile raises with a file offset for a message, or with none at all, and
+    that message becomes the reason detail a user reads in ``--report``:
+    "Failed to read whole-slide image slide.ndpi: 0" names no failure.
+    """
+    text = str(exc).strip()
+    if text and not _BARE_NUMBER.fullmatch(text):
+        return text
+    name = type(exc).__name__
+    return f"{name}: {text}" if text else name
 
 
 def _headers(file_metas: List[Dict]) -> List[wsi.SlideHeader]:
