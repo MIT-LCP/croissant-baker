@@ -1,0 +1,481 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/",
+    "citeAs": "cr:citeAs",
+    "column": "cr:column",
+    "conformsTo": "dct:conformsTo",
+    "cr": "http://mlcommons.org/croissant/",
+    "rai": "http://mlcommons.org/croissant/RAI/",
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
+    "dct": "http://purl.org/dc/terms/",
+    "equivalentProperty": "cr:equivalentProperty",
+    "examples": {
+      "@id": "cr:examples",
+      "@type": "@json"
+    },
+    "extract": "cr:extract",
+    "field": "cr:field",
+    "fileProperty": "cr:fileProperty",
+    "fileObject": "cr:fileObject",
+    "fileSet": "cr:fileSet",
+    "format": "cr:format",
+    "includes": "cr:includes",
+    "isLiveDataset": "cr:isLiveDataset",
+    "jsonPath": "cr:jsonPath",
+    "key": "cr:key",
+    "md5": "cr:md5",
+    "parentField": "cr:parentField",
+    "path": "cr:path",
+    "recordSet": "cr:recordSet",
+    "references": "cr:references",
+    "regex": "cr:regex",
+    "repeated": "cr:repeated",
+    "replace": "cr:replace",
+    "samplingRate": "cr:samplingRate",
+    "sc": "https://schema.org/",
+    "separator": "cr:separator",
+    "source": "cr:source",
+    "subField": "cr:subField",
+    "transform": "cr:transform"
+  },
+  "@type": "sc:Dataset",
+  "name": "Whole-slide demo (synthetic pathology slides)",
+  "description": "One synthetic slide per scanner vendor, and one DICOM whole-slide microscopy instance",
+  "conformsTo": "http://mlcommons.org/croissant/1.1",
+  "citeAs": "croissant-baker test suite. (2026). Whole-slide demo (synthetic pathology slides) [Data set].",
+  "creator": {
+    "@type": "sc:Person",
+    "name": "croissant-baker test suite"
+  },
+  "datePublished": "2026-01-01",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "url": "https://example.org/wsi-demo",
+  "version": "1.0.0",
+  "distribution": [
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_0",
+      "name": "ventana.bif",
+      "contentSize": "4416",
+      "contentUrl": "ventana.bif",
+      "encodingFormat": "image/tiff",
+      "sha256": "a8553e6f238fa6d975ca8f2d41ec4e1e0a1069c7b831613a073e19dece05c1a8"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_1",
+      "name": "leica.scn",
+      "contentSize": "1350",
+      "contentUrl": "leica.scn",
+      "encodingFormat": "image/tiff",
+      "sha256": "ca49fe500186395da3465da9c6484edd1a3c623bd1d7d1f3799ca85103284dd2"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_2",
+      "name": "aperio.svs",
+      "contentSize": "24240",
+      "contentUrl": "aperio.svs",
+      "encodingFormat": "image/tiff",
+      "sha256": "19c4a6e098df07575a5e9abb8ff1ecb2f558615325b6b2f523b491171886f321"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_3",
+      "name": "akoya.qptiff",
+      "contentSize": "14070",
+      "contentUrl": "akoya.qptiff",
+      "encodingFormat": "image/tiff",
+      "sha256": "36e7aa99648253adf8a27f916c5b2700474fda0f4a99f30d7dda41803c3fc441"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_4",
+      "name": "hamamatsu.ndpi",
+      "contentSize": "323",
+      "contentUrl": "hamamatsu.ndpi",
+      "encodingFormat": "image/tiff",
+      "sha256": "e699e5e34ebd302a45cada98d13e95ef0bc7c4e9f427ff40bb8b873ba6643c90"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_5",
+      "name": "slide.dcm",
+      "contentSize": "792",
+      "contentUrl": "dicom/slide.dcm",
+      "encodingFormat": "application/dicom",
+      "sha256": "0b06a75c841b1437c32e36eeea612b3106c5b7e258c7efb0cb9a0d09464f851f"
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "wsi-files",
+      "name": "Whole-slide image files",
+      "description": "5 whole-slide image file(s) (akoya (1), aperio (1), hamamatsu (1), leica (1), ventana (1))",
+      "encodingFormat": "image/tiff",
+      "includes": [
+        "**/*.bif",
+        "**/*.ndpi",
+        "**/*.qptiff",
+        "**/*.scn",
+        "**/*.svs",
+        "*.bif",
+        "*.ndpi",
+        "*.qptiff",
+        "*.scn",
+        "*.svs"
+      ]
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "dicom-files",
+      "name": "DICOM files",
+      "description": "1 DICOM file(s) (SM (1))",
+      "encodingFormat": "application/dicom",
+      "includes": [
+        "**/*.dcm",
+        "**/*.dicom"
+      ]
+    }
+  ],
+  "recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "@id": "slides",
+      "name": "slides",
+      "description": "5 whole-slide image(s) (64-256x64-256): akoya (1), aperio (1), hamamatsu (1), leica (1), ventana (1). Objective magnification: 20-40.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "slides/image",
+          "name": "image",
+          "description": "Slide content (5 whole-slide file(s))",
+          "dataType": "sc:ImageObject",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/filename",
+          "name": "filename",
+          "description": "The slide's file name, which identifies the section",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "filename"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/vendor",
+          "name": "vendor",
+          "description": "The scanner vendor that wrote the file (akoya, aperio, hamamatsu, leica, ventana)",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/width",
+          "name": "width",
+          "description": "Base level width in pixels (64-256)",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/height",
+          "name": "height",
+          "description": "Base level height in pixels (64-256)",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/level_count",
+          "name": "level_count",
+          "description": "Pyramid levels, the base level included (1-2)",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/mpp_x",
+          "name": "mpp_x",
+          "description": "Micrometres per pixel across the base level (0.25-0.5)",
+          "dataType": "sc:Float",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/mpp_y",
+          "name": "mpp_y",
+          "description": "Micrometres per pixel down the base level (0.25-0.5)",
+          "dataType": "sc:Float",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/objective_power",
+          "name": "objective_power",
+          "description": "Magnification of the objective the slide was scanned through (20-40)",
+          "dataType": "sc:Float",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "dicom",
+      "name": "dicom",
+      "description": "1 DICOM files (512x512): SM (1); 1 whole-slide microscopy instance (VOLUME)",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/modality",
+          "name": "modality",
+          "description": "DICOM Modality (0008,0060)",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/rows",
+          "name": "rows",
+          "description": "DICOM Rows (0028,0010)",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/columns",
+          "name": "columns",
+          "description": "DICOM Columns (0028,0011)",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/num_frames",
+          "name": "num_frames",
+          "description": "DICOM NumberOfFrames (0028,0008); >1 for multi-frame / cine DICOM",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/bits_allocated",
+          "name": "bits_allocated",
+          "description": "DICOM BitsAllocated (0028,0100); bits per pixel sample",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/patient_id",
+          "name": "patient_id",
+          "description": "DICOM PatientID (0010,0020); root of the patient/study/series/instance hierarchy",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/study_instance_uid",
+          "name": "study_instance_uid",
+          "description": "DICOM StudyInstanceUID (0020,000D); UID grouping all series from one patient visit",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/series_instance_uid",
+          "name": "series_instance_uid",
+          "description": "DICOM SeriesInstanceUID (0020,000E); UID grouping slices from one acquisition",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/wsi_flavor",
+          "name": "wsi_flavor",
+          "description": "DICOM ImageType (0008,0008) value 3 for whole slide images: VOLUME, LABEL, OVERVIEW, or THUMBNAIL",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/total_pixel_matrix_columns",
+          "name": "total_pixel_matrix_columns",
+          "description": "DICOM TotalPixelMatrixColumns (0048,0006); width in pixels of the whole slide, across all tiles",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/total_pixel_matrix_rows",
+          "name": "total_pixel_matrix_rows",
+          "description": "DICOM TotalPixelMatrixRows (0048,0007); height in pixels of the whole slide, across all tiles",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "dicom/container_identifier",
+          "name": "container_identifier",
+          "description": "DICOM ContainerIdentifier (0040,0512); the slide barcode, shared by every instance imaged from one glass slide",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "dicom-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

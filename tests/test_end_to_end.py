@@ -1337,8 +1337,13 @@ def _discovery_independent(document: dict) -> dict:
     FileObject ids are scan counters. Resolve each to its contentUrl so that
     reordered files compare equally, while a source pointing at the wrong
     file still fails. Preserve field order and all other metadata.
+
+    A FileSet carries no contentUrl and needs none: its id is the handler's
+    own, the same in every discovery order.
     """
-    file_urls = {d["@id"]: d["contentUrl"] for d in document["distribution"]}
+    file_urls = {
+        d["@id"]: d["contentUrl"] for d in document["distribution"] if "contentUrl" in d
+    }
 
     def resolve(value):
         if isinstance(value, dict):
@@ -1608,3 +1613,94 @@ def test_hdf5_demo_generation(
     assert _discovery_independent(
         json.loads(output_file.read_text())
     ) == _discovery_independent(json.loads(golden.read_text()))
+
+
+# ---------------------------------------------------------------------------
+# Whole-slide images (one slide per vendor, and a DICOM slide beside them)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def wsi_demo_path() -> Path:
+    """Path to the whole-slide demo dataset, which this repository tracks.
+
+    A hard failure rather than a skip, as for the other synthetic fixtures:
+    the files are committed, so they can only go missing by accident, and
+    skipping would hide the loss.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "wsi_demo"
+    assert dataset_path.is_dir(), (
+        f"tracked whole-slide fixture missing at {dataset_path}"
+    )
+    return dataset_path
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_wsi_demo_generation(
+    wsi_demo_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
+    """The whole CLI over five vendor slides and one DICOM slide.
+
+    Two handlers in one bake, which no unit test covers: the vendor TIFFs
+    become the ``slides`` record set and the DICOM instance goes to the DICOM
+    handler, which reports it as a whole-slide microscopy instance rather than
+    as a cross section. Compared against the committed document, as the HDF5
+    and GEO SOFT bakes are, and run in both discovery orders because ``rglob``
+    order is the filesystem's rather than sorted.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output_file = tmp_path / "wsi_demo_croissant.jsonld"
+    golden = Path(__file__).parent / "data" / "output" / "wsi_demo_croissant.jsonld"
+    assert golden.is_file(), f"tracked whole-slide golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(wsi_demo_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "Whole-slide demo (synthetic pathology slides)",
+            "--description",
+            "One synthetic slide per scanner vendor, and one DICOM whole-slide microscopy instance",
+            "--url",
+            "https://example.org/wsi-demo",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--dataset-version",
+            "1.0.0",
+            "--date-published",
+            "2026-01-01",
+            "--creator",
+            "croissant-baker test suite",
+        ],
+    )
+
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "Scanned 8 file(s): 6 described, 2 not described" in result.stdout
+
+    metadata = json.loads(output_file.read_text())
+    record_sets = {r["name"]: r for r in metadata["recordSet"]}
+    assert set(record_sets) == {"slides", "dicom"}
+
+    slides = record_sets["slides"]["description"]
+    for vendor in ("aperio", "akoya", "hamamatsu", "leica", "ventana"):
+        assert f"{vendor} (1)" in slides, slides
+
+    assert (
+        "1 whole-slide microscopy instance (VOLUME)"
+        in record_sets["dicom"]["description"]
+    )
+
+    assert _discovery_independent(metadata) == _discovery_independent(
+        json.loads(golden.read_text())
+    )
