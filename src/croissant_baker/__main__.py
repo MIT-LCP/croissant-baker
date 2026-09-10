@@ -567,7 +567,7 @@ def main(
     genomic_sample_ids: bool = typer.Option(
         False,
         "--genomic-sample-ids",
-        help="Emit the sample identifiers a genomic file names in its header (VCF sample columns, BAM read-group SM tags). Off by default: for a controlled release those identifiers are a manifest of the cohort, and the counts are emitted either way.",
+        help="Emit the sample identifiers a genomic file names in its header (VCF and BCF sample columns; BAM, CRAM and SAM read-group SM tags). Off by default: for a controlled release those identifiers are a manifest of the cohort, and the counts are emitted either way.",
     ),
     jobs: int = typer.Option(
         0,
