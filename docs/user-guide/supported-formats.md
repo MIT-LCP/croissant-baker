@@ -442,7 +442,11 @@ reference sequences and, from the first, the assembly name; `@RG` the number of
 read groups with their sequencing platforms and centres; `@PG` the program chain
 in declaration order. Nothing in front of the header says how long it is, so the
 read is bounded by the stop at the first line that does not start with `@`: no
-alignment record is read, whatever the size of the file.
+alignment record is read, whatever the size of the file. The header is taken a
+chunk at a time, and a file that never reaches a line that is not a header line
+is reported: a single line above 1 MiB is not a header line, and a header above
+64 MiB, the cap the binary containers state their own header length against, is
+not a header.
 
 A SAM is claimed on its extension **and** its first header line, and needs both.
 A FASTQ opens with `@` as well, so the leading character alone would describe one
@@ -462,7 +466,10 @@ FASTQ (`.fastq`, `.fq`) is the same four lines repeated until the run is
 exhausted: a read name, the bases, a `+` separator, and one quality character
 per base. The handler reads the first record and stops. Nothing behind it is
 opened, so a run of a hundred million reads costs the same read as a run of
-one.
+one. The record is taken from a bounded prefix of 1 MiB, which holds the
+longest read any instrument writes twice over, once as bases and once as
+quality scores; a first record that does not end inside it is reported rather
+than read for.
 
 The claim needs both the extension and the structure, because neither holds on
 its own. `@` opens a record's name line, but it also opens every line of a SAM

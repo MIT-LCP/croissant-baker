@@ -6,7 +6,7 @@ import logging
 import re
 import warnings
 from pathlib import Path
-from typing import BinaryIO, Dict, List, Optional, Sequence, Union
+from typing import BinaryIO, Dict, Iterator, List, Optional, Sequence, Union
 
 
 import mlcroissant as mlc
@@ -96,6 +96,32 @@ def read_exactly(
             f"bytes, got {len(data)}"
         )
     return data
+
+
+#: How much of a stream is pulled at a time by a handler reading a prefix whose
+#: length nothing states in advance. Small enough that a short header costs one
+#: read of it, large enough that a long one costs a handful.
+PREFIX_CHUNK_BYTES = 32 * 1024
+
+
+def read_prefix_chunks(
+    stream: BinaryIO, limit: int, chunk_size: int = PREFIX_CHUNK_BYTES
+) -> Iterator[bytes]:
+    """Up to ``limit`` bytes of ``stream``, a chunk at a time, until it ends.
+
+    Chunked rather than one read of ``limit``, because the limit is the size of
+    the largest header or record anyone writes: pulling it every time would
+    read a megabyte off a file to look at the first line of it. Chunked rather
+    than iterated by line, because a file holding no line ending is one line,
+    and reading it is reading the whole file.
+    """
+    remaining = limit
+    while remaining > 0:
+        data = stream.read(min(chunk_size, remaining))
+        if not data:
+            return
+        remaining -= len(data)
+        yield data
 
 
 def decompress_prefix(head: bytes, count: int) -> bytes:

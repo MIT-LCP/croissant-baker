@@ -228,6 +228,44 @@ def test_the_read_stops_at_the_first_alignment_record(dataset: Path) -> None:
     assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
 
 
+#: A body with no line ending anywhere in it, and the read a bounded handler
+#: may spend before refusing it: the line cap, plus the chunk it was reached in.
+NO_NEWLINE_BYTES = 4 * 1024 * 1024
+BOUNDED_REFUSAL = 2 * 1024 * 1024
+
+
+def test_a_body_holding_no_line_ending_is_refused_after_a_bounded_read(
+    dataset: Path,
+) -> None:
+    """Nothing in front of a SAM header says how long it is, so a reader taking
+    it a line at a time takes the whole file as one line when the file holds no
+    line ending. A header line is a handful of tab-separated tags; a megabyte
+    without one is not a header line, and the file is reported as such."""
+    body = b"@HD\tVN:1.6\t" + b"x" * NO_NEWLINE_BYTES
+    path = write(dataset, "unbroken.sam", body)
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "unbroken.sam" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < BOUNDED_REFUSAL
+
+
+def test_a_header_spanning_many_chunks_is_read_whole(dataset: Path) -> None:
+    """Bounded is not truncated. A reference per contig of a fragmented
+    assembly runs to hundreds of kilobytes of ``@SQ`` lines, and every one of
+    them is a reference this handler counts."""
+    references = 5000
+    header = "@HD\tVN:1.6\tSO:coordinate\n" + "".join(
+        f"@SQ\tSN:scaffold{i}\tLN:100000\tAS:GRCh38\n" for i in range(references)
+    )
+    path = write(dataset, "many.sam", (header + SAM_ALIGNMENT_TEXT).encode())
+    assert path.stat().st_size > 128 * 1024
+
+    assert extract(path)["sq_count"] == references
+
+
 def test_no_alignment_record_becomes_a_record_set(dataset: Path) -> None:
     """Aligned reads are records of a genome, not of a dataset schema: a SAM is
     described as a file, and the description is all of it."""
