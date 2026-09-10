@@ -478,6 +478,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "FHIRHandler": _ndjson,
     "ParquetHandler": _parquet,
     "ImageHandler": _images,
+    "WSIHandler": _wsi,
     "DICOMHandler": _dicom,
     "NIfTIHandler": _nifti,
     "SOFTHandler": _soft,
