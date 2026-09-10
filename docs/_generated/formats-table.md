@@ -16,3 +16,4 @@
 | HDF5 | `.h5`, `.h5ad`, `.hdf5` | `.gz`, `.bz2`, `.xz` | Dataset paths, dtypes and shapes; AnnData and 10x table columns where the layout is recognised |
 | VCF | `.vcf` | `.gz`, `.bz2`, `.xz` | Reference, contig count, typed INFO and FORMAT keys, sample count |
 | BAM | `.bam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
+| SAM | `.sam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
