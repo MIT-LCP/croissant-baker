@@ -158,14 +158,12 @@ def ome_bomb(levels: int = 6) -> str:
 OME_TIFF = tiff_bytes(ome_xml(ome_image()), planes=3)
 
 
-# --------------------------------------------------------------------------
 # Whole-slide images
 #
 # One synthetic slide per vendor, small enough to build in memory on every
 # run. Each carries the signal tifffile identifies that vendor by, and
 # ``tests/test_wsi.py`` asserts the corresponding ``is_*`` property before any
 # other test relies on it.
-# --------------------------------------------------------------------------
 
 
 def _rgb(width: int, height: int) -> np.ndarray:

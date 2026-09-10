@@ -1615,9 +1615,7 @@ def test_hdf5_demo_generation(
     ) == _discovery_independent(json.loads(golden.read_text()))
 
 
-# ---------------------------------------------------------------------------
 # Whole-slide images (one slide per vendor, and a DICOM slide beside them)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
