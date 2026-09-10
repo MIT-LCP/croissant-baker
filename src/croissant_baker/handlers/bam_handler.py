@@ -11,16 +11,16 @@ generator honours.
 """
 
 import gzip
-import io
 import logging
 import struct
 import zlib
 from typing import BinaryIO
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.sam_header import (
-    describe_alignment,
-    parse_sam_header,
+from croissant_baker.handlers.sam_header import describe_alignment, parse_sam_header
+from croissant_baker.handlers.utils import (
+    MAX_HEADER_BYTES,
+    decompress_prefix,
     read_exactly,
 )
 from croissant_baker.sources import FileSource
@@ -49,9 +49,9 @@ INT32_BYTES = 4
 #: The largest SAM text header this handler will read. ``l_text`` is a signed
 #: 32-bit integer the file chooses, so trusting it turns a header read into a
 #: read of the whole file, which is the one thing this handler exists not to
-#: do. 64 MiB is far above any real header: a header of a million reference
-#: sequences, which no assembly has, is a few tens of MiB.
-MAX_TEXT_BYTES = 64 * 1024 * 1024
+#: do. The cap is the shared one, because every container in this family states
+#: its own header length and none of them may be believed about it.
+MAX_TEXT_BYTES = MAX_HEADER_BYTES
 
 
 def _read_exactly(stream: BinaryIO, count: int, what: str, name: str) -> bytes:
@@ -102,7 +102,7 @@ class BAMHandler(FileTypeHandler):
         if not head.startswith(COMPRESSED_MAGIC):
             return False
         try:
-            return _decompress_prefix(head, len(MAGIC)) == MAGIC
+            return decompress_prefix(head, len(MAGIC)) == MAGIC
         except (OSError, EOFError, zlib.error):
             return False
 
@@ -192,13 +192,3 @@ class BAMHandler(FileTypeHandler):
         be a promise nobody can keep.
         """
         return BuildResult([], [])
-
-
-def _decompress_prefix(head: bytes, count: int) -> bytes:
-    """The first ``count`` bytes inside a compressed prefix.
-
-    A prefix, so the stream ends mid-member; that is expected, and the bytes
-    already produced are the answer.
-    """
-    with gzip.GzipFile(fileobj=io.BytesIO(head), mode="rb") as payload:
-        return payload.read(count)
