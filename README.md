@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/MIT-LCP/croissant-baker/actions/workflows/test.yaml"><img src="https://github.com/MIT-LCP/croissant-baker/actions/workflows/test.yaml/badge.svg" alt="CI"></a>
+  <a href="https://htmlpreview.github.io/?https://github.com/MIT-LCP/croissant-baker/blob/python-coverage-comment-action-data/htmlcov/index.html"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/MIT-LCP/croissant-baker/python-coverage-comment-action-data/endpoint.json" alt="Coverage"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
   <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv"></a>
   <a href="https://github.com/MIT-LCP/croissant-baker/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>

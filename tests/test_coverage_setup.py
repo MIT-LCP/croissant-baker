@@ -86,3 +86,23 @@ def test_the_comment_workflow_follows_the_test_workflow() -> None:
 def test_the_comment_workflow_reads_the_triggering_run() -> None:
     step = _coverage_step(_workflow("coverage-comment.yaml"))
     assert "workflow_run.id" in step["with"]["GITHUB_PR_RUN_ID"]
+
+
+def test_the_readme_badge_reads_the_data_branch_the_action_writes() -> None:
+    step = _coverage_step(_workflow("test.yaml"))
+    branch = step["with"].get("COVERAGE_DATA_BRANCH", DEFAULT_DATA_BRANCH)
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    endpoint = (
+        "https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/"
+        f"MIT-LCP/croissant-baker/{branch}/endpoint.json"
+    )
+    assert endpoint in readme
+
+
+def test_the_readme_badge_links_to_the_html_report() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    report = (
+        "https://github.com/MIT-LCP/croissant-baker/blob/"
+        f"{DEFAULT_DATA_BRANCH}/htmlcov/index.html"
+    )
+    assert report in readme
