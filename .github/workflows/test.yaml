@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+# Every job below states what it needs.
+permissions: {}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -26,6 +29,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # The coverage action hands the token it is given straight to git, so
+          # a write-scoped credential need not be left in .git/config where a
+          # later step in the job could read it.
+          persist-credentials: false
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -43,7 +50,7 @@ jobs:
       - name: Coverage comment
         id: coverage_comment
         if: matrix.python-version == '3.12'
-        uses: py-cov-action/python-coverage-comment-action@v3.41
+        uses: py-cov-action/python-coverage-comment-action@v4.3
         with:
           GITHUB_TOKEN: ${{ github.token }}
 
