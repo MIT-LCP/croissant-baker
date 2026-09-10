@@ -33,6 +33,9 @@ dependencies = [
     "pydicom>=2.4",
     "nibabel>=5.0",
     "h5py>=3.11",
+    # Structural biology: PDB, mmCIF and STAR parsing. Binary headers (MRC, MTZ)
+    # are read without it.
+    "gemmi>=0.7.0",
 ]
 
 [project.scripts]
