@@ -244,6 +244,22 @@ def test_a_single_record_with_no_line_ending_is_described(dataset: Path) -> None
     assert meta["fields"] == [{"name": "ID", "type": "cr:Int64"}]
 
 
+def test_a_file_of_exactly_the_sampled_records_is_read_to_its_end(
+    dataset: Path,
+) -> None:
+    """Stopping on the hundredth record said the sample had been cut short
+    when it had not, and the record set then described its fields as read from
+    the first hundred of a file that holds a hundred."""
+    payload = b"".join(
+        sdf_record(MOL_V2000, [("ID", str(index))]) for index in range(SAMPLE_RECORDS)
+    )
+
+    meta = extract(write(dataset, "hundred.sdf", payload))
+
+    assert meta["sampled_records"] == SAMPLE_RECORDS
+    assert meta["sample_exhausted"] is True
+
+
 def test_versions_that_differ_across_the_sample_are_reported_as_mixed(
     dataset: Path,
 ) -> None:
