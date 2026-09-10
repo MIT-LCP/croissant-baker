@@ -21,7 +21,7 @@ import re
 from typing import List, Optional
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.utils import plural, read_prefix_chunks
+from croissant_baker.handlers.utils import PrefixLines, decode_line, plural
 from croissant_baker.sources import UNREADABLE, FileSource
 
 #: XYZ has no IANA registration. ``chemical/*`` is the family the chemistry
@@ -188,32 +188,27 @@ class XYZHandler(FileTypeHandler):
     def _read_first_frame(self, source: FileSource, name: str) -> List[str]:
         """The first three lines, decoded and stripped of their endings.
 
-        Taken from a bounded prefix rather than as three lines off the stream: a
-        stream iterated by line hands back the whole file as one line when the
-        file holds no line ending, so a frame whose header does not end inside
-        the prefix is reported rather than read for.
-
-        Permissively decoded: a comment line is whatever a writer put there, and
-        a stray byte in it is not a reason to refuse a file whose frame is
-        otherwise readable.
+        Read through :class:`~croissant_baker.handlers.utils.PrefixLines`, which
+        is bounded in bytes, so a frame whose header does not end inside the
+        prefix is reported rather than read for.
         """
-        head = b""
+        lines: List[str] = []
         try:
             with source.open() as stream:
-                for chunk in read_prefix_chunks(stream, HEAD_BYTES):
-                    head += chunk
-                    if head.count(b"\n") >= FRAME_LINES:
+                for line in PrefixLines(stream, HEAD_BYTES):
+                    lines.append(line)
+                    if len(lines) == FRAME_LINES:
                         break
         except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
             ) from exc
 
-        if not head:
+        if not lines:
             raise ValueError(
                 f"Empty {self.FORMAT_NAME} file: {name} holds no frame to describe"
             )
-        return _decode_lines(head)[:FRAME_LINES]
+        return lines
 
     def _atom_count(self, lines: List[str], name: str) -> int:
         """The first line as a count, or a refusal saying what is there instead.
@@ -308,7 +303,7 @@ def _decode_lines(head: bytes) -> List[str]:
     on form feeds and on the Unicode line separators: a comment line is free
     text, and a byte inside it must not turn one line into two.
     """
-    return [line.rstrip("\r") for line in head.decode("utf-8", "replace").split("\n")]
+    return [decode_line(raw) for raw in head.split(b"\n")]
 
 
 def _atom_count_of(line: str) -> Optional[int]:

@@ -6,7 +6,16 @@ import logging
 import re
 import warnings
 from pathlib import Path
-from typing import BinaryIO, Dict, Iterator, List, Optional, Sequence, Union
+from typing import (
+    BinaryIO,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Union,
+)
 
 
 import mlcroissant as mlc
@@ -122,6 +131,75 @@ def read_prefix_chunks(
             return
         remaining -= len(data)
         yield data
+
+
+def decode_line(raw: bytes) -> str:
+    """One line as text, with the carriage return of a CRLF file gone.
+
+    Decoded permissively: the line-oriented formats in this tree are printable
+    ASCII by specification, and a stray byte in a title, a comment or a data
+    item is not a reason to refuse a file whose structure is otherwise
+    readable.
+    """
+    return raw.decode("utf-8", "replace").rstrip("\r")
+
+
+class PrefixLines:
+    """The head of a stream as decoded lines, bounded in bytes.
+
+    Chunked rather than iterated by line, because a stream iterated by line
+    hands back the whole file as one line when the file holds no line ending,
+    and reading the whole file is the one thing a bounded read exists not to
+    do. One of these replaces the loop every line-oriented handler used to
+    write out for itself.
+
+    What follows the last line ending is delivered as a final line when the
+    stream ended there: that is where a writer closing the file straight after
+    its last line leaves it. It is dropped when the bound stopped the read
+    instead, because a tail the bound cut in half is not a line and nothing may
+    be read off it.
+
+    ``on_chunk(read, pending)`` is called once per chunk, with the bytes pulled
+    off the stream so far and the length of the line still being assembled, for
+    a caller that owes the file a refusal before the line it is reading ends.
+    """
+
+    def __init__(
+        self,
+        stream: BinaryIO,
+        limit: int,
+        chunk_size: int = PREFIX_CHUNK_BYTES,
+        on_chunk: Optional[Callable[[int, int], None]] = None,
+    ) -> None:
+        self._stream = stream
+        self._limit = limit
+        self._chunk_size = chunk_size
+        self._on_chunk = on_chunk
+        #: Bytes pulled off the stream.
+        self.read = 0
+        #: Bytes of the line still being assembled.
+        self.pending = 0
+        #: Whether the bound stopped the read rather than the end of the
+        #: stream. Answered once the iteration has run to its end; a caller
+        #: that stops early stopped for a bound of its own.
+        self.bounded = False
+
+    def __iter__(self) -> Iterator[str]:
+        pending = b""
+        for chunk in read_prefix_chunks(self._stream, self._limit, self._chunk_size):
+            self.read += len(chunk)
+            complete = (pending + chunk).split(b"\n")
+            # The tail after the last line ending is not yet a line.
+            pending = complete.pop()
+            self.pending = len(pending)
+            for raw in complete:
+                yield decode_line(raw)
+            if self._on_chunk is not None:
+                self._on_chunk(self.read, self.pending)
+        self.bounded = self.read >= self._limit
+        if pending and not self.bounded:
+            yield decode_line(pending)
+            self.pending = 0
 
 
 def decompress_prefix(head: bytes, count: int) -> bytes:

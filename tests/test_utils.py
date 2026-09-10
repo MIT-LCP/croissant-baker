@@ -1,7 +1,10 @@
 """Tests for handler utilities."""
 
+import io
+
 from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
+    PrefixLines,
     _disambiguate_ids,
     allocate_record_set_ids,
     make_field_id,
@@ -187,3 +190,55 @@ def test_numeric_identifier_collisions_start_at_two() -> None:
         "data__2",
         "data__3",
     ]
+
+
+def prefix_lines(payload: bytes, limit: int, **kwargs) -> PrefixLines:
+    return PrefixLines(io.BytesIO(payload), limit, **kwargs)
+
+
+def test_prefix_lines_yields_one_line_per_line_ending() -> None:
+    assert list(prefix_lines(b"one\ntwo\nthree\n", 1024)) == ["one", "two", "three"]
+
+
+def test_prefix_lines_strips_the_carriage_return_of_a_crlf_file() -> None:
+    assert list(prefix_lines(b"one\r\ntwo\r\n", 1024)) == ["one", "two"]
+
+
+def test_prefix_lines_decodes_a_stray_byte_rather_than_refusing_it() -> None:
+    """A byte outside UTF-8 in a comment is not a reason to lose the file."""
+    (line,) = list(prefix_lines(b"caf\xe9\n", 1024))
+
+    assert line.startswith("caf")
+
+
+def test_prefix_lines_delivers_the_tail_of_a_file_with_no_last_line_ending() -> None:
+    """Where a writer that closes the file straight after its last line leaves
+    it, and the class of bug that used to lose that line."""
+    assert list(prefix_lines(b"one\ntwo", 1024)) == ["one", "two"]
+
+
+def test_prefix_lines_drops_a_tail_the_bound_cut_in_half() -> None:
+    """Half a line is not a line, and nothing may be read off it."""
+    reader = prefix_lines(b"one\ntwo\nthree\n", 9)
+
+    assert list(reader) == ["one", "two"]
+    assert reader.bounded is True
+
+
+def test_prefix_lines_says_when_the_stream_ended_before_the_bound() -> None:
+    reader = prefix_lines(b"one\ntwo\n", 1024)
+    list(reader)
+
+    assert reader.bounded is False
+
+
+def test_prefix_lines_reports_what_it_pulled_and_what_it_holds() -> None:
+    """The two numbers a caller owing a refusal before the line ends needs."""
+    seen: list = []
+    reader = prefix_lines(
+        b"one\ntwo", 1024, on_chunk=lambda read, pending: seen.append((read, pending))
+    )
+    list(reader)
+
+    assert seen == [(7, 3)]
+    assert reader.read == 7
