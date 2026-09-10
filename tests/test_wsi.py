@@ -17,9 +17,7 @@ def open_bytes(data: bytes) -> tifffile.TiffFile:
     return tifffile.TiffFile(io.BytesIO(data))
 
 
-# --------------------------------------------------------------------------
 # The synthetic slides, checked against tifffile's own vendor properties
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -47,9 +45,7 @@ def read_bytes(data: bytes) -> wsi.SlideHeader:
         return wsi.read(tif)
 
 
-# --------------------------------------------------------------------------
 # Which vendor wrote the file
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("vendor", ["aperio", "hamamatsu", "leica", "ventana", "akoya"])
@@ -63,9 +59,7 @@ def test_a_tiff_no_vendor_signed_has_no_vendor() -> None:
     assert read_bytes(tiff_bytes()).vendor is None
 
 
-# --------------------------------------------------------------------------
 # The pyramid
-# --------------------------------------------------------------------------
 
 
 def test_the_base_level_dimensions_come_from_the_largest_page() -> None:
@@ -109,9 +103,7 @@ def test_a_single_page_tiff_is_a_one_level_pyramid() -> None:
     assert header.level_dimensions == ((8, 8),)
 
 
-# --------------------------------------------------------------------------
 # How the base level is stored
-# --------------------------------------------------------------------------
 
 
 def test_the_tile_size_comes_from_the_base_page() -> None:
@@ -137,9 +129,7 @@ def test_the_base_page_names_its_compression(data: bytes, compression: str) -> N
     assert read_bytes(data).compression == compression
 
 
-# --------------------------------------------------------------------------
 # Associated images
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -163,9 +153,7 @@ def test_a_plain_tiff_carries_no_associated_images() -> None:
     assert read_bytes(tiff_bytes()).associated_images == ()
 
 
-# --------------------------------------------------------------------------
 # The optics
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -215,9 +203,7 @@ def test_a_plain_tiff_states_no_optics() -> None:
     assert (header.mpp_x, header.mpp_y, header.objective_power) == (None, None, None)
 
 
-# --------------------------------------------------------------------------
 # Refusals
-# --------------------------------------------------------------------------
 
 
 SCN_ROOT = '<scn xmlns="http://www.leica-microsystems.com/scn/2010/10/01">'

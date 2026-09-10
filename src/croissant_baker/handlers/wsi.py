@@ -157,9 +157,7 @@ def _compression(page) -> Optional[str]:
     return str(getattr(compression, "name", compression)).lower()
 
 
-# ---------------------------------------------------------------------------
 # What each vendor states about the optics, in the place that vendor states it
-# ---------------------------------------------------------------------------
 
 
 def _optics(vendor: Optional[str], page) -> Tuple[Dict[str, float], str]:
@@ -306,9 +304,7 @@ def _positive(value) -> Optional[float]:
     return number if math.isfinite(number) and number > 0 else None
 
 
-# ---------------------------------------------------------------------------
 # Reading a vendor's XML, under the refusal policy ome.py sets
-# ---------------------------------------------------------------------------
 
 
 class _DeclarationForbidden(ValueError):
