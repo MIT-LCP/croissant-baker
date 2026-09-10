@@ -5,14 +5,13 @@ vendors and no Croissant, and this module knows Croissant and no vendor.
 """
 
 import logging
-from pathlib import Path
 from typing import Dict, List
 
 import mlcroissant as mlc
 
 from croissant_baker.handlers import wsi
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.image_handler import _TIFF_MAGICS
+from croissant_baker.handlers.utils import TIFF_MAGICS, extension_globs
 from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
@@ -80,7 +79,7 @@ class WSIHandler(FileTypeHandler):
             return False
         # Both TIFF versions and both byte orders: a slide crosses the 4 GiB
         # that sends a writer to BigTIFF far more often than it does not.
-        return source.peek(MAGIC_PREFIX_BYTES).startswith(_TIFF_MAGICS)
+        return source.peek(MAGIC_PREFIX_BYTES).startswith(TIFF_MAGICS)
 
     def extract(self, source: FileSource, **kwargs) -> dict:
         import tifffile
@@ -140,31 +139,6 @@ def _headers(file_metas: List[Dict]) -> List[wsi.SlideHeader]:
     return [meta["slide"] for meta in file_metas]
 
 
-def _includes(file_metas: List[Dict]) -> List[str]:
-    """One glob per extension the batch actually holds.
-
-    Both glob forms per extension: mlcroissant matches with fnmatch, where
-    ``**/`` requires a directory, and slides sit at the dataset root as often
-    as in a subdirectory.
-    """
-    patterns: Dict[str, str] = {}
-    for meta in file_metas:
-        extension = Path(meta["file_name"]).suffix
-        lower = extension.lower()
-        if extension != lower:
-            # Globs are case-sensitive on Linux. One character-class pattern
-            # covers every observed spelling without overlapping includes.
-            spelling = "".join(
-                f"[{char}{char.upper()}]" if char.isalpha() else char for char in lower
-            )
-            patterns[lower] = f"**/*{spelling}"
-        else:
-            patterns.setdefault(lower, f"**/*{lower}")
-    return sorted(
-        glob for pattern in patterns.values() for glob in (pattern, pattern[3:])
-    )
-
-
 def _file_set(file_metas: List[Dict]) -> mlc.FileSet:
     return mlc.FileSet(
         id=FILE_SET_ID,
@@ -173,7 +147,7 @@ def _file_set(file_metas: List[Dict]) -> mlc.FileSet:
             f"{len(file_metas)} whole-slide image file(s) ({_vendors(file_metas)})"
         ),
         encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
-        includes=_includes(file_metas),
+        includes=extension_globs(meta["file_name"] for meta in file_metas),
     )
 
 
