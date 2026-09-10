@@ -16,8 +16,9 @@ from croissant_baker.handlers.utils import (
     allocate_record_set_ids,
     display_name,
     make_field_id,
+    plural,
 )
-from croissant_baker.sources import FileSource
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: The declaration every VCF and gVCF opens with, and the whole claim. The
 #: extension cannot carry it: ``.vcf`` is also the vCard extension.
@@ -344,7 +345,7 @@ class VCFHandler(FileTypeHandler):
                 return read_header_lines(
                     raw.decode("utf-8", "replace") for raw in stream
                 )
-        except OSError as exc:
+        except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {source.relative_path}: {exc}"
             ) from exc
@@ -434,7 +435,7 @@ class VCFHandler(FileTypeHandler):
             name=name,
             description=(
                 f"{name} column, holding the keys declared by the header's "
-                f"'##{name}' lines ({_plural(len(sub_fields), 'key')})"
+                f"'##{name}' lines ({plural(len(sub_fields), 'key')})"
             ),
             source=mlc.Source(file_object=file_id),
             sub_fields=sub_fields or None,
@@ -447,7 +448,7 @@ class VCFHandler(FileTypeHandler):
         """The genotype columns, as one repeated field."""
         described = (
             "Genotype columns, one per sample, each holding the values the "
-            f"FORMAT keys name ({_plural(meta['sample_count'], 'sample')})"
+            f"FORMAT keys name ({plural(meta['sample_count'], 'sample')})"
         )
         sample_ids = meta.get("sample_ids")
         if sample_ids:
@@ -461,11 +462,6 @@ class VCFHandler(FileTypeHandler):
             True,
             described,
         )
-
-
-def _plural(count: int, noun: str) -> str:
-    """``1 contig``, ``2 samples``."""
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 def _key_description(group: str, key: dict) -> str:
@@ -484,8 +480,8 @@ def _description(meta: dict) -> str:
     stated = [meta["fileformat"]]
     if meta.get("reference"):
         stated.append(f"reference {meta['reference']}")
-    stated.append(_plural(meta["contig_count"], "contig"))
-    stated.append(_plural(meta["sample_count"], "sample"))
+    stated.append(plural(meta["contig_count"], "contig"))
+    stated.append(plural(meta["sample_count"], "sample"))
     described = (
         f"Variant records in {display_name(meta)} ({', '.join(stated)}). "
         "One record per called variant."

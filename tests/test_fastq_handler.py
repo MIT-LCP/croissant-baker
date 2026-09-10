@@ -13,6 +13,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.fastq_handler import FASTQHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -21,6 +22,8 @@ from tests.helpers import (
     BAM_HEADER_TEXT,
     SAMPLES,
     bake,
+    bake_with_report,
+    cut_gzip,
     file_objects,
     record_sets,
     write_wrapped,
@@ -205,6 +208,43 @@ def test_the_read_stops_after_the_first_record(dataset: Path) -> None:
     assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
 
 
+#: A body with no line ending anywhere in it, and the read a bounded handler
+#: may spend before refusing it: the prefix the first record must fit in.
+NO_NEWLINE_BYTES = 4 * 1024 * 1024
+BOUNDED_REFUSAL = 2 * 1024 * 1024
+
+
+def test_a_body_holding_no_line_ending_is_refused_after_a_bounded_read(
+    dataset: Path,
+) -> None:
+    """A record is four lines, so a reader taking four lines off a stream takes
+    the whole file when the file holds no line ending. The longest read any
+    instrument writes fits in the prefix; a record that does not end inside it
+    is not a record this handler reads."""
+    path = write(dataset, "unbroken.fq", b"@" + b"x" * NO_NEWLINE_BYTES)
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "unbroken.fq" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < BOUNDED_REFUSAL
+
+
+def test_a_long_read_is_still_described(dataset: Path) -> None:
+    """Bounded is not truncated. A long-read platform writes reads of hundreds
+    of kilobases, and the record carries each base twice: once as a base and
+    once as a quality score."""
+    bases = 300_000
+    path = write(
+        dataset,
+        "long.fastq",
+        b"@r1\n" + b"A" * bases + b"\n+\n" + b"I" * bases + b"\n",
+    )
+
+    assert extract(path)["first_read_length"] == bases
+
+
 def test_an_empty_file_is_refused_with_a_reason(dataset: Path) -> None:
     path = write(dataset, "empty.fastq", b"")
 
@@ -244,6 +284,37 @@ def test_a_record_with_no_quality_line_is_refused(dataset: Path) -> None:
         extract(path)
 
     assert "short.fastq" in str(caught.value)
+
+
+def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
+    dataset: Path,
+) -> None:
+    """A member intact for its first bytes opens, and then ends where the
+    download stopped. What that raises is not an ``OSError``, and a file is
+    owed a reason naming it either way."""
+    path = write(dataset, "cut.fastq.gz", cut_gzip(sample_bytes() * 20))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "cut.fastq" in str(caught.value)
+    assert "FASTQ" in str(caught.value)
+
+
+def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None:
+    """A file this handler claims and cannot read is reported by name, with the
+    reason it was refused for, and the run beside it is still described: the
+    loss is per-file, never the run."""
+    write(dataset, "ragged.fastq", b"@r1\nACGTACGT\n+\nIIII\n")
+    sample_fastq(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["reads.fastq"]
+    (refused,) = report.undescribed
+    assert refused.name == "ragged.fastq"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "ragged.fastq" in refused.detail
 
 
 def test_no_read_becomes_a_record_set(dataset: Path) -> None:

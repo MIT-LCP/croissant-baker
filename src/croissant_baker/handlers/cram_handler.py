@@ -16,7 +16,6 @@ FileObject, through the ``description`` key the generator honours.
 """
 
 import bz2
-import gzip
 import lzma
 import struct
 import zlib
@@ -27,9 +26,9 @@ from croissant_baker.handlers.sam_header import (
     SamHeader,
     describe_alignment,
     parse_sam_header,
-    read_exactly,
 )
-from croissant_baker.sources import FileSource
+from croissant_baker.handlers.utils import MAX_HEADER_BYTES, read_exactly
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: The four bytes a CRAM file definition opens with, and the whole claim. A
 #: CRAM is not wrapped at file level, so unlike BAM's there is nothing in front
@@ -52,30 +51,34 @@ READABLE_MAJOR_VERSIONS = (2, 3)
 #: The block content type the SAM header is carried in.
 FILE_HEADER = 0
 
+#: The method number of a block written as it stands, with nothing to decode.
+RAW = 0
+
+#: How many bits of window ``zlib`` is given for a method 1 block: fifteen,
+#: plus the thirty-two that mean "gzip or zlib header, whichever this is". The
+#: same argument htslib inflates one with, and the reason both spellings are
+#: read: CRAM's method 1 names the deflate family, not the gzip wrapper, and a
+#: reader taking only gzip refuses files the reference implementation reads.
+GZIP_OR_ZLIB_WINDOW = 15 + 32
+
 #: The block compression methods with a decoder in the standard library, by the
-#: method number a block declares. 4 is rANS, CRAM's own entropy coder, which
-#: has none and is refused by name.
-DECODERS = {
-    0: lambda data: data,
-    1: gzip.decompress,
-    2: bz2.decompress,
-    3: lzma.decompress,
+#: method number a block declares, each as the incremental decompressor it is
+#: read through. Incremental because a decoder handed a whole stream expands
+#: all of it, and what a block declares it holds is the bound this handler
+#: reads to. 4 is rANS, CRAM's own entropy coder, which has no stdlib decoder
+#: and is refused by name.
+DECOMPRESSORS = {
+    1: lambda: zlib.decompressobj(GZIP_OR_ZLIB_WINDOW),
+    2: bz2.BZ2Decompressor,
+    3: lzma.LZMADecompressor,
 }
 
-#: What to call a method this handler cannot decode, so the refusal says which.
-CODEC_NAMES = {4: "rANS"}
+#: What to call each method, so a refusal says which one was being read.
+CODEC_NAMES = {RAW: "raw", 1: "gzip", 2: "bzip2", 3: "lzma", 4: "rANS"}
 
 #: Every 32-bit field a container states is little-endian and signed.
 INT32 = "<i"
 INT32_BYTES = 4
-
-#: The largest header block this handler will read, applied to the compressed
-#: size, the decompressed size and the header text length alike. Each is a
-#: number the file chooses, so trusting one turns a header read into a read of
-#: the whole file, which is the one thing this handler exists not to do. 64 MiB
-#: is far above any real header: a header of a million reference sequences,
-#: which no assembly has, is a few tens of MiB.
-MAX_HEADER_BYTES = 64 * 1024 * 1024
 
 #: The most landmarks a container header may declare before this handler stops
 #: believing it. A landmark is the offset of one slice and a container holds
@@ -146,6 +149,39 @@ def _read_ltf8(stream: BinaryIO, what: str, name: str) -> int:
     if extra < 8:
         value |= (first & (0xFF >> (extra + 1))) << (8 * extra)
     return _signed(value, 64)
+
+
+def _decode_block(method: int, data: bytes, raw_size: int, name: str) -> bytes:
+    """What a block holds, expanded no further than it says it holds.
+
+    Bounded by the size the block declares rather than by the cap on it: a
+    block may state a raw size of a hundred bytes and carry a stream of
+    hundreds of megabytes, and a decoder handed the whole stream expands all of
+    it before the two can be compared. One byte past the declared size is
+    enough to see that it holds more, and no more than that is decoded.
+    """
+    if method == RAW:
+        content = data
+    else:
+        decompressor = DECOMPRESSORS[method]()
+        content = decompressor.decompress(data, max_length=raw_size + 1)
+        if len(content) <= raw_size and not decompressor.eof:
+            raise ValueError(
+                f"Truncated CRAM header in {name}: its file header block ends "
+                f"before the end of the {CODEC_NAMES[method]} stream it declares"
+            )
+    if len(content) > raw_size:
+        raise ValueError(
+            f"Not a readable CRAM file: the file header block of {name} "
+            f"declares {raw_size} bytes of content and holds more, so it was "
+            "refused rather than expanded to find out how much more"
+        )
+    if len(content) != raw_size:
+        raise ValueError(
+            f"Not a readable CRAM file: the file header block of {name} "
+            f"declares {raw_size} bytes of content and holds {len(content)}"
+        )
+    return content
 
 
 def _bounded(size: int, what: str, name: str) -> int:
@@ -248,7 +284,7 @@ class CRAMHandler(FileTypeHandler):
                 self._walk_container_header(stream, major, name)
                 text = self._read_file_header_block(stream, major, name)
                 return major, minor, parse_sam_header(text)
-        except (OSError, EOFError, lzma.LZMAError, zlib.error, struct.error) as exc:
+        except (*UNREADABLE, struct.error) as exc:
             raise ValueError(f"Failed to read CRAM file {name}: {exc}") from exc
 
     def _read_file_definition(self, stream: BinaryIO, name: str) -> Tuple[int, int]:
@@ -321,8 +357,7 @@ class CRAMHandler(FileTypeHandler):
                 f"content type {content_type}, not the {FILE_HEADER} a file "
                 "header block declares"
             )
-        decode = DECODERS.get(method)
-        if decode is None:
+        if method != RAW and method not in DECOMPRESSORS:
             codec = CODEC_NAMES.get(method, f"method {method}")
             raise ValueError(
                 f"Cannot read the CRAM header of {name}: its file header block "
@@ -335,10 +370,15 @@ class CRAMHandler(FileTypeHandler):
             "compressed block size",
             name,
         )
-        # Bounded and then set aside: what the block decodes to is what is
-        # read, and a declared size is only worth refusing on.
-        _bounded(_read_itf8(stream, "the raw block size", name), "raw block size", name)
-        content = decode(_read_exactly(stream, compressed, "the header block", name))
+        raw_size = _bounded(
+            _read_itf8(stream, "the raw block size", name), "raw block size", name
+        )
+        content = _decode_block(
+            method,
+            _read_exactly(stream, compressed, "the header block", name),
+            raw_size,
+            name,
+        )
 
         if major >= 3:
             self._read_crc(stream, "the block CRC", name)

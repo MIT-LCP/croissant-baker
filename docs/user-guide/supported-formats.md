@@ -343,12 +343,14 @@ transport wrapper, so the handler decompresses it itself, exactly as the BAM
 handler does. It reads the magic, the declared header length and the header
 text, then stops. No record is decoded.
 
-A BCF is claimed on that magic, in either of the two forms the pipeline can hand
-over: a stream whose payload starts with `BCF\2`, or one that already starts
-with it because a second wrapper was taken off on the way in. Both minor
-versions of BCF 2 are read, because they differ in how records are encoded and
-not in the header. BCF1, samtools' own first-generation encoding, declares no
-VCF header text at all and is reported rather than half-described.
+A BCF is claimed on the `BCF` every generation of the format opens with, in
+either of the two forms the pipeline can hand over: a stream whose payload
+starts with it, or one that already starts with it because a second wrapper was
+taken off on the way in. Both minor versions of BCF 2 are read, because they
+differ in how records are encoded and not in the header. BCF1, samtools' own
+first-generation encoding, declares no VCF header text at all: it is claimed so
+that it can be reported as the BCF it is, with that as its reason, rather than
+left to be reported as a file nothing recognised.
 
 The header is then the VCF handler's, so a callset describes the same way in
 either container: one record set per file, whose fields are the columns the
@@ -403,21 +405,28 @@ A CRAM is claimed on its magic, the four bytes `CRAM` a file definition opens
 with. Reaching the header block after it means walking the first container
 header field by field: those fields are written in CRAM's two variable-width
 integer encodings, ITF8 and LTF8, so the block behind them cannot be seeked to.
-The block is then decoded from raw, gzip, bzip2 or LZMA, whichever it declares.
-The text it holds is read exactly as a BAM's is: `@HD` for the SAM version and
+The block is then decoded from raw, gzip, bzip2 or LZMA, whichever it declares;
+a gzip block may also be written as a bare zlib stream, and both spellings are
+read, as htslib reads them. The decode is bounded by the raw size the block
+itself declares: one byte past it is enough to see that the block holds more
+than it says, and a block holding anything other than what it declares is
+refused rather than expanded. The text it holds is read exactly as a BAM's is:
+`@HD` for the SAM version and
 sort order, `@SQ` for the reference sequences and, from the first, the assembly
 name, `@RG` for the read groups with their platforms and centres, and `@PG` for
 the program chain in declaration order. The CRAM version itself is recorded
 alongside them.
 
-Three things are refused with a reason rather than guessed at. Major versions
+Four things are refused with a reason rather than guessed at. Major versions
 other than 2 and 3: CRAM 1 is obsolete and CRAM 4 changes the integer encodings
 a container header is written in, so neither can be walked with this layout. A
 file header block coded with rANS, CRAM's own entropy coder, which has no
-decoder in the standard library. And a block or header text whose declared size
-is larger than any real header, which is refused before a byte behind it is
-read. CRC32 values are read past rather than checked: what is described is the
-header text, and a mismatch is a decoder's corruption report, not metadata.
+decoder in the standard library. A block or header text whose declared size is
+larger than any real header, which is refused before a byte behind it is read.
+And a block whose stream ends early, or that decodes to anything other than the
+raw size it declares. CRC32 values are read past rather than checked: what is
+described is the header text, and a mismatch is a decoder's corruption report,
+not metadata.
 
 **No record set is emitted**, for the reason a BAM emits none: aligned reads are
 records of a genome, not of a dataset schema. The properties above are stated in
@@ -435,7 +444,11 @@ reference sequences and, from the first, the assembly name; `@RG` the number of
 read groups with their sequencing platforms and centres; `@PG` the program chain
 in declaration order. Nothing in front of the header says how long it is, so the
 read is bounded by the stop at the first line that does not start with `@`: no
-alignment record is read, whatever the size of the file.
+alignment record is read, whatever the size of the file. The header is taken a
+chunk at a time, and a file that never reaches a line that is not a header line
+is reported: a single line above 1 MiB is not a header line, and a header above
+64 MiB, the cap the binary containers state their own header length against, is
+not a header.
 
 A SAM is claimed on its extension **and** its first header line, and needs both.
 A FASTQ opens with `@` as well, so the leading character alone would describe one
@@ -449,13 +462,17 @@ are stated in the `description` of the file's `cr:FileObject`. `encodingFormat`
 is `text/x-sam`, with the compression media type added by the input layer when
 the file arrives under one. `@RG SM` is withheld under the same
 `--genomic-sample-ids` opt-in.
+
 ## FASTQ
 
 FASTQ (`.fastq`, `.fq`) is the same four lines repeated until the run is
 exhausted: a read name, the bases, a `+` separator, and one quality character
 per base. The handler reads the first record and stops. Nothing behind it is
 opened, so a run of a hundred million reads costs the same read as a run of
-one.
+one. The record is taken from a bounded prefix of 1 MiB, which holds the
+longest read any instrument writes twice over, once as bases and once as
+quality scores; a first record that does not end inside it is reported rather
+than read for.
 
 The claim needs both the extension and the structure, because neither holds on
 its own. `@` opens a record's name line, but it also opens every line of a SAM
@@ -482,6 +499,7 @@ dataset schema, so a FASTQ is described as a file: the read length is stated in
 the `description` of its `cr:FileObject`. `encodingFormat` is `text/x-fastq`,
 with the compression media type added by the input layer when the file arrives
 under one, so `reads.fastq.gz` is described exactly as `reads.fastq` is.
+
 ## FASTA
 
 FASTA (`.fa`, `.fasta`, `.fna`) is a description line followed by sequence,
@@ -516,6 +534,7 @@ one. FASTA has no IANA registration, so the `x-` form follows `text/x-vcf`.
 
 Index and dictionary files (`.fai`, `.dict`, `.gzi`) are reported as unsupported;
 nothing claims them.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.

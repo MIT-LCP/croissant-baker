@@ -8,31 +8,39 @@ rest of the file is not.
 
 Unlike a BAM, nothing in front of the header says how long it is. What bounds
 the read is the stop at the first line that is not a header line, so the cost is
-the size of the header rather than the size of the file.
+the size of the header rather than the size of the file. A file that never
+reaches such a line must still stop somewhere, so the header is taken a chunk
+at a time and both a single line and the header as a whole are capped.
 
 No RecordSet: aligned reads are not records of a dataset schema. What this
 handler produces is a described FileObject, through the ``description`` key the
 generator honours.
 """
 
-import logging
 from typing import List
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.sam_header import (
-    describe_alignment,
-    parse_sam_header,
-)
-from croissant_baker.sources import FileSource
-
-logger = logging.getLogger(__name__)
+from croissant_baker.handlers.sam_header import describe_alignment, parse_sam_header
+from croissant_baker.handlers.utils import MAX_HEADER_BYTES, read_prefix_chunks
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: SAM has no IANA registration. The ``x-`` form follows ``text/x-vcf`` and
 #: ``text/x-geo-soft``, already in the tree.
 ENCODING_FORMAT = "text/x-sam"
 
 #: The character every header line opens with, and no alignment record does.
-HEADER_PREFIX = "@"
+#: Bytes, because the header is read as bytes and decoded a line at a time.
+HEADER_PREFIX = b"@"
+
+#: The largest header this handler will accumulate, and the largest single line
+#: inside it. The header cap is the one the containers carrying the same text
+#: state their own length against; this format states none, so it is applied to
+#: what has been read instead. The line cap is smaller because a header line is
+#: a handful of tab-separated tags, the longest of which is a ``@PG`` command
+#: line running to kilobytes: a megabyte with no line ending in it is a file
+#: whose first line is not a header line at all, and reading further is reading
+#: the alignment records.
+MAX_LINE_BYTES = 1024 * 1024
 
 #: The five record types a SAM header may declare, each with the tab that
 #: separates the type from its first tag. The tab is half the claim: a FASTQ
@@ -42,6 +50,11 @@ HEADER_RECORDS = (b"@HD\t", b"@SQ\t", b"@RG\t", b"@PG\t", b"@CO\t")
 
 #: Enough of the head to decide a claim: the longest of the above.
 CLAIM_BYTES = max(len(record) for record in HEADER_RECORDS)
+
+
+def _decode(line: bytes) -> str:
+    """One header line as text, with the carriage return of a CRLF file gone."""
+    return line.decode("utf-8", "replace").rstrip("\r")
 
 
 class SAMHandler(FileTypeHandler):
@@ -104,7 +117,7 @@ class SAMHandler(FileTypeHandler):
                 f"Not a SAM file: {name} opens with no '@' header line, so it "
                 "declares no sort order, assembly or read group to describe"
             )
-        header = parse_sam_header("".join(lines))
+        header = parse_sam_header("\n".join(lines))
 
         metadata = {
             "file_name": source.name,
@@ -139,21 +152,55 @@ class SAMHandler(FileTypeHandler):
     def _read_header_lines(self, source: FileSource, name: str) -> List[str]:
         """Every line up to the first that is not a header line.
 
+        Taken a chunk at a time rather than a line at a time: a stream iterated
+        by line hands back the whole file as one line when the file holds no
+        line ending, and reading the whole file is the one thing this handler
+        exists not to do.
+
         Decoded permissively: a SAM header is printable ASCII by specification,
         and a stray byte in a ``@CO`` comment is not a reason to refuse a file
         whose structure is otherwise readable.
         """
         lines: List[str] = []
+        pending = b""
+        read = 0
         try:
             with source.open() as stream:
-                for raw in stream:
-                    line = raw.decode("utf-8", "replace")
-                    if not line.startswith(HEADER_PREFIX):
-                        break
-                    lines.append(line)
-        except OSError as exc:
+                for chunk in read_prefix_chunks(stream, MAX_HEADER_BYTES + 1):
+                    read += len(chunk)
+                    complete = (pending + chunk).split(b"\n")
+                    # The tail after the last line ending is not yet a line.
+                    pending = complete.pop()
+                    for raw in complete:
+                        if not raw.startswith(HEADER_PREFIX):
+                            return lines
+                        lines.append(_decode(raw))
+                    self._still_a_header(len(pending), read, name)
+                # End of file inside the header: what is left of it is the last
+                # line, written without an ending.
+                if pending.startswith(HEADER_PREFIX):
+                    lines.append(_decode(pending))
+        except UNREADABLE as exc:
             raise ValueError(f"Failed to read SAM file {name}: {exc}") from exc
         return lines
+
+    def _still_a_header(self, line_bytes: int, header_bytes: int, name: str) -> None:
+        """Refuse a read that has gone past what a header can be, saying which.
+
+        Two caps rather than one: a header of a million references is legitimately
+        tens of megabytes, and a single line of that size is not a header line.
+        """
+        if line_bytes > MAX_LINE_BYTES:
+            raise ValueError(
+                f"Not a SAM file: {name} runs to {line_bytes} bytes with no "
+                f"line ending, past the {MAX_LINE_BYTES} a header line can be"
+            )
+        if header_bytes > MAX_HEADER_BYTES:
+            raise ValueError(
+                f"Not a SAM file: the header of {name} runs past "
+                f"{MAX_HEADER_BYTES} bytes without reaching a line that is not "
+                "a header line"
+            )
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
         """Nothing: a SAM is described as a file, by the description it carries.

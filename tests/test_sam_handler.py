@@ -13,6 +13,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.entries import Reason
 from croissant_baker.handlers.sam_handler import SAMHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -22,7 +23,9 @@ from tests.helpers import (
     SAM_ALIGNMENT_TEXT,
     SAMPLES,
     bake,
+    bake_with_report,
     cli,
+    cut_gzip,
     file_objects,
     record_sets,
     write_wrapped,
@@ -226,6 +229,75 @@ def test_the_read_stops_at_the_first_alignment_record(dataset: Path) -> None:
 
     assert meta["sq_count"] == 2
     assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
+
+
+#: A body with no line ending anywhere in it, and the read a bounded handler
+#: may spend before refusing it: the line cap, plus the chunk it was reached in.
+NO_NEWLINE_BYTES = 4 * 1024 * 1024
+BOUNDED_REFUSAL = 2 * 1024 * 1024
+
+
+def test_a_body_holding_no_line_ending_is_refused_after_a_bounded_read(
+    dataset: Path,
+) -> None:
+    """Nothing in front of a SAM header says how long it is, so a reader taking
+    it a line at a time takes the whole file as one line when the file holds no
+    line ending. A header line is a handful of tab-separated tags; a megabyte
+    without one is not a header line, and the file is reported as such."""
+    body = b"@HD\tVN:1.6\t" + b"x" * NO_NEWLINE_BYTES
+    path = write(dataset, "unbroken.sam", body)
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "unbroken.sam" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < BOUNDED_REFUSAL
+
+
+def test_a_header_spanning_many_chunks_is_read_whole(dataset: Path) -> None:
+    """Bounded is not truncated. A reference per contig of a fragmented
+    assembly runs to hundreds of kilobytes of ``@SQ`` lines, and every one of
+    them is a reference this handler counts."""
+    references = 5000
+    header = "@HD\tVN:1.6\tSO:coordinate\n" + "".join(
+        f"@SQ\tSN:scaffold{i}\tLN:100000\tAS:GRCh38\n" for i in range(references)
+    )
+    path = write(dataset, "many.sam", (header + SAM_ALIGNMENT_TEXT).encode())
+    assert path.stat().st_size > 128 * 1024
+
+    assert extract(path)["sq_count"] == references
+
+
+def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
+    dataset: Path,
+) -> None:
+    """A member intact for its first bytes opens, and then ends where the
+    download stopped. What that raises is not an ``OSError``, and a file is
+    owed a reason naming it either way."""
+    path = write(dataset, "cut.sam.gz", cut_gzip(BAM_HEADER_TEXT.encode()))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "cut.sam" in str(caught.value)
+    assert "SAM" in str(caught.value)
+
+
+def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None:
+    """A file this handler claims and cannot read is reported by name, with the
+    reason it was refused for, and the alignment beside it is still described:
+    the loss is per-file, never the run."""
+    write(dataset, "cut.sam.gz", cut_gzip(BAM_HEADER_TEXT.encode()))
+    sample_sam(dataset)
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["sample.sam"]
+    (refused,) = report.undescribed
+    assert refused.name == "cut.sam.gz"
+    assert refused.reason is Reason.EXTRACT_FAILED
+    assert "cut.sam" in refused.detail
 
 
 def test_no_alignment_record_becomes_a_record_set(dataset: Path) -> None:

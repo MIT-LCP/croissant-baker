@@ -11,12 +11,8 @@ RecordSet: bases are not records of a dataset schema. What it produces is a
 described FileObject, through the ``description`` key the generator honours.
 """
 
-import logging
-
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.sources import FileSource
-
-logger = logging.getLogger(__name__)
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: The character a record description line opens with, and the whole of what
 #: distinguishes a FASTA from any other text file.
@@ -105,7 +101,7 @@ class FASTAHandler(FileTypeHandler):
         try:
             with source.open() as stream:
                 head = stream.read(HEAD_BYTES)
-        except OSError as exc:
+        except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
             ) from exc

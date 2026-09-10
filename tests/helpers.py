@@ -400,18 +400,22 @@ def cram_payload(
     content_type: int = 0,
     compressed_size: Optional[int] = None,
     raw_size: Optional[int] = None,
+    compress: Optional[Callable[[bytes], bytes]] = None,
 ) -> bytes:
     """The bytes of a header-only CRAM: file definition, container, one block.
 
     Built rather than committed, for the reason ``bam_payload`` is: a container
     states its own lengths, and a fixture nobody can read by eye is one nobody
     can change. ``compressed_size`` and ``raw_size`` override what the block
-    declares, so a test can state a size the file does not hold.
+    declares, so a test can state a size the file does not hold, and
+    ``compress`` overrides how the block is written, so a test can state a
+    method over a spelling of it the default table does not use.
     """
     major, minor = version
     encoded = text.encode()
     content = struct.pack("<i", len(encoded)) + encoded
-    data = _CRAM_COMPRESSORS.get(method, _CRAM_COMPRESSORS[0])(content)
+    compressor = compress or _CRAM_COMPRESSORS.get(method, _CRAM_COMPRESSORS[0])
+    data = compressor(content)
     block = (
         bytes([method, content_type])
         + _itf8(0)
@@ -555,6 +559,17 @@ def write_wrapped(directory: Path, name: str, payload: bytes, suffix: str = "") 
     return target
 
 
+def cut_gzip(payload: bytes) -> bytes:
+    """A gzip member of ``payload``, cut off part way through its stream.
+
+    Past the ten-byte header and short of the trailer, so the member opens and
+    then ends mid-stream: what a partly downloaded file looks like to a reader,
+    and what makes a decompressor raise rather than return.
+    """
+    data = gzip.compress(payload, mtime=0)
+    return data[: len(data) * 2 // 3]
+
+
 def write_all(directory: Path, files: Iterable[tuple], suffix: str = "") -> None:
     for name, payload in files:
         write_wrapped(directory, name, payload, suffix)
@@ -669,6 +684,7 @@ __all__ = [
     "by_name",
     "cli",
     "cram_payload",
+    "cut_gzip",
     "file_objects",
     "file_sets",
     "file_set_members",

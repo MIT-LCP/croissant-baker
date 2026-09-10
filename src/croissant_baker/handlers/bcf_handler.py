@@ -8,25 +8,34 @@ below it is ever decoded.
 """
 
 import gzip
-import io
 import struct
-import zlib
 from typing import BinaryIO
 
+from croissant_baker.handlers.utils import (
+    MAX_HEADER_BYTES,
+    decompress_prefix,
+    read_exactly,
+)
 from croissant_baker.handlers.vcf_handler import (
     VCFHandler,
     _Header,
     read_header_lines,
 )
-from croissant_baker.sources import FileSource
+from croissant_baker.sources import UNREADABLE, FileSource
 
-#: The first four bytes of a BCF 2.x payload. The fifth is the minor version,
-#: which says how the records are encoded and so says nothing about the header
-#: this handler reads: 2.1 and 2.2 are both accepted.
-MAGIC_PREFIX = b"BCF\x02"
+#: The three bytes every generation of BCF opens with, and the whole claim. The
+#: generation is the byte behind them, and a file of the wrong one is claimed so
+#: that it can be reported as the BCF it is rather than as a file nothing
+#: recognised.
+MAGIC_PREFIX = b"BCF"
+
+#: The four bytes of a BCF 2.x payload. The fifth is the minor version, which
+#: says how the records are encoded and so says nothing about the header this
+#: handler reads: 2.1 and 2.2 are both accepted.
+BCF2_MAGIC = MAGIC_PREFIX + b"\x02"
 
 #: Magic and minor version together.
-MAGIC_BYTES = len(MAGIC_PREFIX) + 1
+MAGIC_BYTES = len(BCF2_MAGIC) + 1
 
 #: The two bytes every member of a gzip stream opens with. BCF is BGZF, which
 #: is gzip with an extra field Python's gzip module ignores.
@@ -46,31 +55,15 @@ UINT32_BYTES = 4
 
 #: The largest header text this handler will read. ``l_text`` is a length the
 #: file chooses, so trusting it turns a header read into a read of the whole
-#: file, which is the one thing this handler exists not to do. 64 MiB is far
-#: above any real header: a cohort declaring thousands of contigs and keys is a
-#: few hundred KiB.
-MAX_TEXT_BYTES = 64 * 1024 * 1024
+#: file, which is the one thing this handler exists not to do. The cap is the
+#: shared one, because every container in this family states its own header
+#: length and none of them may be believed about it.
+MAX_TEXT_BYTES = MAX_HEADER_BYTES
 
 
 def _read_exactly(stream: BinaryIO, count: int, what: str, name: str) -> bytes:
     """``count`` bytes, or a refusal naming the file and what was missing."""
-    data = stream.read(count)
-    if len(data) != count:
-        raise ValueError(
-            f"Truncated BCF header in {name}: {what} needs {count} bytes, "
-            f"got {len(data)}"
-        )
-    return data
-
-
-def _decompress_prefix(head: bytes, count: int) -> bytes:
-    """The first ``count`` bytes inside a compressed prefix.
-
-    A prefix, so the stream ends mid-member; that is expected, and the bytes
-    already produced are the answer.
-    """
-    with gzip.GzipFile(fileobj=io.BytesIO(head), mode="rb") as payload:
-        return payload.read(count)
+    return read_exactly(stream, count, what, name, "BCF")
 
 
 class BCFHandler(VCFHandler):
@@ -101,6 +94,11 @@ class BCFHandler(VCFHandler):
         wrapper has had one layer taken off already, and the magic is the first
         thing in the stream.
 
+        On the three bytes every generation shares, not on the generation this
+        handler reads: a BCF1 claimed here is reported as a BCF whose header
+        cannot be read, and one left unclaimed is reported as a file nothing
+        recognised, which says less about it than is known.
+
         A file that cannot be read peeks as ``b""`` and is therefore not
         claimed; that is
         :meth:`~croissant_baker.sources.FileSource.peek`'s contract. The prefix
@@ -113,8 +111,8 @@ class BCFHandler(VCFHandler):
         if not head.startswith(COMPRESSED_MAGIC):
             return False
         try:
-            return _decompress_prefix(head, len(MAGIC_PREFIX)) == MAGIC_PREFIX
-        except (OSError, EOFError, zlib.error):
+            return decompress_prefix(head, len(MAGIC_PREFIX)) == MAGIC_PREFIX
+        except UNREADABLE:
             return False
 
     def _read_header(self, source: FileSource) -> _Header:
@@ -134,12 +132,12 @@ class BCFHandler(VCFHandler):
                     return self._read_payload(payload, name)
         # A corrupt member raises its decompression library's own type, which
         # is not an OSError, and a file is owed a reason either way.
-        except (OSError, EOFError, zlib.error) as exc:
+        except UNREADABLE as exc:
             raise ValueError(f"Failed to read BCF file {name}: {exc}") from exc
 
     def _read_payload(self, payload: BinaryIO, name: str) -> _Header:
         magic = _read_exactly(payload, MAGIC_BYTES, "the magic", name)
-        if not magic.startswith(MAGIC_PREFIX):
+        if not magic.startswith(BCF2_MAGIC):
             raise ValueError(
                 f"Not a BCF file: {name} does not carry the BCF 2 magic at the "
                 "start of its payload. BCF1 is samtools' own encoding and "
