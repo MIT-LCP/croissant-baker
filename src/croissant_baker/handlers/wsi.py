@@ -33,6 +33,11 @@ _VENDOR_FLAGS = (
     (VENTANA, "is_bif"),
 )
 
+#: The pictures of the slide, rather than of the tissue, that a scanner files
+#: alongside the pyramid. tifffile names the series it recognises after these,
+#: and anything it could not place is left unnamed rather than guessed at.
+ASSOCIATED_KINDS = ("label", "macro", "overview", "thumbnail")
+
 
 @dataclass(frozen=True)
 class SlideHeader:
@@ -49,6 +54,8 @@ class SlideHeader:
         tile_width: Tile width of the base level, None for a stripped image.
         tile_height: Tile height of the base level, None for a stripped image.
         compression: The base level's compression, lowercased.
+        associated_images: The kinds of associated image the file carries,
+            drawn from :data:`ASSOCIATED_KINDS`, empty when it carries none.
     """
 
     vendor: Optional[str] = None
@@ -59,6 +66,7 @@ class SlideHeader:
     tile_width: Optional[int] = None
     tile_height: Optional[int] = None
     compression: Optional[str] = None
+    associated_images: Tuple[str, ...] = ()
 
 
 def read(tif) -> SlideHeader:
@@ -68,7 +76,8 @@ def read(tif) -> SlideHeader:
         tif: An open :class:`tifffile.TiffFile`.
     """
     page = tif.pages.first
-    levels = _levels(tif)
+    series = _series(tif)
+    levels = _levels(tif, series)
     return SlideHeader(
         vendor=_vendor(page),
         width=levels[0][0] if levels else None,
@@ -79,6 +88,7 @@ def read(tif) -> SlideHeader:
         tile_width=getattr(page, "tilewidth", 0) or None,
         tile_height=getattr(page, "tilelength", 0) or None,
         compression=_compression(page),
+        associated_images=_associated_images(series),
     )
 
 
@@ -98,7 +108,31 @@ def _compression(page) -> Optional[str]:
     return str(getattr(compression, "name", compression)).lower()
 
 
-def _levels(tif) -> Tuple[Tuple[int, int], ...]:
+def _series(tif) -> tuple:
+    """tifffile's own reading of the file's structure, or nothing.
+
+    Building a series parses the vendor's XML, so a malformed document raises
+    here rather than returning nothing. The file is still described from its
+    tags in that case.
+    """
+    try:
+        return tuple(tif.series)
+    except Exception as exc:
+        logger.debug("tifffile could not build a series for this slide: %s", exc)
+        return ()
+
+
+def _associated_images(series: tuple) -> Tuple[str, ...]:
+    """The associated image kinds tifffile named, in a stable order.
+
+    Only the vendor series builders name a series, so a file whose signature
+    tifffile did not recognise reports none rather than a guess.
+    """
+    named = {s.name.lower() for s in series[1:] if s.name.lower() in ASSOCIATED_KINDS}
+    return tuple(kind for kind in ASSOCIATED_KINDS if kind in named)
+
+
+def _levels(tif, series: tuple) -> Tuple[Tuple[int, int], ...]:
     """The pyramid, largest level first.
 
     tifffile builds a vendor-aware series for every format here, and its
@@ -108,20 +142,12 @@ def _levels(tif) -> Tuple[Tuple[int, int], ...]:
     a slide that has several, so the page walk wins whenever it finds more.
     """
     by_page = _levels_from_pages(tif)
-    by_series = _levels_from_series(tif)
+    by_series = _levels_from_series(series)
     return by_series if len(by_series) >= len(by_page) else by_page
 
 
-def _levels_from_series(tif) -> Tuple[Tuple[int, int], ...]:
+def _levels_from_series(series: tuple) -> Tuple[Tuple[int, int], ...]:
     """The levels of the first series, through tifffile's vendor knowledge."""
-    try:
-        series = tif.series
-    except Exception as exc:
-        # Building a series parses vendor XML, so a malformed document raises
-        # here rather than returning nothing. The file is still described from
-        # its tags.
-        logger.debug("tifffile could not build a series for this slide: %s", exc)
-        return ()
     if not series:
         return ()
     return tuple(

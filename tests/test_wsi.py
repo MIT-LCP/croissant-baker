@@ -135,3 +135,29 @@ def test_a_stripped_image_states_no_tile_size() -> None:
 )
 def test_the_base_page_names_its_compression(data: bytes, compression: str) -> None:
     assert read_bytes(data).compression == compression
+
+
+# --------------------------------------------------------------------------
+# Associated images
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("vendor", "kinds"),
+    [
+        ("aperio", ("label", "macro", "thumbnail")),
+        ("hamamatsu", ()),
+        ("leica", ()),
+        ("ventana", ("label",)),
+        ("akoya", ("thumbnail",)),
+    ],
+)
+def test_the_associated_images_a_vendor_stored_are_named(vendor, kinds) -> None:
+    """The slide overview, the barcode label and the low-power thumbnail are
+    pictures of the slide rather than of the tissue, and a consumer asking for
+    a region wants to know they are in the file and are not levels."""
+    assert read_bytes(wsi_bytes(vendor)).associated_images == kinds
+
+
+def test_a_plain_tiff_carries_no_associated_images() -> None:
+    assert read_bytes(tiff_bytes()).associated_images == ()
