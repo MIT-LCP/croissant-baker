@@ -100,11 +100,13 @@ lineage:
 
   # rai:usedBy — models or assets that have used this dataset (e.g. for training
   # or evaluation). url is required; name and id are optional.
-  # Write `models: []` if no model has used the dataset yet.
-  models:
-    - url: https://huggingface.co/my-org/my-model
-      id: MODEL-001
-      name: My Clinical NLP Model
+  # An entry here asserts that a named model used this dataset, so the shape is
+  # shown as a comment: fill it in only for a model you know of.
+  models: []
+  # models:
+  #   - url: https://huggingface.co/my-org/my-model
+  #     name: My Clinical NLP Model
+  #     id: MODEL-001
 
 
 # ── Activities ────────────────────────────────────────────────────────────────

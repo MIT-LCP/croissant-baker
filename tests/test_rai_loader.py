@@ -6,6 +6,7 @@ import dataclasses
 from pathlib import Path
 
 import pytest
+import yaml
 
 from croissant_baker.rai import schema
 from croissant_baker.rai.loader import load_rai_config
@@ -21,56 +22,64 @@ def write_config(tmp_path: Path, body: str) -> Path:
     return path
 
 
-def _collect(value, found: dict) -> dict:
-    """Group every dataclass instance reachable from ``value`` by its class."""
-    if dataclasses.is_dataclass(value):
-        found.setdefault(type(value), []).append(value)
-        for f in dataclasses.fields(value):
-            _collect(getattr(value, f.name), found)
-    elif isinstance(value, list):
-        for item in value:
-            _collect(item, found)
-    return found
+#: A schema dataclass the template is not required to fill in, and why.
+EXEMPT_FROM_TEMPLATE = {
+    "ModelRef": (
+        "a models entry asserts that a third party used the dataset, which no "
+        "template can know, so the template shows the fields in a comment"
+    )
+}
 
 
-def _is_set(value) -> bool:
-    """A field the template actually says something about.
+def _template_mappings(raw: dict) -> dict[str, list[dict]]:
+    """Every mapping in the template, grouped by the dataclass that reads it.
 
-    ``False`` counts: ``has_synthetic_data: false`` is a deliberate answer,
-    not an omission. An empty string or list is not.
+    Read off the raw YAML rather than the loaded config, so a field counts as
+    shown only when the template literally names the key. A loaded value cannot
+    tell the two apart: ``is_synthetic`` defaults to False whether the author
+    wrote ``false`` or wrote nothing.
     """
-    if value is None:
-        return False
-    if isinstance(value, (str, list)):
-        return bool(value)
-    return True
+    lineage = raw.get("lineage") or {}
+    activities = raw.get("activities") or []
+    return {
+        "RAIConfig": [raw],
+        "AIFairnessConfig": [raw.get("ai_fairness") or {}],
+        "LineageConfig": [lineage],
+        "SourceDataset": lineage.get("source_datasets") or [],
+        "ModelRef": lineage.get("models") or [],
+        "Activity": activities,
+        "Agent": [a for act in activities for a in act.get("agents") or []],
+        "Platform": [p for act in activities for p in act.get("platforms") or []],
+    }
 
 
-def test_shipped_example_exercises_every_schema_field() -> None:
+def test_shipped_example_names_every_schema_field() -> None:
     """The template has to show every field the config can carry.
 
     ``--rai-config --help`` points users at ``rai-example.yaml``, so a field
     missing from it is a field they will never know they could have filled in,
     and a key it spells wrong is one silently dropped from their output.
     """
-    found = _collect(load_rai_config(RAI_EXAMPLE), {})
+    raw = yaml.safe_load(RAI_EXAMPLE.read_text(encoding="utf-8"))
+    mappings = _template_mappings(raw)
 
     declared = {
-        obj
+        obj.__name__: obj
         for obj in vars(schema).values()
         if dataclasses.is_dataclass(obj) and obj.__module__ == schema.__name__
     }
-    assert sorted(c.__name__ for c in declared - set(found)) == [], (
-        "a schema dataclass has no entry in the template"
+    assert sorted(mappings) == sorted(declared), (
+        "a schema dataclass has nowhere to be read from in the template"
     )
 
-    unset = sorted(
-        f"{cls.__name__}.{f.name}"
-        for cls in declared
-        for f in dataclasses.fields(cls)
-        if not any(_is_set(getattr(instance, f.name)) for instance in found[cls])
+    unnamed = sorted(
+        f"{name}.{f.name}"
+        for name, entries in mappings.items()
+        if name not in EXEMPT_FROM_TEMPLATE
+        for f in dataclasses.fields(declared[name])
+        if not any(f.name in entry for entry in entries)
     )
-    assert unset == []
+    assert unnamed == []
 
 
 def test_unknown_fairness_key_is_refused(tmp_path: Path) -> None:
@@ -234,3 +243,15 @@ def test_a_nested_collection_type_is_refused(tmp_path: Path) -> None:
         load_rai_config(path)
 
     assert "activities[0].collection_types[0]" in str(excinfo.value)
+
+
+def test_the_template_claims_no_model_used_the_dataset() -> None:
+    """A models entry names a third party and asserts it used this dataset.
+
+    Nothing in a template can know that, so the file shows the fields in a
+    comment; a live entry would put a fabricated claim in every bake made
+    from it.
+    """
+    config = load_rai_config(RAI_EXAMPLE)
+
+    assert config.lineage.models == []
