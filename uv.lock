@@ -788,7 +788,7 @@ requires-dist = [
 dev = [
     { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pytest", specifier = ">=7.0" },
-    { name = "pytest-cov", specifier = ">=5" },
+    { name = "pytest-cov", specifier = ">=6" },
     { name = "ruff", specifier = ">=0.1.0" },
 ]
 docs = [
@@ -800,7 +800,7 @@ docs = [
 ]
 test = [
     { name = "pytest", specifier = ">=7.0" },
-    { name = "pytest-cov", specifier = ">=5" },
+    { name = "pytest-cov", specifier = ">=6" },
 ]
 
 [[package]]

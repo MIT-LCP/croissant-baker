@@ -41,7 +41,9 @@ croissant-baker = "croissant_baker.__main__:app"
 # PEP 735 dependency groups — not propagated to downstream consumers.
 # Install with: uv sync --group dev
 [dependency-groups]
-test = ["pytest>=7.0", "pytest-cov>=5"]
+# pytest-cov 6 is the first release whose coverage floor reaches 7.2, which is
+# where [tool.coverage.report] exclude_also was added.
+test = ["pytest>=7.0", "pytest-cov>=6"]
 dev = [
     "ruff>=0.1.0",
     "pre-commit>=4.5.1",
