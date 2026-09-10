@@ -7,6 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from croissant_baker.__main__ import app
+from tests.helpers import cli
 
 runner = CliRunner()
 
@@ -93,3 +94,93 @@ def test_rai_generation_matches_reference(
 
     for key in _RAI_PROV_KEYS:
         assert generated.get(key) == expected.get(key), f"Mismatch for {key}"
+
+
+BAD_RAI_YAML = "ai_fairness:\n  social_impact: It enables research.\n"
+
+
+def _bad_config(tmp_path: Path) -> Path:
+    path = tmp_path / "rai.yaml"
+    path.write_text(BAD_RAI_YAML, encoding="utf-8")
+    return path
+
+
+def test_generate_reports_a_bad_rai_config_without_a_traceback(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n", encoding="utf-8")
+
+    result = cli(
+        dataset,
+        tmp_path / "out.jsonld",
+        "--rai-config",
+        str(_bad_config(tmp_path)),
+    )
+
+    assert result.exit_code == 1
+    assert "ai_fairness.social_impact" in result.stderr
+    assert "data_social_impact" in result.stderr
+    assert "Traceback" not in result.stderr + result.output
+    assert not isinstance(result.exception, ValueError)
+
+
+def test_rai_apply_reports_a_bad_rai_config_without_a_traceback(tmp_path: Path) -> None:
+    document = tmp_path / "croissant.jsonld"
+    document.write_text(json.dumps({"@context": {}, "name": "test"}), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(document),
+            "--rai-config",
+            str(_bad_config(tmp_path)),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "ai_fairness.social_impact" in result.stderr
+    assert "data_social_impact" in result.stderr
+    assert "Traceback" not in result.stderr + result.output
+    assert not isinstance(result.exception, ValueError)
+
+
+def test_a_bad_rai_config_is_reported_before_the_dataset_is_scanned(
+    tmp_path: Path,
+) -> None:
+    """The config is an input, not a result: checking it after a bake is wasted work."""
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n", encoding="utf-8")
+
+    result = cli(
+        dataset,
+        tmp_path / "out.jsonld",
+        "--rai-config",
+        str(_bad_config(tmp_path)),
+    )
+
+    assert result.exit_code == 1
+    assert "Scanned" not in result.output
+
+
+def test_an_intended_exit_is_not_reported_as_an_unexpected_error(
+    tmp_path: Path,
+) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n", encoding="utf-8")
+
+    result = cli(
+        dataset,
+        tmp_path / "out.jsonld",
+        "--rai-config",
+        str(_bad_config(tmp_path)),
+        "--rai-data-biases",
+        "Single site",
+    )
+
+    assert result.exit_code == 1
+    assert "cannot be combined with --rai-config" in result.stderr
+    assert "Unexpected error" not in result.stderr

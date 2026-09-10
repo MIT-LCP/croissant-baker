@@ -831,6 +831,18 @@ def main(
             )
             raise typer.Exit(code=1)
 
+        # Read the RAI config before scanning: it is an input, so a typo in it
+        # should be reported now rather than after a bake that gets discarded.
+        rai = None
+        if rai_config:
+            from croissant_baker.rai import load_rai_config
+
+            try:
+                rai = load_rai_config(rai_config)
+            except ValueError as exc:
+                typer.echo(f"Error: {exc}", err=True)
+                raise typer.Exit(code=1)
+
         # Parse creators following mlcroissant specification
         # Allows flexible Person/Organization objects with optional properties
         parsed_creators = []
@@ -944,10 +956,9 @@ def main(
             )
 
         # Inject RAI attributes when a config file is provided
-        if rai_config:
-            from croissant_baker.rai import inject_rai, load_rai_config
+        if rai is not None:
+            from croissant_baker.rai import inject_rai
 
-            rai = load_rai_config(rai_config)
             metadata_dict = inject_rai(metadata_dict, rai)
 
         _ensure_rai_conforms_to(
@@ -996,6 +1007,9 @@ def main(
             date_published=date_published,
         )
 
+    except typer.Exit:
+        # Already reported by whoever raised it; do not relabel it below.
+        raise
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         # A bake that described nothing is when coverage matters most.
