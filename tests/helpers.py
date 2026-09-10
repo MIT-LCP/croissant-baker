@@ -263,32 +263,65 @@ def _bam() -> list:
     return [("sample.bam", gzip.compress(bam_payload(), mtime=0))]
 
 
+#: The header of the sample callset, which a BCF carries verbatim.
+#:
+#: Small, but not degenerate. ``AF`` is per-alternate-allele, ``DB`` is a flag
+#: and ``AD`` is per-allele, so the sweep sees the cardinalities a real callset
+#: has rather than one column of scalars. It is a constant because the binary
+#: container declares the same text, and the two fixtures have to agree for the
+#: record set built from either to be comparable.
+VCF_HEADER_TEXT = (
+    b"##fileformat=VCFv4.2\n"
+    b'##FILTER=<ID=PASS,Description="All filters passed">\n'
+    b"##reference=file:///ref/GRCh38.fa\n"
+    b"##contig=<ID=chr1,length=248956422>\n"
+    b"##contig=<ID=chr2,length=242193529>\n"
+    b'##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth">\n'
+    b'##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency, for each ALT allele">\n'
+    b'##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP membership">\n'
+    b'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+    b'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">\n'
+    b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001\tNA00002\n"
+)
+
+
 def _vcf() -> list:
     """A small multi-sample VCFv4.2 export: two samples, two variant records.
 
-    Small, but not degenerate. ``AF`` is per-alternate-allele, ``DB`` is a
-    flag, ``AD`` is per-allele, and the second record carries two ALTs, so the
-    sweep sees the cardinalities a real callset has rather than one column of
-    scalars.
+    The second record carries two ALTs, so the per-allele keys the header
+    declares are exercised by data as well as by declaration.
     """
     return [
         (
             "calls.vcf",
-            b"##fileformat=VCFv4.2\n"
-            b'##FILTER=<ID=PASS,Description="All filters passed">\n'
-            b"##reference=file:///ref/GRCh38.fa\n"
-            b"##contig=<ID=chr1,length=248956422>\n"
-            b"##contig=<ID=chr2,length=242193529>\n"
-            b'##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth">\n'
-            b'##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency, for each ALT allele">\n'
-            b'##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP membership">\n'
-            b'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
-            b'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">\n'
-            b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001\tNA00002\n"
-            b"chr1\t100\trs1\tA\tG\t50.0\tPASS\tDP=14;AF=0.5;DB\tGT:AD\t0/1:7,7\t1/1:0,14\n"
-            b"chr1\t200\t.\tC\tT,A\t99.0\tPASS\tDP=20;AF=0.25,0.25\tGT:AD\t0/1:15,5,0\t0/0:20,0,0\n",
+            VCF_HEADER_TEXT
+            + b"chr1\t100\trs1\tA\tG\t50.0\tPASS\tDP=14;AF=0.5;DB\tGT:AD\t0/1:7,7\t1/1:0,14\n"
+            + b"chr1\t200\t.\tC\tT,A\t99.0\tPASS\tDP=20;AF=0.25,0.25\tGT:AD\t0/1:15,5,0\t0/0:20,0,0\n",
         )
     ]
+
+
+def bcf_payload(text: bytes = VCF_HEADER_TEXT, minor: int = 2) -> bytes:
+    """The uncompressed bytes of a BCF 2.x container, header and no record.
+
+    Built rather than committed, for the reason ``bam_payload`` is: the length
+    lives inside the bytes, and a fixture nobody can read by eye is one nobody
+    can change. ``l_text`` counts the terminating NUL, as the specification
+    says it does.
+    """
+    return (
+        b"BCF\x02" + bytes([minor]) + struct.pack("<I", len(text) + 1) + text + b"\x00"
+    )
+
+
+def _bcf() -> list:
+    """The sample callset again, in its binary container.
+
+    Plain gzip rather than BGZF, and ``mtime=0`` so the same header is the same
+    bytes on every call. Python's gzip module reads both spellings, and it is
+    the header this handler describes.
+    """
+    return [("calls.bcf", gzip.compress(bcf_payload(), mtime=0))]
 
 
 def _nifti() -> list:
@@ -313,6 +346,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "SOFTHandler": _soft,
     "VCFHandler": _vcf,
     "BAMHandler": _bam,
+    "BCFHandler": _bcf,
 }
 
 #: Handlers with no sample, and why.
@@ -442,10 +476,12 @@ __all__ = [
     "OME_TIFF",
     "PNG_1X1",
     "SAMPLES",
+    "VCF_HEADER_TEXT",
     "WRAPPER_SUFFIXES",
     "bake",
     "bake_with",
     "bake_with_report",
+    "bcf_payload",
     "by_name",
     "cli",
     "file_objects",
