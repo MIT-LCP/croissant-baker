@@ -6,7 +6,26 @@ program that touched the file. Reading it is the same job whichever container
 it sits in, so it is done here, once, and each handler only has to find it.
 """
 
-from typing import Dict, List, Optional
+from typing import BinaryIO, Dict, List, Optional
+
+
+def read_exactly(
+    stream: BinaryIO, count: int, what: str, name: str, format_name: str
+) -> bytes:
+    """``count`` bytes, or a refusal naming the file and what was missing.
+
+    Shared because every alignment container reaches its header the same way:
+    a length the file states, then that many bytes. A short read there is the
+    file ending mid-header, and what a reader needs told is which file and
+    which field, whichever container it was.
+    """
+    data = stream.read(count)
+    if len(data) != count:
+        raise ValueError(
+            f"Truncated {format_name} header in {name}: {what} needs {count} "
+            f"bytes, got {len(data)}"
+        )
+    return data
 
 
 class SamHeader:

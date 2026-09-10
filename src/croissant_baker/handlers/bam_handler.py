@@ -21,6 +21,7 @@ from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.sam_header import (
     describe_alignment,
     parse_sam_header,
+    read_exactly,
 )
 from croissant_baker.sources import FileSource
 
@@ -55,13 +56,7 @@ MAX_TEXT_BYTES = 64 * 1024 * 1024
 
 def _read_exactly(stream: BinaryIO, count: int, what: str, name: str) -> bytes:
     """``count`` bytes, or a refusal naming the file and what was missing."""
-    data = stream.read(count)
-    if len(data) != count:
-        raise ValueError(
-            f"Truncated BAM header in {name}: {what} needs {count} bytes, "
-            f"got {len(data)}"
-        )
-    return data
+    return read_exactly(stream, count, what, name, "BAM")
 
 
 def _int32(stream: BinaryIO, what: str, name: str) -> int:
