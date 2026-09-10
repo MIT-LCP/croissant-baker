@@ -1,0 +1,31 @@
+name: Post coverage comment
+
+# A pull request from a fork runs with a read-only token, so "Run Tests" can
+# only save the comment as an artifact. This workflow runs from the base
+# repository once that one finishes and posts it. It deliberately never checks
+# the contributor's code out:
+# https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+on:
+  workflow_run:
+    workflows: ["Run Tests"]
+    types:
+      - completed
+
+jobs:
+  post-comment:
+    name: Post coverage comment
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    permissions:
+      # Publish the comment.
+      pull-requests: write
+      # Edit the existing comment instead of adding a second one.
+      contents: write
+      # Look up the run that triggered this one and download its artifact.
+      actions: read
+    steps:
+      - name: Post comment
+        uses: py-cov-action/python-coverage-comment-action@v3.41
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_RUN_ID: ${{ github.event.workflow_run.id }}
