@@ -13,7 +13,7 @@ from croissant_baker.handlers.dicom_handler import (
 )
 from croissant_baker.sources import make_source
 
-from tests.helpers import bake
+from tests.helpers import bake, by_name, record_sets
 
 
 def _make_dicom(
@@ -230,3 +230,308 @@ def test_a_bake_says_how_many_dcm_files_lacked_the_preamble(
     assert (
         "skipped 2 DICOM file(s) without the DICM preamble" in capsys.readouterr().out
     )
+
+
+WSI_SOP_CLASS_UID = "1.2.840.10008.5.1.4.1.1.77.1.6"
+
+
+def _make_wsi_dicom(
+    path: Path,
+    flavor: str = "VOLUME",
+    total_columns: int = 98304,
+    total_rows: int = 65536,
+    imaged_volume_width: float = 24.5,
+    imaged_volume_height: float = 16.4,
+    container_identifier: str = "SLIDE-0001",
+    optical_paths: int = 1,
+    num_frames: int = 12,
+    pixel_spacing=(0.00025, 0.00025),
+    top_level_pixel_spacing=None,
+) -> Path:
+    """Write a minimal VL Whole Slide Microscopy Image instance to *path*.
+
+    A real slide is a tiled multi-frame pyramid of gigabytes; everything the
+    handler reads lives in the header, so the synthetic instance carries the
+    header tags and no frames at all.
+    """
+    file_meta = Dataset()
+    file_meta.MediaStorageSOPClassUID = WSI_SOP_CLASS_UID
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    ds = FileDataset(str(path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
+
+    ds.SOPClassUID = WSI_SOP_CLASS_UID
+    ds.SOPInstanceUID = generate_uid()
+    ds.Modality = "SM"
+    ds.ImageType = ["ORIGINAL", "PRIMARY", flavor, "NONE"]
+    ds.Rows = 512
+    ds.Columns = 512
+    ds.NumberOfFrames = num_frames
+    ds.BitsAllocated = 8
+    ds.SamplesPerPixel = 3
+    ds.PhotometricInterpretation = "YBR_FULL_422"
+    ds.Manufacturer = "TestScanner"
+
+    if total_columns is not None:
+        ds.TotalPixelMatrixColumns = total_columns
+    if total_rows is not None:
+        ds.TotalPixelMatrixRows = total_rows
+    if imaged_volume_width is not None:
+        ds.ImagedVolumeWidth = imaged_volume_width
+    if imaged_volume_height is not None:
+        ds.ImagedVolumeHeight = imaged_volume_height
+    if container_identifier is not None:
+        ds.ContainerIdentifier = container_identifier
+    if top_level_pixel_spacing is not None:
+        ds.PixelSpacing = list(top_level_pixel_spacing)
+
+    if pixel_spacing is not None:
+        measures = Dataset()
+        measures.PixelSpacing = list(pixel_spacing)
+        shared = Dataset()
+        shared.PixelMeasuresSequence = [measures]
+        ds.SharedFunctionalGroupsSequence = [shared]
+
+    if optical_paths:
+        ds.OpticalPathSequence = [Dataset() for _ in range(optical_paths)]
+
+    pydicom.dcmwrite(str(path), ds)
+    return path
+
+
+def test_a_whole_slide_instance_reports_the_image_flavor_from_image_type(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "label.dcm", flavor="LABEL")
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["wsi_flavor"] == "LABEL"
+
+
+def test_a_whole_slide_instance_reports_the_total_pixel_matrix_size(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "slide.dcm", total_columns=4096, total_rows=2048)
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["total_pixel_matrix_columns"] == 4096
+    assert props["total_pixel_matrix_rows"] == 2048
+
+
+def test_a_whole_slide_instance_reports_the_imaged_volume_in_millimetres(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(
+        tmp_path / "slide.dcm", imaged_volume_width=15.0, imaged_volume_height=10.0
+    )
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["imaged_volume_width"] == pytest.approx(15.0)
+    assert props["imaged_volume_height"] == pytest.approx(10.0)
+
+
+def test_a_whole_slide_instance_reports_the_container_identifier(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "slide.dcm", container_identifier="S24-12345-A")
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["container_identifier"] == "S24-12345-A"
+
+
+def test_a_whole_slide_instance_counts_its_optical_paths(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "fluor.dcm", optical_paths=4)
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["optical_path_count"] == 4
+
+
+def test_whole_slide_properties_are_none_when_the_slide_omits_them(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    """Only the SOP class is guaranteed; a LABEL image routinely omits the
+    imaged volume and the container id, and must still read as a slide."""
+    f = _make_wsi_dicom(
+        tmp_path / "sparse.dcm",
+        total_columns=None,
+        total_rows=None,
+        imaged_volume_width=None,
+        imaged_volume_height=None,
+        container_identifier=None,
+        optical_paths=0,
+    )
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["total_pixel_matrix_columns"] is None
+    assert props["total_pixel_matrix_rows"] is None
+    assert props["imaged_volume_width"] is None
+    assert props["imaged_volume_height"] is None
+    assert props["container_identifier"] is None
+    assert props["optical_path_count"] is None
+
+
+def test_a_non_whole_slide_instance_carries_no_whole_slide_keys(
+    handler: DICOMHandler, dicom_file: Path
+) -> None:
+    """A CT slice must extract exactly the dict it extracted before whole
+    slide support existed, so that every committed golden stays byte-identical."""
+    props = handler.extract(make_source(dicom_file))["dicom_properties"]
+    for key in (
+        "wsi_flavor",
+        "total_pixel_matrix_columns",
+        "total_pixel_matrix_rows",
+        "imaged_volume_width",
+        "imaged_volume_height",
+        "container_identifier",
+        "optical_path_count",
+    ):
+        assert key not in props
+
+
+def test_a_slide_reads_pixel_spacing_from_the_shared_functional_groups(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    """A slide is multi-frame, so it states its physical scale one nesting
+    down; reading only the top level leaves every slide without one."""
+    f = _make_wsi_dicom(tmp_path / "slide.dcm", pixel_spacing=(0.00025, 0.00025))
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["pixel_spacing"] == pytest.approx([0.00025, 0.00025])
+
+
+def test_a_top_level_pixel_spacing_wins_over_the_functional_group_one(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(
+        tmp_path / "slide.dcm",
+        pixel_spacing=(0.00025, 0.00025),
+        top_level_pixel_spacing=(0.5, 0.5),
+    )
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert props["pixel_spacing"] == pytest.approx([0.5, 0.5])
+
+
+def test_a_slide_stating_no_pixel_spacing_anywhere_reports_none(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    f = _make_wsi_dicom(tmp_path / "label.dcm", flavor="LABEL", pixel_spacing=None)
+    props = handler.extract(make_source(f))["dicom_properties"]
+    assert "pixel_spacing" not in props
+
+
+def _wsi_meta(name: str, flavor: str = "VOLUME") -> dict:
+    meta = _dicom_meta(name, modality="SM")
+    meta["dicom_properties"].update(
+        {
+            "sop_class_uid": WSI_SOP_CLASS_UID,
+            "wsi_flavor": flavor,
+            "total_pixel_matrix_columns": 4096,
+            "total_pixel_matrix_rows": 2048,
+            "container_identifier": "SLIDE-0001",
+        }
+    )
+    return meta
+
+
+def test_the_summary_counts_the_whole_slide_instances_and_their_flavors() -> None:
+    metas = [
+        _wsi_meta("volume.dcm", flavor="VOLUME"),
+        _wsi_meta("label.dcm", flavor="LABEL"),
+        _wsi_meta("overview.dcm", flavor="OVERVIEW"),
+        _dicom_meta("ct.dcm"),
+    ]
+    summary = collect_dicom_summary(metas)
+
+    assert summary["wsi_count"] == 3
+    assert summary["wsi_flavors"] == ["VOLUME", "LABEL", "OVERVIEW"]
+
+
+def test_the_summary_of_a_batch_without_slides_says_nothing_about_slides() -> None:
+    summary = collect_dicom_summary([_dicom_meta("ct.dcm")])
+    assert "wsi_count" not in summary
+    assert "wsi_flavors" not in summary
+
+
+def test_the_record_set_description_names_the_slide_count_and_the_flavors(
+    handler: DICOMHandler,
+) -> None:
+    metas = [
+        _wsi_meta("volume.dcm", flavor="VOLUME"),
+        _wsi_meta("label.dcm", flavor="LABEL"),
+    ]
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+    assert (
+        "2 whole-slide microscopy instances (VOLUME, LABEL)"
+        in record_sets[0].description
+    )
+
+
+def test_a_lone_slide_is_described_in_the_singular(handler: DICOMHandler) -> None:
+    _, record_sets = handler.build_croissant([_wsi_meta("volume.dcm")], ["file_0"])
+    assert "1 whole-slide microscopy instance (VOLUME)" in record_sets[0].description
+
+
+def test_the_record_set_description_of_a_batch_without_slides_is_unchanged(
+    handler: DICOMHandler,
+) -> None:
+    """The goldens in tests/data/output carry this exact sentence, so a batch
+    of cross sections must describe itself the way it did before slides."""
+    _, record_sets = handler.build_croissant([_dicom_meta("ct.dcm")], ["file_0"])
+    assert record_sets[0].description == "1 DICOM files (512x512): CT (1)"
+
+
+def test_a_batch_holding_a_slide_gains_the_whole_slide_fields(
+    handler: DICOMHandler,
+) -> None:
+    metas = [_dicom_meta("ct.dcm"), _wsi_meta("volume.dcm")]
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+    field_names = {f.name for f in record_sets[0].fields}
+    assert {
+        "wsi_flavor",
+        "total_pixel_matrix_columns",
+        "total_pixel_matrix_rows",
+        "container_identifier",
+    } <= field_names
+
+
+def test_the_whole_slide_field_ids_stay_in_the_dicom_namespace(
+    handler: DICOMHandler,
+) -> None:
+    """Two record sets sharing a field id collide into one node when the graph
+    is serialised, so every field id keeps its record set prefix."""
+    _, record_sets = handler.build_croissant([_wsi_meta("volume.dcm")], ["file_0"])
+    assert all(f.id.startswith("dicom/") for f in record_sets[0].fields)
+
+
+def test_a_batch_without_a_slide_gains_no_whole_slide_fields(
+    handler: DICOMHandler,
+) -> None:
+    """The fields are conditional so that a cross-sectional dataset bakes to
+    the same document it baked to before slides were recognised."""
+    _, record_sets = handler.build_croissant([_dicom_meta("ct.dcm")], ["file_0"])
+    field_names = {f.name for f in record_sets[0].fields}
+    assert field_names == {
+        "modality",
+        "rows",
+        "columns",
+        "num_frames",
+        "bits_allocated",
+        "patient_id",
+        "study_instance_uid",
+        "series_instance_uid",
+    }
+
+
+def test_a_bake_of_a_slide_directory_describes_the_slides(tmp_path: Path) -> None:
+    """The whole path end to end: a scanner export of one VOLUME image beside
+    its LABEL and OVERVIEW snapshots, read, summarised, and described."""
+    _make_wsi_dicom(tmp_path / "volume.dcm", flavor="VOLUME")
+    _make_wsi_dicom(tmp_path / "label.dcm", flavor="LABEL")
+    _make_wsi_dicom(tmp_path / "overview.dcm", flavor="OVERVIEW")
+
+    dicom_record_set = by_name(record_sets(bake(tmp_path)))["dicom"]
+    field_names = {f["name"] for f in dicom_record_set["field"]}
+
+    assert "3 whole-slide microscopy instances" in dicom_record_set["description"]
+    assert {
+        "wsi_flavor",
+        "total_pixel_matrix_columns",
+        "total_pixel_matrix_rows",
+        "container_identifier",
+    } <= field_names
