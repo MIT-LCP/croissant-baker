@@ -36,6 +36,9 @@ dependencies = [
     "openpyxl>=3.1",
     # xlrd 2.0 dropped .xlsx, which is why openpyxl is here too.
     "xlrd>=2.0",
+    # Structural biology: PDB, mmCIF and STAR parsing. Binary headers (MRC, MTZ)
+    # are read without it.
+    "gemmi>=0.7.0",
 ]
 
 [project.scripts]
