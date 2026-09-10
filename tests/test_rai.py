@@ -248,3 +248,25 @@ def test_the_reference_output_records_the_fixture_collection_types() -> None:
     expected = json.loads(EXPECTED.read_text())
 
     assert expected["rai:dataCollectionType"] == ["observations", "existing_datasets"]
+
+
+def test_a_dry_run_checks_the_rai_config_too(tmp_path: Path) -> None:
+    """A dry run is how a user checks a command before committing to it."""
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "--input",
+            str(dataset),
+            "--dry-run",
+            "--rai-config",
+            str(_bad_config(tmp_path)),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "ai_fairness.social_impact" in result.stderr
+    assert "would be processed" not in result.output
