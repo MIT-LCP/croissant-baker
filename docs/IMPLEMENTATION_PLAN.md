@@ -33,7 +33,7 @@ from the shared functional groups. Non-WSI DICOM output is unchanged.
 WSI instance yields the new fields; the record-set description names the
 slide count.
 **Tests**: additions to `tests/test_dicom_handler.py`.
-**Status**: Not Started
+**Status**: Complete
 
 ## Stage 3: Fixtures, end-to-end bake, and documentation
 **Goal**: A small committed `tests/data/input/wsi_demo/` dataset with one
