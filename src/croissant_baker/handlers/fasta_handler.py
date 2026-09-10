@@ -11,12 +11,8 @@ RecordSet: bases are not records of a dataset schema. What it produces is a
 described FileObject, through the ``description`` key the generator honours.
 """
 
-import logging
-
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.sources import FileSource
-
-logger = logging.getLogger(__name__)
 
 #: The character a record description line opens with, and the whole of what
 #: distinguishes a FASTA from any other text file.

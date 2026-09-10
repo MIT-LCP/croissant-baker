@@ -16,17 +16,11 @@ What this handler produces is a described FileObject, through the
 """
 
 import itertools
-import logging
 from typing import List
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-
-# The same string helper the alignment handlers use. Duplicating it for a third
-# time to keep the import local to sequencing would be the worse trade.
-from croissant_baker.handlers.sam_header import plural
+from croissant_baker.handlers.utils import plural
 from croissant_baker.sources import FileSource
-
-logger = logging.getLogger(__name__)
 
 #: FASTQ has no IANA registration. The ``x-`` form follows ``text/x-vcf`` and
 #: ``text/x-geo-soft``, already in the tree.

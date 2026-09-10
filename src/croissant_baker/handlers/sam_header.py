@@ -6,26 +6,9 @@ program that touched the file. Reading it is the same job whichever container
 it sits in, so it is done here, once, and each handler only has to find it.
 """
 
-from typing import BinaryIO, Dict, List, Optional
+from typing import Dict, List, Optional
 
-
-def read_exactly(
-    stream: BinaryIO, count: int, what: str, name: str, format_name: str
-) -> bytes:
-    """``count`` bytes, or a refusal naming the file and what was missing.
-
-    Shared because every alignment container reaches its header the same way:
-    a length the file states, then that many bytes. A short read there is the
-    file ending mid-header, and what a reader needs told is which file and
-    which field, whichever container it was.
-    """
-    data = stream.read(count)
-    if len(data) != count:
-        raise ValueError(
-            f"Truncated {format_name} header in {name}: {what} needs {count} "
-            f"bytes, got {len(data)}"
-        )
-    return data
+from croissant_baker.handlers.utils import plural
 
 
 class SamHeader:
@@ -92,11 +75,6 @@ def _collect(into: List[str], value: Optional[str]) -> None:
     """
     if value and value not in into:
         into.append(value)
-
-
-def plural(count: int, noun: str) -> str:
-    """``1 read group``, ``2 reference sequences``."""
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 def program_chain(programs: List[Dict[str, str]]) -> str:

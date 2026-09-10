@@ -8,11 +8,15 @@ below it is ever decoded.
 """
 
 import gzip
-import io
 import struct
 import zlib
 from typing import BinaryIO
 
+from croissant_baker.handlers.utils import (
+    MAX_HEADER_BYTES,
+    decompress_prefix,
+    read_exactly,
+)
 from croissant_baker.handlers.vcf_handler import (
     VCFHandler,
     _Header,
@@ -46,31 +50,15 @@ UINT32_BYTES = 4
 
 #: The largest header text this handler will read. ``l_text`` is a length the
 #: file chooses, so trusting it turns a header read into a read of the whole
-#: file, which is the one thing this handler exists not to do. 64 MiB is far
-#: above any real header: a cohort declaring thousands of contigs and keys is a
-#: few hundred KiB.
-MAX_TEXT_BYTES = 64 * 1024 * 1024
+#: file, which is the one thing this handler exists not to do. The cap is the
+#: shared one, because every container in this family states its own header
+#: length and none of them may be believed about it.
+MAX_TEXT_BYTES = MAX_HEADER_BYTES
 
 
 def _read_exactly(stream: BinaryIO, count: int, what: str, name: str) -> bytes:
     """``count`` bytes, or a refusal naming the file and what was missing."""
-    data = stream.read(count)
-    if len(data) != count:
-        raise ValueError(
-            f"Truncated BCF header in {name}: {what} needs {count} bytes, "
-            f"got {len(data)}"
-        )
-    return data
-
-
-def _decompress_prefix(head: bytes, count: int) -> bytes:
-    """The first ``count`` bytes inside a compressed prefix.
-
-    A prefix, so the stream ends mid-member; that is expected, and the bytes
-    already produced are the answer.
-    """
-    with gzip.GzipFile(fileobj=io.BytesIO(head), mode="rb") as payload:
-        return payload.read(count)
+    return read_exactly(stream, count, what, name, "BCF")
 
 
 class BCFHandler(VCFHandler):
@@ -113,7 +101,7 @@ class BCFHandler(VCFHandler):
         if not head.startswith(COMPRESSED_MAGIC):
             return False
         try:
-            return _decompress_prefix(head, len(MAGIC_PREFIX)) == MAGIC_PREFIX
+            return decompress_prefix(head, len(MAGIC_PREFIX)) == MAGIC_PREFIX
         except (OSError, EOFError, zlib.error):
             return False
 

@@ -15,17 +15,11 @@ handler produces is a described FileObject, through the ``description`` key the
 generator honours.
 """
 
-import logging
 from typing import List
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.sam_header import (
-    describe_alignment,
-    parse_sam_header,
-)
+from croissant_baker.handlers.sam_header import describe_alignment, parse_sam_header
 from croissant_baker.sources import FileSource
-
-logger = logging.getLogger(__name__)
 
 #: SAM has no IANA registration. The ``x-`` form follows ``text/x-vcf`` and
 #: ``text/x-geo-soft``, already in the tree.

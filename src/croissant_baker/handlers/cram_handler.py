@@ -27,8 +27,8 @@ from croissant_baker.handlers.sam_header import (
     SamHeader,
     describe_alignment,
     parse_sam_header,
-    read_exactly,
 )
+from croissant_baker.handlers.utils import MAX_HEADER_BYTES, read_exactly
 from croissant_baker.sources import FileSource
 
 #: The four bytes a CRAM file definition opens with, and the whole claim. A
@@ -68,14 +68,6 @@ CODEC_NAMES = {4: "rANS"}
 #: Every 32-bit field a container states is little-endian and signed.
 INT32 = "<i"
 INT32_BYTES = 4
-
-#: The largest header block this handler will read, applied to the compressed
-#: size, the decompressed size and the header text length alike. Each is a
-#: number the file chooses, so trusting one turns a header read into a read of
-#: the whole file, which is the one thing this handler exists not to do. 64 MiB
-#: is far above any real header: a header of a million reference sequences,
-#: which no assembly has, is a few tens of MiB.
-MAX_HEADER_BYTES = 64 * 1024 * 1024
 
 #: The most landmarks a container header may declare before this handler stops
 #: believing it. A landmark is the offset of one slice and a container holds

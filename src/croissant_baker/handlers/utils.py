@@ -1,10 +1,12 @@
 """Shared utilities for file handlers."""
 
+import gzip
+import io
 import logging
 import re
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union
+from typing import BinaryIO, Dict, List, Optional, Sequence, Union
 
 
 import mlcroissant as mlc
@@ -65,6 +67,52 @@ def open_text_file(file_path: Path):
     if comp is None:
         return open(path, "r", encoding=compression.DEFAULT_TEXT_ENCODING)
     return comp.opener(path, "rt", encoding=compression.DEFAULT_TEXT_ENCODING)
+
+
+#: The largest header a handler will read out of a file that states its own
+#: header length. Every such length is a number the file chooses, so trusting
+#: one turns a header read into a read of the whole file, which is the one
+#: thing a header-only handler exists not to do. 64 MiB is far above any real
+#: header: a header of a million reference sequences, which no assembly has, is
+#: a few tens of MiB, and a cohort declaring thousands of contigs and keys is a
+#: few hundred KiB.
+MAX_HEADER_BYTES = 64 * 1024 * 1024
+
+
+def read_exactly(
+    stream: BinaryIO, count: int, what: str, name: str, format_name: str
+) -> bytes:
+    """``count`` bytes, or a refusal naming the file and what was missing.
+
+    Shared because every binary container reaches its header the same way: a
+    length the file states, then that many bytes. A short read there is the
+    file ending mid-header, and what a reader needs told is which file and
+    which field, whichever container it was.
+    """
+    data = stream.read(count)
+    if len(data) != count:
+        raise ValueError(
+            f"Truncated {format_name} header in {name}: {what} needs {count} "
+            f"bytes, got {len(data)}"
+        )
+    return data
+
+
+def decompress_prefix(head: bytes, count: int) -> bytes:
+    """The first ``count`` bytes inside a compressed prefix.
+
+    A prefix, so the stream ends mid-member; that is expected, and the bytes
+    already produced are the answer. Shared by the handlers whose format is
+    itself a gzip container, so the compression layer hands them the bytes as
+    they sit on disk and they open the wrapper themselves.
+    """
+    with gzip.GzipFile(fileobj=io.BytesIO(head), mode="rb") as payload:
+        return payload.read(count)
+
+
+def plural(count: int, noun: str) -> str:
+    """``1 read group``, ``2 reference sequences``."""
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 # Characters that are invalid in Croissant @id values.
