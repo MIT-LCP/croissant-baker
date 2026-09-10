@@ -462,6 +462,7 @@ are stated in the `description` of the file's `cr:FileObject`. `encodingFormat`
 is `text/x-sam`, with the compression media type added by the input layer when
 the file arrives under one. `@RG SM` is withheld under the same
 `--genomic-sample-ids` opt-in.
+
 ## FASTQ
 
 FASTQ (`.fastq`, `.fq`) is the same four lines repeated until the run is
@@ -498,6 +499,7 @@ dataset schema, so a FASTQ is described as a file: the read length is stated in
 the `description` of its `cr:FileObject`. `encodingFormat` is `text/x-fastq`,
 with the compression media type added by the input layer when the file arrives
 under one, so `reads.fastq.gz` is described exactly as `reads.fastq` is.
+
 ## FASTA
 
 FASTA (`.fa`, `.fasta`, `.fna`) is a description line followed by sequence,
@@ -532,6 +534,7 @@ one. FASTA has no IANA registration, so the `x-` form follows `text/x-vcf`.
 
 Index and dictionary files (`.fai`, `.dict`, `.gzi`) are reported as unsupported;
 nothing claims them.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
