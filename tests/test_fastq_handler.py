@@ -205,6 +205,43 @@ def test_the_read_stops_after_the_first_record(dataset: Path) -> None:
     assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
 
 
+#: A body with no line ending anywhere in it, and the read a bounded handler
+#: may spend before refusing it: the prefix the first record must fit in.
+NO_NEWLINE_BYTES = 4 * 1024 * 1024
+BOUNDED_REFUSAL = 2 * 1024 * 1024
+
+
+def test_a_body_holding_no_line_ending_is_refused_after_a_bounded_read(
+    dataset: Path,
+) -> None:
+    """A record is four lines, so a reader taking four lines off a stream takes
+    the whole file when the file holds no line ending. The longest read any
+    instrument writes fits in the prefix; a record that does not end inside it
+    is not a record this handler reads."""
+    path = write(dataset, "unbroken.fq", b"@" + b"x" * NO_NEWLINE_BYTES)
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "unbroken.fq" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < BOUNDED_REFUSAL
+
+
+def test_a_long_read_is_still_described(dataset: Path) -> None:
+    """Bounded is not truncated. A long-read platform writes reads of hundreds
+    of kilobases, and the record carries each base twice: once as a base and
+    once as a quality score."""
+    bases = 300_000
+    path = write(
+        dataset,
+        "long.fastq",
+        b"@r1\n" + b"A" * bases + b"\n+\n" + b"I" * bases + b"\n",
+    )
+
+    assert extract(path)["first_read_length"] == bases
+
+
 def test_an_empty_file_is_refused_with_a_reason(dataset: Path) -> None:
     path = write(dataset, "empty.fastq", b"")
 

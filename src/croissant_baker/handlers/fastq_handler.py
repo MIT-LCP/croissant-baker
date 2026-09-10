@@ -15,11 +15,10 @@ What this handler produces is a described FileObject, through the
 ``description`` key the generator honours, exactly as the BAM handler does.
 """
 
-import itertools
 from typing import List
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.utils import plural
+from croissant_baker.handlers.utils import plural, read_prefix_chunks
 from croissant_baker.sources import FileSource
 
 #: FASTQ has no IANA registration. The ``x-`` form follows ``text/x-vcf`` and
@@ -38,6 +37,15 @@ SEPARATOR_PREFIX = "+"
 #: fit many times over; a peek that stops short of the third line simply leaves
 #: the decision to the extension, and ``extract`` reports what it then finds.
 CLAIM_BYTES = 4096
+
+#: The prefix the first record must end inside. Bounded rather than four lines
+#: taken off the stream, which on a file holding no line ending at all reads
+#: the whole of it, and reading the whole of it is the one thing this handler
+#: exists not to do. A megabyte because a record is the read written twice,
+#: once as bases and once as quality scores, and the longest reads anyone
+#: produces are the hundreds of kilobases of a long-read platform; short-read
+#: records, which are what most files hold, fit thousands of times over.
+HEAD_BYTES = 1024 * 1024
 
 
 class FASTQHandler(FileTypeHandler):
@@ -115,18 +123,41 @@ class FASTQHandler(FileTypeHandler):
     def _read_first_record(self, source: FileSource, name: str) -> List[str]:
         """The first four lines, decoded and stripped of their endings.
 
+        Taken from a bounded prefix rather than as four lines off the stream: a
+        stream iterated by line hands back the whole file as one line when the
+        file holds no line ending, so a record that does not end inside the
+        prefix is reported rather than read for.
+
         Permissively decoded: a stray byte in a read name is not a reason to
         refuse a file whose structure is otherwise readable, and the name is
         the one part of the record nothing is emitted from anyway.
         """
+        head = b""
         try:
             with source.open() as stream:
-                raw = list(itertools.islice(stream, RECORD_LINES))
+                for chunk in read_prefix_chunks(stream, HEAD_BYTES):
+                    head += chunk
+                    if head.count(b"\n") >= RECORD_LINES:
+                        break
         except OSError as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
             ) from exc
-        return [line.decode("utf-8", "replace").rstrip("\r\n") for line in raw]
+
+        if len(head) == HEAD_BYTES and head.count(b"\n") < RECORD_LINES:
+            raise ValueError(
+                f"Malformed {self.FORMAT_NAME} record in {name}: the first "
+                f"record does not end within {HEAD_BYTES} bytes, so it is not "
+                "the four lines this handler reads"
+            )
+        lines = head.split(b"\n")
+        # The tail after the last line ending is not a line.
+        if lines and not lines[-1]:
+            lines.pop()
+        return [
+            line.decode("utf-8", "replace").rstrip("\r")
+            for line in lines[:RECORD_LINES]
+        ]
 
     def _first_read_length(self, lines: List[str], name: str) -> int:
         """The length of the first read, or a refusal saying what is wrong.
