@@ -5,6 +5,10 @@ vendors and no Croissant, and this module knows Croissant and no vendor.
 """
 
 import logging
+from pathlib import Path
+from typing import Dict, List
+
+import mlcroissant as mlc
 
 from croissant_baker.handlers import wsi
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
@@ -19,6 +23,38 @@ MIME_TYPE = "image/tiff"
 
 #: Enough bytes for the longest TIFF signature.
 MAGIC_PREFIX_BYTES = 4
+
+FILE_SET_ID = "wsi-files"
+RECORD_SET_ID = "slides"
+
+#: What a slide with no vendor signature is counted as in a breakdown. It is
+#: a TIFF that no scanner claimed, not a vendor named "unknown".
+UNSIGNED = "no vendor signature"
+
+#: Field name, Croissant type, description prefix, and
+#: :class:`~croissant_baker.handlers.wsi.SlideHeader` attribute. A field is
+#: emitted only where the batch has an observed value, so a batch of Leica
+#: slides carries no ``mpp_x`` field describing a measurement none of them
+#: made.
+_SLIDE_FIELDS = (
+    ("vendor", "sc:Text", "The scanner vendor that wrote the file", "vendor"),
+    ("width", "sc:Integer", "Base level width in pixels", "width"),
+    ("height", "sc:Integer", "Base level height in pixels", "height"),
+    (
+        "level_count",
+        "sc:Integer",
+        "Pyramid levels, the base level included",
+        "level_count",
+    ),
+    ("mpp_x", "sc:Float", "Micrometres per pixel across the base level", "mpp_x"),
+    ("mpp_y", "sc:Float", "Micrometres per pixel down the base level", "mpp_y"),
+    (
+        "objective_power",
+        "sc:Float",
+        "Magnification of the objective the slide was scanned through",
+        "objective_power",
+    ),
+)
 
 
 class WSIHandler(FileTypeHandler):
@@ -87,8 +123,174 @@ class WSIHandler(FileTypeHandler):
         }
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
+        """One FileSet over the slides, and one row per slide.
+
+        Every vendor here describes one thing, a pyramid of a single tissue
+        section, so unlike the OME split in the image handler there is no
+        second collection: a Leica row simply leaves the pixel size unstated.
+        """
         # An empty batch has nothing to summarise; emitting a FileSet over
         # zero files would describe data that is not there.
         if not file_metas:
             return BuildResult([], [])
-        return BuildResult([], [])
+        return BuildResult([_file_set(file_metas)], [_record_set(file_metas)])
+
+
+def _headers(file_metas: List[Dict]) -> List[wsi.SlideHeader]:
+    return [meta["slide"] for meta in file_metas]
+
+
+def _includes(file_metas: List[Dict]) -> List[str]:
+    """One glob per extension the batch actually holds.
+
+    Both glob forms per extension: mlcroissant matches with fnmatch, where
+    ``**/`` requires a directory, and slides sit at the dataset root as often
+    as in a subdirectory.
+    """
+    patterns: Dict[str, str] = {}
+    for meta in file_metas:
+        extension = Path(meta["file_name"]).suffix
+        lower = extension.lower()
+        if extension != lower:
+            # Globs are case-sensitive on Linux. One character-class pattern
+            # covers every observed spelling without overlapping includes.
+            spelling = "".join(
+                f"[{char}{char.upper()}]" if char.isalpha() else char for char in lower
+            )
+            patterns[lower] = f"**/*{spelling}"
+        else:
+            patterns.setdefault(lower, f"**/*{lower}")
+    return sorted(
+        glob for pattern in patterns.values() for glob in (pattern, pattern[3:])
+    )
+
+
+def _file_set(file_metas: List[Dict]) -> mlc.FileSet:
+    return mlc.FileSet(
+        id=FILE_SET_ID,
+        name="Whole-slide image files",
+        description=(
+            f"{len(file_metas)} whole-slide image file(s) ({_vendors(file_metas)})"
+        ),
+        encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
+        includes=_includes(file_metas),
+    )
+
+
+def _record_set(file_metas: List[Dict]) -> mlc.RecordSet:
+    fields = [
+        mlc.Field(
+            id=f"{RECORD_SET_ID}/image",
+            name="image",
+            description=f"Slide content ({len(file_metas)} whole-slide file(s))",
+            data_types=["sc:ImageObject"],
+            source=mlc.Source(
+                file_set=FILE_SET_ID,
+                extract=mlc.Extract(file_property="content"),
+            ),
+        ),
+        mlc.Field(
+            id=f"{RECORD_SET_ID}/filename",
+            name="filename",
+            description="The slide's file name, which identifies the section",
+            data_types=["sc:Text"],
+            source=mlc.Source(
+                file_set=FILE_SET_ID,
+                extract=mlc.Extract(file_property="filename"),
+            ),
+        ),
+    ]
+
+    headers = _headers(file_metas)
+    for name, data_type, prefix, attribute in _SLIDE_FIELDS:
+        values = [
+            value
+            for value in (getattr(header, attribute) for header in headers)
+            if value is not None and value != ""
+        ]
+        if not values:
+            continue
+        fields.append(
+            mlc.Field(
+                id=f"{RECORD_SET_ID}/{name}",
+                name=name,
+                description=f"{prefix} ({_observed(values)})",
+                data_types=[data_type],
+                source=mlc.Source(
+                    file_set=FILE_SET_ID,
+                    extract=mlc.Extract(file_property="content"),
+                ),
+            )
+        )
+
+    return mlc.RecordSet(
+        id=RECORD_SET_ID,
+        name=RECORD_SET_ID,
+        description=_description(file_metas),
+        fields=fields,
+    )
+
+
+def _description(file_metas: List[Dict]) -> str:
+    """What the batch holds, in the terms a pathologist would ask about it."""
+    headers = _headers(file_metas)
+    total = len(file_metas)
+    magnifications = [
+        header.objective_power
+        for header in headers
+        if header.objective_power is not None
+    ]
+    text = (
+        f"{total} whole-slide image(s) ({_dimensions(headers)}): "
+        f"{_vendors(file_metas)}. Objective magnification: "
+        f"{_observed(magnifications) if magnifications else 'not stated'}."
+    )
+
+    refused = [header.refusal for header in headers if header.refusal]
+    if refused:
+        text += (
+            f" {len(refused)} of {total} carried a vendor slide description "
+            f"that was not parsed: {'; '.join(sorted(set(refused)))}."
+        )
+    return text
+
+
+def _vendors(file_metas: List[Dict]) -> str:
+    """The vendor breakdown, sorted, because discovery order is rglob order."""
+    counts: Dict[str, int] = {}
+    for header in _headers(file_metas):
+        name = header.vendor or UNSIGNED
+        counts[name] = counts.get(name, 0) + 1
+    return ", ".join(f"{name} ({count})" for name, count in sorted(counts.items()))
+
+
+def _dimensions(headers: List[wsi.SlideHeader]) -> str:
+    widths = [header.width for header in headers if header.width is not None]
+    heights = [header.height for header in headers if header.height is not None]
+    if not widths or not heights:
+        return "unknown dimensions"
+    return f"{_observed(widths)}x{_observed(heights)}"
+
+
+def _observed(values: list) -> str:
+    """What the batch holds: one value, a range of numbers, or a set of words.
+
+    No ``Field.value`` is emitted anywhere, so this is where the numbers live.
+    A field describes the whole batch, and one file's value would be a false
+    statement about the others.
+    """
+    if all(isinstance(value, (int, float)) for value in values):
+        low, high = min(values), max(values)
+        return _number(low) if low == high else f"{_number(low)}-{_number(high)}"
+    return ", ".join(sorted({str(value) for value in values}))
+
+
+def _number(value) -> str:
+    """A measurement, without the decimal point a whole one does not need.
+
+    Not ``:g``: that switches to exponent notation above a million, and a
+    slide 200,000 pixels wide is a routine size in this format.
+    """
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
