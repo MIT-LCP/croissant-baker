@@ -7,6 +7,8 @@ import pytest
 from typer.testing import CliRunner
 
 from croissant_baker.__main__ import app
+from croissant_baker.rai import inject_rai
+from croissant_baker.rai.schema import Activity, RAIConfig
 from tests.helpers import cli
 
 runner = CliRunner()
@@ -33,6 +35,7 @@ _RAI_PROV_KEYS = [
     "rai:personalSensitiveInformation",
     "rai:dataUseCases",
     "rai:dataSocialImpact",
+    "rai:dataCollectionType",
     "prov:wasDerivedFrom",
 ]
 
@@ -184,3 +187,64 @@ def test_an_intended_exit_is_not_reported_as_an_unexpected_error(
     assert result.exit_code == 1
     assert "cannot be combined with --rai-config" in result.stderr
     assert "Unexpected error" not in result.stderr
+
+
+def _config(*activities: Activity) -> RAIConfig:
+    return RAIConfig(activities=list(activities))
+
+
+def _activity(identifier: str, *collection_types: str) -> Activity:
+    return Activity(
+        id=identifier,
+        type="data_collection",
+        collection_types=list(collection_types),
+    )
+
+
+def test_collection_types_reach_the_dataset_node() -> None:
+    """rai:dataCollectionType is a dataset-level property in RAI 1.0."""
+    config = _config(
+        _activity("ACT-001", "observations", "existing_datasets"),
+        _activity("ACT-002", "existing_datasets", "surveys"),
+    )
+
+    document = inject_rai({"@context": {}}, config)
+
+    assert document["rai:dataCollectionType"] == [
+        "observations",
+        "existing_datasets",
+        "surveys",
+    ]
+
+
+def test_a_single_collection_type_is_written_as_a_string() -> None:
+    document = inject_rai({"@context": {}}, _config(_activity("ACT-001", "surveys")))
+
+    assert document["rai:dataCollectionType"] == "surveys"
+
+
+def test_no_collection_types_writes_no_key() -> None:
+    document = inject_rai({"@context": {}}, _config(_activity("ACT-001")))
+
+    assert "rai:dataCollectionType" not in document
+
+
+def test_each_activity_node_carries_its_own_collection_types() -> None:
+    config = _config(
+        _activity("ACT-001", "observations", "existing_datasets"),
+        _activity("ACT-002"),
+    )
+
+    activities = inject_rai({"@context": {}}, config)["prov:wasGeneratedBy"]
+
+    assert activities[0]["rai:dataCollectionType"] == [
+        "observations",
+        "existing_datasets",
+    ]
+    assert "rai:dataCollectionType" not in activities[1]
+
+
+def test_the_reference_output_records_the_fixture_collection_types() -> None:
+    expected = json.loads(EXPECTED.read_text())
+
+    assert expected["rai:dataCollectionType"] == ["observations", "existing_datasets"]

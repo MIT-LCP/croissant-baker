@@ -5790,6 +5790,10 @@
   "rai:dataUseCases": "Benchmarking clinical natural language processing and machine learning models. Supporting research into hospital readmission, mortality prediction, and clinical decision support. Not intended for direct clinical decision-making.",
   "rai:dataSocialImpact": "This dataset enables research that could improve clinical AI tools and patient outcomes. However, models trained on biased data risk perpetuating health disparities if deployed without careful evaluation.",
   "rai:hasSyntheticData": false,
+  "rai:dataCollectionType": [
+    "observations",
+    "existing_datasets"
+  ],
   "prov:wasDerivedFrom": [
     {
       "url": "https://physionet.org/content/mimiciii/",
@@ -5809,6 +5813,10 @@
       "prov:description": "Retrospective electronic health records collected during routine clinical care at Beth Israel Deaconess Medical Center.",
       "prov:startedAtTime": "2011-01-01",
       "prov:endedAtTime": "2019-12-31",
+      "rai:dataCollectionType": [
+        "observations",
+        "existing_datasets"
+      ],
       "prov:wasAssociatedWith": {
         "@type": "prov:Agent",
         "name": "Beth Israel Deaconess Medical Center Clinical Team",
