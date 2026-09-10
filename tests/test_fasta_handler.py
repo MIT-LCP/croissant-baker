@@ -21,6 +21,7 @@ from croissant_baker.sources import FileSource, make_source
 from tests.helpers import (
     SAMPLES,
     bake,
+    cut_gzip,
     file_objects,
     record_sets,
     write_wrapped,
@@ -172,6 +173,21 @@ def test_a_description_line_naming_no_record_is_refused(dataset: Path) -> None:
         extract(path)
 
     assert "bare.fa" in str(caught.value)
+
+
+def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
+    dataset: Path,
+) -> None:
+    """A member intact for its first bytes opens, and then ends where the
+    download stopped. What that raises is not an ``OSError``, and a file is
+    owed a reason naming it either way."""
+    path = write(dataset, "cut.fa.gz", cut_gzip(b">chr1 test contig\n" + b"ACGT" * 200))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "cut.fa" in str(caught.value)
+    assert "FASTA" in str(caught.value)
 
 
 def test_no_sequence_becomes_a_record_set(dataset: Path) -> None:

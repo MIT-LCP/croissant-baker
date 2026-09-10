@@ -22,7 +22,7 @@ from typing import List
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.sam_header import describe_alignment, parse_sam_header
 from croissant_baker.handlers.utils import MAX_HEADER_BYTES, read_prefix_chunks
-from croissant_baker.sources import FileSource
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: SAM has no IANA registration. The ``x-`` form follows ``text/x-vcf`` and
 #: ``text/x-geo-soft``, already in the tree.
@@ -180,7 +180,7 @@ class SAMHandler(FileTypeHandler):
                 # line, written without an ending.
                 if pending.startswith(HEADER_PREFIX):
                     lines.append(_decode(pending))
-        except OSError as exc:
+        except UNREADABLE as exc:
             raise ValueError(f"Failed to read SAM file {name}: {exc}") from exc
         return lines
 

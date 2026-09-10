@@ -9,7 +9,6 @@ below it is ever decoded.
 
 import gzip
 import struct
-import zlib
 from typing import BinaryIO
 
 from croissant_baker.handlers.utils import (
@@ -22,7 +21,7 @@ from croissant_baker.handlers.vcf_handler import (
     _Header,
     read_header_lines,
 )
-from croissant_baker.sources import FileSource
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: The first four bytes of a BCF 2.x payload. The fifth is the minor version,
 #: which says how the records are encoded and so says nothing about the header
@@ -102,7 +101,7 @@ class BCFHandler(VCFHandler):
             return False
         try:
             return decompress_prefix(head, len(MAGIC_PREFIX)) == MAGIC_PREFIX
-        except (OSError, EOFError, zlib.error):
+        except UNREADABLE:
             return False
 
     def _read_header(self, source: FileSource) -> _Header:
@@ -122,7 +121,7 @@ class BCFHandler(VCFHandler):
                     return self._read_payload(payload, name)
         # A corrupt member raises its decompression library's own type, which
         # is not an OSError, and a file is owed a reason either way.
-        except (OSError, EOFError, zlib.error) as exc:
+        except UNREADABLE as exc:
             raise ValueError(f"Failed to read BCF file {name}: {exc}") from exc
 
     def _read_payload(self, payload: BinaryIO, name: str) -> _Header:

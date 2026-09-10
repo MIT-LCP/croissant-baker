@@ -28,7 +28,7 @@ from croissant_baker.handlers.sam_header import (
     parse_sam_header,
 )
 from croissant_baker.handlers.utils import MAX_HEADER_BYTES, read_exactly
-from croissant_baker.sources import FileSource
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: The four bytes a CRAM file definition opens with, and the whole claim. A
 #: CRAM is not wrapped at file level, so unlike BAM's there is nothing in front
@@ -284,7 +284,7 @@ class CRAMHandler(FileTypeHandler):
                 self._walk_container_header(stream, major, name)
                 text = self._read_file_header_block(stream, major, name)
                 return major, minor, parse_sam_header(text)
-        except (OSError, EOFError, lzma.LZMAError, zlib.error, struct.error) as exc:
+        except (*UNREADABLE, struct.error) as exc:
             raise ValueError(f"Failed to read CRAM file {name}: {exc}") from exc
 
     def _read_file_definition(self, stream: BinaryIO, name: str) -> Tuple[int, int]:

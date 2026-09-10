@@ -559,6 +559,17 @@ def write_wrapped(directory: Path, name: str, payload: bytes, suffix: str = "") 
     return target
 
 
+def cut_gzip(payload: bytes) -> bytes:
+    """A gzip member of ``payload``, cut off part way through its stream.
+
+    Past the ten-byte header and short of the trailer, so the member opens and
+    then ends mid-stream: what a partly downloaded file looks like to a reader,
+    and what makes a decompressor raise rather than return.
+    """
+    data = gzip.compress(payload, mtime=0)
+    return data[: len(data) * 2 // 3]
+
+
 def write_all(directory: Path, files: Iterable[tuple], suffix: str = "") -> None:
     for name, payload in files:
         write_wrapped(directory, name, payload, suffix)
@@ -673,6 +684,7 @@ __all__ = [
     "by_name",
     "cli",
     "cram_payload",
+    "cut_gzip",
     "file_objects",
     "file_sets",
     "file_set_members",

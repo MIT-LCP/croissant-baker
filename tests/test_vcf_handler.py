@@ -21,6 +21,7 @@ from tests.helpers import (
     bake,
     bake_with_report,
     cli,
+    cut_gzip,
     file_objects,
     record_sets,
     write_wrapped,
@@ -499,6 +500,22 @@ def test_no_record_is_read(dataset: Path) -> None:
     )
 
     assert extract(path)["sample_count"] == 0
+
+
+def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
+    dataset: Path,
+) -> None:
+    """A member intact for its first bytes opens, and then ends where the
+    download stopped. What that raises is not an ``OSError``, and a file is
+    owed a reason naming it either way."""
+    contigs = b"".join(b"##contig=<ID=chr%d,length=100000>\n" % i for i in range(20000))
+    path = write(dataset, "cut.vcf.gz", cut_gzip(b"##fileformat=VCFv4.2\n" + contigs))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "cut.vcf" in str(caught.value)
+    assert "VCF" in str(caught.value)
 
 
 def test_a_bake_over_a_callset_validates(dataset: Path, tmp_path: Path) -> None:

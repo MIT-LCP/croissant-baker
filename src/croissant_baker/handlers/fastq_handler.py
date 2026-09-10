@@ -19,7 +19,7 @@ from typing import List
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.utils import plural, read_prefix_chunks
-from croissant_baker.sources import FileSource
+from croissant_baker.sources import UNREADABLE, FileSource
 
 #: FASTQ has no IANA registration. The ``x-`` form follows ``text/x-vcf`` and
 #: ``text/x-geo-soft``, already in the tree.
@@ -139,7 +139,7 @@ class FASTQHandler(FileTypeHandler):
                     head += chunk
                     if head.count(b"\n") >= RECORD_LINES:
                         break
-        except OSError as exc:
+        except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
             ) from exc
