@@ -156,6 +156,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.sam_handler import SAMHandler
     from croissant_baker.handlers.fastq_handler import FASTQHandler
     from croissant_baker.handlers.fasta_handler import FASTAHandler
+    from croissant_baker.handlers.bcf_handler import BCFHandler
 
     return [
         CSVHandler(),
@@ -175,6 +176,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
         SAMHandler(),
         FASTQHandler(),
         FASTAHandler(),
+        BCFHandler(),
     ]
 
 

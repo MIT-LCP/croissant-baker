@@ -334,6 +334,34 @@ the record set states how many samples the file carries, not what they are
 called. `--genomic-sample-ids` emits them, mirroring the opt-in shape of
 `--count-csv-rows`.
 
+## BCF
+
+BCF (`.bcf`) is the binary form of a VCF: the same header text, followed by
+records packed into a binary encoding. A `.bcf` is already a compressed
+container, and the input layer does not treat it as one: it is a format, not a
+transport wrapper, so the handler decompresses it itself, exactly as the BAM
+handler does. It reads the magic, the declared header length and the header
+text, then stops. No record is decoded.
+
+A BCF is claimed on that magic, in either of the two forms the pipeline can hand
+over: a stream whose payload starts with `BCF\2`, or one that already starts
+with it because a second wrapper was taken off on the way in. Both minor
+versions of BCF 2 are read, because they differ in how records are encoded and
+not in the header. BCF1, samtools' own first-generation encoding, declares no
+VCF header text at all and is reported rather than half-described.
+
+The header is then the VCF handler's, so a callset describes the same way in
+either container: one record set per file, whose fields are the columns the
+`#CHROM` line declares, with `INFO` and `FORMAT` carrying one sub-field per
+declared key, and the `##fileformat`, `##reference`, contig count and sample
+count stated in the record set description. `encodingFormat` is
+`application/x-bcf`, with the compression media type added by the input layer
+when the file arrives under a further wrapper.
+
+Sample column names are withheld under the same `--genomic-sample-ids` opt-in
+that governs a plain VCF. Index files (`.csi`) are reported as unsupported;
+nothing claims them.
+
 ## BAM
 
 BAM (`.bam`) is the compressed binary form of a SAM alignment file. A `.bam` is
