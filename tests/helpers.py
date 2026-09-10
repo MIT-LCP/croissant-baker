@@ -327,6 +327,14 @@ def _fastq() -> list:
             b"IIIIFFFF\n",
         )
     ]
+def _fasta() -> list:
+    """Two records, so the sweep sees a file whose first line is not its only one.
+
+    The description line carries a name and a comment, which is the shape a
+    record name takes when it is a sample identifier, and nothing the handler
+    emits may repeat either.
+    """
+    return [("reference.fa", b">chr1 test contig\nACGTACGTNN\n>chr2\nGGCCAATT\n")]
 
 
 def _nifti() -> list:
@@ -353,6 +361,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "BAMHandler": _bam,
     "SAMHandler": _sam,
     "FASTQHandler": _fastq,
+    "FASTAHandler": _fasta,
 }
 
 #: Handlers with no sample, and why.
