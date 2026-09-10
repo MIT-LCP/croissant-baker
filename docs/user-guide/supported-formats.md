@@ -363,6 +363,29 @@ cohort manifest, so they are withheld under the same `--genomic-sample-ids`
 opt-in as the VCF sample columns. Index files (`.bai`, `.csi`, `.tbi`) are
 reported as unsupported; nothing claims them.
 
+## SAM
+
+SAM (`.sam`) is the text form of the same alignment file, and it opens with the
+same header. `@HD` gives the SAM version and sort order, `@SQ` the number of
+reference sequences and, from the first, the assembly name; `@RG` the number of
+read groups with their sequencing platforms and centres; `@PG` the program chain
+in declaration order. Nothing in front of the header says how long it is, so the
+read is bounded by the stop at the first line that does not start with `@`: no
+alignment record is read, whatever the size of the file.
+
+A SAM is claimed on its extension **and** its first header line, and needs both.
+A FASTQ opens with `@` as well, so the leading character alone would describe one
+as an alignment it is not; and the header shape alone is not what makes a file a
+SAM. A `.sam` carrying only alignment records is therefore reported as unclaimed,
+which is the honest outcome: with no header it declares no sort order, no
+assembly and no read group.
+
+**No record set is emitted**, for the reason BAM emits none: the properties above
+are stated in the `description` of the file's `cr:FileObject`. `encodingFormat`
+is `text/x-sam`, with the compression media type added by the input layer when
+the file arrives under one. `@RG SM` is withheld under the same
+`--genomic-sample-ids` opt-in.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
