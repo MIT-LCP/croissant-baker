@@ -72,7 +72,7 @@ ai_fairness:
   # Articulate what new capabilities the dataset enables, who benefits, potential
   # harms, affected groups, and concrete mitigation steps (licensing, access
   # controls, usage agreements).
-  social_impact: >
+  data_social_impact: >
     This dataset enables research that could improve clinical AI tools and
     patient outcomes. However, models trained on biased data risk perpetuating
     health disparities if deployed without careful evaluation. Access is
