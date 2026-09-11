@@ -60,9 +60,7 @@ def extract(path: Path, relative: str | None = None, **kwargs) -> dict:
     return HANDLER.extract(source_for(path, relative), **kwargs)
 
 
-# ---------------------------------------------------------------------------
 # The claim
-# ---------------------------------------------------------------------------
 
 
 def test_a_smiles_file_is_claimed_on_its_extension_and_its_first_line(
@@ -157,9 +155,7 @@ def test_an_unreadable_file_is_not_claimed(dataset: Path) -> None:
     assert not HANDLER.claims(source_for(dataset / "gone.smi"))
 
 
-# ---------------------------------------------------------------------------
 # The layout
-# ---------------------------------------------------------------------------
 
 
 def test_the_encoding_format_is_the_chemical_media_type(dataset: Path) -> None:
@@ -255,9 +251,7 @@ def test_the_description_says_which_columns_it_left_out(dataset: Path) -> None:
     assert len(record_set.fields) == MAX_FIELDS
 
 
-# ---------------------------------------------------------------------------
 # The bound
-# ---------------------------------------------------------------------------
 
 
 def test_a_short_file_reports_every_line_it_holds(dataset: Path) -> None:
@@ -332,9 +326,7 @@ def test_the_read_stops_inside_the_sample(dataset: Path) -> None:
     assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
 
 
-# ---------------------------------------------------------------------------
 # The refusals
-# ---------------------------------------------------------------------------
 
 
 def test_an_empty_file_is_refused_with_a_reason(dataset: Path) -> None:
@@ -407,9 +399,7 @@ def test_a_refusal_reaches_the_scan_report_through_a_bake(dataset: Path) -> None
     assert "notes.smi" in refused.detail
 
 
-# ---------------------------------------------------------------------------
 # The record set
-# ---------------------------------------------------------------------------
 
 
 def build(*paths: Path, root: Path | None = None, **kwargs) -> list:
@@ -463,9 +453,7 @@ def test_the_description_says_when_a_header_line_was_found(dataset: Path) -> Non
     assert "header line" in record_set.description
 
 
-# ---------------------------------------------------------------------------
 # The whole path
-# ---------------------------------------------------------------------------
 
 
 def test_a_bake_over_a_smiles_file_validates(dataset: Path, tmp_path: Path) -> None:

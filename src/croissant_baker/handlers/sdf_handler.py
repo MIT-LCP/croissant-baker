@@ -308,8 +308,6 @@ class SDFHandler(FileTypeHandler):
             "field_count": len(fields),
         }
 
-    # ------------------------------------------------------------------
-
     def _read_records(
         self, source: FileSource, name: str
     ) -> Tuple[List[List[str]], bool]:
