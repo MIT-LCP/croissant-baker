@@ -31,6 +31,8 @@ from croissant_baker.handlers.utils import (
     MAX_HEADER_BYTES,
     PrefixLines,
     decode_line,
+    deposited,
+    determined,
     plural,
 )
 from croissant_baker.sources import UNREADABLE, FileSource
@@ -264,11 +266,11 @@ def _describe(name: str, metadata: dict) -> str:
         for part in (
             metadata.get("id_code"),
             metadata.get("classification"),
-            _deposited(metadata.get("deposition_date")),
+            deposited(metadata.get("deposition_date")),
         )
         if part
     )
-    clauses = [clause for clause in (identity, _determined(metadata)) if clause]
+    clauses = [clause for clause in (identity, determined(metadata)) if clause]
     for key, noun in (("chain_count", "chain"), ("model_count", "model")):
         if key in metadata:
             clauses.append(plural(metadata[key], noun))
@@ -285,22 +287,6 @@ def _describe(name: str, metadata: dict) -> str:
         f"PDB structure {name}{stated}. Described from {read}; no coordinate "
         "record was read."
     )
-
-
-def _deposited(date: Optional[str]) -> str:
-    """``deposited 12-JAN-98``, or nothing when the file states no date."""
-    return f"deposited {date}" if date else ""
-
-
-def _determined(metadata: dict) -> str:
-    """How the structure was determined, and at what resolution."""
-    methods = ", ".join(metadata.get("experimental_methods", []))
-    resolution = metadata.get("resolution_angstrom")
-    if methods and resolution is not None:
-        return f"{methods} at {resolution:.2f} A"
-    if resolution is not None:
-        return f"{resolution:.2f} A resolution"
-    return methods
 
 
 class PDBHandler(FileTypeHandler):
