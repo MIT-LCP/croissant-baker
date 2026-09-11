@@ -1,7 +1,7 @@
 """Macromolecular structures: PDB, mmCIF, and the small-molecule CIF beside them.
 
-gemmi is imported here and nowhere else in the package, so the rest of the
-handlers stay free of it.
+Every format here is parsed by gemmi, which is an optional extra, so the import
+is guarded and a file is refused with an install hint when it is missing.
 """
 
 from __future__ import annotations
@@ -9,7 +9,14 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import gemmi
+try:
+    import gemmi
+except ImportError:
+    # The handler stays registered and keeps claiming its suffixes, so a
+    # ``.pdb`` is reported as a file this install cannot read rather than as
+    # one nothing recognises.
+    gemmi = None
+
 import mlcroissant as mlc
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
@@ -222,6 +229,7 @@ class StructureHandler(FileTypeHandler):
         return source.suffix in self.EXTENSIONS
 
     def extract(self, source: FileSource, **kwargs) -> dict:
+        cif.require_gemmi(gemmi, "PDB, mmCIF and CIF")
         if not source.exists:
             raise FileNotFoundError(f"Structure file not found: {source.relative_path}")
 
