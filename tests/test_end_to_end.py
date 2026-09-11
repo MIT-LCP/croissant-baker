@@ -1685,7 +1685,7 @@ def test_wsi_demo_generation(
     )
 
     assert result.exit_code == 0, f"Command failed: {result.stdout}"
-    assert "Scanned 9 file(s): 7 described, 2 not described" in result.stdout
+    assert "Scanned 8 file(s): 7 described, 1 not described" in result.stdout
 
     metadata = json.loads(output_file.read_text())
     record_sets = {r["name"]: r for r in metadata["recordSet"]}

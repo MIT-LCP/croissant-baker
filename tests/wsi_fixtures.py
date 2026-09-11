@@ -1,32 +1,28 @@
-#!/usr/bin/env python3
-"""Write the whole-slide demo fixture: one slide per vendor, and a DICOM slide.
+"""The whole-slide demo fixture: one slide per vendor, and two DICOM slides.
 
-Run from the repository root:
-
-    uv run --no-sync python tests/data/input/wsi_demo/generate.py
+Beside :mod:`tests.hdf5_fixtures`, and for the same reason: a baked dataset
+holds data and a README, so the script that writes it lives in the test
+package rather than inside the dataset, where the bake would scan it.
 
 The five vendor TIFFs come from the builders the unit tests already use, so
 the fixture and the unit tests describe the same synthetic scanners. The DICOM
-instance is built here because its UIDs are fixed: a committed fixture whose
-identifiers changed on every run would rewrite the golden document with it.
+instances are built here because their UIDs are fixed: a committed fixture
+whose identifiers changed on every run would rewrite the golden document with
+them.
 
-Every file is zero-pixel and carries no patient data. See README.md.
+Every file is zero-pixel and carries no patient data. See the dataset's
+``README.md`` for what each file states and how to regenerate it.
 """
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pydicom
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import ExplicitVRLittleEndian
 
-HERE = Path(__file__).resolve().parent
-REPO_ROOT = HERE.parents[3]
-sys.path.insert(0, str(REPO_ROOT))
-
-from tests.helpers import WSI_BUILDERS  # noqa: E402
+from tests.helpers import WSI_BUILDERS
 
 #: Vendor -> the file name a scanner of that make would have written.
 SLIDES = {
@@ -115,22 +111,23 @@ def write_dicom_slide(
     pydicom.dcmwrite(str(path), ds)
 
 
-def main() -> None:
-    for vendor, name in SLIDES.items():
-        target = HERE / name
-        target.write_bytes(WSI_BUILDERS[vendor]())
-        print(f"wrote {target.relative_to(REPO_ROOT)} ({target.stat().st_size} bytes)")
+def write_demo(directory: Path) -> None:
+    """Write the whole fixture into ``directory``, which need not exist.
 
-    slide = HERE / "dicom" / "slide.dcm"
-    write_dicom_slide(slide)
-    print(f"wrote {slide.relative_to(REPO_ROOT)} ({slide.stat().st_size} bytes)")
+    Byte-identical between runs, so regenerating an unchanged fixture leaves
+    the working tree clean.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    for vendor, name in SLIDES.items():
+        (directory / name).write_bytes(WSI_BUILDERS[vendor]())
+
+    write_dicom_slide(directory / "dicom" / "slide.dcm")
 
     # The barcode label of the same piece of glass, which a scanner files as
     # its own instance. A second flavor is what makes the flavor list in the
     # DICOM description more than one word long.
-    label = HERE / "dicom" / "label.dcm"
     write_dicom_slide(
-        label,
+        directory / "dicom" / "label.dcm",
         series_uid=LABEL_SERIES_UID,
         instance_uid=LABEL_INSTANCE_UID,
         flavor="LABEL",
@@ -143,8 +140,3 @@ def main() -> None:
         imaged_volume=None,
         pixel_spacing=None,
     )
-    print(f"wrote {label.relative_to(REPO_ROOT)} ({label.stat().st_size} bytes)")
-
-
-if __name__ == "__main__":
-    main()

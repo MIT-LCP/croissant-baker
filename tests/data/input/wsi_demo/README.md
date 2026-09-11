@@ -13,7 +13,6 @@ wsi_demo/
 ├── akoya.qptiff        Akoya: PerkinElmer-QPI software and QPI image description
 ├── dicom/slide.dcm     VL Whole Slide Microscopy Image, VOLUME flavor
 ├── dicom/label.dcm     the same glass slide's barcode label, LABEL flavor
-├── generate.py         the script that writes all seven
 └── README.md           this file, which no handler claims
 ```
 
@@ -35,14 +34,21 @@ else that a real instance would carry about a person.
 The five vendor slides are written by the builders in `tests/helpers.py`, the
 same ones `tests/test_wsi.py` and `tests/test_wsi_handler.py` read, so the
 fixture and the unit tests describe the same synthetic scanners. The DICOM
-instances are built in `generate.py` itself, with fixed UIDs rather than
-generated ones, because a fixture whose identifiers changed on every run would
-rewrite the golden document with them.
+instances are built in `tests/wsi_fixtures.py` itself, with fixed UIDs rather
+than generated ones, because a fixture whose identifiers changed on every run
+would rewrite the golden document with them.
 
 ## Regenerating
 
-```sh
-uv run --no-sync python tests/data/input/wsi_demo/generate.py
+The writer is `tests/wsi_fixtures.py`, beside `tests/hdf5_fixtures.py` and out
+of the dataset itself: a baked dataset holds data and this README, and a
+script inside it would be one more file for every bake to scan.
+
+```python
+from pathlib import Path
+from tests import wsi_fixtures as fx
+
+fx.write_demo(Path("tests/data/input/wsi_demo"))
 ```
 
 The output is byte-identical between runs, so regenerating an unchanged
