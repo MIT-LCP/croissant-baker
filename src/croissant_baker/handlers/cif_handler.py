@@ -175,10 +175,9 @@ CELL_EDGES = ("a", "b", "c")
 #: The separator a CIF writes a list of keywords or of strand identifiers with.
 VALUE_SEPARATOR = ","
 
-#: The most digits a count this handler reports may carry. A trillion models,
-#: entities or chains is already far past anything a structure holds, so this
-#: is not a limit any file meets; what it excludes is a field that is not a
-#: count at all.
+#: The most digits a count read out of a file may carry. A trillion models is
+#: already far past anything a structure holds, so this is not a limit any file
+#: meets; what it excludes is a field that is not a count at all.
 MAX_COUNT_DIGITS = 12
 
 #: A standard uncertainty, written as digits in parentheses on the end of a
@@ -571,10 +570,12 @@ def _integer(text: Optional[str]) -> Optional[int]:
     """One counted number, or None when the text is not one.
 
     Bounded in digits, for the reason :func:`_number` is bounded in magnitude.
-    ``int`` reads a thousand digits as happily as two, and every count this
-    handler reports is a number of models, entities or chains: a run that long
-    is an identifier, a serial number or a corrupt field, and reporting it as a
-    count would be worse than reporting nothing.
+    ``int`` reads a thousand digits as happily as two, and the one count that
+    arrives here is the model count of an ensemble: a run that long is an
+    identifier, a serial number or a corrupt field, and reporting it as a count
+    would be worse than reporting nothing. The entity, chain and asym unit
+    counts are rows counted in :func:`_rows` rather than values read out of a
+    file, and never come through here.
     """
     if text is None or len(text.lstrip("+-")) > MAX_COUNT_DIGITS:
         return None
@@ -700,11 +701,14 @@ def _counts(metadata: dict) -> str:
     making.
     """
     stated = []
+    # The plural is spelled out for the one noun that does not take a trailing
+    # ``s``, and left to the helper for the three that do, as the PDB handler
+    # leaves it.
     for key, singular, several in (
         ("polymer_entity_count", "polymer entity", "polymer entities"),
-        ("chain_count", "chain", "chains"),
-        ("asym_unit_count", "asym unit", "asym units"),
-        ("model_count", "model", "models"),
+        ("chain_count", "chain", None),
+        ("asym_unit_count", "asym unit", None),
+        ("model_count", "model", None),
     ):
         if key not in metadata:
             continue
