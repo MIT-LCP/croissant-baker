@@ -16,7 +16,16 @@ import re
 from dataclasses import dataclass
 from typing import Iterable, List, Tuple
 
-import gemmi
+try:
+    import gemmi
+except ImportError:
+    # gemmi is an optional extra, so a plain install reaches these handlers
+    # without it. The three modules that parse through it guard their import
+    # the same way and refuse their files through :func:`require_gemmi`.
+    gemmi = None
+
+#: How to get gemmi, for the refusal a user without it reads.
+INSTALL_HINT = 'pip install "croissant-baker[structural-biology]"'
 
 #: Rows read per column when inferring its type. A refined particle stack has
 #: millions of rows and every one of them costs a Python-level call, so the head
@@ -42,6 +51,27 @@ TEXT = "sc:Text"
 # as numbers where a file means those literally.
 _INTEGER = re.compile(r"[+-]?\d+$")
 _FLOAT = re.compile(r"[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$")
+
+
+def require_gemmi(module: object, what: str) -> None:
+    """Refuse a file this install has no parser for, and say what to install.
+
+    Args:
+        module: The caller's own ``gemmi``, which is ``None`` when the extra is
+            not installed. Passed in rather than read from here, so each module
+            answers for the import it actually made.
+        what: The formats the caller reads, named as a user would name them.
+
+    Raises:
+        ValueError: When gemmi is missing. A ValueError rather than an
+            ImportError because the scan turns it into a refusal for that one
+            file, so the rest of the bake still runs.
+    """
+    if module is None:
+        raise ValueError(
+            f"Reading {what} files needs gemmi, which is not installed. "
+            f"Install it with: {INSTALL_HINT}"
+        )
 
 
 @dataclass(frozen=True)

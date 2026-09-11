@@ -8,7 +8,13 @@ handler shares for a CIF that carries no structure.
 
 import logging
 
-import gemmi
+try:
+    import gemmi
+except ImportError:
+    # An optional extra. The handler stays registered and keeps claiming
+    # ``.star``, so a file it cannot read is refused with an install hint
+    # rather than passed over as a format nobody recognises.
+    gemmi = None
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.structural_biology import cif, tables
@@ -52,6 +58,7 @@ class STARHandler(FileTypeHandler):
 
     def extract(self, source: FileSource, **kwargs) -> dict:
         """Describe one STAR file's blocks and columns."""
+        cif.require_gemmi(gemmi, "STAR")
         if not source.exists:
             raise FileNotFoundError(f"STAR file not found: {source.relative_path}")
 
