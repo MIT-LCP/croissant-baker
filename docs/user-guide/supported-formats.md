@@ -856,8 +856,10 @@ From a PDBx block:
 
 From a core CIF block:
 
-- **Data block name**, **chemical name**, from `_chemical_name_common` or
-  `_chemical_name_systematic`, and **formula**, from `_chemical_formula_sum`.
+- **Data block name**, **chemical name** and **formula**, from
+  `_chemical_formula_sum`. The name is taken from `_chemical_name_common`, then
+  `_chemical_name_systematic`, then `_chemical_name_mineral`, which is the only
+  one many mineral deposits state.
 - **Space group**, from `_space_group_name_H-M_alt` or, in files written before
   the category was renamed, `_symmetry_space_group_name_H-M`.
 - **Cell**, the three edges and three angles, reported together or not at all: a

@@ -354,6 +354,49 @@ def test_a_small_molecule_block_is_described_as_a_crystal_structure(
     )
 
 
+def mineral(dataset: Path, name: str, *items: str) -> Path:
+    """A core CIF block carrying ``items`` and the formula of diopside."""
+    lines = "".join(f"{item}\n" for item in items)
+    payload = f"data_1000007\n{lines}_chemical_formula_sum   'Ca Mg Si2 O6'\n"
+    return write(dataset, name, payload.encode())
+
+
+def test_a_mineral_name_stands_in_when_no_other_name_is_stated(
+    dataset: Path,
+) -> None:
+    """A mineral deposit often states only this one. It is a name rather than a
+    formula, so falling through to it is the difference between naming the
+    compound and not naming it at all."""
+    path = mineral(dataset, "diopside.cif", "_chemical_name_mineral   Diopside")
+
+    assert extract(path)["chemical_name"] == "Diopside"
+
+
+def test_the_common_name_is_preferred_over_the_others(dataset: Path) -> None:
+    path = mineral(
+        dataset,
+        "common.cif",
+        "_chemical_name_common       'calcium magnesium silicate'",
+        "_chemical_name_systematic   'calcium magnesium disilicate'",
+        "_chemical_name_mineral      Diopside",
+    )
+
+    assert extract(path)["chemical_name"] == "calcium magnesium silicate"
+
+
+def test_the_systematic_name_is_preferred_over_the_mineral_name(
+    dataset: Path,
+) -> None:
+    path = mineral(
+        dataset,
+        "systematic.cif",
+        "_chemical_name_systematic   'calcium magnesium disilicate'",
+        "_chemical_name_mineral      Diopside",
+    )
+
+    assert extract(path)["chemical_name"] == "calcium magnesium disilicate"
+
+
 def test_an_unnamed_data_block_is_omitted_rather_than_reported_as_empty(
     dataset: Path,
 ) -> None:
