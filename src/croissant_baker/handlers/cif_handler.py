@@ -676,8 +676,11 @@ def _small_molecule_metadata(name: str, block: str, columns: Dict) -> dict:
     written = {key: _one(columns, item) for key, item in CELL_ITEMS}
     numbers = {key: _number(text) for key, text in written.items()}
 
-    metadata: dict = {"encoding_format": CIF_ENCODING_FORMAT, "data_block": block}
+    metadata: dict = {"encoding_format": CIF_ENCODING_FORMAT}
     for key, value in (
+        # ``data_`` with nothing after it is a legal header naming nothing, so
+        # this field is absent rather than empty like every other one here.
+        ("data_block", block),
         (
             "chemical_name",
             _one(columns, "_chemical_name_common")
