@@ -278,6 +278,44 @@ def test_a_file_ending_exactly_at_the_byte_bound_is_read_to_its_end(
     assert meta["sample_exhausted"] is True
 
 
+def test_a_record_whose_molfile_block_does_not_close_is_refused(
+    dataset: Path,
+) -> None:
+    """The data items sit under the block's 'M  END', so a block that never
+    closes states no place for them to start. It was described with an empty
+    field list and no reason anywhere, which is the one outcome a reader cannot
+    tell from a library that carries no data item at all."""
+    payload = sdf_record(MOL_V2000.removesuffix(b"M  END\n"), [("ID", "7")])
+
+    with pytest.raises(ValueError) as caught:
+        extract(write(dataset, "unclosed.sdf", payload))
+
+    assert "unclosed.sdf" in str(caught.value)
+    assert "record 1" in str(caught.value)
+
+
+def test_an_end_marker_spelled_with_one_space_still_closes_the_block(
+    dataset: Path,
+) -> None:
+    """The specification fixes two spaces and writers emit one. Matching the
+    literal lost every data item of every record such a writer produced."""
+    payload = sdf_record(MOL_V2000.replace(b"M  END", b"M END"), [("ID", "7")])
+
+    meta = extract(write(dataset, "oneSpace.sdf", payload))
+
+    assert meta["fields"] == [{"name": "ID", "type": "cr:Int64"}]
+
+
+def test_the_data_items_of_a_v3000_record_are_found_below_its_block(
+    dataset: Path,
+) -> None:
+    """A V3000 block ends with 'M  V30 END CTAB' and then 'M  END', and only
+    the second of those closes the block."""
+    meta = extract(write(dataset, "v3000.sdf", sdf_record(MOL_V3000, [("ID", "7")])))
+
+    assert meta["fields"] == [{"name": "ID", "type": "cr:Int64"}]
+
+
 def test_versions_that_differ_across_the_sample_are_reported_as_mixed(
     dataset: Path,
 ) -> None:
