@@ -442,6 +442,43 @@ def test_the_summary_counts_the_whole_slide_instances_and_their_flavors() -> Non
     assert summary["wsi_flavors"] == ["VOLUME", "LABEL", "OVERVIEW"]
 
 
+def test_the_flavors_are_listed_in_the_canonical_order_whatever_the_batch_order() -> (
+    None
+):
+    """Batch order is rglob order, so a study whose label was discovered first
+    would otherwise describe itself differently on another filesystem."""
+    metas = [
+        _wsi_meta("overview.dcm", flavor="OVERVIEW"),
+        _wsi_meta("label.dcm", flavor="LABEL"),
+        _wsi_meta("volume.dcm", flavor="VOLUME"),
+    ]
+    summary = collect_dicom_summary(metas)
+
+    assert summary["wsi_flavors"] == ["VOLUME", "LABEL", "OVERVIEW"]
+
+
+def test_a_flavor_the_standard_does_not_name_is_listed_after_the_ones_it_does() -> None:
+    """Value 3 is free text in an instance a scanner wrote its own way, and
+    dropping it would hide an instance the batch holds."""
+    metas = [_wsi_meta("odd.dcm", flavor="DERIVED"), _wsi_meta("volume.dcm")]
+
+    assert collect_dicom_summary(metas)["wsi_flavors"] == ["VOLUME", "DERIVED"]
+
+
+def test_the_record_set_description_lists_the_flavors_in_the_canonical_order(
+    handler: DICOMHandler,
+) -> None:
+    metas = [
+        _wsi_meta("overview.dcm", flavor="OVERVIEW"),
+        _wsi_meta("label.dcm", flavor="LABEL"),
+        _wsi_meta("volume.dcm", flavor="VOLUME"),
+    ]
+
+    _, record_sets = handler.build_croissant(metas, ["f0", "f1", "f2"])
+
+    assert "(VOLUME, LABEL, OVERVIEW)" in record_sets[0].description
+
+
 def test_the_summary_of_a_batch_without_slides_says_nothing_about_slides() -> None:
     summary = collect_dicom_summary([_dicom_meta("ct.dcm")])
     assert "wsi_count" not in summary

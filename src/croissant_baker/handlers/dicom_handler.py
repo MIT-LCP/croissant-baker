@@ -23,6 +23,12 @@ _DICOM_MAGIC = b"DICM"
 # a second geometry (the pixel matrix over the glass) the other classes lack.
 WSI_SOP_CLASS_UID = "1.2.840.10008.5.1.4.1.1.77.1.6"
 
+# The whole slide flavors ImageType value 3 takes, tissue first and then the
+# pictures of the glass. Reporting them in this order rather than the batch's
+# is what keeps one directory describing itself the same way twice: batch
+# order is rglob order, which is the filesystem's rather than sorted.
+WSI_FLAVORS = ("VOLUME", "LABEL", "OVERVIEW", "THUMBNAIL")
+
 
 def _has_dicom_magic(source: FileSource) -> bool:
     head = source.peek(_DICOM_MAGIC_OFFSET + 4)
@@ -444,6 +450,17 @@ def _wsi_note(summary: Dict) -> str:
     return f"; {count} whole-slide microscopy {noun}{flavors_note}"
 
 
+def _ordered_flavors(observed) -> List[str]:
+    """The observed flavors in the order :data:`WSI_FLAVORS` gives them.
+
+    Value 3 is free text, so a scanner may write one the standard does not
+    name; those follow, sorted, rather than being dropped from a batch that
+    holds them.
+    """
+    named = [flavor for flavor in WSI_FLAVORS if flavor in observed]
+    return named + sorted(flavor for flavor in observed if flavor not in WSI_FLAVORS)
+
+
 def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     if not dicom_metadata_list:
         return {}
@@ -455,9 +472,7 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     bits_set: set = set()
     unknown_modality = 0
     wsi_count = 0
-    # A dict, not a set: the flavors are reported in the order the batch shows
-    # them, so the same directory always describes itself the same way.
-    wsi_flavors: Dict[str, None] = {}
+    wsi_flavors: set = set()
 
     for meta in dicom_metadata_list:
         props = meta.get("dicom_properties", {})
@@ -475,7 +490,7 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
             wsi_count += 1
             flavor = props.get("wsi_flavor")
             if flavor:
-                wsi_flavors[flavor] = None
+                wsi_flavors.add(flavor)
 
         modality: Optional[str] = props.get("modality")
         if modality:
@@ -505,6 +520,6 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     # sections summarises exactly as it did before slides were recognised.
     if wsi_count:
         summary["wsi_count"] = wsi_count
-        summary["wsi_flavors"] = list(wsi_flavors)
+        summary["wsi_flavors"] = _ordered_flavors(wsi_flavors)
 
     return summary

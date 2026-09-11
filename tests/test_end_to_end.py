@@ -1640,11 +1640,12 @@ def test_wsi_demo_generation(
     """The whole CLI over five vendor slides and one DICOM slide.
 
     Two handlers in one bake, which no unit test covers: the vendor TIFFs
-    become the ``slides`` record set and the DICOM instance goes to the DICOM
-    handler, which reports it as a whole-slide microscopy instance rather than
-    as a cross section. Compared against the committed document, as the HDF5
-    and GEO SOFT bakes are, and run in both discovery orders because ``rglob``
-    order is the filesystem's rather than sorted.
+    become the ``slides`` record set and the two DICOM instances go to the
+    DICOM handler, which reports them as whole-slide microscopy rather than as
+    cross sections. Compared against the committed document, as the HDF5 and
+    GEO SOFT bakes are, and run in both discovery orders because ``rglob``
+    order is the filesystem's rather than sorted: with two flavors in the
+    batch, a reversed discovery is what would list them the other way round.
     """
     if reverse_discovery:
         from croissant_baker import scan
@@ -1684,7 +1685,7 @@ def test_wsi_demo_generation(
     )
 
     assert result.exit_code == 0, f"Command failed: {result.stdout}"
-    assert "Scanned 8 file(s): 6 described, 2 not described" in result.stdout
+    assert "Scanned 9 file(s): 7 described, 2 not described" in result.stdout
 
     metadata = json.loads(output_file.read_text())
     record_sets = {r["name"]: r for r in metadata["recordSet"]}
@@ -1695,7 +1696,7 @@ def test_wsi_demo_generation(
         assert f"{vendor} (1)" in slides, slides
 
     assert (
-        "1 whole-slide microscopy instance (VOLUME)"
+        "2 whole-slide microscopy instances (VOLUME, LABEL)"
         in record_sets["dicom"]["description"]
     )
 
