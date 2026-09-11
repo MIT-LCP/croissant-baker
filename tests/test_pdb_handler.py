@@ -152,7 +152,9 @@ def test_a_structure_with_no_applicable_resolution_reports_none(
 
 
 def test_the_chains_are_counted_from_the_compnd_records(dataset: Path) -> None:
-    assert extract(sample_pdb(dataset))["chain_count"] == 2
+    """Two molecules over three chains, which is what the CIF copy of the same
+    entry names as three strand identifiers."""
+    assert extract(sample_pdb(dataset))["chain_count"] == 3
 
 
 def test_the_chains_are_counted_from_seqres_when_compnd_names_none(
@@ -162,7 +164,7 @@ def test_the_chains_are_counted_from_seqres_when_compnd_names_none(
     SEQRES chain column at a time."""
     records = tuple(r for r in PDB_TITLE_RECORDS if "CHAIN:" not in r)
 
-    assert extract(variant(dataset, records))["chain_count"] == 2
+    assert extract(variant(dataset, records))["chain_count"] == 3
 
 
 def test_a_structure_naming_no_chain_at_all_omits_the_count(dataset: Path) -> None:
@@ -202,7 +204,7 @@ def test_what_the_header_says_is_stated_in_a_description(dataset: Path) -> None:
 
     assert described == (
         "PDB structure 1abc.pdb (1ABC, HYDROLASE, deposited 12-JAN-98; "
-        "X-RAY DIFFRACTION at 1.80 A; 2 chains; title: CRYSTAL STRUCTURE OF A "
+        "X-RAY DIFFRACTION at 1.80 A; 3 chains; title: CRYSTAL STRUCTURE OF A "
         "MINIATURE HYDROLASE AT 1.80 ANGSTROM RESOLUTION). Described from its "
         "header; no coordinate record was read."
     )
