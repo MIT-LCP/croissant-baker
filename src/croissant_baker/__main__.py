@@ -594,6 +594,7 @@ def main(
         None,
         "--included-in-data-catalog",
         help="URL of a catalog entry listing this dataset (e.g., 'https://datacatalog.ccdi.cancer.gov/').",
+        callback=_uri_option,
     ),
     profile: Optional[List[str]] = typer.Option(
         None,
@@ -958,7 +959,7 @@ def main(
             temporal_coverage=temporal_coverage,
             usage_info=usage_info,
             identifier=_split_csv_list(identifier),
-            conditions_of_access=conditions_of_access,
+            conditions_of_access=_normalize_optional_text(conditions_of_access),
             is_accessible_for_free=is_accessible_for_free,
             included_in_data_catalog=included_in_data_catalog,
             profiles=profile,

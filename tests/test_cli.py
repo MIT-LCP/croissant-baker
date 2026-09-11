@@ -1009,17 +1009,56 @@ def test_is_accessible_for_free_emits_the_boolean_asked_for(
     assert json.loads(output.read_text())["isAccessibleForFree"] is expected
 
 
-def test_included_in_data_catalog_passes_through(
+def test_included_in_data_catalog_emits_a_data_catalog_node(
     csv_dataset: Path, tmp_path: Path
 ) -> None:
-    """--included-in-data-catalog carries the catalog URL through verbatim."""
+    """The URL rides on a DataCatalog node, the only range schema.org gives it.
+
+    A bare string would be read as a literal under @vocab, which is not what
+    the property means.
+    """
     output = tmp_path / "output.jsonld"
     catalog = "https://datacatalog.ccdi.cancer.gov/"
 
     result = cli(csv_dataset, output, "--included-in-data-catalog", catalog)
 
     assert result.exit_code == 0, result.output
-    assert json.loads(output.read_text())["includedInDataCatalog"] == catalog
+    assert json.loads(output.read_text())["includedInDataCatalog"] == {
+        "@type": "sc:DataCatalog",
+        "url": catalog,
+    }
+
+
+def test_included_in_data_catalog_rejects_free_text(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The help text says URL, so free text is refused rather than emitted."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--included-in-data-catalog", "the CCDI catalog")
+
+    assert result.exit_code != 0
+    assert "Unexpected error" not in result.output
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+@pytest.mark.parametrize(
+    "flag,key",
+    [
+        ("--conditions-of-access", "conditionsOfAccess"),
+        ("--included-in-data-catalog", "includedInDataCatalog"),
+    ],
+)
+def test_blank_text_flags_leave_their_key_absent(
+    csv_dataset: Path, tmp_path: Path, flag: str, key: str, blank: str
+) -> None:
+    """An empty property says less than no property; both are stripped away."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, flag, blank)
+
+    assert result.exit_code == 0, result.output
+    assert key not in json.loads(output.read_text())
 
 
 def test_profile_bioschemas_appends_to_conforms_to(

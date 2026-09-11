@@ -268,7 +268,8 @@ class MetadataGenerator:
             is_accessible_for_free: Whether the data can be had without payment
                 or an access agreement. Tri-state: None leaves the key absent.
             included_in_data_catalog: URL of a catalog entry that lists this
-                dataset (schema.org/includedInDataCatalog).
+                dataset. Emitted as a ``sc:DataCatalog`` node carrying the
+                URL, the one range schema.org/includedInDataCatalog has.
             profiles: Additional profiles the document declares in
                 ``conformsTo`` alongside Croissant 1.1, by the names in
                 ``PROFILE_CONFORMS_TO``. A list, or one name as a bare
@@ -633,7 +634,14 @@ class MetadataGenerator:
         if self.is_accessible_for_free is not None:
             result["isAccessibleForFree"] = self.is_accessible_for_free
         if self.included_in_data_catalog is not None:
-            result["includedInDataCatalog"] = self.included_in_data_catalog
+            # schema.org gives includedInDataCatalog exactly one range,
+            # DataCatalog. A bare string would be read as a literal under
+            # @vocab, so the URL rides on a node — the shape publisher
+            # already uses for its Organization.
+            result["includedInDataCatalog"] = {
+                "@type": "sc:DataCatalog",
+                "url": self.included_in_data_catalog,
+            }
         if self.field_mappings:
             _apply_field_mappings(result, self.field_mappings)
         return result
