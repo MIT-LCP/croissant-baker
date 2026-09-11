@@ -208,6 +208,8 @@ Not read: the pixels, the tile offsets, the ICC profile, the scanner's serial nu
 
 A wrapped slide (`.svs.gz`, and the other two codecs) is described the same way, at the cost the note under Images gives: a TIFF reader seeks within the file, and a backward seek on a compressed stream can restart decompression from the beginning.
 
+The exception is a gzip-wrapped NDPI: `tifffile` decides a file is NDPI, and reads its 64-bit page offsets, from the name of the stream it is given, and a gzip stream's name ends in `.gz`. A `.ndpi.gz` larger than 4 GiB is therefore reported as undescribed rather than read.
+
 ### Not yet supported
 
 | Format | Why |
