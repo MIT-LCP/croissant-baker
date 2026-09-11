@@ -144,8 +144,12 @@ def decode_line(raw: bytes) -> str:
     ASCII by specification, and a stray byte in a title, a comment or a data
     item is not a reason to refuse a file whose structure is otherwise
     readable.
+
+    One carriage return, because one CRLF is one line ending. A return in front
+    of that one is a byte the line carries, and stripping the whole run took
+    content off the line to remove a line ending that was already gone.
     """
-    return raw.decode("utf-8", "replace").rstrip("\r")
+    return raw.decode("utf-8", "replace").removesuffix("\r")
 
 
 class PrefixLines:
