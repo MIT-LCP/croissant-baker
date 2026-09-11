@@ -368,6 +368,245 @@ Column names, dataset paths, dtypes, shapes and row counts only. A categorical's
 
 Measured on a 120 MB `.h5ad` holding incompressible data, reading its structure took 2 ms uncompressed, 0.7 s gzipped, 6 s xz-wrapped and 7 s bz2-wrapped. That cost tracks the file's size rather than its structure — uncompressed does not — so a 5 GB `.h5ad.gz` is of the order of half a minute, and the same file bz2-wrapped is several minutes. Uncompressed is worth it for this format, and gzip is worth it over the other two.
 
+## Macromolecular structures (`.pdb`, `.ent`, `.cif`, `.mmcif`)
+
+A PDB or mmCIF entry is read with `gemmi`, and what is kept is the header and
+the counts: entry id, title, experimental method, resolution, unit cell, space
+group, and the number of models, chains, residues and atoms. Every structure
+file in a dataset shares one FileSet and one `structures` record set, because
+every one of them answers the same questions. Splitting them per file would
+repeat that schema once per entry and say nothing extra.
+
+Only the first model is counted. The models of an NMR ensemble hold the same
+chains and residues, so summing them would report the ensemble size twice. A
+resolution or a cell nobody stated is absent rather than reported as zero:
+gemmi's zero is "not stated", and a structure solved outside a crystal carries
+a placeholder cell that would read as a real one. A batch in which no file
+states a resolution carries no `resolution_angstrom` field at all.
+
+**A whole file is parsed, so memory is proportional to its size.** This is the
+one family here that does not describe a header alone: gemmi builds the model
+in order to count what is in it, so a large entry costs memory in proportion to
+its bytes, where an MRC map of the same size costs the 1024 bytes of its
+header. Deposited entries are usually small enough that this does not matter;
+the assembly of a whole virus capsid is the case where it does.
+
+### One suffix, three dictionaries
+
+`.cif` names three unrelated things, and only the tags tell them apart:
+
+- an **mmCIF entry** writes dotted category tags such as `_atom_site.Cartn_x`,
+  and is described as a structure. `encodingFormat` is `chemical/x-mmcif`.
+- a **small-molecule CIF** writes the underscore-only tags of the core
+  dictionary, `_atom_site_fract_x`, and is described as a structure too, with
+  its sum formula from `_chemical_formula_sum` and no chains to count.
+- **anything else**, a CIF dictionary, a deposition log, a validation report,
+  carries no atoms at all. It is described as the tables it holds, exactly as a
+  STAR file is: one record set per loop, and one for a block's pairs taken
+  together.
+
+The last two are `chemical/x-cif`, because mmCIF is the macromolecular
+dictionary and calling either of them mmCIF would misname the file. PDB and
+`.ent` are `chemical/x-pdb`. None of the three is registered with IANA; they
+are the spellings the chemistry tools have used for decades, and they document
+the file rather than make it readable, since mlcroissant has no reader for a
+structure at any media type.
+
+Because a CIF document that holds no structure is still described, a
+`**/*.cif` include would sweep it into the structure FileSet and the record set
+counting one record per structure file. The FileSet therefore excludes each
+such document by name.
+
+**No field carries an `extract`.** mlcroissant dispatches its reader on
+`encodingFormat` over a fixed list none of these formats is on, so an `extract`
+here would be a promise nobody can keep. The `structures` fields read
+`fileProperty: content` over the FileSet, which is what the record set is: one
+record per file, not one per atom.
+
+### Failure modes
+
+A `.pdb` that parses to no ATOM or HETATM record is refused: gemmi accepts a
+file of prose and returns a structure with no atom sites rather than raising,
+so emptiness is the error to report. A `.cif` with no data block, or one whose
+single block declares no tag any column could be named after, is refused the
+same way. Each refusal names the file and is counted under `extract_failed` in
+the coverage report, so the file is reported rather than silently dropped.
+
+### What a wrapper costs
+
+`.pdb.gz` and `.cif.gz` are described identically to their plain twins, and at
+the same cost: both readers take the text in one forward read, so the wrapper
+adds only the decompression itself. Gzipped entries are what the PDB archive
+distributes.
+
+## STAR (`.star`)
+
+RELION and the rest of the cryo-EM chain keep their bookkeeping in STAR: a
+particle stack's per-particle geometry, an optics group table, a job's
+settings. Each data block becomes one record set whose fields are the block's
+columns. A block of `_tag value` pairs is one row; a `loop_` is as many rows as
+it has. A file holding both gives two record sets, because a pair is one value
+for the block and a loop row is one record.
+
+Column types are inferred from the values, over at most the first 1000 rows: a
+refined particle stack has millions, and every row costs a Python-level call.
+The CIF null tokens `.` and `?` say nothing about a type and are skipped, so
+one missing measurement does not turn a column of floats into text. A column of
+nothing but nulls is text, which claims the least.
+
+Identifiers are the file's stem and the block's name: `run_data.star` with
+`data_optics` and `data_particles` gives `run_data_optics` and
+`run_data_particles`. Two RELION jobs both write `run_data.star`, so the parent
+directory disambiguates them into `job001__run_data_particles` and
+`job002__run_data_particles`.
+
+`encodingFormat` is `application/x-star`, which is unregistered. **No value is
+emitted and no field carries an `extract`**, for the reason given above, and
+every record set says so in its description, because a consumer reading one in
+isolation cannot otherwise tell.
+
+A file carrying no data block at all is refused by name and counted under
+`extract_failed`, as is one whose syntax gemmi rejects. A data block that names
+no column is skipped with a warning rather than emitted, since mlcroissant
+rejects a record set with no field. Compression is transport: `run_data.star.gz`
+is described exactly as `run_data.star`.
+
+## MRC and CCP4 maps (`.mrc`, `.mrcs`, `.map`, `.ccp4`)
+
+An MRC2014 or CCP4 file opens with a fixed 1024-byte header, and that is all
+this handler reads: grid dimensions, the stored data type behind the mode word,
+voxel size, space group, and whether the file is one volume or a stack. **The
+voxels are never read.** They are the gigabytes, and
+they say nothing the header does not already state, so describing a 50 GB
+tomogram costs the same as describing a 50 KB one.
+
+Both byte orders are read, from the machine stamp in word 54. An unrecognised
+stamp falls back to little-endian, which is what current hardware writes, and
+the dimensions that follow are checked anyway. Word 23 says what the third
+dimension means: 0 is a stack of 2D images, 1 to 230 is a space group over one
+volume, and 401 to 630 marks a stack of volumes. A batch holding any stack also
+carries an `n_images` field; one holding none does not, because a field nothing
+fills promises a column empty in every row.
+
+Voxel size is the cell divided by the sampling, and it is omitted where the
+sampling is zero, since a number divided out of nothing would be invented.
+
+Like structures, maps share one FileSet and one `mrc_maps` record set over the
+batch, whose fields read `fileProperty: content`: one record per file, not one
+per voxel. `encodingFormat` is `application/x-mrc`, unregistered, and no field
+carries an `extract`.
+
+`.mrc`, `.mrcs` and `.ccp4` are claimed on the extension alone, because an
+older CCP4 writer may leave the format signature out and a file this handler
+cannot read is better reported as unreadable than as unclaimed. `.map` is
+generic enough to name anything, so it is claimed only when word 53 holds
+`MAP `; a `.map` that is something else is reported under `no_handler`. A file
+shorter than its header, one declaring a grid with a zero or negative
+dimension, and one carrying a mode this handler cannot name are each refused by
+name under `extract_failed`. Naming the stored type wrongly would be worse than
+refusing the file.
+
+`.mrc.gz` is described identically, and cheaply: only the first 1024 bytes are
+decompressed.
+
+## MTZ (`.mtz`)
+
+An MTZ keeps its header at the end of the file and says where in its second
+word, so the reader seeks straight there. **The reflection data in between is
+never touched.** What is described is the column list, one typed field per
+reflection column, plus the unit cell, space group, resolution range and the
+datasets the columns belong to.
+
+Column types come from the MTZ type letter, not from the values: `H`, `I`, `B`
+and `Y` count things and are integers, and every other letter is a measurement.
+An unknown letter is described as a float rather than refused, since MTZ gains
+column types over time and a float is what the file stores either way.
+
+The resolution range is stored as 1/d², so it is reported as a distance in
+Angstrom, and a zero is left out rather than inverted into an infinite
+resolution. One malformed header record costs its own field and not the file:
+the columns are what a consumer came for.
+
+Each file gets its own record set, named for the file. No FileSet: one MTZ is
+one table, and a set spanning two would claim they share a column list.
+`encodingFormat` is `application/x-mtz`, unregistered, and no field carries an
+`extract`.
+
+A `.mtz` is claimed only when it opens with the `MTZ ` signature, because
+nothing else claims that suffix and a file failing the signature is not one;
+such a file is reported under `no_handler`. A header offset pointing at no
+header, or a header declaring no column, is refused by name under
+`extract_failed`. `.mtz.gz` is described identically, though a wrapped file
+pays for the seek: a non-seekable codec reaches the header by decompressing and
+discarding everything before it.
+
+## SerialEM mdoc (`.mdoc`)
+
+An mdoc sits beside the image stack it describes and carries the acquisition
+metadata the image format has nowhere to put: tilt angle, stage position, dose,
+and the frame file each image came from. The file is `Key = value` lines split
+into sections by bracketed headers, and it is read forwards once.
+
+The record set's fields are the union of the keys the sections declare, in
+first-seen order, because SerialEM stops writing a key when the feature
+producing it is off. Types are widest-wins across the whole file: a key written
+`0` in one section and `0.5` in the next is a decimal, and a value holding
+several whitespace-separated numbers is text, because Croissant types one value
+per field and `122.450 -87.300` is a pair.
+
+A file that declares no section at all is described by its global keys instead,
+as the one row it is. The globals are not fields either way; the ones worth
+repeating, the image file, the pixel spacing and the voltage, are named in the
+record set's description along with the first `[T = ...]` title line.
+
+One record set per file, named for the file, and no FileSet: two mdocs describe
+two acquisitions. `encodingFormat` is `text/x-mdoc`, unregistered, and no field
+carries an `extract`.
+
+A file declaring neither a `Key = value` line nor a section is refused by name
+under `extract_failed`, and so is one whose bytes do not decode. `.mdoc.gz` is
+described identically.
+
+## Small molecules (`.sdf`, `.mol`, `.mol2`)
+
+An SDF is a catalogue: molecule after molecule, each with the property tags the
+depositor attached, and those tags are the columns anyone querying the library
+will ask for. MOL is the same record on its own, and Tripos MOL2 is the docking
+world's equivalent. All three are read with the standard library, forwards and
+once, keeping names and types and **never a coordinate**.
+
+Each file gets one record set whose rows are molecules: the molecule name, its
+atom and bond counts, and one field per SDF property tag, typed from that tag's
+values across the whole file. A tag written `0` in one record and `0.5` in the
+next is a decimal; a tag whose value runs over several lines is text, because
+two lines are prose however they are spelled; a tag nobody filled in is text.
+MOL2 has no equivalent of a property tag, so a MOL2 record set carries the name
+and the two counts alone.
+
+The V2000 counts line is read by column rather than by splitting on
+whitespace, which would misread a library whose three-digit counts run
+together. A V3000 record states its counts in the connection table instead,
+since its counts line is all zeroes.
+
+The description says how many molecules the file holds and the range of atom
+and bond counts across them, and says so explicitly when no molecule declares a
+name. No FileSet: two libraries are two catalogues, and a FileSet spanning them
+would claim they share a tag schema. The media types are the conventional
+`chemical/x-mdl-sdfile`, `chemical/x-mdl-molfile` and `chemical/x-mol2`, none
+of them registered, and no field carries an `extract`.
+
+A file declaring no molecule at all is refused by name under `extract_failed`.
+`.sdf.gz` is described identically, and cheaply: the file is read once from the
+front.
+
+## Trajectories are out of scope
+
+XTC, TRR and DCD are not read, and a `.xtc` is reported under `no_handler`
+rather than described. The libraries that read them require Python 3.11 or
+later, and this package supports 3.10. A molecular dynamics run is also the one
+case in this family where the frames, rather than the header, are what a
+consumer wants, and nothing here reads array data.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.

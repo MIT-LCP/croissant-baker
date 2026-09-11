@@ -153,6 +153,19 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.soft_handler import SOFTHandler
     from croissant_baker.handlers.hdf5_handler import HDF5Handler
 
+    # From the submodules rather than the package, so that constructing the
+    # registry pulls in gemmi only for the three handlers that need it.
+    from croissant_baker.handlers.structural_biology.structure_handler import (
+        StructureHandler,
+    )
+    from croissant_baker.handlers.structural_biology.star_handler import STARHandler
+    from croissant_baker.handlers.structural_biology.map_handler import MRCHandler
+    from croissant_baker.handlers.structural_biology.mtz_handler import MTZHandler
+    from croissant_baker.handlers.structural_biology.mdoc_handler import MdocHandler
+    from croissant_baker.handlers.structural_biology.molecule_handler import (
+        SmallMoleculeHandler,
+    )
+
     return [
         CSVHandler(),
         TSVHandler(),
@@ -167,6 +180,12 @@ def builtin_handlers() -> List[FileTypeHandler]:
         NIfTIHandler(),
         SOFTHandler(),
         HDF5Handler(),
+        StructureHandler(),
+        STARHandler(),
+        MRCHandler(),
+        MTZHandler(),
+        MdocHandler(),
+        SmallMoleculeHandler(),
     ]
 
 

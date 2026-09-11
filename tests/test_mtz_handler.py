@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from croissant_baker.handlers.registry import select_handler
 from croissant_baker.handlers.structural_biology.mtz_handler import (
     MTZHandler,
     column_data_type,
@@ -82,6 +83,11 @@ def test_an_mtz_carrying_the_signature_is_claimed(
     handler: MTZHandler, written: Path
 ) -> None:
     assert handler.claims(make_source(written))
+
+
+def test_an_mtz_is_routed_to_this_handler(written: Path) -> None:
+    """Registered in ``builtin_handlers``, so a bake reaches this handler at all."""
+    assert isinstance(select_handler(written).handler, MTZHandler)
 
 
 def test_an_mtz_without_the_signature_is_not_claimed(

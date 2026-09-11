@@ -1,8 +1,8 @@
 """Small molecules: what an SDF, a MOL or a MOL2 declares about its records.
 
 Unit level throughout, ``extract`` and ``build_croissant``, never a bake. The
-checks the registry-wide sweep will make once this handler is registered are
-replicated here, because registration comes later.
+checks the registry-wide sweep makes are replicated here, so a failure names
+this handler rather than one parametrised case of a sweep over all of them.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from croissant_baker.handlers.base_handler import BuildResult
+from croissant_baker.handlers.registry import select_handler
 from croissant_baker.handlers.structural_biology.molecule_handler import (
     SmallMoleculeHandler,
 )
@@ -127,9 +128,7 @@ def library(dataset: Path) -> Path:
     return write(dataset, "library.sdf", SDF)
 
 
-# ---------------------------------------------------------------------------
 # Claiming
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("ext", [".sdf", ".mol", ".mol2"], ids=lambda e: e[1:])
@@ -158,6 +157,11 @@ def test_declines_another_formats_extension(dataset: Path) -> None:
     assert not HANDLER.claims(make_source(path))
 
 
+def test_a_library_is_routed_to_this_handler(library: Path) -> None:
+    """Registered in ``builtin_handlers``, so a bake reaches this handler at all."""
+    assert isinstance(select_handler(library).handler, SmallMoleculeHandler)
+
+
 def test_the_format_is_declared() -> None:
     """What the generated documentation table and the contract sweep read."""
     assert HANDLER.EXTENSIONS
@@ -166,9 +170,7 @@ def test_the_format_is_declared() -> None:
     assert HANDLER.FORMAT_DESCRIPTION
 
 
-# ---------------------------------------------------------------------------
 # Reading
-# ---------------------------------------------------------------------------
 
 
 def test_the_file_is_identified_by_name_size_and_digest(library: Path) -> None:
@@ -272,9 +274,7 @@ def test_a_mol2_declares_its_molecules_counts_and_types(dataset: Path) -> None:
     assert parsed.tags == ()
 
 
-# ---------------------------------------------------------------------------
 # Refusals
-# ---------------------------------------------------------------------------
 
 
 def test_a_missing_file_raises_file_not_found(tmp_path: Path) -> None:
@@ -313,9 +313,7 @@ def test_text_that_declares_no_molecule_is_refused_by_name(dataset: Path) -> Non
     assert "prose.sdf" in str(caught.value)
 
 
-# ---------------------------------------------------------------------------
 # Building
-# ---------------------------------------------------------------------------
 
 
 def test_an_empty_batch_describes_nothing() -> None:
@@ -386,6 +384,14 @@ def test_the_description_names_the_file_the_format_and_the_counts(
     assert "2 molecules" in record_set.description
     assert "6 to 9 atoms" in record_set.description
     assert "5 property tags" in record_set.description
+
+
+def test_a_count_of_one_is_read_in_the_singular(dataset: Path) -> None:
+    """A record of two atoms holds one bond, and ``1 bonds`` is what a count
+    with no plural rule reads like."""
+    (record_set,) = build(write(dataset, "pair.mol", _v2000("pair", 2, 1)))
+
+    assert "2 atoms, 1 bond)" in record_set.description
 
 
 def test_the_description_says_when_no_molecule_is_named(dataset: Path) -> None:

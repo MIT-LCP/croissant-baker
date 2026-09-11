@@ -13,6 +13,7 @@ import gemmi
 import mlcroissant as mlc
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.handlers.structural_biology import cif, tables
 from croissant_baker.handlers.utils import display_name
 from croissant_baker.sources import FileSource
 
@@ -22,12 +23,20 @@ logger = logging.getLogger(__name__)
 FILE_SET_ID = "structure-files"
 RECORD_SET_ID = "structures"
 
-#: Both unregistered: no IANA type exists for either format, and these are the
-#: spellings the chemistry tools have used for decades. They document the file
-#: rather than make a record set readable, since mlcroissant has no reader for
-#: structure files at any media type.
+#: The key an extracted structure file carries its header under. A CIF holding
+#: no structure carries :data:`~...tables.TABLES` instead, and which key a file
+#: has is what decides how it is described.
+STRUCTURE = "structure_properties"
+
+#: All three unregistered: no IANA type exists for any of these formats, and
+#: these are the spellings the chemistry tools have used for decades. They
+#: document the file rather than make a record set readable, since mlcroissant
+#: has no reader for structure files at any media type.
 PDB_MIME_TYPE = "chemical/x-pdb"
 MMCIF_MIME_TYPE = "chemical/x-mmcif"
+#: A CIF document that describes no structure: a dictionary, a deposition log,
+#: a validation report. It is CIF, and claiming mmCIF would claim an entry.
+CIF_MIME_TYPE = "chemical/x-cif"
 
 #: The suffixes that carry PDB records rather than CIF syntax.
 _PDB_SUFFIXES = (".pdb", ".ent")
@@ -63,16 +72,20 @@ def has_tag(block: gemmi.cif.Block, tag: str) -> bool:
     return block.find_value(tag) is not None or bool(block.find_loop(tag))
 
 
-def read_cif_properties(text: str) -> dict:
-    """What the first block of a CIF document describes.
+def read_cif(text: str) -> dict:
+    """What a CIF document contributes to the description, and under which key.
 
-    One suffix, ``.cif``, covers two unrelated dictionaries: an mmCIF entry
-    writes dotted category tags such as ``_atom_site.Cartn_x``, while a
+    One suffix, ``.cif``, covers three unrelated dictionaries: an mmCIF entry
+    writes dotted category tags such as ``_atom_site.Cartn_x``, a
     small-molecule CIF writes the underscore-only tags of the core dictionary,
-    ``_atom_site_fract_x``. The tags are the only thing that tells them apart.
+    ``_atom_site_fract_x``, and a dictionary or a deposition log carries no
+    atoms at all. The tags are the only thing that tells the first two apart,
+    and the third is what is left.
 
-    The first block, not the sole one: a deposited entry is often followed by
-    the chemical component blocks its ligands were taken from.
+    Only the first block is asked about a structure, not the sole one: a
+    deposited entry is often followed by the chemical component blocks its
+    ligands were taken from. The tables, when it comes to those, are every
+    block's, because there is no entry to make the first one special.
     """
     doc = gemmi.cif.read_string(text)
     if not len(doc):
@@ -83,20 +96,27 @@ def read_cif_properties(text: str) -> dict:
         st = gemmi.make_structure_from_block(block)
         # The block name is the entry id in a deposited file, and unlike the
         # PDB reader's placeholder it is the file's own.
-        return macromolecular_properties(
-            st, "mmCIF", header_value(st, "_entry.id") or st.name
-        )
+        return {
+            STRUCTURE: macromolecular_properties(
+                st, "mmCIF", header_value(st, "_entry.id") or st.name
+            )
+        }
 
     if has_tag(block, "_cell_length_a") or has_tag(block, "_atom_site_label"):
-        return small_molecule_properties(
-            gemmi.make_small_structure_from_block(block), block
-        )
+        return {
+            STRUCTURE: small_molecule_properties(
+                gemmi.make_small_structure_from_block(block), block
+            )
+        }
 
-    raise ValueError(
-        f"data block '{block.name}' is a CIF document without a structure: it "
-        "carries neither the mmCIF _atom_site. category nor the core "
-        "dictionary's _cell_length_a or _atom_site_label"
-    )
+    described = cif.describe(doc)
+    if not described:
+        raise ValueError(
+            f"data block '{block.name}' is neither a structure nor a table: it "
+            "carries no mmCIF _atom_site. category, no core dictionary cell or "
+            "atom site, and no tag a column could be named after"
+        )
+    return {tables.TABLES: described}
 
 
 def macromolecular_properties(st: gemmi.Structure, fmt: str, entry_id: str) -> dict:
@@ -169,13 +189,25 @@ def small_molecule_properties(
 
 
 class StructureHandler(FileTypeHandler):
-    """Handler for macromolecular structures and the CIF files beside them."""
+    """Handler for macromolecular structures and the CIF files beside them.
+
+    A PDB entry, an mmCIF entry and a small-molecule CIF are all structures and
+    share one FileSet and one record set, because they answer the same
+    questions. A ``.cif`` that carries no structure at all, a dictionary or a
+    deposition log, is described as the tables it declares instead, the way a
+    STAR file is.
+
+    Fields carry no ``extract``: mlcroissant's reader dispatches on
+    ``encodingFormat`` over a fixed list none of these formats is on, so an
+    ``extract`` here would be a promise nobody can keep.
+    """
 
     EXTENSIONS = (".pdb", ".ent", ".cif", ".mmcif")
     FORMAT_NAME = "Macromolecular structure"
     FORMAT_DESCRIPTION = (
         "Entry id, title, experimental method, resolution, unit cell, space "
-        "group, and model, chain, residue and atom counts"
+        "group, and model, chain, residue and atom counts; a CIF holding no "
+        "structure is described as the tables it declares"
     )
 
     def claims(self, source: FileSource) -> bool:
@@ -194,11 +226,13 @@ class StructureHandler(FileTypeHandler):
                 # From the HEADER record, which gemmi files under the mmCIF tag
                 # it maps to. Never ``st.name``: reading from a string leaves
                 # that as the reader's own placeholder.
-                props = macromolecular_properties(
-                    st, "PDB", header_value(st, "_entry.id")
-                )
+                described = {
+                    STRUCTURE: macromolecular_properties(
+                        st, "PDB", header_value(st, "_entry.id")
+                    )
+                }
             else:
-                props = read_cif_properties(text)
+                described = read_cif(text)
         except Exception as e:
             raise ValueError(
                 f"Failed to read structure file {source.relative_path}: {e}"
@@ -208,42 +242,90 @@ class StructureHandler(FileTypeHandler):
             "file_name": source.name,
             "file_size": source.size,
             "sha256": source.sha256,
-            "encoding_format": PDB_MIME_TYPE if is_pdb else MMCIF_MIME_TYPE,
-            "structure_properties": props,
+            "encoding_format": _encoding_format(is_pdb, described),
+            **described,
         }
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
-        """One FileSet over the batch, and one record per file in it.
+        """One FileSet and one record set over the structures, and one record
+        set per table for each CIF document that holds no structure.
 
         Every structure file answers the same questions, so they share a
-        schema; splitting them per file would repeat that schema once per
-        entry and say nothing extra.
+        schema; splitting them per file would repeat that schema once per entry
+        and say nothing extra. A CIF document answers none of those questions,
+        so it is described the way a STAR file is, as the tables it declares.
         """
         # An empty batch has nothing to summarise; a FileSet over zero files
         # would describe data that is not there.
         if not file_metas:
             return BuildResult([], [])
 
-        summary = collect_structure_summary(file_metas)
-        file_set = mlc.FileSet(
-            id=FILE_SET_ID,
-            name="Structure files",
-            description=_file_set_description(summary),
-            encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
-            includes=[f"**/*{suffix}" for suffix in summary["suffixes"]],
-        )
-        record_set = mlc.RecordSet(
-            id=RECORD_SET_ID,
-            name=RECORD_SET_ID,
-            description=_record_set_description(summary),
-            fields=_fields(summary),
-        )
-        return BuildResult([file_set], [record_set])
+        structures = _select(file_metas, file_ids, STRUCTURE)
+        documents = _select(file_metas, file_ids, tables.TABLES)
+
+        file_sets, record_sets = [], []
+        if structures:
+            metas = [meta for meta, _ in structures]
+            summary = collect_structure_summary(metas)
+            file_sets.append(
+                mlc.FileSet(
+                    id=FILE_SET_ID,
+                    name="Structure files",
+                    description=_file_set_description(summary),
+                    encoding_formats=sorted({m["encoding_format"] for m in metas}),
+                    includes=[f"**/*{suffix}" for suffix in summary["suffixes"]],
+                    # A ``**/*.cif`` reaches the documents too, and the record
+                    # set reading this FileSet counts one record per structure
+                    # file. Naming them keeps them out of that count.
+                    excludes=sorted(_relative(meta) for meta, _ in documents) or None,
+                )
+            )
+            record_sets.append(
+                mlc.RecordSet(
+                    id=RECORD_SET_ID,
+                    name=RECORD_SET_ID,
+                    description=_record_set_description(summary),
+                    fields=_fields(summary),
+                )
+            )
+        if documents:
+            record_sets.extend(
+                tables.record_sets(
+                    [meta for meta, _ in documents],
+                    [file_id for _, file_id in documents],
+                )
+            )
+        return BuildResult(file_sets, record_sets)
 
 
-# ---------------------------------------------------------------------------
+def _encoding_format(is_pdb: bool, described: dict) -> str:
+    """What the file is, which for a ``.cif`` is not settled by its suffix.
+
+    Only a macromolecular entry is mmCIF. A small-molecule crystal and a
+    document that holds no structure are both written in another dictionary of
+    the same syntax, so calling either one mmCIF would misname it.
+    """
+    if is_pdb:
+        return PDB_MIME_TYPE
+    props = described.get(STRUCTURE)
+    return MMCIF_MIME_TYPE if props and props["format"] == "mmCIF" else CIF_MIME_TYPE
+
+
+def _relative(meta: dict) -> str:
+    """The file's logical dataset-relative path, which a FileSet resolves."""
+    return meta.get("relative_path", meta["file_name"])
+
+
+def _select(file_metas: list, file_ids: list, key: str) -> list:
+    """The ``(meta, file id)`` pairs of the batch carrying ``key``.
+
+    Paired rather than filtered twice: the identifier belongs to its own file,
+    and a mixed batch is where taking it by position would go wrong.
+    """
+    return [(meta, id_) for meta, id_ in zip(file_metas, file_ids) if key in meta]
+
+
 # Describing a batch
-# ---------------------------------------------------------------------------
 
 
 def collect_structure_summary(file_metas: list) -> dict:
@@ -252,7 +334,7 @@ def collect_structure_summary(file_metas: list) -> dict:
     Ordered rather than set-shaped wherever it reaches a description, so a
     manifest does not change between two bakes of the same directory.
     """
-    props = [meta.get("structure_properties", {}) for meta in file_metas]
+    props = [meta.get(STRUCTURE, {}) for meta in file_metas]
     suffixes = {Path(meta["file_name"]).suffix.lower() for meta in file_metas}
     resolutions = [
         p["resolution_angstrom"] for p in props if p.get("resolution_angstrom")
@@ -301,9 +383,7 @@ def _record_set_description(summary: dict) -> str:
     return " ".join(parts)
 
 
-# ---------------------------------------------------------------------------
 # Fields
-# ---------------------------------------------------------------------------
 
 #: Every field, in the order a reader meets them: what the entry calls itself,
 #: how it was measured, where it sits in a cell, then how big it is. Each entry

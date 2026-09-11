@@ -6,6 +6,7 @@ import mlcroissant as mlc
 import pytest
 
 from croissant_baker.handlers.base_handler import BuildResult
+from croissant_baker.handlers.registry import select_handler
 from croissant_baker.handlers.structural_biology.structure_handler import (
     StructureHandler,
 )
@@ -59,12 +60,24 @@ O1 O 0.3500 0.4450 0.5000
 O2 O 0.4500 0.5550 0.6250
 """
 
-#: A syntactically valid CIF holding neither an entry nor a crystal structure.
+#: A syntactically valid CIF holding neither an entry nor a crystal structure:
+#: a block of pairs and a loop, which is what a dictionary or a deposition log
+#: is made of.
 STRUCTURELESS_CIF = """\
 data_notes
 _audit_creation_method    'by hand'
 _journal_name_full        'Journal of Nothing'
+_audit_revision_count     2
+
+loop_
+_audit_author_name
+_audit_author_address
+'Rivera, K.'  'Cambridge, MA'
+'Okafor, N.'  'Cambridge, MA'
 """
+
+#: A block that declares nothing at all, which is not a table anyone can read.
+EMPTY_BLOCK_CIF = "data_nothing\n"
 
 
 def write_pdb(tmp_path: Path, name: str = "1abc.pdb", text: str = MINIMAL_PDB) -> Path:
@@ -126,6 +139,11 @@ def test_declines_another_formats_extension(
     path = tmp_path / "scan.nii"
     path.write_bytes(b"payload")
     assert not handler.claims(make_source(path))
+
+
+def test_a_structure_file_is_routed_to_this_handler(tmp_path: Path) -> None:
+    """Registered in ``builtin_handlers``, so a bake reaches this handler at all."""
+    assert isinstance(select_handler(write_pdb(tmp_path)).handler, StructureHandler)
 
 
 def test_the_format_is_declared(handler: StructureHandler) -> None:
@@ -255,6 +273,25 @@ def test_small_molecule_cif(handler: StructureHandler, tmp_path: Path) -> None:
     assert props["n_atoms"] == 5
 
 
+def test_a_small_molecule_cif_is_not_called_mmcif(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """mmCIF is the macromolecular dictionary. A crystal of one molecule is
+    written in the core dictionary, and saying otherwise misnames the file."""
+    path = tmp_path / "glycine.cif"
+    path.write_text(SMALL_MOLECULE_CIF)
+
+    assert handler.extract(make_source(path))["encoding_format"] == "chemical/x-cif"
+
+
+def test_an_entry_written_in_mmcif_says_so(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    meta = handler.extract(make_source(write_mmcif(tmp_path)))
+
+    assert meta["encoding_format"] == "chemical/x-mmcif"
+
+
 def test_a_small_molecule_cif_reports_no_chains(
     handler: StructureHandler, tmp_path: Path
 ) -> None:
@@ -285,19 +322,48 @@ def test_only_the_first_block_of_a_cif_is_read(
     assert props["n_atoms"] == 6
 
 
-def test_a_cif_without_a_structure_is_refused(
+def write_generic_cif(tmp_path: Path, name: str = "notes.cif") -> Path:
+    path = tmp_path / name
+    path.write_text(STRUCTURELESS_CIF)
+    return path
+
+
+def test_a_cif_without_a_structure_is_described_as_its_tables(
     handler: StructureHandler, tmp_path: Path
 ) -> None:
-    """Valid CIF syntax naming no structure at all, so there is nothing to
-    describe and the message has to say which dictionary was looked for."""
-    path = tmp_path / "notes.cif"
-    path.write_text(STRUCTURELESS_CIF)
+    """One suffix covers three dictionaries, and only two of them hold atoms.
+    The third is still a CIF document, so it is described as the tables it is
+    rather than refused for the structure it never claimed to have."""
+    meta = handler.extract(make_source(write_generic_cif(tmp_path)))
+
+    assert "structure_properties" not in meta
+    assert [(table.block, table.kind) for table in meta["tables"]] == [
+        ("notes", "pairs"),
+        ("notes", "loop"),
+    ]
+
+
+def test_a_cif_document_says_it_is_not_a_structure(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """Its own media type, because ``chemical/x-mmcif`` would claim an entry."""
+    meta = handler.extract(make_source(write_generic_cif(tmp_path)))
+
+    assert meta["encoding_format"] == "chemical/x-cif"
+
+
+def test_a_cif_block_declaring_nothing_is_refused(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """No structure and no table either, so there is nothing to describe and
+    the file has to be reported rather than silently contribute nothing."""
+    path = tmp_path / "empty.cif"
+    path.write_text(EMPTY_BLOCK_CIF)
 
     with pytest.raises(ValueError) as caught:
         handler.extract(make_source(path))
 
-    assert "notes.cif" in str(caught.value)
-    assert "without a structure" in str(caught.value)
+    assert "empty.cif" in str(caught.value)
 
 
 def test_a_missing_file_raises_file_not_found(
@@ -502,6 +568,140 @@ def test_a_macromolecular_batch_carries_no_formula_field(
     _, record_sets = handler.build_croissant([macro_meta("1abc.pdb")], ["file_0"])
 
     assert "formula" not in {f.name for f in record_sets[0].fields}
+
+
+def document_metas(handler: StructureHandler, tmp_path: Path, *names: str) -> list:
+    """Extracted generic CIF documents, as the generator hands them back."""
+    metas = []
+    for name in names:
+        meta = handler.extract(make_source(write_generic_cif(tmp_path, name)))
+        meta["relative_path"] = name
+        meta["stored_name"] = name
+        metas.append(meta)
+    return metas
+
+
+def test_a_generic_cif_becomes_one_record_set_per_table(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """The same shape the STAR handler gives a document, because it is the same
+    grammar: a record set per table, named for the file and the block."""
+    metas = document_metas(handler, tmp_path, "notes.cif")
+
+    file_sets, record_sets = handler.build_croissant(metas, ["file_0"])
+
+    assert file_sets == []
+    assert [rs.id for rs in record_sets] == ["notes_notes_1", "notes_notes_2"]
+    assert all(rs.name == rs.id for rs in record_sets)
+
+
+def test_a_generic_cifs_columns_are_typed_fields_reading_no_value(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    metas = document_metas(handler, tmp_path, "notes.cif")
+
+    _, record_sets = handler.build_croissant(metas, ["file_0"])
+
+    pairs = record_sets[0]
+    assert [(f.name, str(f.data_types[0])) for f in pairs.fields] == [
+        ("audit_creation_method", "sc:Text"),
+        ("journal_name_full", "sc:Text"),
+        ("audit_revision_count", "sc:Integer"),
+    ]
+    assert all(f.source.extract.column is None for f in pairs.fields)
+    assert "No value is emitted." in pairs.description
+
+
+def test_two_documents_of_one_name_get_identifiers_of_their_own(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """The same disambiguation the STAR handler does, because a CIF dictionary
+    is as likely to sit one per directory as a RELION job is."""
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    metas = document_metas(handler, tmp_path, "a/notes.cif", "b/notes.cif")
+
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    assert len({rs.id for rs in record_sets}) == len(record_sets) == 4
+
+
+def test_a_mixed_batch_describes_structures_and_documents_apart(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """One bake reaches this handler with both, and neither may swallow the
+    other: the structures share a FileSet and a record set, and each document
+    gets record sets of its own."""
+    structure = handler.extract(make_source(write_pdb(tmp_path)))
+    structure["relative_path"] = structure["stored_name"] = "1abc.pdb"
+    metas = [structure, *document_metas(handler, tmp_path, "notes.cif")]
+
+    file_sets, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    assert [fs.includes for fs in file_sets] == [["**/*.pdb"]]
+    assert [rs.id for rs in record_sets] == [
+        "structures",
+        "notes_notes_1",
+        "notes_notes_2",
+    ]
+    assert "1 structure file(s), 1abc.pdb" in file_sets[0].description
+
+
+def test_the_fileset_excludes_a_document_its_glob_would_reach(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """``**/*.cif`` matches a CIF dictionary as readily as an entry, and the
+    record set reading this FileSet says one record per structure file. A
+    document caught by the glob would be counted as a structure it is not."""
+    structure = handler.extract(make_source(write_mmcif(tmp_path)))
+    structure["relative_path"] = structure["stored_name"] = "1abc.cif"
+    metas = [structure, *document_metas(handler, tmp_path, "notes.cif")]
+
+    file_sets, _ = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    assert file_sets[0].includes == ["**/*.cif"]
+    assert file_sets[0].excludes == ["notes.cif"]
+
+
+def test_a_batch_of_structures_alone_excludes_nothing(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """An exclusion naming no file would be a claim about a file that is not
+    there."""
+    file_sets, _ = handler.build_croissant([macro_meta("1abc.pdb")], ["file_0"])
+
+    assert not file_sets[0].excludes
+
+
+def test_a_documents_fields_point_at_that_document(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """The identifier the pipeline gave *that* file, not the batch's first: a
+    mixed batch is where a positional slip would go unnoticed."""
+    structure = handler.extract(make_source(write_pdb(tmp_path)))
+    structure["relative_path"] = structure["stored_name"] = "1abc.pdb"
+    metas = [structure, *document_metas(handler, tmp_path, "notes.cif")]
+
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    documents = [rs for rs in record_sets if rs.id != "structures"]
+    assert documents
+    for record_set in documents:
+        assert all(f.source.file_object == "file_1" for f in record_set.fields)
+        assert "notes.cif" in record_set.description
+
+
+def test_a_batch_of_documents_alone_builds_no_fileset(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """A FileSet over documents would say they share a schema, and two CIF
+    dictionaries share nothing but their grammar."""
+    metas = document_metas(handler, tmp_path, "notes.cif")
+
+    result = handler.build_croissant(metas, ["file_0"])
+
+    assert result.file_sets == []
+    assert result.record_sets
 
 
 def test_a_real_batch_returns_a_build_result(

@@ -266,8 +266,13 @@ def _dims_note(properties: list) -> str:
 
 
 def _counted(values) -> str:
-    """``volume, image stack``, in first-seen order and without repeats."""
-    seen = dict.fromkeys(values)
+    """``image stack, volume``: what the batch holds, once each.
+
+    Sorted rather than in first-seen order. Batch order is discovery order,
+    which is the filesystem's, so a summary listing what it met first would
+    make two bakes of one directory differ.
+    """
+    seen = sorted(set(values))
     return ", ".join(seen) if seen else "unknown"
 
 

@@ -1,0 +1,12 @@
+HEADER    HYDROLASE                               01-JAN-00   1ABC
+TITLE     A SMALL TEST STRUCTURE
+EXPDTA    X-RAY DIFFRACTION
+REMARK   2 RESOLUTION.    1.80 ANGSTROMS.
+CRYST1   40.000   50.000   60.000  90.00  90.00  90.00 P 21 21 21    4
+ATOM      1  N   ALA A   1      11.104   6.134  -6.504  1.00 20.00           N
+ATOM      2  CA  ALA A   1      11.639   6.071  -5.147  1.00 20.00           C
+ATOM      3  C   ALA A   1      12.253   4.699  -4.914  1.00 20.00           C
+HETATM    4  O   HOH A 100      20.000  20.000  20.000  1.00 30.00           O
+ATOM      5  N   GLY B   1      15.104   6.134  -6.504  1.00 20.00           N
+ATOM      6  CA  GLY B   1      15.639   6.071  -5.147  1.00 20.00           C
+END

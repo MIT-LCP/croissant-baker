@@ -377,9 +377,7 @@ def test_mimiciv_demo_omop_generation(
     assert len(metadata["recordSet"]) > 0
 
 
-# ---------------------------------------------------------------------------
 # Glaucoma fundus dataset (JPG images + CSV labels)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -453,9 +451,7 @@ def test_glaucoma_fundus_generation(
     assert len(label_rs) == 1
 
 
-# ---------------------------------------------------------------------------
 # Satellite public health dataset (multi-band TIFF + CSV metadata)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -522,9 +518,7 @@ def test_satellite_generation(satellite_path: Path, output_dir: Path) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
 # Synthetic Open Targets-like dataset (partitioned Parquet tables)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -880,9 +874,7 @@ def test_open_targets_like_generation(
     )
 
 
-# ---------------------------------------------------------------------------
 # Real Open Targets subset (committed Parquet, no download required)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -956,9 +948,7 @@ def test_open_targets_subset(open_targets_subset_path: Path, output_dir: Path) -
     assert len(dhpo_fields) == 6
 
 
-# ---------------------------------------------------------------------------
 # MIMIC-IV FHIR Demo (NDJSON bulk export, gzip-compressed)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -1051,9 +1041,7 @@ def test_mimiciv_fhir_demo_generation(
     assert "sc:Date" in patient_fields.get("birthDate", {}).get("dataType", [])
 
 
-# ---------------------------------------------------------------------------
 # GH Archive demo (committed JSONL.GZ fixture — no download required)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -1142,9 +1130,7 @@ def test_gharchive_demo_generation(gharchive_demo_path: Path, output_dir: Path) 
     assert "subField" in actor_field, "actor should expand to subFields (nested struct)"
 
 
-# ---------------------------------------------------------------------------
 # UniProt TSV — real-world TSV end-to-end
-# ---------------------------------------------------------------------------
 #
 # Dataset: UniProt reviewed human proteins (Swiss-Prot)
 # Columns: 14 — integers (Length, Mass), free text, GO terms, empty cells
@@ -1314,9 +1300,7 @@ def test_spect_demo_generation(spect_demo_path: Path, output_dir: Path) -> None:
     assert "tr_seconds" not in nifti_fields  # no 4D file in this fixture
 
 
-# ---------------------------------------------------------------------------
 # GEO SOFT
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -1338,7 +1322,11 @@ def _discovery_independent(document: dict) -> dict:
     reordered files compare equally, while a source pointing at the wrong
     file still fails. Preserve field order and all other metadata.
     """
-    file_urls = {d["@id"]: d["contentUrl"] for d in document["distribution"]}
+    # A FileSet carries globs rather than a URL, and its own id is already
+    # stable, so only the files are resolved.
+    file_urls = {
+        d["@id"]: d["contentUrl"] for d in document["distribution"] if "contentUrl" in d
+    }
 
     def resolve(value):
         if isinstance(value, dict):
@@ -1534,9 +1522,7 @@ def test_ome_tiff_generation(ome_dataset: Path, tmp_path: Path) -> None:
     assert file_sets["image-files"]["cr:excludes"] == "morphology.ome.tif"
 
 
-# ---------------------------------------------------------------------------
 # HDF5 (AnnData, two 10x feature matrices, and one file matching no layout)
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -1605,6 +1591,92 @@ def test_hdf5_demo_generation(
 
     assert result.exit_code == 0, f"Command failed: {result.stdout}"
     assert "Scanned 6 file(s): 5 described, 1 not described" in result.stdout
+    assert _discovery_independent(
+        json.loads(output_file.read_text())
+    ) == _discovery_independent(json.loads(golden.read_text()))
+
+
+# Structural biology: six handlers over one deposit, and the cases that only
+# arise when they sit beside one another.
+
+
+@pytest.fixture
+def structural_biology_demo_path() -> Path:
+    """Path to the structural biology demo dataset, which this repository tracks.
+
+    A hard failure rather than a skip: the fixture is committed, so it can only
+    go missing by accident, and skipping would hide the loss.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "structural_biology_demo"
+    assert dataset_path.is_dir(), (
+        f"tracked structural biology fixture missing at {dataset_path}"
+    )
+    return dataset_path
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_structural_biology_demo_generation(
+    structural_biology_demo_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+    reverse_discovery: bool,
+) -> None:
+    """The whole CLI over six structural biology formats at once, compared
+    against the committed document.
+
+    Read rather than overwritten, which is what makes the golden worth
+    committing: both the input fixture and the output are frozen, so any change
+    to what these handlers emit shows up here as a diff rather than as a
+    silently rewritten file. The input's README says how to regenerate both.
+
+    Compared through :func:`_discovery_independent`, and run in both discovery
+    orders, because ``rglob`` order is the filesystem's rather than sorted:
+    comparing the text directly passed on macOS and failed on Linux.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output_file = tmp_path / "structural_biology_demo_croissant.jsonld"
+    golden = (
+        Path(__file__).parent
+        / "data"
+        / "output"
+        / "structural_biology_demo_croissant.jsonld"
+    )
+    assert golden.is_file(), f"tracked structural biology golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(structural_biology_demo_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "Structural biology demo (synthetic structures, maps and metadata)",
+            "--description",
+            "PDB and mmCIF entries, a small-molecule CIF, a CIF dictionary, RELION STAR files, MRC maps, an MTZ, a SerialEM mdoc and a small-molecule library",
+            "--url",
+            "https://example.org/structural-biology-demo",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--dataset-version",
+            "1.0.0",
+            "--date-published",
+            "2026-01-01",
+            "--creator",
+            "croissant-baker test suite",
+        ],
+    )
+
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "Scanned 15 file(s): 14 described, 1 not described" in result.stdout
     assert _discovery_independent(
         json.loads(output_file.read_text())
     ) == _discovery_independent(json.loads(golden.read_text()))

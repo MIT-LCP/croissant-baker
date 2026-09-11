@@ -8,6 +8,7 @@ from pathlib import Path
 import mlcroissant as mlc
 import pytest
 
+from croissant_baker.handlers.registry import select_handler
 from croissant_baker.handlers.structural_biology.map_handler import MRCHandler
 from croissant_baker.sources import make_source
 
@@ -92,6 +93,13 @@ def test_a_map_is_claimed_when_it_carries_the_signature(
 ) -> None:
     path = write_map(tmp_path / "probe.map", mrc_header())
     assert handler.claims(make_source(path))
+
+
+def test_a_map_is_routed_to_this_handler(tmp_path: Path) -> None:
+    """Registered in ``builtin_handlers``, so a bake reaches this handler at all."""
+    path = write_map(tmp_path / "volume.mrc", mrc_header())
+
+    assert isinstance(select_handler(path).handler, MRCHandler)
 
 
 def test_a_map_without_the_signature_is_not_claimed(
@@ -531,6 +539,25 @@ def test_an_image_count_is_described_only_when_the_batch_holds_a_stack(
 
     assert "n_images" not in {f.name for f in without[0].fields}
     assert "n_images" in {f.name for f in with_stack[0].fields}
+
+
+def test_the_batch_reads_the_same_whichever_file_came_first(
+    handler: MRCHandler,
+) -> None:
+    """Batch order is discovery order, which is the filesystem's. A summary
+    that listed what it saw first would make two bakes of one directory differ."""
+    volume = mrc_meta("volume.mrc")
+    stack = mrc_meta("stack.mrcs", kind="image stack", space_group=0, n_images=40)
+
+    forward = handler.build_croissant([volume, stack], ["file_0", "file_1"])
+    reversed_ = handler.build_croissant([stack, volume], ["file_1", "file_0"])
+
+    assert [rs.description for rs in forward.record_sets] == [
+        rs.description for rs in reversed_.record_sets
+    ]
+    assert [fs.description for fs in forward.file_sets] == [
+        fs.description for fs in reversed_.file_sets
+    ]
 
 
 def test_the_descriptions_summarise_the_batch(handler: MRCHandler) -> None:
