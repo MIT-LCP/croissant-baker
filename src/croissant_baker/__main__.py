@@ -602,7 +602,7 @@ def main(
     included_in_data_catalog: Optional[str] = typer.Option(
         None,
         "--included-in-data-catalog",
-        help="URL of a catalog entry listing this dataset (e.g., 'https://datacatalog.ccdi.cancer.gov/').",
+        help="URL of a catalog entry listing this dataset. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'https://datacatalog.ccdi.cancer.gov/'.",
         callback=_uri_option,
     ),
     profile: Optional[List[str]] = typer.Option(
