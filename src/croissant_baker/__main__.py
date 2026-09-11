@@ -24,6 +24,7 @@ from croissant_baker.metadata_generator import (
     RAI_CONFORMS_TO,
     normalize_profiles,
     serialize_datetime,
+    url_is_iri_safe,
 )
 from croissant_baker import compression
 from croissant_baker.files import discover_files
@@ -931,6 +932,17 @@ def main(
                     "Warning: --count-csv-rows has no effect: no CSV files found in dataset",
                     err=True,
                 )
+
+        # Said before the bake rather than after it, so the user still reads
+        # it when a declared profile refuses the document for the missing @id.
+        if url and not url_is_iri_safe(url):
+            typer.echo(
+                f"Warning: --url {url!r} contains whitespace, so no @id was "
+                "emitted for the dataset.\n"
+                "  Percent-encode the whitespace (a space becomes %20) to give "
+                "the document an identifier.",
+                err=True,
+            )
 
         merged_field_mappings = _merge_field_mapping_flags(
             _load_field_mappings(field_mappings), field_mapping

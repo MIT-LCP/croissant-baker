@@ -15,6 +15,7 @@ from croissant_baker.metadata_generator import (
     MetadataGenerator,
     RAI_CONFORMS_TO,
     normalize_profiles,
+    url_is_iri_safe,
 )
 from tests.helpers import cli
 
@@ -1048,6 +1049,78 @@ def test_url_becomes_the_dataset_id(csv_dataset: Path, tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert json.loads(output.read_text())["@id"] == "https://example.org/ds"
+
+
+@pytest.mark.parametrize(
+    "url,usable",
+    [
+        ("https://example.org/ds", True),
+        ("https://example.org/my%20dataset", True),
+        ("https://example.org/my dataset", False),
+        ("https://example.org/my\tdataset", False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_url_is_iri_safe_rejects_whitespace(url, usable: bool) -> None:
+    """An @id is an IRI, and an IRI carries no whitespace."""
+    assert url_is_iri_safe(url) is usable
+
+
+def test_url_with_whitespace_still_bakes_without_an_id(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A url a JSON-LD parser cannot read must not become the document's @id.
+
+    Emitting it anyway made the whole bake fail validation, which is a
+    steeper price than the url was worth.
+    """
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset, output, "--url", "https://example.org/my dataset", validate=True
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "@id" not in json.loads(output.read_text())
+
+
+def test_url_with_whitespace_warns_and_says_how_to_fix_it(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """Dropping the @id silently would leave the user nothing to act on."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--url", "https://example.org/my dataset")
+
+    assert result.exit_code == 0, result.output
+    assert "Warning:" in result.stderr
+    assert "whitespace" in result.stderr
+    assert "%20" in result.stderr
+
+
+def test_bioschemas_refuses_a_url_that_yields_no_id(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The profile lists @id as a minimum, so a url that cannot be one fails."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--identifier",
+        "phs000218.v1.p1",
+        "--keywords",
+        "cardiology",
+        "--url",
+        "https://example.org/my dataset",
+        "--profile",
+        "bioschemas",
+    )
+
+    assert result.exit_code != 0
+    assert "@id" in result.stderr
+    assert "whitespace" in result.stderr
 
 
 def test_no_url_leaves_the_dataset_id_absent(csv_dataset: Path, tmp_path: Path) -> None:

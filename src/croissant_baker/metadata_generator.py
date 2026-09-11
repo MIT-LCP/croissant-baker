@@ -68,13 +68,31 @@ PROFILE_CONFORMS_TO = {
 # names a profile and then omits what the profile lists as minimum scores
 # worse than one that declares nothing. The generator refuses instead.
 #
-# Bioschemas Dataset 1.0-RELEASE lists ten minimum fields. The five here are
-# the ones a bake can lack; @context, @type and name are always written, @id
-# follows from url, and dct:conformsTo is what the declaration itself adds.
+# The list mirrors the profile's own minimums rather than what a bake happens
+# to be able to omit. Bioschemas Dataset 1.0-RELEASE lists ten; @context,
+# @type and name are always written and dct:conformsTo is what the declaration
+# itself adds, so the six below are what is left. description and license are
+# defaulted today and so can never be reported missing; they stay listed so the
+# check follows the profile rather than the defaults.
 # https://bioschemas.org/profiles/Dataset/1.0-RELEASE
 PROFILE_MINIMUM_KEYS = {
-    "bioschemas": ("description", "identifier", "keywords", "license", "url"),
+    "bioschemas": ("@id", "description", "identifier", "keywords", "license", "url"),
 }
+
+
+def url_is_iri_safe(url: Optional[str]) -> bool:
+    """Whether ``url`` can stand as the document's ``@id``.
+
+    An ``@id`` is an IRI, and an IRI carries no whitespace: a url with a
+    space in it makes the whole document unreadable to a JSON-LD parser, so
+    emitting one costs more than leaving the dataset unnamed. Only whitespace
+    is checked, because that is the one thing that breaks parsing outright,
+    and ``url`` itself is written as given whatever this returns.
+
+    One owner for the rule: the generator asks before injecting the key, and
+    the CLI asks before telling the user why it is missing.
+    """
+    return bool(url) and not any(character.isspace() for character in url)
 
 
 def normalize_profiles(
@@ -638,8 +656,10 @@ class MetadataGenerator:
         # mlcroissant takes an ``id`` for the Metadata node but writes no
         # top-level @id, leaving the Dataset a blank node that nothing can
         # refer to. The dataset URL is the identifier a reader already has,
-        # and it is what Bioschemas expects there.
-        if self.url:
+        # and it is what Bioschemas expects there. A url no IRI can be built
+        # from is skipped rather than written: the CLI says so on stderr, and
+        # a declared profile that requires @id refuses the bake outright.
+        if url_is_iri_safe(self.url):
             result["@id"] = self.url
         if self.alternate_name is not None:
             result["alternateName"] = self.alternate_name
@@ -1002,4 +1022,9 @@ class MetadataGenerator:
             f.write("\n")
 
 
-__all__ = ["MetadataGenerator", "normalize_profiles", "serialize_datetime"]
+__all__ = [
+    "MetadataGenerator",
+    "normalize_profiles",
+    "serialize_datetime",
+    "url_is_iri_safe",
+]
