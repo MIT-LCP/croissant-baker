@@ -84,6 +84,29 @@ def test_sd_version_native_param_still_emits_prefixed_key() -> None:
     assert "cr:sdVersion" in out
 
 
+def test_metadata_id_param_still_emits_no_top_level_id() -> None:
+    """``id`` is a native Metadata param, but ``to_json()`` writes no ``@id``
+    for the Dataset itself, so the document has no subject to name it by.
+    Profiles that require one — Bioschemas Dataset lists @id among its minimum
+    fields — need the key, so we post-hoc inject the dataset URL. When
+    mlcroissant starts emitting it, this test fails: drop the inject in
+    MetadataGenerator.generate_metadata.
+    """
+    md = mlc.Metadata(
+        id="https://example.com/dataset",
+        name="t",
+        description="d",
+        url="https://example.com/dataset",
+        license="mit",
+        conforms_to="http://mlcommons.org/croissant/1.1",
+    )
+    out = md.to_json()
+    assert "@id" not in out, (
+        "mlcroissant now emits a top-level @id. "
+        "Drop the post-hoc inject in MetadataGenerator.generate_metadata."
+    )
+
+
 def test_rai_conforms_to_not_auto_appended_when_rai_fields_set() -> None:
     """The Croissant 1.1 spec defines ``http://mlcommons.org/croissant/RAI/1.0``
     as the conformsTo URI for the RAI extension, but mlcroissant 1.1.0 does

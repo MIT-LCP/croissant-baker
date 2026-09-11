@@ -1009,6 +1009,40 @@ def test_is_accessible_for_free_emits_the_boolean_asked_for(
     assert json.loads(output.read_text())["isAccessibleForFree"] is expected
 
 
+def test_url_becomes_the_dataset_id(csv_dataset: Path, tmp_path: Path) -> None:
+    """The Dataset node names itself, so a validator has a subject to bind to."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--url", "https://example.org/ds")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["@id"] == "https://example.org/ds"
+
+
+def test_no_url_leaves_the_dataset_id_absent(csv_dataset: Path, tmp_path: Path) -> None:
+    """There is nothing to name the dataset by, so no @id is invented."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output)
+
+    assert result.exit_code == 0, result.output
+    assert "@id" not in json.loads(output.read_text())
+
+
+def test_dataset_id_reads_back_through_mlcroissant(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The injected key survives a round trip rather than failing validation."""
+    import mlcroissant as mlc
+
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--url", "https://example.org/ds")
+
+    assert result.exit_code == 0, result.output
+    assert mlc.Dataset(str(output)).metadata.id == "https://example.org/ds"
+
+
 def test_included_in_data_catalog_emits_a_data_catalog_node(
     csv_dataset: Path, tmp_path: Path
 ) -> None:

@@ -613,6 +613,12 @@ class MetadataGenerator:
         # but mlc emits it as ``cr:sdVersion`` (no @context alias); the
         # canonical 1.1 examples use the unprefixed form, so we write the
         # canonical key directly.
+        # mlcroissant takes an ``id`` for the Metadata node but writes no
+        # top-level @id, leaving the Dataset a blank node that nothing can
+        # refer to. The dataset URL is the identifier a reader already has,
+        # and it is what Bioschemas expects there.
+        if self.url:
+            result["@id"] = self.url
         if self.sd_version is not None:
             result["sdVersion"] = self.sd_version
         if self.alternate_name is not None:

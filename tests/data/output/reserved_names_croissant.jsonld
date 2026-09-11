@@ -185,5 +185,6 @@
         }
       ]
     }
-  ]
+  ],
+  "@id": "https://example.com/reserved-name-test"
 }

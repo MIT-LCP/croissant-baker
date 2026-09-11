@@ -289,5 +289,6 @@
         }
       ]
     }
-  ]
+  ],
+  "@id": "https://www.uniprot.org/uniprotkb?query=reviewed:true&organism_id=9606"
 }
