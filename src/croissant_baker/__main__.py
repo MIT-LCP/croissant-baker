@@ -322,7 +322,7 @@ def _uri_option(
     """Strip a URI-valued option, then reject strings with no URI scheme.
 
     Catches free text like 'see license file' but accepts http(s)://, urn:,
-    did:, mailto:, and any other valid scheme — schema.org/usageInfo accepts
+    did:, mailto:, and any other valid scheme. schema.org/usageInfo accepts
     URLs broadly, not just web URLs.
 
     A parse-time callback rather than a check in the command body: Typer runs

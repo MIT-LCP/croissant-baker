@@ -87,8 +87,8 @@ def test_sd_version_native_param_still_emits_prefixed_key() -> None:
 def test_metadata_id_param_still_emits_no_top_level_id() -> None:
     """``id`` is a native Metadata param, but ``to_json()`` writes no ``@id``
     for the Dataset itself, so the document has no subject to name it by.
-    Profiles that require one — Bioschemas Dataset lists @id among its minimum
-    fields — need the key, so we post-hoc inject the dataset URL. When
+    Profiles that require one (Bioschemas Dataset lists @id among its minimum
+    fields) need the key, so we post-hoc inject the dataset URL. When
     mlcroissant starts emitting it, this test fails: drop the inject in
     MetadataGenerator.generate_metadata.
     """

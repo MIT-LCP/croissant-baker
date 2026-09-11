@@ -633,14 +633,14 @@ class MetadataGenerator:
         # but mlc emits it as ``cr:sdVersion`` (no @context alias); the
         # canonical 1.1 examples use the unprefixed form, so we write the
         # canonical key directly.
+        if self.sd_version is not None:
+            result["sdVersion"] = self.sd_version
         # mlcroissant takes an ``id`` for the Metadata node but writes no
         # top-level @id, leaving the Dataset a blank node that nothing can
         # refer to. The dataset URL is the identifier a reader already has,
         # and it is what Bioschemas expects there.
         if self.url:
             result["@id"] = self.url
-        if self.sd_version is not None:
-            result["sdVersion"] = self.sd_version
         if self.alternate_name is not None:
             result["alternateName"] = self.alternate_name
         if self.is_live_dataset is not None:
@@ -663,7 +663,7 @@ class MetadataGenerator:
         if self.included_in_data_catalog is not None:
             # schema.org gives includedInDataCatalog exactly one range,
             # DataCatalog. A bare string would be read as a literal under
-            # @vocab, so the URL rides on a node — the shape publisher
+            # @vocab, so the URL rides on a node, the shape publisher
             # already uses for its Organization.
             result["includedInDataCatalog"] = {
                 "@type": "sc:DataCatalog",
