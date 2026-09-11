@@ -306,8 +306,6 @@ class SMILESHandler(FileTypeHandler):
             "sample_exhausted": exhausted,
         }
 
-    # ------------------------------------------------------------------
-
     def _read_sample(self, source: FileSource, name: str) -> Tuple[List[str], bool]:
         """The head of the file as lines, and whether the file ended inside it.
 
