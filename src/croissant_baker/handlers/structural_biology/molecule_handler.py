@@ -335,7 +335,7 @@ class SmallMoleculeHandler(FileTypeHandler):
         try:
             with source.open_text() as stream:
                 parsed = read(stream, label)
-        except Exception as exc:  # noqa: BLE001 — one file's failure, named
+        except Exception as exc:  # noqa: BLE001, one file's failure, named
             # Undecodable bytes raise from the text wrapper, and the reason a
             # user reads has to name the file.
             raise ValueError(
@@ -414,7 +414,7 @@ def _spread(name: str, span: Optional[Tuple[int, int]]) -> str:
     if span is None:
         return f"{name} count not declared"
     low, high = span
-    return f"{low} {name}s" if low == high else f"{low} to {high} {name}s"
+    return _plural(low, name) if low == high else f"{low} to {high} {name}s"
 
 
 def _description(parsed: Molecules, stored: str) -> str:

@@ -183,7 +183,7 @@ class MdocHandler(FileTypeHandler):
         try:
             with source.open_text() as stream:
                 parsed = parse(stream)
-        except Exception as exc:  # noqa: BLE001 — one file's failure, named
+        except Exception as exc:  # noqa: BLE001, one file's failure, named
             # Undecodable bytes raise from the text wrapper, and the reason a
             # user reads has to name the file.
             raise ValueError(

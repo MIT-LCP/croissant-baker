@@ -1,8 +1,8 @@
 """SerialEM mdoc: the schema a tilt series or a montage declares.
 
 Unit level throughout, ``extract`` and ``build_croissant``, never a bake. The
-checks the registry-wide sweep will make once this handler is registered are
-replicated here, because registration comes later.
+checks the registry-wide sweep makes are replicated here, so a failure names
+this handler rather than one parametrised case of a sweep over all of them.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from croissant_baker.handlers.base_handler import BuildResult
+from croissant_baker.handlers.registry import select_handler
 from croissant_baker.handlers.structural_biology.mdoc_handler import MdocHandler
 from croissant_baker.sources import make_source
 
@@ -105,9 +106,7 @@ def tilt(dataset: Path) -> Path:
     return write(dataset, "tilt_series.mdoc", TILT_SERIES)
 
 
-# ---------------------------------------------------------------------------
 # Claiming
-# ---------------------------------------------------------------------------
 
 
 def test_claims_its_own_extension(dataset: Path) -> None:
@@ -134,6 +133,11 @@ def test_declines_another_formats_extension(dataset: Path) -> None:
     assert not HANDLER.claims(make_source(path))
 
 
+def test_an_mdoc_is_routed_to_this_handler(tilt: Path) -> None:
+    """Registered in ``builtin_handlers``, so a bake reaches this handler at all."""
+    assert isinstance(select_handler(tilt).handler, MdocHandler)
+
+
 def test_the_format_is_declared() -> None:
     """What the generated documentation table and the contract sweep read."""
     assert HANDLER.EXTENSIONS
@@ -142,9 +146,7 @@ def test_the_format_is_declared() -> None:
     assert HANDLER.FORMAT_DESCRIPTION
 
 
-# ---------------------------------------------------------------------------
 # Reading
-# ---------------------------------------------------------------------------
 
 
 def test_the_file_is_identified_by_name_size_and_digest(tilt: Path) -> None:
@@ -225,9 +227,7 @@ def test_a_key_seen_only_in_a_later_section_still_joins_the_union(
     ]
 
 
-# ---------------------------------------------------------------------------
 # Typing
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -272,9 +272,7 @@ def test_an_empty_value_is_text(dataset: Path) -> None:
     assert dict(extract(path)["mdoc"].section_keys)["SubFramePath"] == "sc:Text"
 
 
-# ---------------------------------------------------------------------------
 # Refusals
-# ---------------------------------------------------------------------------
 
 
 def test_a_missing_file_raises_file_not_found(tmp_path: Path) -> None:
@@ -302,9 +300,7 @@ def test_garbage_bytes_are_refused_by_name(dataset: Path) -> None:
     assert "garbage.mdoc" in str(caught.value)
 
 
-# ---------------------------------------------------------------------------
 # Building
-# ---------------------------------------------------------------------------
 
 
 def test_an_empty_batch_describes_nothing() -> None:

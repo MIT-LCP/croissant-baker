@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from croissant_baker.handlers.base_handler import BuildResult
+from croissant_baker.handlers.registry import select_handler
 from croissant_baker.handlers.structural_biology.cif import Table
 from croissant_baker.handlers.structural_biology.star_handler import STARHandler
 from croissant_baker.sources import make_source
@@ -82,9 +83,7 @@ def one(record_sets: list, suffix: str):
     return next(rs for rs in record_sets if rs.id.endswith(suffix))
 
 
-# ---------------------------------------------------------------------------
 # Claiming
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -102,15 +101,20 @@ def test_another_format_is_declined(name: str, dataset: Path) -> None:
     assert not HANDLER.claims(make_source(write_star(dataset, name), Path(name)))
 
 
+def test_a_star_file_is_routed_to_this_handler(dataset: Path) -> None:
+    """Registered in ``builtin_handlers``, so a bake reaches this handler at all."""
+    path = write_star(dataset, "run_data.star")
+
+    assert isinstance(select_handler(path).handler, STARHandler)
+
+
 def test_the_handler_declares_what_the_docs_table_needs() -> None:
     assert HANDLER.FORMAT_NAME and HANDLER.FORMAT_DESCRIPTION
     assert HANDLER.EXTENSIONS
     assert all(ext.startswith(".") for ext in HANDLER.EXTENSIONS)
 
 
-# ---------------------------------------------------------------------------
 # Reading
-# ---------------------------------------------------------------------------
 
 
 def test_extract_reports_the_file_as_stored(dataset: Path) -> None:
@@ -176,9 +180,7 @@ def test_the_reported_path_is_the_one_the_scan_used(dataset: Path) -> None:
     assert "job/run_data.star" in str(caught.value)
 
 
-# ---------------------------------------------------------------------------
 # Building
-# ---------------------------------------------------------------------------
 
 
 def test_an_empty_batch_describes_nothing() -> None:
