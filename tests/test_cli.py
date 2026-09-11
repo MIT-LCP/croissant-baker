@@ -299,6 +299,13 @@ def test_help_and_version() -> None:
     assert "Usage:" in result.stdout
 
 
+def test_mcp_help_names_the_transport() -> None:
+    """The subcommand is discoverable and says which transport it speaks."""
+    result = runner.invoke(app, ["mcp", "--help"])
+    assert result.exit_code == 0
+    assert "stdio" in _strip_ansi(result.stdout)
+
+
 @pytest.fixture
 def mixed_dataset(tmp_path: Path) -> Path:
     """Create a dataset with multiple file types for filter testing."""
