@@ -625,9 +625,11 @@ ATOM 3 C -7.221 2.458 -1.897
 #: deposit ships one, cell lengths carrying their uncertainties, and a space
 #: group whose value has to be quoted because it holds spaces.
 SMALL_MOLECULE_CIF = """\
-#------------------------------------------------------------------------------
+#==============================================================================
+# A deposit opens with a banner of comment lines, so the data block is not the
+# first line of the file and the claim has to look past them to find it.
 # This block was produced for a test and describes nothing real.
-#------------------------------------------------------------------------------
+#==============================================================================
 data_7101243
 _chemical_name_common            'benzene'
 _chemical_formula_sum            'C6 H6'
