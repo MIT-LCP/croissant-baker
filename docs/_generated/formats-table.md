@@ -8,6 +8,7 @@
 | JSON / JSONL | `.json`, `.jsonl` | `.gz`, `.bz2`, `.xz` | Schema inferred from a sample of records |
 | WFDB | `.hea` | — | Signal names, sampling frequency, duration, number of signals |
 | Parquet | `.parquet` | `.gz`, `.bz2`, `.xz` | Arrow schema, column names and types, row count |
+| Whole-slide image | `.svs`, `.ndpi`, `.scn`, `.bif`, `.qptiff` | `.gz`, `.bz2`, `.xz` | Vendor, pyramid levels, tile size, microns per pixel, objective magnification and associated images for Aperio, Hamamatsu, Leica, Ventana and Akoya slides |
 | Images | `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.webp`, `.ico`, `.tiff`, `.tif`, `.btf` | `.gz`, `.bz2`, `.xz` | Dimensions, color mode, encoding format; OME-XML header fields |
 | DICOM | `.dcm`, `.dicom` | `.gz`, `.bz2`, `.xz` | Image geometry, modality, pixel encoding, acquisition parameters |
 | NIfTI | `.nii` | `.gz`, `.bz2`, `.xz` | Spatial dimensions, voxel spacing, data type, TR for fMRI volumes |

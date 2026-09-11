@@ -148,6 +148,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.wfdb_handler import WFDBHandler
     from croissant_baker.handlers.parquet_handler import ParquetHandler
     from croissant_baker.handlers.image_handler import ImageHandler
+    from croissant_baker.handlers.wsi_handler import WSIHandler
     from croissant_baker.handlers.dicom_handler import DICOMHandler
     from croissant_baker.handlers.nifti_handler import NIfTIHandler
     from croissant_baker.handlers.soft_handler import SOFTHandler
@@ -162,6 +163,10 @@ def builtin_handlers() -> List[FileTypeHandler]:
         JSONHandler(),
         WFDBHandler(),
         ParquetHandler(),
+        # Ahead of the image handler. The extensions are disjoint, so this
+        # is intent rather than dispatch: a vendor slide is a TIFF, and the
+        # narrower claim on it is stated first.
+        WSIHandler(),
         ImageHandler(),
         DICOMHandler(),
         NIfTIHandler(),
