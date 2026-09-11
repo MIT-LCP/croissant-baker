@@ -804,10 +804,108 @@ the file arrives under one. PDB has no IANA registration; `chemical/x-pdb` is
 the spelling the chemical MIME family gave it, and the one the archive and the
 molecular viewers use.
 
-mmCIF/PDBx (`.cif`, `.mmcif`) is not covered yet. It is the format the archive
-now treats as primary, and the only one that can hold a structure too large for
-eighty columns; those files are reported as unsupported, and nothing claims
-them.
+mmCIF/PDBx, the format the archive now treats as primary, is described by the
+handler in the next section.
+
+## mmCIF and CIF
+
+A CIF (`.cif`, `.mmcif`) is a syntax before it is a subject. One file holds one
+or more `data_` blocks, each a list of `_name value` items and `loop_` tables,
+and the same grammar carries a protein deposit, a small-molecule structure, a
+powder pattern and a dictionary. Two of those dialects are described here:
+
+- **PDBx/mmCIF**, what the wwPDB archive now treats as primary, and the only
+  form that can hold a structure too large for PDB's eighty columns. Its items
+  carry a category prefix: `_entry.id`, `_struct.title`.
+- **Core CIF**, what the COD, the CSD and the IUCr journals ship a small
+  molecule in. Its item names carry no category: `_cell_length_a`.
+
+Behind either sits the `_atom_site` table, which is the file: an archive entry
+is megabytes of coordinates behind a header of a few kilobytes. The handler
+reads the items and loops in front of that table and stops at the `loop_` whose
+first item name begins `_atom_site.` or `_atom_site_`. No coordinate row is ever
+read.
+
+From a PDBx block:
+
+- **Entry id**, from `_entry.id`, and **deposition date**, from
+  `_pdbx_database_status.recvd_initial_deposition_date`, reported as written.
+- **Title**, from `_struct.title`. A title written as a multi-line `;` text
+  field is joined into one run of words; the column the file wrapped it at is
+  not part of what it says.
+- **Experimental methods**, from `_exptl.method`, whether the file wrote one as
+  a single item or several as a loop.
+- **Resolution** in angstroms, from `_refine.ls_d_res_high`, or from
+  `_em_3d_reconstruction.resolution` for a structure determined by microscopy.
+  An entry writing either as `?` states that the value is unknown, and then no
+  resolution is reported.
+- **Model count**, from `_pdbx_nmr_ensemble.conformers_submitted_total_number`.
+- **Polymer entity count**, the rows of `_entity_poly`, and **chain count**, the
+  rows of `_struct_asym`. A `_struct_asym` row is one chain instance, so the
+  count includes the non-polymer and solvent asyms alongside the polymer chains.
+  An entry carrying no `_struct_asym` is counted from the distinct strand
+  identifiers its `_entity_poly.pdbx_strand_id` values name.
+- **Classification**, from `_struct_keywords.pdbx_keywords`, **keywords**, from
+  `_struct_keywords.text` split on commas, and the **dictionary** the file
+  declares it conforms to, from `_audit_conform`.
+
+From a core CIF block:
+
+- **Data block name**, **chemical name**, from `_chemical_name_common` or
+  `_chemical_name_systematic`, and **formula**, from `_chemical_formula_sum`.
+- **Space group**, from `_space_group_name_H-M_alt` or, in files written before
+  the category was renamed, `_symmetry_space_group_name_H-M`.
+- **Cell**, the three edges and three angles, reported together or not at all: a
+  cell is one description of one lattice, and three edges without their angles
+  do not describe it. A value carries its standard uncertainty in parentheses,
+  `10.1234(4)`, and the uncertainty is a second value about the edge rather than
+  part of it, so it is stripped.
+- **Wavelength**, from `_diffrn_radiation_wavelength`.
+
+The dialect is decided by the block, not by the extension, which the two share.
+A block is PDBx when it states `_entry.id`, names a dictionary in
+`_audit_conform.dict_name`, or carries any `_struct.` item; it is a small
+molecule when, PDBx having been ruled out, it states `_cell_length_a` or
+`_chemical_formula_sum`. A block that is neither, a dictionary or a powder
+pattern, is reported with that as its reason rather than described from the few
+items the two dialects happen to share.
+
+A CIF is claimed on its extension **and** on its opening a `data_` block, and
+neither half would do alone. `.cif` is also the Windows compiled-installation
+file, a setup-time binary that carries no structure and must not be described as
+one, and three letters generic enough that other tools have taken them too; a
+line opening `data_` is a shape any text file can wear, so it cannot own a file
+on its own either. The comment banner a COD or CSD deposit opens with is skipped
+to find that line, within the few kilobytes the claim reads.
+
+Deliberately not reported:
+
+- **Depositors.** `_audit_author` names people. It is bibliographic rather than
+  structural, and the dataset's own creator is a command-line input rather than
+  something read out of a file.
+- **Coordinates, atom counts and B-factors.** Reaching any of them means reading
+  the coordinate table, which is what header-only reading exists to avoid.
+- **The blocks after the first.** A file holding several is described by its
+  first, because reaching the second means reading past a coordinate table.
+
+The tokenizer covers the CIF 1.1 subset the two dialects are written in:
+comments, single items, values quoted under either quote, multi-line `;` text
+fields, and loops. It does not cover `save_` frames, which belong to dictionary
+files, the `global_` and `stop_` reserved words, or the CIF 2.0 list and table
+values; any of those is read as an ordinary value, which is why a dictionary
+file is refused for its categories rather than described badly. A text field
+that never closes, and a header that passes the byte cap without reaching a
+coordinate table, are each reported with that as the reason rather than read on
+for.
+
+**No record set is emitted.** Coordinate rows are records of a molecule, not of
+a dataset schema, so a structure is described as a file: the statement above is
+carried in the `description` of its `cr:FileObject`. `encodingFormat` is
+`chemical/x-mmcif` for a PDBx block and `chemical/x-cif` for a small-molecule
+one, decided per file, with the compression media type added by the input layer
+when the file arrives under one. Neither has an IANA registration; both
+spellings come from the chemical MIME family that gave `chemical/x-pdb` its
+name.
 
 ## XYZ
 

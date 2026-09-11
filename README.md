@@ -91,6 +91,7 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | SDF | `.sdf`, `.sd` | Compound libraries: molfile version and data field names with types, from a bounded sample of records |
 | SMILES | `.smi`, `.smiles` | Chemical structures: delimiter, column count and header names from a bounded sample of lines; no structure or compound name is read |
 | PDB | `.pdb`, `.ent` | Structures: ID code, classification, title, experimental method, resolution, chain count (header only) |
+| mmCIF / CIF | `.cif`, `.mmcif` | Structures: PDBx entry id, title, experimental method, resolution, entity and chain counts; small-molecule formula, space group and cell (header only) |
 | XYZ | `.xyz` | Cartesian coordinates: atom count and comment line of the first frame, extended-XYZ property names; frames are not counted and no coordinate is read |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is

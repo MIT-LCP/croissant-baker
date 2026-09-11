@@ -24,4 +24,5 @@
 | SDF | `.sdf`, `.sd` | `.gz`, `.bz2`, `.xz` | Molfile version and data field names with types, inferred from a bounded sample of records |
 | SMILES | `.smi`, `.smiles` | `.gz`, `.bz2`, `.xz` | Column count and delimiter from a bounded sample of lines; one record per molecule |
 | PDB | `.pdb`, `.ent` | `.gz`, `.bz2`, `.xz` | ID code, classification, title, experimental method, resolution, chain count (header only) |
+| mmCIF | `.cif`, `.mmcif` | `.gz`, `.bz2`, `.xz` | PDBx entry id, title, experimental method, resolution, entity and chain counts; small-molecule CIF formula and cell (header only) |
 | XYZ | `.xyz` | `.gz`, `.bz2`, `.xz` | Atom count and comment line of the first frame; frames are not counted |
