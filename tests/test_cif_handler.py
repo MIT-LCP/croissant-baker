@@ -198,6 +198,50 @@ def test_the_chains_are_counted_from_the_asym_units_when_no_entity_is_polymeric(
     assert extract(path)["chain_count"] == 3
 
 
+def test_the_chains_fall_back_to_the_asym_units_when_no_strand_is_named(
+    dataset: Path,
+) -> None:
+    """``pdbx_strand_id`` is one item of ``_entity_poly`` and not the category
+    itself. A block that writes the category without it names no strand, and
+    then its asym units are the only statement it makes about how many chains
+    it holds, exactly as for a block that writes no polymer entity at all."""
+    path = write(
+        dataset,
+        "unstranded.cif",
+        b"data_1ABC\n"
+        b"_entry.id   1ABC\n"
+        b"loop_\n"
+        b"_entity_poly.entity_id\n"
+        b"_entity_poly.type\n"
+        b"1 'polypeptide(L)'\n"
+        b"2 'polypeptide(L)'\n"
+        b"loop_\n"
+        b"_struct_asym.id\n"
+        b"_struct_asym.entity_id\n"
+        b"A 1\nB 2\n",
+    )
+
+    assert extract(path)["chain_count"] == 2
+
+
+def test_a_null_inside_a_strand_list_is_not_counted_as_a_chain(
+    dataset: Path,
+) -> None:
+    """``?`` states that a value is unknown and ``.`` that there is none, and
+    neither is a value wherever a CIF writes it, inside a comma-separated list
+    included: ``A,?`` is one chain and one thing the file does not say."""
+    path = write(
+        dataset,
+        "nulled.cif",
+        b"data_1ABC\n"
+        b"_entry.id   1ABC\n"
+        b"_entity_poly.entity_id   1\n"
+        b"_entity_poly.pdbx_strand_id   A,?\n",
+    )
+
+    assert extract(path)["chain_count"] == 1
+
+
 def test_a_block_naming_no_chain_at_all_omits_both_counts(dataset: Path) -> None:
     path = write(
         dataset,
