@@ -260,6 +260,24 @@ def test_a_file_of_exactly_the_sampled_records_is_read_to_its_end(
     assert meta["sample_exhausted"] is True
 
 
+def sdf_ending_at(size: int) -> bytes:
+    """One record padded out with a filler data item to exactly ``size`` bytes."""
+    overhead = len(sdf_record(MOL_V2000, [("Filler", "")]))
+    return sdf_record(MOL_V2000, [("Filler", "x" * (size - overhead))])
+
+
+def test_a_file_ending_exactly_at_the_byte_bound_is_read_to_its_end(
+    dataset: Path,
+) -> None:
+    """The stream ended where the bound sits, so the sample holds the whole
+    file. Reporting it as cut short told a reader the fields came from a prefix
+    of a library that is no longer than the prefix."""
+    meta = extract(write(dataset, "tight.sdf", sdf_ending_at(SAMPLE_BYTES)))
+
+    assert meta["sampled_records"] == 1
+    assert meta["sample_exhausted"] is True
+
+
 def test_versions_that_differ_across_the_sample_are_reported_as_mixed(
     dataset: Path,
 ) -> None:

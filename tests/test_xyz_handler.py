@@ -402,6 +402,24 @@ def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
     assert "XYZ" in str(caught.value)
 
 
+def frame_ending_at(limit: int) -> bytes:
+    """A frame of exactly ``limit`` bytes whose first atom line is its last
+    line, written without a line ending as a writer closing the file leaves it.
+    """
+    count = b"1\n"
+    atom = b"O 0.0 0.0 0.0"
+    return count + b"c" * (limit - len(count) - len(atom) - 1) + b"\n" + atom
+
+
+def test_a_frame_ending_exactly_on_the_bound_is_described(dataset: Path) -> None:
+    """The stream ended where the bound sits, so the atom line under the comment
+    is whole. Calling it a truncation said the frame was cut short in a prefix
+    it completed at the last byte of."""
+    meta = extract(write(dataset, "tight.xyz", frame_ending_at(HEAD_BYTES)))
+
+    assert meta["atom_count"] == 1
+
+
 def test_a_header_declaring_atoms_that_do_not_follow_is_refused(
     dataset: Path,
 ) -> None:

@@ -242,3 +242,44 @@ def test_prefix_lines_reports_what_it_pulled_and_what_it_holds() -> None:
 
     assert seen == [(7, 3)]
     assert reader.read == 7
+
+
+def test_prefix_lines_keeps_a_last_line_that_ends_exactly_on_the_bound() -> None:
+    """The stream ended where the bound sits, so nothing was cut in half: the
+    tail is a whole line and the read was not stopped by the bound."""
+    reader = prefix_lines(b"abc\ndefg", 8)
+
+    assert list(reader) == ["abc", "defg"]
+    assert reader.bounded is False
+
+
+def test_prefix_lines_drops_a_last_line_the_bound_stopped_one_byte_short() -> None:
+    """One byte less of bound, and the same tail is a fragment."""
+    reader = prefix_lines(b"abc\ndefg", 7)
+
+    assert list(reader) == ["abc"]
+    assert reader.bounded is True
+
+
+class _CountingBytes(io.BytesIO):
+    """A stream that remembers how many bytes were pulled through it."""
+
+    def __init__(self, payload: bytes) -> None:
+        super().__init__(payload)
+        self.read_bytes = 0
+
+    def read(self, size: int = -1) -> bytes:
+        data = super().read(size)
+        self.read_bytes += len(data)
+        return data
+
+
+def test_prefix_lines_never_pulls_more_than_one_byte_past_the_bound() -> None:
+    """The one byte is what tells the end of the stream from the bound. Past it
+    a bounded read would be reading the file it exists not to read."""
+    stream = _CountingBytes(b"x" * 1024)
+    reader = PrefixLines(stream, 8)
+
+    assert list(reader) == []
+    assert reader.bounded is True
+    assert stream.read_bytes <= 8 + 1

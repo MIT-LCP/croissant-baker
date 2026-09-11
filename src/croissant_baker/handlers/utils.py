@@ -123,6 +123,10 @@ def read_prefix_chunks(
     read a megabyte off a file to look at the first line of it. Chunked rather
     than iterated by line, because a file holding no line ending is one line,
     and reading it is reading the whole file.
+
+    Exactly ``limit`` bytes are yielded when the bound stopped the read, and
+    fewer whenever the stream ended first, so the total tells the two apart in
+    every case but the one where they coincide.
     """
     remaining = limit
     while remaining > 0:
@@ -159,6 +163,15 @@ class PrefixLines:
     instead, because a tail the bound cut in half is not a line and nothing may
     be read off it.
 
+    Which of the two happened is not the byte count's to say: a stream whose
+    last byte is the bound's has been read to its end, and reading ``limit``
+    bytes off it looks the same as reading the first ``limit`` of a file twice
+    the size. So one further byte is pulled when, and only when, the bound is
+    reached, and whether it arrives is the answer. That byte is the whole of
+    what the class reads past its bound, and it is never delivered as content:
+    it belongs to the line behind the bound, which is a line this reader has
+    already declined to read.
+
     ``on_chunk(read, pending)`` is called once per chunk, with the bytes pulled
     off the stream so far and the length of the line still being assembled, for
     a caller that owes the file a refusal before the line it is reading ends.
@@ -175,7 +188,8 @@ class PrefixLines:
         self._limit = limit
         self._chunk_size = chunk_size
         self._on_chunk = on_chunk
-        #: Bytes pulled off the stream.
+        #: Bytes of the prefix pulled off the stream, the probe byte behind the
+        #: bound excluded: it is a byte of the file, not of the prefix.
         self.read = 0
         #: Bytes of the line still being assembled.
         self.pending = 0
@@ -196,8 +210,12 @@ class PrefixLines:
                 yield decode_line(raw)
             if self._on_chunk is not None:
                 self._on_chunk(self.read, self.pending)
-        self.bounded = self.read >= self._limit
-        if pending and not self.bounded:
+        # Short of the bound, the chunk loop stopped because the stream ended.
+        # On the bound it stopped for the bound, and only the byte behind it
+        # says whether the stream ends there as well.
+        ended = self.read < self._limit or not self._stream.read(1)
+        self.bounded = not ended
+        if pending and ended:
             yield decode_line(pending)
             self.pending = 0
 
