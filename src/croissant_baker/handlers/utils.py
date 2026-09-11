@@ -10,6 +10,7 @@ from typing import (
     BinaryIO,
     Callable,
     Dict,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -55,6 +56,36 @@ def normalize_array_shape(shape: str) -> str:
     """
     inner = shape.strip().strip("()").rstrip(",").strip()
     return ",".join(part.strip() for part in inner.split(",") if part.strip())
+
+
+#: Standard TIFF (version 0x2a) and BigTIFF (version 0x2b), little- and
+#: big-endian. Shared by every handler that opens a TIFF container.
+TIFF_MAGICS = (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+")
+
+
+def extension_globs(names: Iterable[str]) -> List[str]:
+    """One include glob per extension the file names carry, in both forms.
+
+    Both glob forms per extension: mlcroissant matches with fnmatch, where
+    ``**/`` requires a directory, and a file sits at the dataset root as often
+    as in a subdirectory.
+    """
+    patterns: Dict[str, str] = {}
+    for name in names:
+        extension = Path(name).suffix
+        lower = extension.lower()
+        if extension != lower:
+            # Globs are case-sensitive on Linux. One character-class pattern
+            # covers every observed spelling without overlapping includes.
+            spelling = "".join(
+                f"[{char}{char.upper()}]" if char.isalpha() else char for char in lower
+            )
+            patterns[lower] = f"**/*{spelling}"
+        else:
+            patterns.setdefault(lower, f"**/*{lower}")
+    return sorted(
+        glob for pattern in patterns.values() for glob in (pattern, pattern[3:])
+    )
 
 
 def open_text_file(file_path: Path):
