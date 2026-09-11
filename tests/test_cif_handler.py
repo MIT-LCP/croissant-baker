@@ -354,6 +354,24 @@ def test_a_small_molecule_block_is_described_as_a_crystal_structure(
     )
 
 
+def test_an_unnamed_data_block_is_omitted_rather_than_reported_as_empty(
+    dataset: Path,
+) -> None:
+    """``data_`` with nothing after it is a legal block header that names
+    nothing, and a key holding an empty string states nothing: every other
+    field here is absent when the item behind it is, and this one is no
+    different."""
+    path = write(dataset, "nameless.cif", b"data_\n_cell_length_a   10.0\n")
+
+    meta = extract(path)
+
+    assert "data_block" not in meta
+    assert meta["description"] == (
+        "CIF crystal structure nameless.cif. Described from its header; no "
+        "atom record was read."
+    )
+
+
 def test_the_older_symmetry_spelling_of_the_space_group_is_read(
     dataset: Path,
 ) -> None:
