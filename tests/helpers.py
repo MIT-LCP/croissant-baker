@@ -1086,6 +1086,8 @@ def _sdf() -> list:
             ),
         )
     ]
+
+
 def _structure() -> list:
     """One PDB entry. The CIF paths are exercised by the demo dataset, which
     holds an mmCIF, a small-molecule CIF and a CIF that is neither."""
