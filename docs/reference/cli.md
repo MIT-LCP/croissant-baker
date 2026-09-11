@@ -40,7 +40,7 @@ $ croissant-baker [OPTIONS] COMMAND [ARGS]...
 * `--conditions-of-access TEXT`: How access is obtained, in free text. Example: 'Controlled access: Data Access Agreement via the Data Access Committee'.
 * `--is-accessible-for-free / --not-accessible-for-free`: Whether the data can be had without payment or an access agreement. Omit to leave the field out.
 * `--included-in-data-catalog TEXT`: URL of a catalog entry listing this dataset (e.g., 'https://datacatalog.ccdi.cancer.gov/').
-* `--profile TEXT`: Additional profile to declare in conformsTo. One of: bioschemas. Declares the profile; it does not validate against it. Repeatable.
+* `--profile TEXT`: Additional profile to declare in conformsTo. One of: bioschemas. The bake is refused if the document lacks the profile's minimum fields. Repeat or comma-delimit.
 * `--field-mappings FILE`: YAML file mapping columns to external vocabularies (Wikidata, SNOMED, LOINC). Schema: 'fields:\n  <col>:\n    equivalent_property: <URI>\n    data_types: [<URI>, ...]'. Note: column names match across ALL RecordSets, so 'id' applies to every 'id' column in the dataset.
 * `--field-mapping TEXT`: Link one column to an external vocabulary URI. Format: 'COLUMN=URI'. Example: --field-mapping 'age=http://www.wikidata.org/entity/Q11464'. Matches by bare column name across all RecordSets; a warning prints if a name resolves to multiple fields. Repeatable; combine with --field-mappings (flags override YAML).
 * `--count-csv-rows`: Count exact row numbers for CSV files (slow for large datasets)
