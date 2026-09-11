@@ -70,7 +70,7 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 ## Supported formats
 
 | Field | Format | Extensions | Notes |
-|---|---|---|---|
+|-------|--------|------------|-------|
 | General | CSV / TSV | `.csv`, `.tsv` | Streaming with automatic type inference |
 | General | Parquet | `.parquet` | Partitioned datasets supported |
 | General | JSON / JSONL | `.json`, `.jsonl` | Arrays, single objects, and JSON Lines |
