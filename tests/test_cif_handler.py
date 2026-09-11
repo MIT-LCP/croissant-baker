@@ -256,6 +256,24 @@ def test_an_nmr_ensemble_reports_its_models_and_no_resolution(dataset: Path) -> 
     assert "resolution_angstrom" not in meta
 
 
+def test_an_implausibly_long_digit_run_is_not_reported_as_a_count(
+    dataset: Path,
+) -> None:
+    """``int`` reads forty digits as happily as two, and a run that long is not
+    a model count anyone wrote: it is an identifier, a serial number or a
+    corrupt field. The same reasoning that keeps an infinite cell edge out of
+    the cell keeps this out of the counts."""
+    path = write(
+        dataset,
+        "huge.cif",
+        block(
+            "_pdbx_nmr_ensemble.conformers_submitted_total_number   " + "9" * 40,
+        ),
+    )
+
+    assert "model_count" not in extract(path)
+
+
 def test_a_double_quoted_value_keeps_its_spaces_and_apostrophes(
     dataset: Path,
 ) -> None:
