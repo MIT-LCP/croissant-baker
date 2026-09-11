@@ -80,19 +80,20 @@ PROFILE_MINIMUM_KEYS = {
 }
 
 
-def url_is_iri_safe(url: Optional[str]) -> bool:
-    """Whether ``url`` can stand as the document's ``@id``.
+def url_has_whitespace(url: str) -> bool:
+    """Whether ``url`` carries whitespace, which no IRI may.
 
-    An ``@id`` is an IRI, and an IRI carries no whitespace: a url with a
-    space in it makes the whole document unreadable to a JSON-LD parser, so
-    emitting one costs more than leaving the dataset unnamed. Only whitespace
-    is checked, because that is the one thing that breaks parsing outright,
-    and ``url`` itself is written as given whatever this returns.
+    The document's ``@id`` is an IRI: a url with a space in it makes the whole
+    document unreadable to a JSON-LD parser, so a url like that is left out of
+    the ``@id`` rather than written into it. Whitespace is all this asks
+    about, because it is the one thing that breaks parsing outright, and
+    ``url`` itself is written as given whatever the answer is.
 
     One owner for the rule: the generator asks before injecting the key, and
-    the CLI asks before telling the user why it is missing.
+    the CLI asks before telling the user why the key is missing. Both ask only
+    when there is a url to ask about.
     """
-    return bool(url) and not any(character.isspace() for character in url)
+    return any(character.isspace() for character in url)
 
 
 def normalize_profiles(
@@ -657,17 +658,25 @@ class MetadataGenerator:
         # top-level @id, leaving the Dataset a blank node that nothing can
         # refer to. The dataset URL is the identifier a reader already has,
         # and it is what Bioschemas expects there. A url no IRI can be built
-        # from is skipped rather than written: the CLI says so on stderr, and
-        # a declared profile that requires @id refuses the bake outright.
+        # from is skipped rather than written: a declared profile that
+        # requires @id refuses the bake outright, and the CLI repeats the
+        # warning below on stderr, where a terminal user will see it.
         # Written beside the other node keywords, where a reader looks for the
         # subject of the graph, rather than trailing the record sets.
-        if url_is_iri_safe(self.url):
+        if self.url and not url_has_whitespace(self.url):
             result = {
                 "@context": result.pop("@context"),
                 "@type": result.pop("@type"),
                 "@id": self.url,
                 **result,
             }
+        elif self.url:
+            logger.warning(
+                "url %r contains whitespace, so no @id was emitted for the "
+                "dataset. Percent-encode the whitespace (a space becomes "
+                "%%20) to give the document an identifier.",
+                self.url,
+            )
         if self.alternate_name is not None:
             result["alternateName"] = self.alternate_name
         if self.is_live_dataset is not None:
@@ -707,8 +716,8 @@ class MetadataGenerator:
         Read off the assembled document rather than the constructor
         arguments, because what reaches the file is not always what was
         passed: ``description`` is generated when none was given, ``license``
-        is defaulted, and ``@id`` is injected from ``url``. The check has to
-        agree with what a validator will read.
+        is defaulted, and ``@id`` is injected from ``url`` when the url can be
+        an IRI. The check has to agree with what a validator will read.
 
         Raises:
             ValueError: naming every missing field, so one run tells the
@@ -1033,5 +1042,5 @@ __all__ = [
     "MetadataGenerator",
     "normalize_profiles",
     "serialize_datetime",
-    "url_is_iri_safe",
+    "url_has_whitespace",
 ]

@@ -24,7 +24,7 @@ from croissant_baker.metadata_generator import (
     RAI_CONFORMS_TO,
     normalize_profiles,
     serialize_datetime,
-    url_is_iri_safe,
+    url_has_whitespace,
 )
 from croissant_baker import compression
 from croissant_baker.files import discover_files
@@ -941,9 +941,12 @@ def main(
                     err=True,
                 )
 
-        # Said before the bake rather than after it, so the user still reads
-        # it when a declared profile refuses the document for the missing @id.
-        if url and not url_is_iri_safe(url):
+        # The generator logs this too, for callers who configure logging; a
+        # terminal user has none, since the package ships a NullHandler and
+        # nothing here adds one. Said before the bake rather than after it, so
+        # it is still on screen when a declared profile refuses the document
+        # for the missing @id.
+        if url and url_has_whitespace(url):
             typer.echo(
                 f"Warning: --url {url!r} contains whitespace, so no @id was "
                 "emitted for the dataset.\n"

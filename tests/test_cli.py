@@ -15,7 +15,7 @@ from croissant_baker.metadata_generator import (
     MetadataGenerator,
     RAI_CONFORMS_TO,
     normalize_profiles,
-    url_is_iri_safe,
+    url_has_whitespace,
 )
 from tests.helpers import cli
 
@@ -1064,19 +1064,20 @@ def test_dataset_id_sits_with_the_other_node_keywords(
 
 
 @pytest.mark.parametrize(
-    "url,usable",
+    "url,whitespace",
     [
-        ("https://example.org/ds", True),
-        ("https://example.org/my%20dataset", True),
-        ("https://example.org/my dataset", False),
-        ("https://example.org/my\tdataset", False),
+        ("https://example.org/ds", False),
+        ("https://example.org/my%20dataset", False),
         ("", False),
-        (None, False),
+        ("https://example.org/my dataset", True),
+        ("https://example.org/my\tdataset", True),
     ],
 )
-def test_url_is_iri_safe_rejects_whitespace(url, usable: bool) -> None:
+def test_url_has_whitespace_spots_what_an_iri_cannot_carry(
+    url: str, whitespace: bool
+) -> None:
     """An @id is an IRI, and an IRI carries no whitespace."""
-    assert url_is_iri_safe(url) is usable
+    assert url_has_whitespace(url) is whitespace
 
 
 def test_url_with_whitespace_still_bakes_without_an_id(
@@ -1095,6 +1096,26 @@ def test_url_with_whitespace_still_bakes_without_an_id(
 
     assert result.exit_code == 0, result.output
     assert "@id" not in json.loads(output.read_text())
+
+
+def test_url_with_whitespace_logs_for_a_library_caller(
+    csv_dataset: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The CLI echo reaches nobody who is not at a terminal, so the skip logs.
+
+    The package attaches a NullHandler, so this record goes nowhere unless an
+    application asks for it, which is the point.
+    """
+    generator = MetadataGenerator(
+        dataset_path=str(csv_dataset), url="https://example.org/my dataset"
+    )
+
+    with caplog.at_level(logging.WARNING, logger="croissant_baker.metadata_generator"):
+        document = generator.generate_metadata()
+
+    assert "@id" not in document
+    assert "whitespace" in caplog.text
+    assert "%20" in caplog.text
 
 
 def test_url_with_whitespace_warns_and_says_how_to_fix_it(
