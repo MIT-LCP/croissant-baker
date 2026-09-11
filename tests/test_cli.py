@@ -13,11 +13,25 @@ from croissant_baker.metadata_generator import (
     BIOSCHEMAS_CONFORMS_TO,
     CROISSANT_CONFORMS_TO,
     MetadataGenerator,
+    RAI_CONFORMS_TO,
     normalize_profiles,
 )
 from tests.helpers import cli
 
 runner = CliRunner()
+
+#: The flags a document needs before it may declare --profile bioschemas.
+#: The profile's other minimum fields are covered without asking: name comes
+#: from the directory, description and license are defaulted, and @id follows
+#: from url.
+BIOSCHEMAS_MINIMUMS = (
+    "--identifier",
+    "phs000218.v1.p1",
+    "--keywords",
+    "cardiology,icu",
+    "--url",
+    "https://example.org/ds",
+)
 
 
 @pytest.fixture
@@ -1101,12 +1115,12 @@ def test_profile_bioschemas_appends_to_conforms_to(
     """--profile bioschemas declares the second profile alongside Croissant 1.1."""
     output = tmp_path / "output.jsonld"
 
-    result = cli(csv_dataset, output, "--profile", "bioschemas")
+    result = cli(csv_dataset, output, *BIOSCHEMAS_MINIMUMS, "--profile", "bioschemas")
 
     assert result.exit_code == 0, result.output
     assert json.loads(output.read_text())["conformsTo"] == [
-        "http://mlcommons.org/croissant/1.1",
-        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
     ]
 
 
@@ -1115,13 +1129,19 @@ def test_repeated_profile_is_declared_once(csv_dataset: Path, tmp_path: Path) ->
     output = tmp_path / "output.jsonld"
 
     result = cli(
-        csv_dataset, output, "--profile", "bioschemas", "--profile", "bioschemas"
+        csv_dataset,
+        output,
+        *BIOSCHEMAS_MINIMUMS,
+        "--profile",
+        "bioschemas",
+        "--profile",
+        "bioschemas",
     )
 
     assert result.exit_code == 0, result.output
     assert json.loads(output.read_text())["conformsTo"] == [
-        "http://mlcommons.org/croissant/1.1",
-        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
     ]
 
 
@@ -1134,6 +1154,7 @@ def test_profile_coexists_with_rai_conformance(
     result = cli(
         csv_dataset,
         output,
+        *BIOSCHEMAS_MINIMUMS,
         "--profile",
         "bioschemas",
         "--rai-data-collection",
@@ -1142,10 +1163,63 @@ def test_profile_coexists_with_rai_conformance(
 
     assert result.exit_code == 0, result.output
     assert json.loads(output.read_text())["conformsTo"] == [
-        "http://mlcommons.org/croissant/1.1",
-        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
-        "http://mlcommons.org/croissant/RAI/1.0",
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+        RAI_CONFORMS_TO,
     ]
+
+
+def test_bioschemas_profile_refuses_a_document_missing_its_minimums(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """Declaring a profile the document fails is worse than declaring none.
+
+    A SHACL validator reads conformsTo and checks what the profile requires,
+    so an undeclared document scores better than one that claims Bioschemas
+    and then omits the fields it lists as minimum.
+    """
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--profile", "bioschemas")
+
+    assert result.exit_code != 0
+    assert "Unexpected error" not in result.output
+    for field in ("identifier", "keywords", "url"):
+        assert field in result.output
+    assert not output.exists()
+
+
+def test_bioschemas_refusal_names_only_what_is_missing(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The user is told which fields to supply, not the whole minimum set."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--url",
+        "https://example.org/ds",
+        "--keywords",
+        "cardiology",
+        "--profile",
+        "bioschemas",
+    )
+
+    assert result.exit_code != 0
+    assert "identifier" in result.output
+    assert "keywords" not in result.output
+
+
+def test_bioschemas_minimums_are_checked_by_the_generator(tmp_path: Path) -> None:
+    """A library caller gets the same refusal, from the same owner."""
+    dataset = tmp_path / "ds"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n")
+    generator = MetadataGenerator(dataset_path=str(dataset), profiles=["bioschemas"])
+
+    with pytest.raises(ValueError, match="identifier"):
+        generator.generate_metadata()
 
 
 def test_unknown_profile_is_rejected(csv_dataset: Path, tmp_path: Path) -> None:
@@ -1182,7 +1256,9 @@ def test_comma_delimited_profiles_are_accepted(
     """--profile takes a comma list, as --identifier and --keywords already do."""
     output = tmp_path / "output.jsonld"
 
-    result = cli(csv_dataset, output, "--profile", "bioschemas,bioschemas")
+    result = cli(
+        csv_dataset, output, *BIOSCHEMAS_MINIMUMS, "--profile", "bioschemas,bioschemas"
+    )
 
     assert result.exit_code == 0, result.output
     assert json.loads(output.read_text())["conformsTo"] == [
@@ -1241,12 +1317,12 @@ def test_padded_profile_name_is_accepted(csv_dataset: Path, tmp_path: Path) -> N
     """Validation reads the same normalised names the generator is handed."""
     output = tmp_path / "output.jsonld"
 
-    result = cli(csv_dataset, output, "--profile", " bioschemas")
+    result = cli(csv_dataset, output, *BIOSCHEMAS_MINIMUMS, "--profile", " bioschemas ")
 
     assert result.exit_code == 0, result.output
     assert json.loads(output.read_text())["conformsTo"] == [
-        "http://mlcommons.org/croissant/1.1",
-        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
     ]
 
 
@@ -1282,6 +1358,10 @@ def test_all_discovery_fields_construct_under_mlcroissant(
         output,
         "--identifier",
         "phs000218.v1.p1,EGAS00001000255",
+        "--keywords",
+        "cardiology,icu",
+        "--url",
+        "https://example.org/ds",
         "--conditions-of-access",
         "Controlled access: Data Access Agreement via the DAC",
         "--not-accessible-for-free",

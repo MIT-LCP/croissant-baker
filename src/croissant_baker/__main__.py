@@ -599,7 +599,7 @@ def main(
     profile: Optional[List[str]] = typer.Option(
         None,
         "--profile",
-        help=f"Additional profile to declare in conformsTo. One of: {', '.join(sorted(PROFILE_CONFORMS_TO))}. Repeat or comma-delimit.",
+        help=f"Additional profile to declare in conformsTo. One of: {', '.join(sorted(PROFILE_CONFORMS_TO))}. The bake is refused if the document lacks the profile's minimum fields. Repeat or comma-delimit.",
         callback=_profile_option,
     ),
     field_mappings: Optional[Path] = typer.Option(

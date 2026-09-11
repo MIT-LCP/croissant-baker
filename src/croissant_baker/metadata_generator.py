@@ -57,12 +57,23 @@ RAI_CONFORMS_TO = "http://mlcommons.org/croissant/RAI/1.0"
 BIOSCHEMAS_CONFORMS_TO = "https://bioschemas.org/profiles/Dataset/1.0-RELEASE"
 
 # Profiles a document can additionally declare, by the name --profile takes.
-# A new profile is one entry here: the CLI validates against these keys and
-# the generator declares the URI alongside CROISSANT_CONFORMS_TO. Nothing else
-# in the document changes, so declaring a profile is a claim about the
-# vocabulary, not a validation against it.
+# A new profile is two entries: the URI declared alongside CROISSANT_CONFORMS_TO
+# here, and the fields the profile requires in PROFILE_MINIMUM_KEYS below.
 PROFILE_CONFORMS_TO = {
     "bioschemas": BIOSCHEMAS_CONFORMS_TO,
+}
+
+# Emitted keys a document must carry before it may declare each profile.
+# Declaring one is a claim a SHACL validator will check, so a document that
+# names a profile and then omits what the profile lists as minimum scores
+# worse than one that declares nothing. The generator refuses instead.
+#
+# Bioschemas Dataset 1.0-RELEASE lists ten minimum fields. The five here are
+# the ones a bake can lack; @context, @type and name are always written, @id
+# follows from url, and dct:conformsTo is what the declaration itself adds.
+# https://bioschemas.org/profiles/Dataset/1.0-RELEASE
+PROFILE_MINIMUM_KEYS = {
+    "bioschemas": ("description", "identifier", "keywords", "license", "url"),
 }
 
 
@@ -275,6 +286,9 @@ class MetadataGenerator:
                 ``PROFILE_CONFORMS_TO``. A list, or one name as a bare
                 string; either form may carry comma-separated names.
                 Normalised by ``normalize_profiles`` at construction.
+                ``generate_metadata`` refuses a document that declares a
+                profile without the fields ``PROFILE_MINIMUM_KEYS`` lists
+                for it.
             field_mappings: Per-column overrides keyed by field name. Each value
                 is a dict with optional ``equivalent_property`` (vocab URI) and
                 ``data_types`` (list of vocab URIs). Used to link columns to
@@ -384,6 +398,11 @@ class MetadataGenerator:
             progress_callback: Optional callback with signature
                 (completed: int, total: int, file_path: str) -> None
                 invoked once per file as it finishes extraction.
+
+        Raises:
+            ValueError: If nothing in the dataset could be described, or a
+                declared profile's minimum fields are missing from the
+                document that was assembled.
         """
         entries = scan_directory(
             str(self.dataset_path),
@@ -650,7 +669,36 @@ class MetadataGenerator:
             }
         if self.field_mappings:
             _apply_field_mappings(result, self.field_mappings)
+        self._assert_profile_minimums(result)
         return result
+
+    def _assert_profile_minimums(self, document: dict) -> None:
+        """Refuse to declare a profile whose minimum fields are missing.
+
+        Read off the assembled document rather than the constructor
+        arguments, because what reaches the file is not always what was
+        passed: ``description`` is generated when none was given, ``license``
+        is defaulted, and ``@id`` is injected from ``url``. The check has to
+        agree with what a validator will read.
+
+        Raises:
+            ValueError: naming every missing field, so one run tells the
+                caller everything they have to supply.
+        """
+        for profile in self.profiles or []:
+            missing = [
+                key
+                for key in PROFILE_MINIMUM_KEYS.get(profile, ())
+                if not document.get(key)
+            ]
+            if missing:
+                raise ValueError(
+                    f"Profile '{profile}' requires fields this document does "
+                    f"not carry: {', '.join(missing)}. They are minimum fields "
+                    "of the profile, so declaring it without them leaves the "
+                    "document failing validation against what it claims. "
+                    "Supply them, or drop the profile."
+                )
 
     # ------------------------------------------------------------------
     # Private helpers
