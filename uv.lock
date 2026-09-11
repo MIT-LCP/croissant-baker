@@ -603,7 +603,6 @@ name = "croissant-baker"
 version = "0.5.0"
 source = { editable = "." }
 dependencies = [
-    { name = "gemmi" },
     { name = "h5py" },
     { name = "mlcroissant" },
     { name = "nibabel" },
@@ -618,8 +617,14 @@ dependencies = [
     { name = "wfdb" },
 ]
 
+[package.optional-dependencies]
+structural-biology = [
+    { name = "gemmi" },
+]
+
 [package.dev-dependencies]
 dev = [
+    { name = "croissant-baker", extra = ["structural-biology"] },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "ruff" },
@@ -632,12 +637,13 @@ docs = [
     { name = "typer-cli" },
 ]
 test = [
+    { name = "croissant-baker", extra = ["structural-biology"] },
     { name = "pytest" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "gemmi", specifier = ">=0.7.0" },
+    { name = "gemmi", marker = "extra == 'structural-biology'", specifier = ">=0.7.0" },
     { name = "h5py", specifier = ">=3.11" },
     { name = "mlcroissant", specifier = ">=1.1.0,<1.2.0" },
     { name = "nibabel", specifier = ">=5.0" },
@@ -650,9 +656,11 @@ requires-dist = [
     { name = "typer", specifier = ">=0.9.0" },
     { name = "wfdb", specifier = ">=4.3.1" },
 ]
+provides-extras = ["structural-biology"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "croissant-baker", extras = ["structural-biology"] },
     { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pytest", specifier = ">=7.0" },
     { name = "ruff", specifier = ">=0.1.0" },
@@ -664,7 +672,10 @@ docs = [
     { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0" },
     { name = "typer-cli" },
 ]
-test = [{ name = "pytest", specifier = ">=7.0" }]
+test = [
+    { name = "croissant-baker", extras = ["structural-biology"] },
+    { name = "pytest", specifier = ">=7.0" },
+]
 
 [[package]]
 name = "cycler"

@@ -33,10 +33,18 @@ dependencies = [
     "pydicom>=2.4",
     "nibabel>=5.0",
     "h5py>=3.11",
-    # Structural biology: PDB, mmCIF and STAR parsing. Binary headers (MRC, MTZ)
-    # are read without it.
-    "gemmi>=0.7.0",
 ]
+
+# PEP 621 extras — an install-time choice a downstream consumer can make, which
+# is why these are extras and not dependency groups: a group is reachable only
+# through `uv sync`, and someone who installed from PyPI could not ask for it.
+[project.optional-dependencies]
+# Structural biology: PDB, mmCIF and STAR parsing through gemmi. MRC, MTZ,
+# mdoc, SDF, MOL and MOL2 are read without it. Install with:
+#   pip install "croissant-baker[structural-biology]"
+# Without it those three formats are still claimed and refused with that hint,
+# so a folder of CSVs does not have to carry a crystallography library.
+structural-biology = ["gemmi>=0.7.0"]
 
 [project.scripts]
 croissant-baker = "croissant_baker.__main__:app"
@@ -44,7 +52,10 @@ croissant-baker = "croissant_baker.__main__:app"
 # PEP 735 dependency groups — not propagated to downstream consumers.
 # Install with: uv sync --group dev
 [dependency-groups]
-test = ["pytest>=7.0"]
+# The suite covers every handler, so it needs the optional extra as well. Named
+# here rather than as a bare gemmi pin, so the version the tests run against is
+# the one the extra ships.
+test = ["pytest>=7.0", "croissant-baker[structural-biology]"]
 dev = [
     "ruff>=0.1.0",
     "pre-commit>=4.5.1",
