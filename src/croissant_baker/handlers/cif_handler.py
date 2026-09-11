@@ -527,9 +527,14 @@ def _rows(columns: Dict, category: str) -> int:
 
 
 def _split_list(text: Optional[str]) -> List[str]:
-    """A comma-separated list, stripped, with its empty entries dropped."""
-    items = (text or "").split(VALUE_SEPARATOR)
-    return [item.strip() for item in items if item.strip()]
+    """A comma-separated list, stripped, with its empty entries dropped.
+
+    A null entry is dropped with them. ``.`` and ``?`` are not values wherever
+    a CIF writes them, inside a list included: ``A,?`` names one strand and one
+    strand the file does not name, which is one chain.
+    """
+    items = (item.strip() for item in (text or "").split(VALUE_SEPARATOR))
+    return [item for item in items if item and item not in NULL_VALUES]
 
 
 def _distinct(values: Iterable[str]) -> List[str]:
@@ -654,16 +659,17 @@ def _chain_count(columns: Dict) -> int:
     deposit gives one to every copy of every ligand and one to its ordered
     solvent, so a four-chain haemoglobin carries nine, and that count is
     reported under :func:`_asym_unit_count` instead. It stands in here only for
-    a block carrying no polymer entity at all, which then says nothing else
-    about how many chains it holds.
+    a block that names no strand at all, which then says nothing else about how
+    many chains it holds: one carrying no polymer entity, and equally one
+    writing the category without the ``pdbx_strand_id`` item, since what is
+    counted here is the strands rather than the category.
 
     Chains are counted rather than listed: how many there are is structure, and
     which letters they were given is not.
     """
-    if not _rows(columns, "_entity_poly"):
-        return _rows(columns, "_struct_asym")
     strands = _all(columns, "_entity_poly.pdbx_strand_id")
-    return len(_distinct(item for value in strands for item in _split_list(value)))
+    named = _distinct(item for value in strands for item in _split_list(value))
+    return len(named) or _rows(columns, "_struct_asym")
 
 
 def _asym_unit_count(columns: Dict) -> int:
