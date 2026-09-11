@@ -43,6 +43,9 @@ from croissant_baker.handlers.utils import (
     MAX_HEADER_BYTES,
     PrefixLines,
     decode_line,
+    deposited,
+    determined,
+    plural,
 )
 from croissant_baker.sources import UNREADABLE, FileSource
 
@@ -503,35 +506,6 @@ def _is_small_molecule(columns: Dict) -> bool:
     return any(marker in columns for marker in CORE_MARKERS)
 
 
-def _counted(count: int, singular: str, several: str) -> str:
-    """``1 polymer entity``, ``2 polymer entities``.
-
-    Not :func:`~croissant_baker.handlers.utils.plural`, whose trailing ``s``
-    does not spell the plural of every noun this description uses.
-    """
-    return f"{count} {singular}" if count == 1 else f"{count} {several}"
-
-
-def _deposited(date: Optional[str]) -> str:
-    """``deposited 1998-01-12``, or nothing when the file states no date."""
-    return f"deposited {date}" if date else ""
-
-
-def _determined(metadata: dict) -> str:
-    """How the structure was determined, and at what resolution.
-
-    The resolution is written to two decimals because that is the precision the
-    item it came from is quoted at.
-    """
-    methods = ", ".join(metadata.get("experimental_methods", []))
-    resolution = metadata.get("resolution_angstrom")
-    if methods and resolution is not None:
-        return f"{methods} at {resolution:.2f} A"
-    if resolution is not None:
-        return f"{resolution:.2f} A resolution"
-    return methods
-
-
 def _pdbx_metadata(name: str, columns: Dict) -> dict:
     """What a PDBx block states, and the sentence that states it.
 
@@ -640,7 +614,7 @@ def _counts(metadata: dict) -> str:
             continue
         if key == "asym_unit_count" and metadata[key] == metadata.get("chain_count"):
             continue
-        stated.append(_counted(metadata[key], singular, several))
+        stated.append(plural(metadata[key], singular, several))
     return ", ".join(stated)
 
 
@@ -656,13 +630,13 @@ def _describe_pdbx(name: str, metadata: dict) -> str:
         for part in (
             metadata.get("entry_id"),
             metadata.get("classification"),
-            _deposited(metadata.get("deposition_date")),
+            deposited(metadata.get("deposition_date")),
         )
         if part
     )
     title = f"title: {metadata['title']}" if metadata.get("title") else ""
     clauses = [
-        c for c in (identity, _determined(metadata), _counts(metadata), title) if c
+        c for c in (identity, determined(metadata), _counts(metadata), title) if c
     ]
     stated = f" ({'; '.join(clauses)})" if clauses else ""
     return (

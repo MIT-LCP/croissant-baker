@@ -236,9 +236,43 @@ def decompress_prefix(head: bytes, count: int) -> bytes:
         return payload.read(count)
 
 
-def plural(count: int, noun: str) -> str:
-    """``1 read group``, ``2 reference sequences``."""
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+def plural(count: int, noun: str, several: Optional[str] = None) -> str:
+    """``1 read group``, ``2 reference sequences``, ``2 polymer entities``.
+
+    ``several`` spells the plural of a noun that does not take a trailing
+    ``s``, which is the only reason a caller passes it.
+    """
+    if count == 1:
+        return f"{count} {noun}"
+    return f"{count} {several or f'{noun}s'}"
+
+
+def deposited(date: Optional[str]) -> str:
+    """``deposited 12-JAN-98``, or nothing when the file states no date.
+
+    Shared by the structure handlers, which each state the date their own
+    format writes: PDB writes ``DD-MMM-YY`` and mmCIF writes ``YYYY-MM-DD``,
+    and converting either would invent precision the file does not carry.
+    """
+    return f"deposited {date}" if date else ""
+
+
+def determined(metadata: dict) -> str:
+    """How a structure was determined, and at what resolution.
+
+    Read out of ``experimental_methods`` and ``resolution_angstrom``, which is
+    the shape both structure handlers build, so one sentence describes a
+    structure the same way whichever format it arrived in. The resolution is
+    written to two decimals because that is the precision the records and items
+    it comes from are quoted at.
+    """
+    methods = ", ".join(metadata.get("experimental_methods", []))
+    resolution = metadata.get("resolution_angstrom")
+    if methods and resolution is not None:
+        return f"{methods} at {resolution:.2f} A"
+    if resolution is not None:
+        return f"{resolution:.2f} A resolution"
+    return methods
 
 
 # Characters that are invalid in Croissant @id values.
