@@ -35,8 +35,8 @@ dependencies = [
     "h5py>=3.11",
 ]
 
-# PEP 621 extras — an install-time choice a downstream consumer can make, which
-# is why these are extras and not dependency groups: a group is reachable only
+# PEP 621 extras: an install-time choice a downstream consumer can make, which
+# is why these are extras and not dependency groups. A group is reachable only
 # through `uv sync`, and someone who installed from PyPI could not ask for it.
 [project.optional-dependencies]
 # Structural biology: PDB, mmCIF and STAR parsing through gemmi. MRC, MTZ,
