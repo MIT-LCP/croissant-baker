@@ -19,6 +19,7 @@ from croissant_baker.handlers.sdf_handler import (
     MAX_FIELDS,
     SAMPLE_BYTES,
     SAMPLE_RECORDS,
+    STRUCTURE_FIELDS,
     SDFHandler,
 )
 from croissant_baker.identifiers import serialize_datetime
@@ -159,6 +160,17 @@ def test_a_value_of_more_digits_than_an_integer_holds_is_text(
     assert meta["fields"] == [{"name": "Count", "type": "sc:Text"}]
 
 
+def test_a_value_float_reads_as_infinity_is_text(dataset: Path) -> None:
+    """``float('1e999')`` is infinity, which is not a value any record wrote
+    down, and it is short enough that the length cap never sees it. Typing the
+    field ``cr:Float64`` promised a number the file does not state."""
+    payload = sdf_record(MOL_V2000, [("LogP", "1e999")])
+
+    meta = extract(write(dataset, "overflow.sdf", payload))
+
+    assert meta["fields"] == [{"name": "LogP", "type": "sc:Text"}]
+
+
 def test_a_field_typed_integer_by_one_record_and_text_by_another_is_text(
     dataset: Path,
 ) -> None:
@@ -187,6 +199,20 @@ def test_more_data_items_than_the_cap_stop_at_the_cap(dataset: Path) -> None:
 
     assert len(meta["fields"]) == MAX_FIELDS
     assert meta["field_count"] == MAX_FIELDS + 50
+
+
+def test_a_capped_record_set_still_carries_the_two_structure_fields(
+    dataset: Path,
+) -> None:
+    """The cap counts data items. The title and the connection table are the
+    record itself rather than an annotation of it, so they are never what a
+    file naming too many items displaces."""
+    write(dataset, "wide.sdf", sdf_record(MOL_V2000, WIDE_ITEMS))
+
+    (record_set,) = record_sets(bake(dataset))
+
+    assert len(record_set["field"]) == MAX_FIELDS + len(STRUCTURE_FIELDS)
+    assert [f["name"] for f in record_set["field"][:2]] == ["title", "molfile"]
 
 
 def test_the_description_says_which_data_fields_it_left_out(dataset: Path) -> None:

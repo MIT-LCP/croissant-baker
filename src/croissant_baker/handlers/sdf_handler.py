@@ -19,6 +19,7 @@ so a column reference here would be a promise nobody can keep. Every field is
 sourced from the file and nothing narrower, as VCF's are.
 """
 
+import math
 import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -66,14 +67,17 @@ _DECIMAL = re.compile(r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\Z")
 #: The longest a value may be spelled and still be read as a number. Every
 #: integer ``cr:Int64`` carries is twenty characters at most and every float
 #: ``cr:Float64`` carries is spelled in far fewer, sign, point and exponent
-#: included, so nothing longer is a number the file states. Two things go wrong
-#: past it: ``int`` refuses a run of more than 4300 digits outright and raises a
-#: message of its own, which names no file, and ``float`` turns one into
-#: infinity, which is not a value any record wrote down.
+#: included, so nothing longer is a number the file states. What the cap is
+#: needed for is ``int``, which refuses a run of more than 4300 digits outright
+#: and raises a message of its own, naming no file. It is no defence against an
+#: overflowing ``float``, which :func:`value_type` handles where it happens: an
+#: exponent needs only a few characters to reach infinity.
 MAX_NUMBER_CHARACTERS = 40
 
-#: The most data fields one record set states. Every data item is a field node
-#: in the output, so a file naming a hundred thousand distinct items costs
+#: The most data fields one record set states, the two :data:`STRUCTURE_FIELDS`
+#: not among them: those two are the record itself rather than an annotation of
+#: it, so a capped record set carries 302 fields. Every data item is a field
+#: node in the output, so a file naming a hundred thousand distinct items costs
 #: minutes and gigabytes to build and describes nothing anyone will read. A
 #: compound library states a few dozen; a file far past this is a file of
 #: another format that happens to be named ``.sdf``, and describing it to here
@@ -198,16 +202,20 @@ def value_type(value: str) -> Optional[str]:
     be.
 
     A value spelled longer than :data:`MAX_NUMBER_CHARACTERS` is not parsed at
-    all: no number a reader holds is written that way, and both parsers answer
-    a run that long with something other than the value, an exception naming no
-    file or an infinity.
+    all: no number a reader holds is written that way, and ``int`` answers a run
+    that long with an exception of its own, which names no file.
+
+    A value ``float`` reads as infinity is not a number either, however short it
+    is spelled: an exponent reaches infinity in five characters, and the file
+    stated the digits rather than the overflow they parse to.
     """
     if len(value) > MAX_NUMBER_CHARACTERS:
         return None
     if _INTEGER.match(value):
         return infer_croissant_type(int(value))
     if _DECIMAL.match(value):
-        return infer_croissant_type(float(value))
+        number = float(value)
+        return infer_croissant_type(number) if math.isfinite(number) else None
     return None
 
 
