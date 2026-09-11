@@ -270,8 +270,10 @@ def _label_note(properties: list) -> str:
     claim, and quoting one per file would let a batch of ten thousand maps
     write a description ten thousand lines long.
     """
-    labels = {props["first_label"] for props in properties if props.get("first_label")}
-    return f". Labelled: {labels.pop()}" if len(labels) == 1 else ""
+    labels = {props.get("first_label") for props in properties}
+    if len(labels) != 1 or None in labels or "" in labels:
+        return ""
+    return f". Labelled: {labels.pop()}"
 
 
 def _dims_note(properties: list) -> str:

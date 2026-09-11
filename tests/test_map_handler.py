@@ -609,3 +609,18 @@ def test_a_batch_read_from_disk_describes_something(
     assert result.file_sets and result.record_sets
     assert result.declined == ()
     assert "n_images" in {field.name for field in result.record_sets[0].fields}
+
+
+def test_a_label_only_some_maps_carry_is_not_claimed_for_the_batch(
+    handler: MRCHandler,
+) -> None:
+    """One labelled map beside an unlabelled one says nothing about the batch,
+    and the description names only what every map carries."""
+    unlabelled = mrc_meta("bare.mrc")
+    del unlabelled["mrc_properties"]["first_label"]
+
+    file_sets, _ = handler.build_croissant(
+        [mrc_meta("one.mrc"), unlabelled], ["file_0", "file_1"]
+    )
+
+    assert "Labelled" not in file_sets[0].description
