@@ -91,8 +91,6 @@ class MOLHandler(FileTypeHandler):
             "description": _description(source.name, header),
         }
 
-    # ------------------------------------------------------------------
-
     def _read_header(self, source: FileSource) -> molfile.MolfileHeader:
         """The header of the block, or a refusal naming the file and why."""
         name = str(source.relative_path)
