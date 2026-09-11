@@ -46,6 +46,18 @@ _SLIDE_FIELDS = (
         "Pyramid levels, the base level included",
         "level_count",
     ),
+    (
+        "tile_width",
+        "sc:Integer",
+        "Tile width of the base level in pixels",
+        "tile_width",
+    ),
+    (
+        "tile_height",
+        "sc:Integer",
+        "Tile height of the base level in pixels",
+        "tile_height",
+    ),
     ("mpp_x", "sc:Float", "Micrometres per pixel across the base level", "mpp_x"),
     ("mpp_y", "sc:Float", "Micrometres per pixel down the base level", "mpp_y"),
     (
@@ -238,6 +250,17 @@ def _description(file_metas: List[Dict]) -> str:
         f"{_vendors(file_metas)}. Objective magnification: "
         f"{_observed(magnifications) if magnifications else 'not stated'}."
     )
+
+    # Neither is a field: a codec and a label page are facts about one file's
+    # storage, and a field describes every row. The batch states the set it
+    # holds, which is what the format line promises a reader will find here.
+    compressions = [header.compression for header in headers if header.compression]
+    if compressions:
+        text += f" Compression: {_observed(compressions)}."
+
+    kinds = [kind for header in headers for kind in header.associated_images]
+    if kinds:
+        text += f" Associated images: {_observed(kinds)}."
 
     refused = [header.refusal for header in headers if header.refusal]
     if refused:

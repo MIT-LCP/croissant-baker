@@ -272,10 +272,90 @@ def test_the_record_set_has_one_field_per_thing_the_batch_stated(
         "width",
         "height",
         "level_count",
+        "tile_width",
+        "tile_height",
         "mpp_x",
         "mpp_y",
         "objective_power",
     ]
+
+
+def test_a_batch_of_stripped_slides_carries_no_tile_size(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """A strip is not a tile, and a tile size on a stripped slide would send a
+    reader planning tile requests one request per row."""
+    metas, ids = batch(handler, dataset, "a.ndpi")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    names = [field.name for field in record_set.fields]
+    assert "tile_width" not in names and "tile_height" not in names
+
+
+def test_the_record_set_description_names_the_compressions_the_batch_uses(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """There is no compression field: one slide's codec is a fact about how
+    that file stores its tiles, so the batch states the set it holds."""
+    metas, ids = batch(handler, dataset, "a.svs")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    assert "Compression: deflate." in record_set.description
+
+
+def test_the_record_set_description_names_the_associated_image_kinds(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """The barcode label and the low-power macro are in the file and are not
+    levels, and a consumer asking for a region wants to know it."""
+    metas, ids = batch(handler, dataset, "a.svs", "b.bif")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    assert "Associated images: label, macro, thumbnail." in record_set.description
+
+
+def test_a_batch_carrying_no_associated_image_says_nothing_about_them(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    metas, ids = batch(handler, dataset, "a.scn")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    assert "Associated images" not in record_set.description
+
+
+#: Each capability :attr:`WSIHandler.FORMAT_DESCRIPTION` promises, against the
+#: field name or the description phrase that delivers it. The generated
+#: formats table is read as a promise about the document, and the two drifted
+#: once already: tile size and associated images were advertised and emitted
+#: nowhere.
+PROMISED = {
+    "vendor": "vendor",
+    "pyramid levels": "level_count",
+    "tile size": "tile_width",
+    "microns per pixel": "mpp_x",
+    "objective magnification": "objective_power",
+    "associated images": "Associated images:",
+}
+
+
+@pytest.mark.parametrize(("noun", "stated_as"), sorted(PROMISED.items()))
+def test_every_capability_the_format_line_promises_reaches_the_document(
+    handler: WSIHandler, dataset: Path, noun: str, stated_as: str
+) -> None:
+    assert noun in WSIHandler.FORMAT_DESCRIPTION.lower()
+
+    metas, ids = batch(
+        handler, dataset, *(f"{v}{e}" for e, v in VENDOR_EXTENSIONS.items())
+    )
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+
+    names = {field.name for field in record_set.fields}
+    assert stated_as in names or stated_as in record_set.description
 
 
 def test_a_field_no_slide_in_the_batch_stated_is_not_emitted(
