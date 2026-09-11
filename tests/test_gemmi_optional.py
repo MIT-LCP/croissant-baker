@@ -36,13 +36,33 @@ def run_without_gemmi(statements: str) -> subprocess.CompletedProcess:
     per process and this suite has already imported these ones. Setting the
     ``sys.modules`` entry to ``None`` is what makes the import fail, which is
     the state a user without the extra is in.
+
+    The preamble proves the block took. Without that check these tests would
+    pass for the wrong reason on a day the sentinel stopped raising, since a
+    successful import is the one thing they exist to rule out.
     """
-    script = "import sys\nsys.modules['gemmi'] = None\n" + statements
+    preamble = (
+        "import sys\n"
+        "sys.modules['gemmi'] = None\n"
+        "try:\n"
+        "    import gemmi\n"
+        "except ImportError:\n"
+        "    pass\n"
+        "else:\n"
+        "    raise SystemExit('gemmi still importable')\n"
+    )
     return subprocess.run(
-        [sys.executable, "-c", script],
+        [sys.executable, "-c", preamble + statements],
         capture_output=True,
         text=True,
-        env={**os.environ, "PYTHONPATH": str(SRC)},
+        env={
+            **os.environ,
+            # Prepended, not replaced: an inherited PYTHONPATH is part of how
+            # the interpreter that runs this suite finds anything else.
+            "PYTHONPATH": os.pathsep.join(
+                [str(SRC), os.environ.get("PYTHONPATH", "")]
+            ).rstrip(os.pathsep),
+        },
     )
 
 

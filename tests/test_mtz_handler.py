@@ -14,9 +14,6 @@ from croissant_baker.handlers.structural_biology.mtz_handler import (
 )
 from croissant_baker.sources import make_source
 
-gemmi = pytest.importorskip("gemmi")
-numpy = pytest.importorskip("numpy")
-
 #: Byte 8 carries the number format. A high nibble of 4 is little-endian IEEE,
 #: 1 is big-endian.
 LITTLE_STAMP = b"\x44\x41\x00\x00"
@@ -52,7 +49,16 @@ def write_mtz(path: Path, payload: bytes) -> Path:
 
 
 def gemmi_mtz(path: Path, *, title: str = "demo") -> Path:
-    """A file a real MTZ writer produced, to check the offsets against."""
+    """A file a real MTZ writer produced, to check the offsets against.
+
+    The reader is plain struct parsing and needs no gemmi, so only the cases
+    that want a file a real writer emitted skip without the optional
+    structural-biology extra. Skipping here reaches every one of them, the
+    ``written`` fixture included.
+    """
+    gemmi = pytest.importorskip("gemmi")
+    numpy = pytest.importorskip("numpy")
+
     mtz = gemmi.Mtz(with_base=True)
     mtz.spacegroup = gemmi.find_spacegroup_by_name("P 21 21 21")
     mtz.set_cell_for_all(gemmi.UnitCell(50, 60, 70, 90, 90, 90))
@@ -128,6 +134,8 @@ def test_the_parsed_header_agrees_with_gemmi(
 ) -> None:
     """A hand-built file proves the offsets follow the spec; this proves they
     follow what a widely used writer emits, and what it reads back."""
+    gemmi = pytest.importorskip("gemmi")
+
     reference = gemmi.read_mtz_file(str(written), with_data=False)
     props = handler.extract(make_source(written))["mtz_properties"]
 
