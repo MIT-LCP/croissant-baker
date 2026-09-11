@@ -298,8 +298,14 @@ def bake_with(handlers: Iterable[FileTypeHandler], directory: Path, **kwargs):
 runner = CliRunner()
 
 
-def cli(dataset: Path, output: Path, *extra: str):
-    """Invoke the CLI over ``dataset`` with the minimum viable flag set."""
+def cli(dataset: Path, output: Path, *extra: str, validate: bool = False):
+    """Invoke the CLI over ``dataset`` with the minimum viable flag set.
+
+    Validation is off by default: most callers assert on what was written
+    rather than on mlcroissant reading it back, and it is the slow half of a
+    bake. Pass ``validate=True`` where the default path a user takes is the
+    point of the test.
+    """
     return runner.invoke(
         app,
         [
@@ -309,7 +315,7 @@ def cli(dataset: Path, output: Path, *extra: str):
             str(output),
             "--creator",
             "Tester",
-            "--no-validate",
+            *([] if validate else ["--no-validate"]),
             *extra,
         ],
     )

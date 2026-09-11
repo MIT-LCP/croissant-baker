@@ -1348,7 +1348,12 @@ def test_discovery_keys_absent_without_their_flags(
 def test_all_discovery_fields_construct_under_mlcroissant(
     csv_dataset: Path, tmp_path: Path
 ) -> None:
-    """An output carrying all five still loads as a Croissant dataset."""
+    """An output carrying all five still loads as a Croissant dataset.
+
+    The one new-field test that keeps validation on, so the default path
+    every user takes cannot break unnoticed: the rest pass --no-validate
+    to stay fast.
+    """
     import mlcroissant as mlc
 
     output = tmp_path / "output.jsonld"
@@ -1369,9 +1374,16 @@ def test_all_discovery_fields_construct_under_mlcroissant(
         "https://datacatalog.ccdi.cancer.gov/",
         "--profile",
         "bioschemas",
+        validate=True,
     )
 
     assert result.exit_code == 0, result.output
+    # Says the bake took the validating path, so the test cannot quietly stop
+    # covering it.
+    assert "Generated validated Croissant metadata" in result.output
     metadata = mlc.Dataset(str(output)).metadata
     assert metadata.name == "test_dataset"
-    assert BIOSCHEMAS_CONFORMS_TO in metadata.conforms_to
+    assert metadata.conforms_to == [
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+    ]
