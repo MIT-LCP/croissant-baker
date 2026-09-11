@@ -20,8 +20,11 @@ from rich.progress import (
 
 from croissant_baker.metadata_generator import (
     MetadataGenerator,
+    PROFILE_CONFORMS_TO,
     RAI_CONFORMS_TO,
+    normalize_profiles,
     serialize_datetime,
+    url_has_whitespace,
 )
 from croissant_baker import compression
 from croissant_baker.files import discover_files
@@ -314,20 +317,53 @@ def _merge_field_mapping_flags(
 _URI_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+\-.]*:")
 
 
-def _validate_uri(option_name: str, value: Optional[str]) -> None:
-    """Reject strings that don't start with an RFC 3986 URI scheme.
+def _uri_option(
+    ctx: typer.Context, param: typer.CallbackParam, value: Optional[str]
+) -> Optional[str]:
+    """Strip a URI-valued option, then reject strings with no URI scheme.
 
     Catches free text like 'see license file' but accepts http(s)://, urn:,
     did:, mailto:, and any other valid scheme. schema.org/usageInfo accepts
     URLs broadly, not just web URLs.
+
+    A parse-time callback rather than a check in the command body: Typer runs
+    it before ``--dry-run`` returns early, and a refusal renders as an invalid
+    option instead of being swallowed by the broad handler and reported as an
+    unexpected error. Normalising first means a blank value is absent rather
+    than a URI check nobody asked for.
+
+    Resilient parsing is shell completion and the like working out what the
+    command line means; it must never raise, so the value goes back untouched.
     """
-    if value is None:
-        return
-    if not _URI_SCHEME.match(value):
+    if ctx.resilient_parsing:
+        return value
+    value = _normalize_optional_text(value)
+    if value is not None and not _URI_SCHEME.match(value):
         raise typer.BadParameter(
-            f"{option_name} must be a URI starting with a scheme "
-            f"(e.g. https://, urn:, did:, mailto:), got {value!r}"
+            "must be a URI starting with a scheme "
+            f"(e.g. https://, urn:, did:, mailto:), got {value!r}",
+            ctx=ctx,
+            param=param,
         )
+    return value
+
+
+def _profile_option(
+    ctx: typer.Context, param: typer.CallbackParam, value: Optional[List[str]]
+) -> Optional[List[str]]:
+    """Normalise and check --profile while Typer parses, for the same reasons.
+
+    The rule belongs to the generator, which every caller goes through; this
+    only translates its refusal into the CLI's own error type so the message
+    is worded once. Resilient parsing gets the value back untouched, for the
+    same reason as above.
+    """
+    if ctx.resilient_parsing:
+        return value
+    try:
+        return normalize_profiles(list(value or []))
+    except ValueError as e:
+        raise typer.BadParameter(str(e), ctx=ctx, param=param) from e
 
 
 def _validate_iso_datetimes(option_name: str, values: Optional[List[str]]) -> None:
@@ -546,6 +582,34 @@ def main(
         None,
         "--usage-info",
         help="URI pointing to a usage or consent policy. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'http://purl.obolibrary.org/obo/DUO_0000042' (DUO term).",
+        callback=_uri_option,
+    ),
+    identifier: Optional[List[str]] = typer.Option(
+        None,
+        "--identifier",
+        help="Accession or persistent identifier the dataset is known by (e.g., 'phs000218.v1.p1', 'EGAS00001000255', a DOI). Repeat or comma-delimit.",
+    ),
+    conditions_of_access: Optional[str] = typer.Option(
+        None,
+        "--conditions-of-access",
+        help="How access is obtained, in free text. Example: 'Controlled access: Data Access Agreement via the Data Access Committee'.",
+    ),
+    is_accessible_for_free: Optional[bool] = typer.Option(
+        None,
+        "--is-accessible-for-free/--not-accessible-for-free",
+        help="Whether the data can be had without payment or an access agreement. Omit to leave the field out.",
+    ),
+    included_in_data_catalog: Optional[str] = typer.Option(
+        None,
+        "--included-in-data-catalog",
+        help="URL of a catalog entry listing this dataset. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'https://datacatalog.ccdi.cancer.gov/'.",
+        callback=_uri_option,
+    ),
+    profile: Optional[List[str]] = typer.Option(
+        None,
+        "--profile",
+        help=f"Additional profile to declare in conformsTo. One of: {', '.join(sorted(PROFILE_CONFORMS_TO))}. The bake is refused if the document lacks the profile's minimum fields. Repeat or comma-delimit.",
+        callback=_profile_option,
     ),
     field_mappings: Optional[Path] = typer.Option(
         None,
@@ -877,7 +941,20 @@ def main(
                     err=True,
                 )
 
-        _validate_uri("--usage-info", usage_info)
+        # The generator logs this too, for callers who configure logging; a
+        # terminal user has none, since the package ships a NullHandler and
+        # nothing here adds one. Said before the bake rather than after it, so
+        # it is still on screen when a declared profile refuses the document
+        # for the missing @id.
+        if url and url_has_whitespace(url):
+            typer.echo(
+                f"Warning: --url {url!r} contains whitespace, so no @id was "
+                "emitted for the dataset.\n"
+                "  Percent-encode the whitespace (a space becomes %20) to give "
+                "the document an identifier.",
+                err=True,
+            )
+
         merged_field_mappings = _merge_field_mapping_flags(
             _load_field_mappings(field_mappings), field_mapping
         )
@@ -904,6 +981,11 @@ def main(
             is_live_dataset=is_live_dataset or None,
             temporal_coverage=temporal_coverage,
             usage_info=usage_info,
+            identifier=_split_csv_list(identifier),
+            conditions_of_access=_normalize_optional_text(conditions_of_access),
+            is_accessible_for_free=is_accessible_for_free,
+            included_in_data_catalog=included_in_data_catalog,
+            profiles=profile,
             field_mappings=merged_field_mappings,
             count_csv_rows=count_csv_rows,
             max_workers=jobs or None,

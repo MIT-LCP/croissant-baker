@@ -8,7 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import mlcroissant as mlc
 
@@ -54,6 +54,84 @@ _CARRIED_BY_ANOTHER = (Outcome.UNCLAIMED, Outcome.FAILED)
 # https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html
 CROISSANT_CONFORMS_TO = "http://mlcommons.org/croissant/1.1"
 RAI_CONFORMS_TO = "http://mlcommons.org/croissant/RAI/1.0"
+BIOSCHEMAS_CONFORMS_TO = "https://bioschemas.org/profiles/Dataset/1.0-RELEASE"
+
+# Profiles a document can additionally declare, by the name --profile takes.
+# A new profile is two entries: the URI declared alongside CROISSANT_CONFORMS_TO
+# here, and the fields the profile requires in PROFILE_MINIMUM_KEYS below.
+PROFILE_CONFORMS_TO = {
+    "bioschemas": BIOSCHEMAS_CONFORMS_TO,
+}
+
+# Emitted keys a document must carry before it may declare each profile.
+# Declaring one is a claim a SHACL validator will check, so a document that
+# names a profile and then omits what the profile lists as minimum scores
+# worse than one that declares nothing. The generator refuses instead.
+#
+# The list mirrors the profile's own minimums rather than what a bake happens
+# to be able to omit. Bioschemas Dataset 1.0-RELEASE lists ten; @context,
+# @type and name are always written and dct:conformsTo is what the declaration
+# itself adds, so the six below are what is left. description and license are
+# defaulted today and so can never be reported missing; they stay listed so the
+# check follows the profile rather than the defaults.
+# https://bioschemas.org/profiles/Dataset/1.0-RELEASE
+PROFILE_MINIMUM_KEYS = {
+    "bioschemas": ("@id", "description", "identifier", "keywords", "license", "url"),
+}
+
+
+def url_has_whitespace(url: str) -> bool:
+    """Whether ``url`` carries whitespace, which no IRI may.
+
+    The document's ``@id`` is an IRI: a url with a space in it makes the whole
+    document unreadable to a JSON-LD parser, so a url like that is left out of
+    the ``@id`` rather than written into it. Whitespace is all this asks
+    about, because it is the one thing that breaks parsing outright, and
+    ``url`` itself is written as given whatever the answer is.
+
+    One owner for the rule: the generator asks before injecting the key, and
+    the CLI asks before telling the user why the key is missing. Both ask only
+    when there is a url to ask about.
+    """
+    return any(character.isspace() for character in url)
+
+
+def normalize_profiles(
+    profiles: Union[str, List[str], None],
+) -> Optional[List[str]]:
+    """The profile names to declare, cleaned and checked, or None.
+
+    The single owner of the rule: the generator calls it from ``__init__`` and
+    the CLI calls it from the ``--profile`` callback, so a library caller and a
+    command line get the same contract and the same message. Strips each name,
+    drops empties, splits comma lists the way ``--keywords`` and
+    ``--identifier`` take them, and deduplicates with ``dict.fromkeys`` so a
+    name given twice is declared once in the order it was first asked for.
+
+    A bare string is one flag's worth of input rather than an iterable of
+    characters, so ``profiles="bioschemas"`` means what it reads as.
+
+    Raises:
+        ValueError: If a name has no conformsTo URI in ``PROFILE_CONFORMS_TO``.
+    """
+    if profiles is None:
+        return None
+    if isinstance(profiles, str):
+        profiles = [profiles]
+    names = [
+        stripped
+        for value in profiles
+        for part in value.split(",")
+        if (stripped := part.strip())
+    ]
+    names = list(dict.fromkeys(names))
+    unknown = [name for name in names if name not in PROFILE_CONFORMS_TO]
+    if unknown:
+        raise ValueError(
+            f"Unknown profile(s): {', '.join(repr(name) for name in unknown)}. "
+            f"Known profiles: {', '.join(sorted(PROFILE_CONFORMS_TO))}"
+        )
+    return names or None
 
 
 def _apply_field_mappings(
@@ -166,6 +244,11 @@ class MetadataGenerator:
         is_live_dataset: Optional[bool] = None,
         temporal_coverage: Optional[str] = None,
         usage_info: Optional[str] = None,
+        identifier: Optional[List[str]] = None,
+        conditions_of_access: Optional[str] = None,
+        is_accessible_for_free: Optional[bool] = None,
+        included_in_data_catalog: Optional[str] = None,
+        profiles: Union[str, List[str], None] = None,
         field_mappings: Optional[Dict[str, Dict[str, object]]] = None,
         count_csv_rows: bool = False,
         max_workers: Optional[int] = None,
@@ -206,6 +289,26 @@ class MetadataGenerator:
                 free text or ISO 8601 (e.g., "2008/2019", "2023-01-15").
             usage_info: URL of a usage/consent policy (e.g., a DUO term URL,
                 ODRL Offer URL).
+            identifier: Accessions or persistent identifiers the dataset is
+                known by (e.g. a dbGaP phs number, an EGA study accession, a
+                DOI). Deduplicated in the order given; one value is emitted
+                as a string, several as a list.
+            conditions_of_access: How access is obtained, in free text (e.g.
+                the data access agreement and committee for a controlled
+                release). schema.org/conditionsOfAccess.
+            is_accessible_for_free: Whether the data can be had without payment
+                or an access agreement. Tri-state: None leaves the key absent.
+            included_in_data_catalog: URL of a catalog entry that lists this
+                dataset. Emitted as a ``sc:DataCatalog`` node carrying the
+                URL, the one range schema.org/includedInDataCatalog has.
+            profiles: Additional profiles the document declares in
+                ``conformsTo`` alongside Croissant 1.1, by the names in
+                ``PROFILE_CONFORMS_TO``. A list, or one name as a bare
+                string; either form may carry comma-separated names.
+                Normalised by ``normalize_profiles`` at construction.
+                ``generate_metadata`` refuses a document that declares a
+                profile without the fields ``PROFILE_MINIMUM_KEYS`` lists
+                for it.
             field_mappings: Per-column overrides keyed by field name. Each value
                 is a dict with optional ``equivalent_property`` (vocab URI) and
                 ``data_types`` (list of vocab URIs). Used to link columns to
@@ -227,7 +330,8 @@ class MetadataGenerator:
                 or with a handler the baker does not ship.
 
         Raises:
-            ValueError: If dataset_path is not a directory.
+            ValueError: If dataset_path is not a directory, or a named profile
+                is not one of ``PROFILE_CONFORMS_TO``.
         """
         self.dataset_path = Path(dataset_path).resolve()
         if not self.dataset_path.is_dir():
@@ -253,6 +357,11 @@ class MetadataGenerator:
         self.is_live_dataset = is_live_dataset
         self.temporal_coverage = temporal_coverage
         self.usage_info = usage_info
+        self.identifier = identifier
+        self.conditions_of_access = conditions_of_access
+        self.is_accessible_for_free = is_accessible_for_free
+        self.included_in_data_catalog = included_in_data_catalog
+        self.profiles = normalize_profiles(profiles)
         self.field_mappings = field_mappings or {}
         self.includes = includes
         self.excludes = excludes
@@ -309,6 +418,11 @@ class MetadataGenerator:
             progress_callback: Optional callback with signature
                 (completed: int, total: int, file_path: str) -> None
                 invoked once per file as it finishes extraction.
+
+        Raises:
+            ValueError: If nothing in the dataset could be described, or a
+                declared profile's minimum fields are missing from the
+                document that was assembled.
         """
         entries = scan_directory(
             str(self.dataset_path),
@@ -516,7 +630,7 @@ class MetadataGenerator:
             date_modified=self._parse_iso(self.date_modified),
             version=self.version or "1.0.0",
             cite_as=self._build_citation(),
-            conforms_to=CROISSANT_CONFORMS_TO,
+            conforms_to=self._resolve_conforms_to(),
             keywords=self.keywords,
             in_language=self.in_language,
             same_as=self.same_as,
@@ -540,6 +654,29 @@ class MetadataGenerator:
         # canonical key directly.
         if self.sd_version is not None:
             result["sdVersion"] = self.sd_version
+        # mlcroissant takes an ``id`` for the Metadata node but writes no
+        # top-level @id, leaving the Dataset a blank node that nothing can
+        # refer to. The dataset URL is the identifier a reader already has,
+        # and it is what Bioschemas expects there. A url no IRI can be built
+        # from is skipped rather than written: a declared profile that
+        # requires @id refuses the bake outright, and the CLI repeats the
+        # warning below on stderr, where a terminal user will see it.
+        # Written beside the other node keywords, where a reader looks for the
+        # subject of the graph, rather than trailing the record sets.
+        if self.url and not url_has_whitespace(self.url):
+            result = {
+                "@context": result.pop("@context"),
+                "@type": result.pop("@type"),
+                "@id": self.url,
+                **result,
+            }
+        elif self.url:
+            logger.warning(
+                "url %r contains whitespace, so no @id was emitted for the "
+                "dataset. Percent-encode the whitespace (a space becomes "
+                "%%20) to give the document an identifier.",
+                self.url,
+            )
         if self.alternate_name is not None:
             result["alternateName"] = self.alternate_name
         if self.is_live_dataset is not None:
@@ -548,9 +685,58 @@ class MetadataGenerator:
             result["temporalCoverage"] = self.temporal_coverage
         if self.usage_info is not None:
             result["usageInfo"] = self.usage_info
+        if self.identifier:
+            # One accession reads as a string, the way mlcroissant flattens its
+            # own single-element lists; several stay a list. Deduplicated in
+            # declared order first, so naming an accession twice does not turn
+            # the same claim into a list of two.
+            accessions = list(dict.fromkeys(self.identifier))
+            result["identifier"] = accessions[0] if len(accessions) == 1 else accessions
+        if self.conditions_of_access is not None:
+            result["conditionsOfAccess"] = self.conditions_of_access
+        if self.is_accessible_for_free is not None:
+            result["isAccessibleForFree"] = self.is_accessible_for_free
+        if self.included_in_data_catalog is not None:
+            # schema.org gives includedInDataCatalog exactly one range,
+            # DataCatalog. A bare string would be read as a literal under
+            # @vocab, so the URL rides on a node, the shape publisher
+            # already uses for its Organization.
+            result["includedInDataCatalog"] = {
+                "@type": "sc:DataCatalog",
+                "url": self.included_in_data_catalog,
+            }
         if self.field_mappings:
             _apply_field_mappings(result, self.field_mappings)
+        self._assert_profile_minimums(result)
         return result
+
+    def _assert_profile_minimums(self, document: dict) -> None:
+        """Refuse to declare a profile whose minimum fields are missing.
+
+        Read off the assembled document rather than the constructor
+        arguments, because what reaches the file is not always what was
+        passed: ``description`` is generated when none was given, ``license``
+        is defaulted, and ``@id`` is injected from ``url`` when the url can be
+        an IRI. The check has to agree with what a validator will read.
+
+        Raises:
+            ValueError: naming every missing field, so one run tells the
+                caller everything they have to supply.
+        """
+        for profile in self.profiles or []:
+            missing = [
+                key
+                for key in PROFILE_MINIMUM_KEYS.get(profile, ())
+                if not document.get(key)
+            ]
+            if missing:
+                raise ValueError(
+                    f"Profile '{profile}' requires fields this document does "
+                    f"not carry: {', '.join(missing)}. They are minimum fields "
+                    "of the profile, so declaring it without them leaves the "
+                    "document failing validation against what it claims. "
+                    "Supply them, or drop the profile."
+                )
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -691,6 +877,20 @@ class MetadataGenerator:
             f"Dataset containing {len(file_metadata)} files "
             f"({', '.join(sorted(file_types))}) with automatically inferred types and structure"
         )
+
+    def _resolve_conforms_to(self) -> Union[str, List[str]]:
+        """Croissant 1.1, plus any profile the caller asked to declare.
+
+        A bare string when there is nothing to add, because that is what the
+        canonical 1.1 examples carry. ``dict.fromkeys`` keeps the declared
+        order while dropping a profile named twice.
+        """
+        if not self.profiles:
+            return CROISSANT_CONFORMS_TO
+        profile_uris = dict.fromkeys(
+            PROFILE_CONFORMS_TO[profile] for profile in self.profiles
+        )
+        return [CROISSANT_CONFORMS_TO, *profile_uris]
 
     def _resolve_license(self) -> str:
         if not self.license:
@@ -838,4 +1038,9 @@ class MetadataGenerator:
             f.write("\n")
 
 
-__all__ = ["MetadataGenerator", "serialize_datetime"]
+__all__ = [
+    "MetadataGenerator",
+    "normalize_profiles",
+    "serialize_datetime",
+    "url_has_whitespace",
+]

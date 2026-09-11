@@ -9,8 +9,30 @@ import pytest
 from typer.testing import CliRunner
 
 from croissant_baker.__main__ import app
+from croissant_baker.metadata_generator import (
+    BIOSCHEMAS_CONFORMS_TO,
+    CROISSANT_CONFORMS_TO,
+    MetadataGenerator,
+    RAI_CONFORMS_TO,
+    normalize_profiles,
+    url_has_whitespace,
+)
+from tests.helpers import cli
 
 runner = CliRunner()
+
+#: The flags a document needs before it may declare --profile bioschemas.
+#: The profile's other minimum fields are covered without asking: name comes
+#: from the directory, description and license are defaulted, and @id follows
+#: from url.
+BIOSCHEMAS_MINIMUMS = (
+    "--identifier",
+    "phs000218.v1.p1",
+    "--keywords",
+    "cardiology,icu",
+    "--url",
+    "https://example.org/ds",
+)
 
 
 @pytest.fixture
@@ -515,8 +537,8 @@ def test_native_rai_flags_generate_metadata(csv_dataset: Path, tmp_path: Path) -
     )
     assert metadata["rai:dataUseCases"] == "Benchmarking"
     assert metadata["conformsTo"] == [
-        "http://mlcommons.org/croissant/1.1",
-        "http://mlcommons.org/croissant/RAI/1.0",
+        CROISSANT_CONFORMS_TO,
+        RAI_CONFORMS_TO,
     ]
     assert metadata["rai:dataCollectionTimeFrame"] == [
         "2023-01-01",
@@ -609,8 +631,8 @@ lineage:
 
     metadata = json.loads(output.read_text())
     assert metadata["conformsTo"] == [
-        "http://mlcommons.org/croissant/1.1",
-        "http://mlcommons.org/croissant/RAI/1.0",
+        CROISSANT_CONFORMS_TO,
+        RAI_CONFORMS_TO,
     ]
 
 
@@ -938,3 +960,553 @@ def test_baked_output_round_trips_through_mlcroissant(
     record_sets = list(ds.metadata.record_sets)
     fields = list(record_sets[0].fields)
     assert {f.name for f in fields} == {"id", "name", "age"}
+
+
+def test_identifier_single_value_emits_a_string(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """One --identifier emits a bare string, the shape a lone accession takes."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--identifier", "phs000218.v1.p1")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["identifier"] == "phs000218.v1.p1"
+
+
+def test_identifier_repeated_and_comma_delimited_emits_a_list(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--identifier accepts both input shapes, and several values become a list."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--identifier",
+        "phs000218.v1.p1,EGAS00001000255",
+        "--identifier",
+        "https://doi.org/10.1234/example",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["identifier"] == [
+        "phs000218.v1.p1",
+        "EGAS00001000255",
+        "https://doi.org/10.1234/example",
+    ]
+
+
+def test_repeated_identifier_is_emitted_once(csv_dataset: Path, tmp_path: Path) -> None:
+    """A duplicate must not flip the JSON type from a string to a list."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--identifier",
+        "phs000218.v1.p1",
+        "--identifier",
+        "phs000218.v1.p1",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["identifier"] == "phs000218.v1.p1"
+
+
+def test_conditions_of_access_passes_through(csv_dataset: Path, tmp_path: Path) -> None:
+    """--conditions-of-access is free text; it reaches the output unchanged."""
+    output = tmp_path / "output.jsonld"
+    conditions = "Controlled access: Data Access Agreement via the DAC"
+
+    result = cli(csv_dataset, output, "--conditions-of-access", conditions)
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conditionsOfAccess"] == conditions
+
+
+@pytest.mark.parametrize(
+    "flag,expected",
+    [("--is-accessible-for-free", True), ("--not-accessible-for-free", False)],
+)
+def test_is_accessible_for_free_emits_the_boolean_asked_for(
+    csv_dataset: Path, tmp_path: Path, flag: str, expected: bool
+) -> None:
+    """Both halves of the flag pair emit a JSON boolean, not a string."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, flag)
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["isAccessibleForFree"] is expected
+
+
+def test_url_becomes_the_dataset_id(csv_dataset: Path, tmp_path: Path) -> None:
+    """The Dataset node names itself, so a validator has a subject to bind to."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--url", "https://example.org/ds")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["@id"] == "https://example.org/ds"
+
+
+def test_dataset_id_sits_with_the_other_node_keywords(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A reader looks for the subject at the top, not after the record sets."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--url", "https://example.org/ds")
+
+    assert result.exit_code == 0, result.output
+    assert list(json.loads(output.read_text()))[:3] == ["@context", "@type", "@id"]
+
+
+@pytest.mark.parametrize(
+    "url,whitespace",
+    [
+        ("https://example.org/ds", False),
+        ("https://example.org/my%20dataset", False),
+        ("", False),
+        ("https://example.org/my dataset", True),
+        ("https://example.org/my\tdataset", True),
+    ],
+)
+def test_url_has_whitespace_spots_what_an_iri_cannot_carry(
+    url: str, whitespace: bool
+) -> None:
+    """An @id is an IRI, and an IRI carries no whitespace."""
+    assert url_has_whitespace(url) is whitespace
+
+
+def test_url_with_whitespace_still_bakes_without_an_id(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A url a JSON-LD parser cannot read must not become the document's @id.
+
+    Emitting it anyway made the whole bake fail validation, which is a
+    steeper price than the url was worth.
+    """
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset, output, "--url", "https://example.org/my dataset", validate=True
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "@id" not in json.loads(output.read_text())
+
+
+def test_url_with_whitespace_logs_for_a_library_caller(
+    csv_dataset: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The CLI echo reaches nobody who is not at a terminal, so the skip logs.
+
+    The package attaches a NullHandler, so this record goes nowhere unless an
+    application asks for it, which is the point.
+    """
+    generator = MetadataGenerator(
+        dataset_path=str(csv_dataset), url="https://example.org/my dataset"
+    )
+
+    with caplog.at_level(logging.WARNING, logger="croissant_baker.metadata_generator"):
+        document = generator.generate_metadata()
+
+    assert "@id" not in document
+    assert "whitespace" in caplog.text
+    assert "%20" in caplog.text
+
+
+def test_url_with_whitespace_warns_and_says_how_to_fix_it(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """Dropping the @id silently would leave the user nothing to act on."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--url", "https://example.org/my dataset")
+
+    assert result.exit_code == 0, result.output
+    assert "Warning:" in result.stderr
+    assert "whitespace" in result.stderr
+    assert "%20" in result.stderr
+
+
+def test_bioschemas_refuses_a_url_that_yields_no_id(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The profile lists @id as a minimum, so a url that cannot be one fails."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--identifier",
+        "phs000218.v1.p1",
+        "--keywords",
+        "cardiology",
+        "--url",
+        "https://example.org/my dataset",
+        "--profile",
+        "bioschemas",
+    )
+
+    assert result.exit_code != 0
+    assert "@id" in result.stderr
+    assert "whitespace" in result.stderr
+
+
+def test_no_url_leaves_the_dataset_id_absent(csv_dataset: Path, tmp_path: Path) -> None:
+    """There is nothing to name the dataset by, so no @id is invented."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output)
+
+    assert result.exit_code == 0, result.output
+    assert "@id" not in json.loads(output.read_text())
+
+
+def test_dataset_id_reads_back_through_mlcroissant(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The injected key survives a round trip rather than failing validation."""
+    import mlcroissant as mlc
+
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--url", "https://example.org/ds")
+
+    assert result.exit_code == 0, result.output
+    assert mlc.Dataset(str(output)).metadata.id == "https://example.org/ds"
+
+
+def test_included_in_data_catalog_emits_a_data_catalog_node(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The URL rides on a DataCatalog node, the only range schema.org gives it.
+
+    A bare string would be read as a literal under @vocab, which is not what
+    the property means.
+    """
+    output = tmp_path / "output.jsonld"
+    catalog = "https://datacatalog.ccdi.cancer.gov/"
+
+    result = cli(csv_dataset, output, "--included-in-data-catalog", catalog)
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["includedInDataCatalog"] == {
+        "@type": "sc:DataCatalog",
+        "url": catalog,
+    }
+
+
+def test_included_in_data_catalog_rejects_free_text(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The help text says URL, so free text is refused rather than emitted."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--included-in-data-catalog", "the CCDI catalog")
+
+    assert result.exit_code != 0
+    assert "Unexpected error" not in result.output
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+@pytest.mark.parametrize(
+    "flag,key",
+    [
+        ("--conditions-of-access", "conditionsOfAccess"),
+        ("--included-in-data-catalog", "includedInDataCatalog"),
+    ],
+)
+def test_blank_text_flags_leave_their_key_absent(
+    csv_dataset: Path, tmp_path: Path, flag: str, key: str, blank: str
+) -> None:
+    """An empty property says less than no property; both are stripped away."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, flag, blank)
+
+    assert result.exit_code == 0, result.output
+    assert key not in json.loads(output.read_text())
+
+
+def test_profile_bioschemas_appends_to_conforms_to(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--profile bioschemas declares the second profile alongside Croissant 1.1."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, *BIOSCHEMAS_MINIMUMS, "--profile", "bioschemas")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+    ]
+
+
+def test_repeated_profile_is_declared_once(csv_dataset: Path, tmp_path: Path) -> None:
+    """A profile named twice is still one entry in conformsTo."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        *BIOSCHEMAS_MINIMUMS,
+        "--profile",
+        "bioschemas",
+        "--profile",
+        "bioschemas",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+    ]
+
+
+def test_profile_coexists_with_rai_conformance(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The RAI declaration appends to the profile list rather than replacing it."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        *BIOSCHEMAS_MINIMUMS,
+        "--profile",
+        "bioschemas",
+        "--rai-data-collection",
+        "Retrospective chart review",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+        RAI_CONFORMS_TO,
+    ]
+
+
+def test_bioschemas_profile_refuses_a_document_missing_its_minimums(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """Declaring a profile the document fails is worse than declaring none.
+
+    A SHACL validator reads conformsTo and checks what the profile requires,
+    so an undeclared document scores better than one that claims Bioschemas
+    and then omits the fields it lists as minimum.
+    """
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--profile", "bioschemas")
+
+    assert result.exit_code != 0
+    assert "Unexpected error" not in result.output
+    for field in ("identifier", "keywords", "url"):
+        assert field in result.output
+    assert not output.exists()
+
+
+def test_bioschemas_refusal_names_only_what_is_missing(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The user is told which fields to supply, not the whole minimum set."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--url",
+        "https://example.org/ds",
+        "--keywords",
+        "cardiology",
+        "--profile",
+        "bioschemas",
+    )
+
+    assert result.exit_code != 0
+    assert "identifier" in result.output
+    assert "keywords" not in result.output
+
+
+def test_bioschemas_minimums_are_checked_by_the_generator(tmp_path: Path) -> None:
+    """A library caller gets the same refusal, from the same owner."""
+    dataset = tmp_path / "ds"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n")
+    generator = MetadataGenerator(dataset_path=str(dataset), profiles=["bioschemas"])
+
+    with pytest.raises(ValueError, match="identifier"):
+        generator.generate_metadata()
+
+
+def test_unknown_profile_is_rejected(csv_dataset: Path, tmp_path: Path) -> None:
+    """An unrecognised profile name fails loudly and names what was rejected.
+
+    Asserted on the rejected name rather than on ``bioschemas``: the message
+    lists the known profiles too, so ``bioschemas`` would still appear if the
+    name the user typed were dropped from it.
+    """
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--profile", "biocroissant")
+
+    assert result.exit_code != 0
+    assert "biocroissant" in result.output
+    assert "Unexpected error" not in result.output
+
+
+def test_unknown_profile_is_rejected_during_parsing(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--dry-run returns early, so the check has to run while Typer parses."""
+    result = runner.invoke(
+        app, ["--input", str(csv_dataset), "--dry-run", "--profile", "biocroissant"]
+    )
+
+    assert result.exit_code != 0
+    assert "biocroissant" in result.output
+
+
+def test_comma_delimited_profiles_are_accepted(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--profile takes a comma list, as --identifier and --keywords already do."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset, output, *BIOSCHEMAS_MINIMUMS, "--profile", "bioschemas,bioschemas"
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+    ]
+
+
+def test_bad_usage_info_is_rejected_during_parsing(csv_dataset: Path) -> None:
+    """The URI check runs while parsing, so --dry-run is covered too."""
+    result = runner.invoke(
+        app,
+        ["--input", str(csv_dataset), "--dry-run", "--usage-info", "see license file"],
+    )
+
+    assert result.exit_code != 0
+    assert "Unexpected error" not in result.output
+
+
+def test_unknown_profile_is_rejected_by_the_generator(tmp_path: Path) -> None:
+    """A library caller gets the same refusal at construction, not a KeyError."""
+    with pytest.raises(ValueError, match="biocroissant"):
+        MetadataGenerator(dataset_path=str(tmp_path), profiles=["biocroissant"])
+
+
+def test_normalize_profiles_strips_drops_empties_and_dedupes() -> None:
+    """One owner for the rule, so the CLI and a library caller agree."""
+    assert normalize_profiles([" bioschemas ", "", "bioschemas"]) == ["bioschemas"]
+
+
+def test_normalize_profiles_splits_comma_lists() -> None:
+    """--profile takes comma lists, the way --keywords and --identifier do."""
+    assert normalize_profiles(["bioschemas,bioschemas"]) == ["bioschemas"]
+
+
+def test_normalize_profiles_reads_a_bare_string_as_one_name() -> None:
+    """A bare string is one flag's worth of input, not a sequence of letters."""
+    assert normalize_profiles("bioschemas") == ["bioschemas"]
+
+
+def test_normalize_profiles_returns_none_for_nothing() -> None:
+    """Nothing declared leaves conformsTo the bare Croissant string."""
+    assert normalize_profiles(None) is None
+    assert normalize_profiles([]) is None
+    assert normalize_profiles(["  "]) is None
+
+
+def test_generator_stores_the_normalised_profile_names(tmp_path: Path) -> None:
+    """The conformsTo lookup is safe by construction, padding and all."""
+    generator = MetadataGenerator(dataset_path=str(tmp_path), profiles=" bioschemas ")
+
+    assert generator.profiles == ["bioschemas"]
+
+
+def test_padded_profile_name_is_accepted(csv_dataset: Path, tmp_path: Path) -> None:
+    """Validation reads the same normalised names the generator is handed."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, *BIOSCHEMAS_MINIMUMS, "--profile", " bioschemas ")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+    ]
+
+
+def test_discovery_keys_absent_without_their_flags(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """None of the five appear unless asked for; optional keys stay absent."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output)
+
+    assert result.exit_code == 0, result.output
+    metadata = json.loads(output.read_text())
+    assert not {
+        "identifier",
+        "conditionsOfAccess",
+        "isAccessibleForFree",
+        "includedInDataCatalog",
+    } & set(metadata)
+    assert metadata["conformsTo"] == CROISSANT_CONFORMS_TO
+
+
+def test_all_discovery_fields_construct_under_mlcroissant(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """An output carrying all five still loads as a Croissant dataset.
+
+    The one new-field test that keeps validation on, so the default path
+    every user takes cannot break unnoticed: the rest pass --no-validate
+    to stay fast.
+    """
+    import mlcroissant as mlc
+
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--identifier",
+        "phs000218.v1.p1,EGAS00001000255",
+        "--keywords",
+        "cardiology,icu",
+        "--url",
+        "https://example.org/ds",
+        "--conditions-of-access",
+        "Controlled access: Data Access Agreement via the DAC",
+        "--not-accessible-for-free",
+        "--included-in-data-catalog",
+        "https://datacatalog.ccdi.cancer.gov/",
+        "--profile",
+        "bioschemas",
+        validate=True,
+    )
+
+    assert result.exit_code == 0, result.output
+    # Says the bake took the validating path, so the test cannot quietly stop
+    # covering it.
+    assert "Generated validated Croissant metadata" in result.output
+    metadata = mlc.Dataset(str(output)).metadata
+    assert metadata.name == "test_dataset"
+    assert metadata.conforms_to == [
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+    ]
