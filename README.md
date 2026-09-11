@@ -30,17 +30,17 @@
 pip install croissant-baker
 ```
 
+or with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv add croissant-baker
+```
+
 PDB, mmCIF and STAR files are parsed with [gemmi](https://gemmi.readthedocs.io/),
 which ships as an optional extra so the other formats do not have to carry it:
 
 ```bash
 pip install "croissant-baker[structural-biology]"
-```
-
-or with [uv](https://docs.astral.sh/uv/):
-
-```bash
-uv add croissant-baker
 ```
 
 ## Quick start
@@ -87,7 +87,7 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
 | GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
 | HDF5 | `.h5`, `.h5ad`, `.hdf5` | Dataset paths, dtypes and shapes via h5py (structure only); AnnData and 10x table columns where the layout is recognised |
-| Macromolecular structure | `.pdb`, `.ent`, `.cif`, `.mmcif` | Entry id, title, method, resolution, cell, space group and model, chain, residue and atom counts via gemmi (optional `structural-biology` extra); a small-molecule CIF by its cell and formula, and a CIF holding no structure by its tables |
+| Macromolecular structure | `.pdb`, `.ent`, `.cif`, `.mmcif` | Entry id, title, method, resolution, cell, space group and model, chain, residue and atom counts; a small-molecule CIF by its cell and formula, and a CIF holding no structure by its tables; all via gemmi (optional `structural-biology` extra) |
 | STAR | `.star` | RELION and other cryo-EM metadata: one record set per data block, columns typed from values, via gemmi (optional `structural-biology` extra) |
 | MRC / CCP4 map | `.mrc`, `.mrcs`, `.map`, `.ccp4` | Grid dimensions, data type, voxel size, space group, volume or stack (1024-byte header only) |
 | MTZ | `.mtz` | Reflection column labels and types, unit cell, space group, resolution range, datasets (header only) |
