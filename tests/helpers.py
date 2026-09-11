@@ -547,6 +547,120 @@ def _pdb() -> list:
     return [("1abc.pdb", (PDB_HEADER_TEXT + PDB_COORDINATE_TEXT).encode())]
 
 
+#: One PDBx/mmCIF entry, up to but not including its coordinate table.
+#:
+#: Written out by hand rather than downloaded, because every syntactic shape the
+#: handler has to get right is here and nowhere else: comment lines, single
+#: items, quoted values carrying spaces, a multi-line ``;`` text field, and
+#: loops of two and three columns. An archive entry is megabytes of
+#: ``_atom_site`` rows behind a header about this size.
+CIF_HEADER_TEXT = """\
+#
+data_1ABC
+#
+_entry.id   1ABC
+#
+_audit_conform.dict_name       mmcif_pdbx.dic
+_audit_conform.dict_version    5.279
+#
+_pdbx_database_status.recvd_initial_deposition_date   1998-01-12
+#
+loop_
+_audit_author.name
+_audit_author.pdbx_ordinal
+'Doe, J.'     1
+'Smith, A.'   2
+#
+_struct.entry_id   1ABC
+_struct.title
+;Crystal structure of a miniature hydrolase
+ at 1.80 angstrom resolution
+;
+#
+_struct_keywords.entry_id        1ABC
+_struct_keywords.pdbx_keywords   HYDROLASE
+_struct_keywords.text            'HYDROLASE, SERINE PROTEASE'
+#
+loop_
+_exptl.entry_id
+_exptl.method
+1ABC 'X-RAY DIFFRACTION'
+1ABC 'NEUTRON DIFFRACTION'
+#
+_refine.ls_d_res_high   1.80
+#
+loop_
+_entity_poly.entity_id
+_entity_poly.type
+_entity_poly.pdbx_strand_id
+1 'polypeptide(L)' A,B
+2 'polypeptide(L)' C
+#
+loop_
+_struct_asym.id
+_struct_asym.entity_id
+A 1
+B 1
+C 2
+#
+"""
+
+#: The coordinate table behind it. Never parsed by anything: it is here so a
+#: test proving the read stops at the ``_atom_site`` loop has one to stop at.
+CIF_ATOM_SITE_TEXT = """\
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+ATOM 1 N -8.901 4.127 -0.555
+ATOM 2 C -8.608 3.135 -1.618
+ATOM 3 C -7.221 2.458 -1.897
+"""
+
+#: A small-molecule CIF, the other dialect the handler tells apart: no category
+#: prefixes, a banner of comments in front of the data block the way a COD
+#: deposit ships one, cell lengths carrying their uncertainties, and a space
+#: group whose value has to be quoted because it holds spaces.
+SMALL_MOLECULE_CIF = """\
+#------------------------------------------------------------------------------
+# This block was produced for a test and describes nothing real.
+#------------------------------------------------------------------------------
+data_7101243
+_chemical_name_common            'benzene'
+_chemical_formula_sum            'C6 H6'
+_cell_length_a                   10.1234(4)
+_cell_length_b                   5.4321(3)
+_cell_length_c                   7.6543(5)
+_cell_angle_alpha                90
+_cell_angle_beta                 95.123(2)
+_cell_angle_gamma                90
+_space_group_name_H-M_alt        'P 21/c'
+_diffrn_radiation_wavelength     0.71073
+_refine_ls_R_factor_gt           0.0412
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+C1 0.1234 0.5678 0.9012
+C2 0.2345 0.6789 0.0123
+H1 0.3456 0.7890 0.1234
+""".encode()
+
+
+def _cif() -> list:
+    """One PDBx entry: a header, then a few coordinate rows.
+
+    The coordinate rows are the point, as they are in the PDB sample: a
+    header-only fixture cannot tell a handler that stops at the ``_atom_site``
+    loop apart from one that reads to end of file.
+    """
+    return [("1abc.cif", (CIF_HEADER_TEXT + CIF_ATOM_SITE_TEXT).encode())]
+
+
 def _smiles() -> list:
     """Three molecules with a name beside each, which is the common layout.
 
@@ -729,6 +843,7 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "BCFHandler": _bcf,
     "CRAMHandler": _cram,
     "PDBHandler": _pdb,
+    "CIFHandler": _cif,
     "XYZHandler": _xyz,
     "MOLHandler": _mol,
     "SDFHandler": _sdf,
@@ -865,6 +980,8 @@ def by_name(nodes: Iterable[dict], key: str = "name") -> dict:
 WRAPPER_SUFFIXES = [c.suffix for c in compression.BUILTIN_COMPRESSIONS]
 
 __all__ = [
+    "CIF_ATOM_SITE_TEXT",
+    "CIF_HEADER_TEXT",
     "DATA",
     "EXEMPT",
     "MOL_METHANE",
@@ -878,6 +995,7 @@ __all__ = [
     "PDB_TITLE_RECORDS",
     "PNG_1X1",
     "SAMPLES",
+    "SMALL_MOLECULE_CIF",
     "VCF_HEADER_TEXT",
     "WRAPPER_SUFFIXES",
     "bake",

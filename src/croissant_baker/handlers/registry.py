@@ -163,6 +163,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.sdf_handler import SDFHandler
     from croissant_baker.handlers.smiles_handler import SMILESHandler
     from croissant_baker.handlers.pdb_handler import PDBHandler
+    from croissant_baker.handlers.cif_handler import CIFHandler
     from croissant_baker.handlers.xyz_handler import XYZHandler
 
     return [
@@ -193,6 +194,7 @@ def builtin_handlers() -> List[FileTypeHandler]:
         SDFHandler(),
         SMILESHandler(),
         PDBHandler(),
+        CIFHandler(),
         XYZHandler(),
     ]
 
