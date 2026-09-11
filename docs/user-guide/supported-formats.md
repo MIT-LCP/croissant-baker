@@ -894,9 +894,12 @@ fields, and loops. It does not cover `save_` frames, which belong to dictionary
 files, the `global_` and `stop_` reserved words, or the CIF 2.0 list and table
 values; any of those is read as an ordinary value, which is why a dictionary
 file is refused for its categories rather than described badly. A text field
-that never closes, and a header that passes the byte cap without reaching a
-coordinate table, are each reported with that as the reason rather than read on
-for.
+that never closes, a single line running past a megabyte with no line ending in
+it, and a header that passes the byte cap without reaching a coordinate table,
+are each reported with that as the reason rather than read on for. The line cap
+is the second one because the header cap does not bound a file with no line
+ending: a reader assembling a line holds what it has read, so such a file costs
+the cap in memory and the square of it in copying on the way to it.
 
 **No record set is emitted.** Coordinate rows are records of a molecule, not of
 a dataset schema, so a structure is described as a file: the statement above is

@@ -147,6 +147,18 @@ VALUE_SEPARATOR = ","
 #: number: ``10.1234(4)`` is one cell edge and a second value about it.
 UNCERTAINTY = re.compile(r"\(\d+\)$")
 
+#: The largest single line this handler will accumulate. A CIF line is usually
+#: an item and its value, but a value can legitimately be long: an entry writes
+#: ``_entity_poly.pdbx_seq_one_letter_code`` as an unwrapped one-letter sequence,
+#: which for a large assembly runs to tens of kilobytes on one line. A megabyte
+#: is far above any of those, and a line longer than that is not a line of a CIF
+#: header: reading on for the end of it is reading the file this handler exists
+#: not to read. Two caps rather than one, because the header cap does not bound
+#: this: a reader assembling a line holds what it has read and re-copies it a
+#: chunk at a time, so a file with no line ending in it costs the cap in memory
+#: and the square of it in copying before the cap is reached.
+MAX_LINE_BYTES = 1024 * 1024
+
 #: How much of the head is read to decide a claim. A core CIF from the COD or
 #: the CSD opens with a banner of comment lines, so the ``data_`` line is not
 #: the first line of the file; a few kilobytes clears any banner anyone writes.
@@ -776,16 +788,18 @@ class CIFHandler(FileTypeHandler):
 
         Read through :class:`~croissant_baker.handlers.utils.PrefixLines`,
         which is bounded in bytes and delivers the tail of a file that ends
-        without a line ending as the line it is. The cap is checked once a
-        chunk, because a header that never reaches a coordinate table is owed a
-        refusal before the file ends.
+        without a line ending as the line it is. The caps are checked once a
+        chunk, because a header that never reaches a coordinate table, and a
+        line that never ends, are each owed a refusal before the file does.
         """
         try:
             with source.open() as stream:
                 reader = PrefixLines(
                     stream,
                     MAX_HEADER_BYTES + 1,
-                    on_chunk=lambda read, pending: self._still_a_header(read, name),
+                    on_chunk=lambda read, pending: self._still_a_header(
+                        pending, read, name
+                    ),
                 )
                 return _parse(_tokenize(reader, name, self.FORMAT_NAME))
         except UNREADABLE as exc:
@@ -793,13 +807,21 @@ class CIFHandler(FileTypeHandler):
                 f"Failed to read {self.FORMAT_NAME} file {name}: {exc}"
             ) from exc
 
-    def _still_a_header(self, header_bytes: int, name: str) -> None:
-        """Refuse a read that has gone past what a header can be.
+    def _still_a_header(self, line_bytes: int, header_bytes: int, name: str) -> None:
+        """Refuse a read that has gone past what a header can be, saying which.
 
-        A file with no coordinate table in it never reaches the stop, and a
-        dictionary or a powder pattern is exactly that. The cap is what ends
-        the read there, and the file is told which cap it passed.
+        Two caps rather than one. A file with no coordinate table in it never
+        reaches the stop, and a dictionary or a powder pattern is exactly that,
+        so the header cap ends the read there. A file with no line ending in it
+        does not reach the header cap either, not before holding and re-copying
+        every byte on the way to it, so the line cap ends that one first.
         """
+        if line_bytes > MAX_LINE_BYTES:
+            raise ValueError(
+                f"Not a {self.FORMAT_NAME} file: {name} runs to {line_bytes} "
+                f"bytes with no line ending, past the {MAX_LINE_BYTES} a line of "
+                "a CIF header can be"
+            )
         if header_bytes > MAX_HEADER_BYTES:
             raise ValueError(
                 f"Not a {self.FORMAT_NAME} file: the header of {name} exceeded "
