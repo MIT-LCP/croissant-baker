@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 from croissant_baker.__main__ import app
 from croissant_baker.metadata_generator import (
     BIOSCHEMAS_CONFORMS_TO,
+    CROISSANT_CONFORMS_TO,
     MetadataGenerator,
     normalize_profiles,
 )
@@ -1075,13 +1076,57 @@ def test_profile_coexists_with_rai_conformance(
 
 
 def test_unknown_profile_is_rejected(csv_dataset: Path, tmp_path: Path) -> None:
-    """An unrecognised profile name fails loudly and names what is accepted."""
+    """An unrecognised profile name fails loudly and names what was rejected.
+
+    Asserted on the rejected name rather than on ``bioschemas``: the message
+    lists the known profiles too, so ``bioschemas`` would still appear if the
+    name the user typed were dropped from it.
+    """
     output = tmp_path / "output.jsonld"
 
     result = cli(csv_dataset, output, "--profile", "biocroissant")
 
     assert result.exit_code != 0
-    assert "bioschemas" in result.output
+    assert "biocroissant" in result.output
+    assert "Unexpected error" not in result.output
+
+
+def test_unknown_profile_is_rejected_during_parsing(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--dry-run returns early, so the check has to run while Typer parses."""
+    result = runner.invoke(
+        app, ["--input", str(csv_dataset), "--dry-run", "--profile", "biocroissant"]
+    )
+
+    assert result.exit_code != 0
+    assert "biocroissant" in result.output
+
+
+def test_comma_delimited_profiles_are_accepted(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--profile takes a comma list, as --identifier and --keywords already do."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--profile", "bioschemas,bioschemas")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        CROISSANT_CONFORMS_TO,
+        BIOSCHEMAS_CONFORMS_TO,
+    ]
+
+
+def test_bad_usage_info_is_rejected_during_parsing(csv_dataset: Path) -> None:
+    """The URI check runs while parsing, so --dry-run is covered too."""
+    result = runner.invoke(
+        app,
+        ["--input", str(csv_dataset), "--dry-run", "--usage-info", "see license file"],
+    )
+
+    assert result.exit_code != 0
+    assert "Unexpected error" not in result.output
 
 
 def test_unknown_profile_is_rejected_by_the_generator(tmp_path: Path) -> None:

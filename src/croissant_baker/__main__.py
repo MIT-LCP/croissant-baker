@@ -22,6 +22,7 @@ from croissant_baker.metadata_generator import (
     MetadataGenerator,
     PROFILE_CONFORMS_TO,
     RAI_CONFORMS_TO,
+    normalize_profiles,
     serialize_datetime,
 )
 from croissant_baker import compression
@@ -315,30 +316,45 @@ def _merge_field_mapping_flags(
 _URI_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+\-.]*:")
 
 
-def _validate_uri(option_name: str, value: Optional[str]) -> None:
-    """Reject strings that don't start with an RFC 3986 URI scheme.
+def _uri_option(
+    ctx: typer.Context, param: typer.CallbackParam, value: Optional[str]
+) -> Optional[str]:
+    """Strip a URI-valued option, then reject strings with no URI scheme.
 
     Catches free text like 'see license file' but accepts http(s)://, urn:,
-    did:, mailto:, and any other valid scheme. schema.org/usageInfo accepts
+    did:, mailto:, and any other valid scheme — schema.org/usageInfo accepts
     URLs broadly, not just web URLs.
+
+    A parse-time callback rather than a check in the command body: Typer runs
+    it before ``--dry-run`` returns early, and a refusal renders as an invalid
+    option instead of being swallowed by the broad handler and reported as an
+    unexpected error. Normalising first means a blank value is absent rather
+    than a URI check nobody asked for.
     """
-    if value is None:
-        return
-    if not _URI_SCHEME.match(value):
+    value = _normalize_optional_text(value)
+    if value is not None and not _URI_SCHEME.match(value):
         raise typer.BadParameter(
-            f"{option_name} must be a URI starting with a scheme "
-            f"(e.g. https://, urn:, did:, mailto:), got {value!r}"
+            "must be a URI starting with a scheme "
+            f"(e.g. https://, urn:, did:, mailto:), got {value!r}",
+            ctx=ctx,
+            param=param,
         )
+    return value
 
 
-def _validate_profiles(values: Optional[List[str]]) -> None:
-    """Reject profile names the generator has no conformsTo URI for."""
-    unknown = sorted(set(values or []) - set(PROFILE_CONFORMS_TO))
-    if unknown:
-        raise typer.BadParameter(
-            f"--profile must be one of: {', '.join(sorted(PROFILE_CONFORMS_TO))}; "
-            f"got {', '.join(repr(name) for name in unknown)}"
-        )
+def _profile_option(
+    ctx: typer.Context, param: typer.CallbackParam, value: Optional[List[str]]
+) -> Optional[List[str]]:
+    """Normalise and check --profile while Typer parses, for the same reasons.
+
+    The rule belongs to the generator, which every caller goes through; this
+    only translates its refusal into the CLI's own error type so the message
+    is worded once.
+    """
+    try:
+        return normalize_profiles(list(value or []))
+    except ValueError as e:
+        raise typer.BadParameter(str(e), ctx=ctx, param=param)
 
 
 def _validate_iso_datetimes(option_name: str, values: Optional[List[str]]) -> None:
@@ -557,6 +573,7 @@ def main(
         None,
         "--usage-info",
         help="URI pointing to a usage or consent policy. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'http://purl.obolibrary.org/obo/DUO_0000042' (DUO term).",
+        callback=_uri_option,
     ),
     identifier: Optional[List[str]] = typer.Option(
         None,
@@ -581,7 +598,8 @@ def main(
     profile: Optional[List[str]] = typer.Option(
         None,
         "--profile",
-        help=f"Additional profile to declare in conformsTo. One of: {', '.join(sorted(PROFILE_CONFORMS_TO))}. Declares the profile; it does not validate against it. Repeatable.",
+        help=f"Additional profile to declare in conformsTo. One of: {', '.join(sorted(PROFILE_CONFORMS_TO))}. Repeat or comma-delimit.",
+        callback=_profile_option,
     ),
     field_mappings: Optional[Path] = typer.Option(
         None,
@@ -913,11 +931,6 @@ def main(
                     err=True,
                 )
 
-        _validate_uri("--usage-info", usage_info)
-        # Normalise before validating, so the names checked here are the ones
-        # the generator is handed rather than the raw argv strings.
-        profiles = _normalize_optional_text_list(profile)
-        _validate_profiles(profiles)
         merged_field_mappings = _merge_field_mapping_flags(
             _load_field_mappings(field_mappings), field_mapping
         )
@@ -948,7 +961,7 @@ def main(
             conditions_of_access=conditions_of_access,
             is_accessible_for_free=is_accessible_for_free,
             included_in_data_catalog=included_in_data_catalog,
-            profiles=profiles,
+            profiles=profile,
             field_mappings=merged_field_mappings,
             count_csv_rows=count_csv_rows,
             max_workers=jobs or None,
