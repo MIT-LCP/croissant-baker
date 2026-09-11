@@ -389,6 +389,32 @@ def test_a_header_above_the_cap_is_refused(
     assert "endless.cif" in str(caught.value)
 
 
+#: A body with no line ending anywhere in it, and the read a bounded handler
+#: may spend before refusing it: the line cap, plus the chunk it was reached in.
+#: Four megabytes rather than the eighty a real one runs to, because a reader
+#: that accumulates the line re-copies what it holds on every chunk, and the
+#: cost of proving that is quadratic in the fixture.
+NO_NEWLINE_BYTES = 4 * 1024 * 1024
+BOUNDED_REFUSAL = 2 * 1024 * 1024
+
+
+def test_a_body_holding_no_line_ending_is_refused_after_a_bounded_read(
+    dataset: Path,
+) -> None:
+    """A CIF is a line-oriented format, and the header cap alone does not bound
+    a file that holds no line ending: the reader accumulates the line it is
+    assembling, so sixty-four mebibytes of it is read, held and re-copied a
+    chunk at a time before anything refuses it."""
+    path = write(dataset, "unbroken.cif", b"data_1ABC\n" + b"x" * NO_NEWLINE_BYTES)
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "unbroken.cif" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < BOUNDED_REFUSAL
+
+
 def long_block(items: int = 1000) -> bytes:
     """One data block long enough that a truncated copy still fills a peek.
 
