@@ -17,6 +17,7 @@ import mlcroissant as mlc
 import pytest
 
 from croissant_baker.entries import Reason
+from croissant_baker.handlers import molfile
 from croissant_baker.handlers.mol_handler import HEAD_BYTES, MOLHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import make_source
@@ -147,6 +148,25 @@ def test_a_header_that_does_not_complete_inside_the_bound_is_refused(
 
     assert "huge.mol" in str(caught.value)
     assert str(HEAD_BYTES) in str(caught.value)
+
+
+def counts_line_ending_at(limit: int) -> bytes:
+    """A V2000 header of exactly ``limit`` bytes whose counts line is its last
+    line, written without a line ending as a writer closing the file leaves it.
+    """
+    lines = MOL_V2000.split(b"\n")
+    head = b"\n".join(lines[:2]) + b"\n"
+    counts = lines[molfile.COUNTS_LINE]
+    return head + b"c" * (limit - len(head) - len(counts) - 1) + b"\n" + counts
+
+
+def test_a_header_ending_exactly_on_the_bound_is_described(dataset: Path) -> None:
+    """The stream ended where the bound sits, so nothing was cut in half. The
+    counts line is whole, and refusing it said the header did not complete in a
+    prefix it completed at the last byte of."""
+    meta = extract(write(dataset, "tight.mol", counts_line_ending_at(HEAD_BYTES)))
+
+    assert (meta["atom_count"], meta["bond_count"]) == (3, 2)
 
 
 def test_a_counts_line_carrying_no_version_literal_is_refused(dataset: Path) -> None:

@@ -314,9 +314,10 @@ class SMILESHandler(FileTypeHandler):
         Read through :class:`~croissant_baker.handlers.utils.PrefixLines`,
         which is bounded in bytes; the line bound stops the read here.
 
-        A file whose bytes run out exactly at the byte bound is reported as not
-        exhausted: what stopped the read was the bound, and the tail behind it
-        cannot be told from a line the read cut in half.
+        A file whose bytes run out exactly at the byte bound is reported as
+        exhausted: the reader looks one byte past the bound to tell the end of
+        a stream from the bound that stopped it, so the sample really is the
+        whole file.
         """
         lines: List[str] = []
         try:
