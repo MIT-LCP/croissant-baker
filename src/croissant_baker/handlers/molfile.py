@@ -54,6 +54,13 @@ V3000_BOND_TOKEN = 4
 #: the container's own.
 END_MARKER = "M  END"
 
+#: The marker as the two tokens it is spelled from. Matched on those rather
+#: than on the literal, because the specification fixes two spaces between them
+#: and writers emit one, and a block whose marker is spelled that way ends where
+#: the marker says it does all the same. The ``M  V30 END CTAB`` line inside a
+#: V3000 block spells four tokens and so cannot be mistaken for it.
+END_TOKENS = END_MARKER.split()
+
 #: How much of the head a caller has to offer for the version literal to be
 #: readable. The three lines above the counts line are 80 characters each by
 #: specification, so this is an order of magnitude more than a molfile needs and
@@ -122,6 +129,11 @@ def parse_molfile_header(lines: Sequence[str]) -> MolfileHeader:
     if version == V2000:
         return MolfileHeader(title, version, *_v2000_counts(counts))
     return MolfileHeader(title, version, *_v3000_counts(lines))
+
+
+def is_end_marker(line: str) -> bool:
+    """Whether ``line`` is the marker that closes a connection table."""
+    return line.split() == END_TOKENS
 
 
 def _version_of(counts: str) -> Optional[str]:

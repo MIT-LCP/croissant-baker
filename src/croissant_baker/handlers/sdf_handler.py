@@ -134,14 +134,24 @@ def item_name(line: str) -> Optional[str]:
 def below_the_molfile(lines: Sequence[str]) -> int:
     """Where the record's own annotations start: the line under ``M  END``.
 
-    The end of the record when there is no ``M  END``, so a record stating no
-    connection table states no data item either. Reporting nothing beats
-    reading a block whose shape is not the one the scan assumes.
+    Raises:
+        ValueError: If the record carries no ``M  END``. The marker is the only
+            thing in the record that says where the molfile block ends, so a
+            record without one states no place for its data items to start, and
+            reading them off the top of the block would read the title and
+            program lines as annotations. Treating it as a record of no items
+            described the record and dropped the items it does carry, in
+            silence, which is the one answer a reader cannot tell from a library
+            that annotates nothing. The message is a continuation naming what
+            was wrong, so a caller can prefix it with the file and the record.
     """
     for index, line in enumerate(lines):
-        if line.strip() == molfile.END_MARKER:
+        if molfile.is_end_marker(line):
             return index + 1
-    return len(lines)
+    raise ValueError(
+        f"carries no {molfile.END_MARKER!r} line, so its molfile block does not "
+        "close and the data items below it cannot be located"
+    )
 
 
 def data_items(lines: Sequence[str]) -> List[Tuple[str, str]]:
@@ -155,6 +165,10 @@ def data_items(lines: Sequence[str]) -> List[Tuple[str, str]]:
 
     An item naming no field is passed over with its value. ``> <>`` names
     nothing, and a field with no name is not one to describe.
+
+    Raises:
+        ValueError: If the block does not close, through
+            :func:`below_the_molfile`.
     """
     items: List[Tuple[str, str]] = []
     index = below_the_molfile(lines)
@@ -270,7 +284,7 @@ class SDFHandler(FileTypeHandler):
         name = str(source.relative_path)
         records, exhausted = self._read_records(source, name)
         versions = self._versions(records, name)
-        fields = self._fields(records)
+        fields = self._fields(records, name)
 
         return {
             "file_name": source.name,
@@ -353,16 +367,26 @@ class SDFHandler(FileTypeHandler):
                 ) from exc
         return versions
 
-    def _fields(self, records: List[List[str]]) -> List[Dict[str, str]]:
+    def _fields(self, records: List[List[str]], name: str) -> List[Dict[str, str]]:
         """One entry per data item name, in the order the sample first saw it.
 
         First-seen order rather than sorted: it is the order the depositor wrote
         the items in, it is the same on every run over the same bytes, and it is
         the order a reader opening the file sees them.
+
+        A record whose block does not close is reported by its ordinal, the way
+        :meth:`_versions` reports one whose header cannot be read: both are a
+        record this handler cannot locate the rest of the record from.
         """
         sampled: Dict[str, List[str]] = {}
-        for lines in records:
-            for item, value in data_items(lines):
+        for index, lines in enumerate(records, start=1):
+            try:
+                items = data_items(lines)
+            except ValueError as exc:
+                raise ValueError(
+                    f"Not an {self.FORMAT_NAME} file: record {index} of {name} {exc}"
+                ) from exc
+            for item, value in items:
                 sampled.setdefault(item, []).append(value)
         return [
             {"name": item, "type": field_type(values)}
