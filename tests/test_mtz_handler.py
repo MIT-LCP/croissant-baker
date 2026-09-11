@@ -153,17 +153,6 @@ def test_the_parsed_header_agrees_with_gemmi(
     assert props["resolution_low_angstrom"] == pytest.approx(reference.resolution_low())
 
 
-def test_the_column_count_and_version_come_from_the_header(
-    handler: MTZHandler, written: Path
-) -> None:
-    props = handler.extract(make_source(written))["mtz_properties"]
-
-    assert props["n_columns"] == 5
-    assert props["n_batches"] == 0
-    assert props["version"].startswith("MTZ:V")
-    assert props["space_group_number"] == 19
-
-
 def test_the_columns_carry_their_dataset(handler: MTZHandler, written: Path) -> None:
     props = handler.extract(make_source(written))["mtz_properties"]
 
@@ -172,15 +161,15 @@ def test_the_columns_carry_their_dataset(handler: MTZHandler, written: Path) -> 
     assert props["columns"][4] == ("SIGFP", "Q", 1)
 
 
-def test_the_datasets_are_reported_with_their_project_and_crystal(
+def test_a_dataset_is_reported_with_its_name_and_wavelength(
     handler: MTZHandler, written: Path
 ) -> None:
+    """The two things a column's description and the record set's are built
+    from; the project and the crystal a dataset belongs to are read by nobody."""
     props = handler.extract(make_source(written))["mtz_properties"]
     native = next(d for d in props["datasets"] if d["id"] == 1)
 
     assert native["name"] == "native"
-    assert native["project"] == "native"
-    assert native["crystal"] == "native"
     assert native["wavelength"] == pytest.approx(0.0)
 
 
@@ -204,7 +193,6 @@ def test_a_big_endian_header_reads_the_same_values(
     path = write_mtz(tmp_path / "big.mtz", mtz_bytes(records, endian=">"))
     props = handler.extract(make_source(path))["mtz_properties"]
 
-    assert props["n_columns"] == 4
     assert props["n_reflections"] == 120
     assert props["title"] == "hand built"
     assert props["space_group"] == "P 21 21 21"
@@ -348,13 +336,9 @@ def test_an_unknown_column_type_is_a_float(caplog: pytest.LogCaptureFixture) -> 
 def mtz_meta(name: str, path: str | None = None, **overrides) -> dict:
     props = {
         "title": "demo",
-        "version": "MTZ:V1.1",
-        "n_columns": 5,
         "n_reflections": 4321,
-        "n_batches": 0,
         "unit_cell": (50.0, 60.0, 70.0, 90.0, 90.0, 90.0),
         "space_group": "P 21 21 21",
-        "space_group_number": 19,
         "resolution_low_angstrom": 50.0,
         "resolution_high_angstrom": 1.8,
         "columns": [
@@ -365,14 +349,8 @@ def mtz_meta(name: str, path: str | None = None, **overrides) -> dict:
             ("SIGFP", "Q", 1),
         ],
         "datasets": [
-            {"id": 0, "project": "HKL_base", "crystal": "HKL_base", "name": "HKL_base"},
-            {
-                "id": 1,
-                "project": "native",
-                "crystal": "native",
-                "name": "native",
-                "wavelength": 0.9795,
-            },
+            {"id": 0, "name": "HKL_base"},
+            {"id": 1, "name": "native", "wavelength": 0.9795},
         ],
     }
     props.update(overrides)
@@ -479,6 +457,47 @@ def test_the_record_set_description_summarises_the_crystal(
     assert "50" in description and "60" in description and "70" in description
     assert "1.8" in description
     assert "HKL_base" in description
+
+
+def test_the_description_carries_the_title_the_writer_left(
+    handler: MTZHandler,
+) -> None:
+    """The one line in the header that says what the file is for, in the
+    depositor's own words."""
+    _, record_sets = handler.build_croissant([mtz_meta("native.mtz")], ["file_0"])
+
+    assert "Title: demo." in record_sets[0].description
+
+
+def test_a_file_with_no_title_is_described_without_one(handler: MTZHandler) -> None:
+    meta = mtz_meta("untitled.mtz", title="")
+
+    _, record_sets = handler.build_croissant([meta], ["file_0"])
+
+    assert "Title" not in record_sets[0].description
+
+
+def test_a_dataset_is_described_at_the_wavelength_it_was_measured(
+    handler: MTZHandler,
+) -> None:
+    """Which edge a dataset was collected at is what separates two datasets of
+    one crystal, and nothing else in the record set says it."""
+    _, record_sets = handler.build_croissant([mtz_meta("native.mtz")], ["file_0"])
+
+    assert "native at 0.9795 Angstrom" in record_sets[0].description
+
+
+def test_a_wavelength_nobody_recorded_is_left_out(handler: MTZHandler) -> None:
+    """Zero is what a writer leaves for a dataset with no beam behind it, and
+    reporting it would claim a measurement at zero Angstrom."""
+    meta = mtz_meta("native.mtz")
+    meta["mtz_properties"]["datasets"] = [
+        {"id": 1, "name": "native", "wavelength": 0.0}
+    ]
+
+    _, record_sets = handler.build_croissant([meta], ["file_0"])
+
+    assert "datasets native)" in record_sets[0].description
 
 
 def test_an_unknown_resolution_is_left_out_of_the_description(

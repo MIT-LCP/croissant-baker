@@ -84,7 +84,12 @@ def _kind(ispg: int) -> str:
 
 
 def _read_mrc_properties(header: bytes, name: str) -> dict:
-    """Everything the 56 header words say about the grid."""
+    """What the header says about the grid, and who wrote it.
+
+    Only the words something downstream reads: the density statistics and the
+    format version are in the header too, and describing them would put numbers
+    in the manifest that no field and no description is built from.
+    """
     if len(header) < HEADER_BYTES:
         raise ValueError(
             f"Not an MRC map: {name} is {len(header)} bytes, short of the "
@@ -95,9 +100,7 @@ def _read_mrc_properties(header: bytes, name: str) -> dict:
     nx, ny, nz, mode = struct.unpack(f"{order}4i", header[0:16])
     mx, my, mz = struct.unpack(f"{order}3i", header[28:40])
     cell_a, cell_b, cell_c = struct.unpack(f"{order}3f", header[40:52])
-    dmin, dmax, dmean = struct.unpack(f"{order}3f", header[76:88])
     (ispg,) = struct.unpack(f"{order}i", header[88:92])
-    (nversion,) = struct.unpack(f"{order}i", header[108:112])
     (nlabl,) = struct.unpack(f"{order}i", header[220:224])
 
     if min(nx, ny, nz) <= 0:
@@ -134,17 +137,12 @@ def _read_mrc_properties(header: bytes, name: str) -> dict:
         # A volume stack packs its volumes along z, mz slices each.
         props["n_images"] = nz // mz if mz > 0 else nz
 
-    if nversion:
-        props["nversion"] = nversion
-
+    # Only the first of the ten label slots, and only where a writer filled it
+    # in: it names the program that wrote the run, which is the one thing the
+    # label block says that the numeric words do not.
     labels = _labels(header, nlabl)
-    props["n_labels"] = len(labels)
     if labels:
         props["first_label"] = labels[0]
-
-    props["density_min"] = float(dmin)
-    props["density_max"] = float(dmax)
-    props["density_mean"] = float(dmean)
     return props
 
 
@@ -165,7 +163,15 @@ class MRCHandler(FileTypeHandler):
     ``.ccp4``).
 
     Reads the fixed 1024-byte header and stops there: grid size, stored data
-    type, voxel size, space group and whether the file is one volume or a stack.
+    type, voxel size, space group, whether the file is one volume or a stack,
+    and the label the writer stamped into it.
+
+    The fields read ``fileProperty: content`` over the FileSet, the way the
+    NIfTI and DICOM fields do, because that is what the record set is: one
+    record per file, not one per voxel. Reading that content selects no header
+    word, and mlcroissant dispatches its reader on ``encodingFormat`` over a
+    fixed list MRC is not on, so the fields describe the batch rather than
+    promise a read.
     """
 
     EXTENSIONS = (".mrc", ".mrcs", ".map", ".ccp4")
@@ -231,7 +237,10 @@ class MRCHandler(FileTypeHandler):
         file_set = mlc.FileSet(
             id=FILE_SET_ID,
             name="MRC / CCP4 maps",
-            description=f"{count} MRC/CCP4 map file(s) ({dims}; {kinds})",
+            description=(
+                f"{count} MRC/CCP4 map file(s) ({dims}; {kinds})"
+                + _label_note(properties)
+            ),
             encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
             includes=_includes(file_metas),
         )
@@ -251,6 +260,18 @@ def _includes(file_metas: list) -> list:
     """A glob per suffix the batch actually carries, in declared order."""
     present = {Path(meta["file_name"]).suffix.lower() for meta in file_metas}
     return [f"**/*{ext}" for ext in MRCHandler.EXTENSIONS if ext in present]
+
+
+def _label_note(properties: list) -> str:
+    """The header label the whole batch shares, as a sentence, or nothing.
+
+    A writer stamps its own line into every map of a run, so one shared label
+    names the run. Labels that differ name nothing the FileSet as a whole can
+    claim, and quoting one per file would let a batch of ten thousand maps
+    write a description ten thousand lines long.
+    """
+    labels = {props["first_label"] for props in properties if props.get("first_label")}
+    return f". Labelled: {labels.pop()}" if len(labels) == 1 else ""
 
 
 def _dims_note(properties: list) -> str:

@@ -135,8 +135,8 @@ def _resolution(low_word: float, high_word: float) -> dict:
 def _dataset(datasets: dict, ident: int) -> dict:
     """The entry for one dataset id, created on first mention.
 
-    PROJECT, CRYSTAL, DATASET and DWAVEL arrive as four separate records for
-    the same id, and any of them may be the first this file carries.
+    DATASET and DWAVEL arrive as separate records for the same id, and either
+    may be the first this file carries.
     """
     return datasets.setdefault(ident, {"id": ident})
 
@@ -153,30 +153,20 @@ def _read_mtz_properties(records: list, name: str) -> dict:
             continue
         keyword, rest = parts[0], parts[1:]
         try:
-            if keyword == "VERS" and rest:
-                props["version"] = record[len(keyword) :].strip()
-            elif keyword == "TITLE":
+            if keyword == "TITLE":
                 props["title"] = record[len(keyword) :].strip()
             elif keyword == "NCOL" and len(rest) >= 3:
-                props["n_columns"] = int(rest[0])
                 props["n_reflections"] = int(rest[1])
-                props["n_batches"] = int(rest[2])
             elif keyword == "CELL" and len(rest) >= 6:
                 props["unit_cell"] = tuple(float(value) for value in rest[:6])
             elif keyword == "SYMINF" and len(rest) >= 4:
-                props["space_group_number"] = int(rest[3])
                 props["space_group"] = _quoted(record)
             elif keyword == "RESO" and len(rest) >= 2:
                 props.update(_resolution(float(rest[0]), float(rest[1])))
             elif keyword == "COLUMN" and len(rest) >= 5:
                 columns.append((rest[0], rest[1], int(rest[-1])))
-            elif keyword in ("PROJECT", "CRYSTAL", "DATASET") and len(rest) >= 2:
-                entry = _dataset(datasets, int(rest[0]))
-                entry[
-                    {"PROJECT": "project", "CRYSTAL": "crystal", "DATASET": "name"}[
-                        keyword
-                    ]
-                ] = " ".join(rest[1:])
+            elif keyword == "DATASET" and len(rest) >= 2:
+                _dataset(datasets, int(rest[0]))["name"] = " ".join(rest[1:])
             elif keyword == "DWAVEL" and len(rest) >= 2:
                 _dataset(datasets, int(rest[0]))["wavelength"] = float(rest[1])
         except ValueError as exc:
@@ -298,9 +288,25 @@ def _description(meta: dict, props: dict) -> str:
         parts.append(f"resolution to {high:g} Angstrom")
 
     datasets = [
-        entry["name"] for entry in props.get("datasets", []) if entry.get("name")
+        _dataset_note(entry) for entry in props.get("datasets", []) if entry.get("name")
     ]
     if datasets:
         parts.append("datasets " + ", ".join(datasets))
 
-    return f"Reflection data in {display_name(meta)} ({'; '.join(parts)})."
+    described = f"Reflection data in {display_name(meta)} ({'; '.join(parts)})."
+    if props.get("title"):
+        described += f" Title: {props['title']}."
+    return described
+
+
+def _dataset_note(entry: dict) -> str:
+    """A dataset's name, and the wavelength it was collected at.
+
+    Which edge a dataset was measured at is what tells two datasets of one
+    crystal apart. Zero is what a writer leaves for a dataset with no beam
+    behind it, and reporting it would claim a measurement at zero Angstrom.
+    """
+    wavelength = entry.get("wavelength")
+    if wavelength:
+        return f"{entry['name']} at {wavelength:g} Angstrom"
+    return entry["name"]

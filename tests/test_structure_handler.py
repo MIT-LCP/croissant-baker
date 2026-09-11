@@ -76,6 +76,33 @@ _audit_author_address
 'Okafor, N.'  'Cambridge, MA'
 """
 
+#: A wwPDB validation report: it names the entry it reports on, so it carries
+#: ``_entry.id``, and it holds not one atom site.
+VALIDATION_REPORT_CIF = """\
+data_1ABC
+_entry.id                       1ABC
+_pdbx_audit.method              'wwPDB validation'
+_pdbx_audit.software_version    2.42
+
+loop_
+_pdbx_validate_close_contact.id
+_pdbx_validate_close_contact.dist
+1 1.85
+2 1.92
+"""
+
+#: An entry stripped of its coordinates: the ``_atom_site`` loop still declares
+#: its columns, and no row follows them.
+EMPTY_ATOM_SITE_CIF = """\
+data_1ABC
+_entry.id    1ABC
+
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.Cartn_x
+"""
+
 #: A block that declares nothing at all, which is not a table anyone can read.
 EMPTY_BLOCK_CIF = "data_nothing\n"
 
@@ -352,6 +379,41 @@ def test_a_cif_document_says_it_is_not_a_structure(
     assert meta["encoding_format"] == "chemical/x-cif"
 
 
+def test_a_validation_report_is_described_as_its_tables(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """``_entry.id`` says which entry a document is about, not that it holds
+    one. A validation report carries the tag and no atom site, so it takes the
+    path a dictionary takes rather than being read as a structure with nothing
+    in it."""
+    path = tmp_path / "1abc_validation.cif"
+    path.write_text(VALIDATION_REPORT_CIF)
+
+    meta = handler.extract(make_source(path))
+
+    assert "structure_properties" not in meta
+    assert [(table.block, table.kind) for table in meta["tables"]] == [
+        ("1ABC", "pairs"),
+        ("1ABC", "loop"),
+    ]
+    assert meta["encoding_format"] == "chemical/x-cif"
+
+
+def test_an_entry_whose_atom_sites_are_all_gone_is_described_as_its_tables(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """A loop that declares its columns and no row builds a structure with no
+    model. Counting chains in one raises, so the columns are what is left to
+    describe."""
+    path = tmp_path / "stripped.cif"
+    path.write_text(EMPTY_ATOM_SITE_CIF)
+
+    meta = handler.extract(make_source(path))
+
+    assert "structure_properties" not in meta
+    assert [table.kind for table in meta["tables"]] == ["pairs", "loop"]
+
+
 def test_a_cif_block_declaring_nothing_is_refused(
     handler: StructureHandler, tmp_path: Path
 ) -> None:
@@ -378,14 +440,18 @@ def test_a_missing_file_raises_file_not_found(
 def test_garbage_bytes_raise_a_value_error_naming_the_file(
     handler: StructureHandler, tmp_path: Path, name: str
 ) -> None:
-    """The message becomes the reason detail a user reads in ``--report``."""
+    """The message becomes the reason detail a user reads in ``--report``, so
+    the file name alone is not enough: a report ending in a bare colon tells
+    nobody what went wrong."""
     path = tmp_path / name
     path.write_bytes(b"\x00\xff not a real file \xfe\x00")
 
     with pytest.raises(ValueError) as caught:
         handler.extract(make_source(path))
 
-    assert name in str(caught.value)
+    message = str(caught.value)
+    assert name in message
+    assert message.partition(f"{name}:")[2].strip()
 
 
 def test_an_empty_batch_describes_nothing(handler: StructureHandler) -> None:
@@ -661,6 +727,22 @@ def test_the_fileset_excludes_a_document_its_glob_would_reach(
 
     assert file_sets[0].includes == ["**/*.cif"]
     assert file_sets[0].excludes == ["notes.cif"]
+
+
+def test_an_exclusion_is_rendered_as_a_glob_with_forward_slashes(
+    handler: StructureHandler, tmp_path: Path
+) -> None:
+    """An exclude is a glob, and a glob separates its components with ``/``
+    wherever it is read. A path built from its parts separates them with the
+    host's separator, which on Windows is not that."""
+    structure = handler.extract(make_source(write_mmcif(tmp_path)))
+    structure["relative_path"] = structure["stored_name"] = "1abc.cif"
+    document = handler.extract(make_source(write_generic_cif(tmp_path)))
+    document["relative_path"] = Path("dictionaries") / "audit.cif"
+
+    file_sets, _ = handler.build_croissant([structure, document], ["file_0", "file_1"])
+
+    assert file_sets[0].excludes == ["dictionaries/audit.cif"]
 
 
 def test_a_batch_of_structures_alone_excludes_nothing(

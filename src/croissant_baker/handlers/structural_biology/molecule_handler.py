@@ -55,6 +55,13 @@ V3000_COUNTS = "M  V30 COUNTS"
 #: What starts a MOL2 record. Its next four lines are name, counts, type, charge.
 MOL2_MOLECULE = "@<TRIPOS>MOLECULE"
 
+#: The molecule types Tripos defines. The line holding one is free text in a
+#: format anyone can write, so a value outside the vocabulary is counted under
+#: :data:`OTHER_KIND` rather than kept: a description built from what the file
+#: happened to say there is bounded by the file's size, not by the format's.
+MOL2_TYPES = frozenset({"SMALL", "BIOPOLYMER", "PROTEIN", "NUCLEIC_ACID", "SACCHARIDE"})
+OTHER_KIND = "other"
+
 _INTEGER = re.compile(r"[+-]?\d+\Z")
 _FLOAT = re.compile(r"[+-]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?\Z")
 #: ``> <MW>``, ``>  <MW>  (1)``: the tag is what the first angle brackets hold.
@@ -76,7 +83,8 @@ class Molecules:
             declared a count.
         bond_range: ``(min, max)`` bonds per record, or ``None``.
         kinds: The connection-table versions seen (``V2000``, ``V3000``), or
-            the Tripos molecule types for a MOL2, in first-seen order.
+            for a MOL2 the Tripos molecule types of :data:`MOL2_TYPES`, with
+            anything else as :data:`OTHER_KIND`. In first-seen order.
         tags: ``(name, croissant_type)`` per SDF property tag, in first-seen
             order. Empty for MOL2, which has no equivalent.
         named: Whether any record declares a molecule name.
@@ -105,18 +113,29 @@ def _value_kind(value: List[str]) -> str:
     return "int" if _INTEGER.match(text) else "float"
 
 
-def _croissant_type(values: List[List[str]]) -> str:
-    """The type a tag's values across the whole file agree on.
+#: Widening order. An integer column can turn out to be decimal and a decimal
+#: one to be text, and neither goes back, so one kind per tag says everything a
+#: list of every value it was ever written with would.
+_KINDS = ("int", "float", "text")
+
+_CROISSANT_TYPES = {"int": INTEGER_TYPE, "float": FLOAT_TYPE, "text": TEXT_TYPE}
+
+
+def _widen(current: Optional[str], kind: str) -> str:
+    """The kind covering both, so a library of a million records costs one
+    string per tag rather than one value per record."""
+    if current is None:
+        return kind
+    return _KINDS[max(_KINDS.index(current), _KINDS.index(kind))]
+
+
+def _croissant_type(kind: Optional[str]) -> str:
+    """The Croissant type for a tag's widened kind.
 
     Widest wins: a tag written ``0`` in one record and ``0.5`` in the next is a
     decimal, and a tag nobody filled in is text.
     """
-    kinds = {_value_kind(value) for value in values}
-    if kinds == {"int"}:
-        return INTEGER_TYPE
-    if kinds and kinds <= {"int", "float"}:
-        return FLOAT_TYPE
-    return TEXT_TYPE
+    return TEXT_TYPE if kind is None else _CROISSANT_TYPES[kind]
 
 
 def _range(counts: List[int]) -> Optional[Tuple[int, int]]:
@@ -178,7 +197,7 @@ def parse_mdl(lines, label: str) -> Molecules:
     bonds: List[int] = []
     versions: List[str] = []
     named = False
-    tag_values: Dict[str, List[List[str]]] = {}
+    tag_kinds: Dict[str, str] = {}
     record = _Record()
 
     def close(record: _Record) -> None:
@@ -195,7 +214,7 @@ def parse_mdl(lines, label: str) -> Molecules:
         if record.version:
             versions.append(record.version)
         for tag, value in record.values.items():
-            tag_values.setdefault(tag, []).append(value)
+            tag_kinds[tag] = _widen(tag_kinds.get(tag), _value_kind(value))
 
     for raw in lines:
         line = raw.rstrip("\n").rstrip("\r")
@@ -238,9 +257,7 @@ def parse_mdl(lines, label: str) -> Molecules:
         atom_range=_range(atoms),
         bond_range=_range(bonds),
         kinds=_ordered(versions),
-        tags=tuple(
-            (tag, _croissant_type(values)) for tag, values in tag_values.items()
-        ),
+        tags=tuple((tag, _croissant_type(kind)) for tag, kind in tag_kinds.items()),
         named=named,
     )
 
@@ -287,7 +304,8 @@ def parse_mol2(lines, label: str) -> Molecules:
                 atoms.append(int(counted[0]))
                 bonds.append(int(counted[1]))
         elif header == 2 and line:
-            types.append(line)
+            declared = line.upper()
+            types.append(declared if declared in MOL2_TYPES else OTHER_KIND)
 
         header = header + 1 if header < 3 else None
 

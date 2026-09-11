@@ -94,13 +94,18 @@ def read_cif(text: str) -> dict:
 
     if block.find_mmcif_category("_atom_site.") or has_tag(block, "_entry.id"):
         st = gemmi.make_structure_from_block(block)
-        # The block name is the entry id in a deposited file, and unlike the
-        # PDB reader's placeholder it is the file's own.
-        return {
-            STRUCTURE: macromolecular_properties(
-                st, "mmCIF", header_value(st, "_entry.id") or st.name
-            )
-        }
+        if len(st) and st[0].count_atom_sites():
+            # The block name is the entry id in a deposited file, and unlike the
+            # PDB reader's placeholder it is the file's own.
+            return {
+                STRUCTURE: macromolecular_properties(
+                    st, "mmCIF", header_value(st, "_entry.id") or st.name
+                )
+            }
+        # A validation report names the entry it reports on, and a stripped
+        # deposition keeps the atom site columns and drops their rows. Neither
+        # builds a model, and counting chains in one that does not exist raises
+        # where describing the columns says what the file actually holds.
 
     if has_tag(block, "_cell_length_a") or has_tag(block, "_atom_site_label"):
         return {
@@ -113,8 +118,8 @@ def read_cif(text: str) -> dict:
     if not described:
         raise ValueError(
             f"data block '{block.name}' is neither a structure nor a table: it "
-            "carries no mmCIF _atom_site. category, no core dictionary cell or "
-            "atom site, and no tag a column could be named after"
+            "declares no atom site a structure could be built from, and no tag "
+            "a column could be named after"
         )
     return {tables.TABLES: described}
 
@@ -197,9 +202,12 @@ class StructureHandler(FileTypeHandler):
     deposition log, is described as the tables it declares instead, the way a
     STAR file is.
 
-    Fields carry no ``extract``: mlcroissant's reader dispatches on
-    ``encodingFormat`` over a fixed list none of these formats is on, so an
-    ``extract`` here would be a promise nobody can keep.
+    The per-file fields read ``fileProperty: content`` over the FileSet, the
+    way the NIfTI and DICOM fields do, because that is what the record set is:
+    one record per file, not one per atom. Reading that content selects no
+    header attribute, and mlcroissant dispatches its reader on
+    ``encodingFormat`` over a fixed list none of these formats is on, so the
+    fields describe the batch rather than promise a read.
     """
 
     EXTENSIONS = (".pdb", ".ent", ".cif", ".mmcif")
@@ -312,8 +320,13 @@ def _encoding_format(is_pdb: bool, described: dict) -> str:
 
 
 def _relative(meta: dict) -> str:
-    """The file's logical dataset-relative path, which a FileSet resolves."""
-    return meta.get("relative_path", meta["file_name"])
+    """The file's logical dataset-relative path, which a FileSet resolves.
+
+    Rendered with forward slashes rather than the host's separator, because
+    what it goes into is a glob: a path assembled on Windows would carry
+    backslashes a reader then has to match literally.
+    """
+    return Path(meta.get("relative_path", meta["file_name"])).as_posix()
 
 
 def _select(file_metas: list, file_ids: list, key: str) -> list:

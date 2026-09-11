@@ -64,6 +64,11 @@ The output is byte-identical between runs, so regenerating an unchanged fixture
 leaves the working tree clean. `README.md` is not written by `write_demo`,
 because it documents it.
 
+The files gemmi writes, the two mmCIF entries and the MTZ, are pinned to the
+output of the gemmi version in `uv.lock`, and so is the golden that describes
+them. A gemmi release that changes either writer means regenerating both: the
+fixtures first, then the golden from them.
+
 ## The golden
 
 `tests/data/output/structural_biology_demo_croissant.jsonld` is the document

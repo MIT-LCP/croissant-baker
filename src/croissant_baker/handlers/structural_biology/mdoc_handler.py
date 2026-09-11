@@ -94,18 +94,29 @@ def _value_kind(value: str) -> str:
     return "int" if _INTEGER.match(text) else "float"
 
 
-def _croissant_type(values: List[str]) -> str:
-    """The type a key's values across the whole file agree on.
+#: Widening order. A key read as an integer can turn out to be decimal and a
+#: decimal one to be text, and neither goes back, so one kind per key says
+#: everything a list of every value it was written with would.
+_KINDS = ("int", "float", "text")
+
+_CROISSANT_TYPES = {"int": INTEGER_TYPE, "float": FLOAT_TYPE, "text": TEXT_TYPE}
+
+
+def _widen(current: Optional[str], kind: str) -> str:
+    """The kind covering both, so a tilt series of ten thousand images costs
+    one string per key rather than one value per section."""
+    if current is None:
+        return kind
+    return _KINDS[max(_KINDS.index(current), _KINDS.index(kind))]
+
+
+def _croissant_type(kind: Optional[str]) -> str:
+    """The Croissant type for a key's widened kind.
 
     Widest wins: SerialEM writes ``0`` where it means ``0.0``, so a key that is
     an integer in one section and a decimal in the next is a decimal.
     """
-    kinds = {_value_kind(value) for value in values}
-    if kinds == {"int"}:
-        return INTEGER_TYPE
-    if kinds and kinds <= {"int", "float"}:
-        return FLOAT_TYPE
-    return TEXT_TYPE
+    return TEXT_TYPE if kind is None else _CROISSANT_TYPES[kind]
 
 
 def parse(lines) -> MdocFile:
@@ -114,7 +125,7 @@ def parse(lines) -> MdocFile:
     titles: List[str] = []
     section_kind: Optional[str] = None
     n_sections = 0
-    values: Dict[str, List[str]] = {}
+    kinds: Dict[str, str] = {}
 
     for raw in lines:
         line = raw.strip()
@@ -138,7 +149,7 @@ def parse(lines) -> MdocFile:
         if not key:
             continue
         if n_sections:
-            values.setdefault(key, []).append(value.strip())
+            kinds[key] = _widen(kinds.get(key), _value_kind(value))
         else:
             globals_[key] = value.strip()
 
@@ -146,9 +157,7 @@ def parse(lines) -> MdocFile:
         globals=globals_,
         section_kind=section_kind,
         n_sections=n_sections,
-        section_keys=tuple(
-            (key, _croissant_type(seen)) for key, seen in values.items()
-        ),
+        section_keys=tuple((key, _croissant_type(kind)) for key, kind in kinds.items()),
         titles=tuple(titles),
     )
 
@@ -234,7 +243,8 @@ def _record_set(rs_id: str, meta: dict, file_id: str) -> Optional[mlc.RecordSet]
         # A file with no section, or with sections that declare no key, still
         # states what it was acquired with. That is one row.
         keys = tuple(
-            (key, _croissant_type([value])) for key, value in parsed.globals.items()
+            (key, _croissant_type(_value_kind(value)))
+            for key, value in parsed.globals.items()
         )
         label = "Global key"
 

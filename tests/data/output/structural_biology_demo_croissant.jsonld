@@ -211,7 +211,7 @@
       "@type": "cr:FileSet",
       "@id": "mrc-files",
       "name": "MRC / CCP4 maps",
-      "description": "2 MRC/CCP4 map file(s) (8x8x4-6; image stack, volume)",
+      "description": "2 MRC/CCP4 map file(s) (8x8x4-6; image stack, volume). Labelled: created by the croissant-baker test suite",
       "encodingFormat": "application/x-mrc",
       "includes": [
         "**/*.mrc",
@@ -1228,7 +1228,7 @@
       "@type": "cr:RecordSet",
       "@id": "native",
       "name": "native",
-      "description": "Reflection data in native.mtz (24 reflections; 6 columns; space group P 21 21 21; cell 40, 50, 60, 90, 90, 90; resolution 31.2348 to 4.78913 Angstrom; datasets HKL_base, native).",
+      "description": "Reflection data in native.mtz (24 reflections; 6 columns; space group P 21 21 21; cell 40, 50, 60, 90, 90, 90; resolution 31.2348 to 4.78913 Angstrom; datasets HKL_base, native). Title: native data.",
       "field": [
         {
           "@type": "cr:Field",

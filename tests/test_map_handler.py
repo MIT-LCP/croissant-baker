@@ -28,8 +28,6 @@ def mrc_header(
     mz: int | None = None,
     cell: tuple = (12.0, 15.0, 18.0),
     ispg: int = 1,
-    nversion: int = 20140,
-    densities: tuple = (-1.5, 2.5, 0.25),
     rms: float = 0.75,
     labels: tuple = ("a hand written map",),
     endian: str = "<",
@@ -47,12 +45,11 @@ def mrc_header(
     header += struct.pack(f"{endian}3f", *cell)
     header += struct.pack(f"{endian}3f", 90.0, 90.0, 90.0)
     header += struct.pack(f"{endian}3i", 1, 2, 3)
-    header += struct.pack(f"{endian}3f", *densities)
+    # Words 20 to 22 are the density statistics, which nothing reads; they are
+    # written because the words after them are found by offset.
+    header += struct.pack(f"{endian}3f", -1.5, 2.5, 0.25)
     header += struct.pack(f"{endian}2i", ispg, 0)
-    # Words 25 to 49 are the extra block; nversion is word 28, twelve bytes in.
-    extra = bytearray(100)
-    extra[12:16] = struct.pack(f"{endian}i", nversion)
-    header += bytes(extra)
+    header += bytes(100)
     header += struct.pack(f"{endian}3f", 0.0, 0.0, 0.0)
     header += b"MAP "
     header += stamp
@@ -281,12 +278,13 @@ def test_the_reserved_range_is_a_stack_of_volumes(
 def test_the_first_label_is_reported_stripped(
     handler: MRCHandler, tmp_path: Path
 ) -> None:
+    """The one thing the label block says that the numeric words do not: which
+    program wrote the map."""
     path = write_map(
         tmp_path / "labelled.mrc", mrc_header(labels=("written by hand", "and again"))
     )
     props = handler.extract(make_source(path))["mrc_properties"]
 
-    assert props["n_labels"] == 2
     assert props["first_label"] == "written by hand"
 
 
@@ -294,38 +292,7 @@ def test_a_map_with_no_labels_reports_none(handler: MRCHandler, tmp_path: Path) 
     path = write_map(tmp_path / "bare.mrc", mrc_header(labels=()))
     props = handler.extract(make_source(path))["mrc_properties"]
 
-    assert props["n_labels"] == 0
     assert "first_label" not in props
-
-
-def test_the_density_statistics_are_kept_as_floats(
-    handler: MRCHandler, tmp_path: Path
-) -> None:
-    path = write_map(tmp_path / "stats.mrc", mrc_header(densities=(-1.5, 2.5, 0.25)))
-    props = handler.extract(make_source(path))["mrc_properties"]
-
-    assert props["density_min"] == pytest.approx(-1.5)
-    assert props["density_max"] == pytest.approx(2.5)
-    assert props["density_mean"] == pytest.approx(0.25)
-
-
-def test_the_format_version_is_reported_when_the_writer_set_it(
-    handler: MRCHandler, tmp_path: Path
-) -> None:
-    path = write_map(tmp_path / "versioned.mrc", mrc_header(nversion=20140))
-    props = handler.extract(make_source(path))["mrc_properties"]
-
-    assert props["nversion"] == 20140
-
-
-def test_an_unset_format_version_is_omitted(
-    handler: MRCHandler, tmp_path: Path
-) -> None:
-    """Zero is what a pre-2014 writer leaves, not a version anyone declared."""
-    path = write_map(tmp_path / "old.mrc", mrc_header(nversion=0))
-    props = handler.extract(make_source(path))["mrc_properties"]
-
-    assert "nversion" not in props
 
 
 # refusals
@@ -431,10 +398,7 @@ def mrc_meta(name: str, **overrides) -> dict:
         "voxel_size_z": 1.05,
         "space_group": 1,
         "kind": "volume",
-        "n_labels": 1,
-        "density_min": -1.0,
-        "density_max": 1.0,
-        "density_mean": 0.0,
+        "first_label": "written by RELION 4.0",
     }
     props.update(overrides)
     return {
@@ -481,6 +445,42 @@ def test_the_file_set_carries_the_encoding_format(handler: MRCHandler) -> None:
     file_sets, _ = handler.build_croissant([mrc_meta("one.mrc")], ["file_0"])
 
     assert file_sets[0].encoding_formats == ["application/x-mrc"]
+
+
+def test_the_file_set_names_the_label_the_whole_batch_carries(
+    handler: MRCHandler,
+) -> None:
+    """A writer stamps its own line into every map of a run, so one label the
+    batch agrees on says what the FileSet is over."""
+    file_sets, _ = handler.build_croissant(
+        [mrc_meta("one.mrc"), mrc_meta("two.mrc")], ["file_0", "file_1"]
+    )
+
+    assert "written by RELION 4.0" in file_sets[0].description
+
+
+def test_labels_that_differ_are_left_out_of_the_file_set(
+    handler: MRCHandler,
+) -> None:
+    """They identify nothing the FileSet as a whole can claim, and quoting one
+    per file would let a batch of ten thousand maps write a description ten
+    thousand lines long."""
+    metas = [mrc_meta("one.mrc"), mrc_meta("two.mrc", first_label="written by hand")]
+
+    file_sets, _ = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    assert "written by" not in file_sets[0].description
+
+
+def test_a_batch_declaring_no_label_says_nothing_about_one(
+    handler: MRCHandler,
+) -> None:
+    meta = mrc_meta("bare.mrc")
+    del meta["mrc_properties"]["first_label"]
+
+    file_sets, _ = handler.build_croissant([meta], ["file_0"])
+
+    assert file_sets[0].description == "1 MRC/CCP4 map file(s) (128x128x64; volume)"
 
 
 def test_the_record_set_describes_the_grid(handler: MRCHandler) -> None:

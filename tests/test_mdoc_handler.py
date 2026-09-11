@@ -7,13 +7,14 @@ this handler rather than one parametrised case of a sweep over all of them.
 
 from __future__ import annotations
 
+import tracemalloc
 from pathlib import Path
 
 import pytest
 
 from croissant_baker.handlers.base_handler import BuildResult
 from croissant_baker.handlers.registry import select_handler
-from croissant_baker.handlers.structural_biology.mdoc_handler import MdocHandler
+from croissant_baker.handlers.structural_biology.mdoc_handler import MdocHandler, parse
 from croissant_baker.sources import make_source
 
 HANDLER = MdocHandler()
@@ -270,6 +271,60 @@ def test_an_empty_value_is_text(dataset: Path) -> None:
     )
 
     assert dict(extract(path)["mdoc"].section_keys)["SubFramePath"] == "sc:Text"
+
+
+# A long acquisition
+
+
+#: The type each generated key's values agree on, however many sections carry
+#: them: a decimal, a count, and a pair of numbers, which is text.
+GENERATED_KEYS = (
+    ("TiltAngle", "sc:Float"),
+    ("NumSubFrames", "sc:Integer"),
+    ("StagePosition", "sc:Text"),
+)
+
+
+def mdoc_lines(sections: int, extra_keys: int = 0):
+    """A tilt series of ``sections`` images as a stream of lines.
+
+    A generator rather than a string: what the reader keeps is the thing under
+    test, and a whole file held in memory beside it would hide that.
+    """
+    yield "PixelSpacing = 1.35\n"
+    for i in range(sections):
+        yield f"[ZValue = {i}]\n"
+        yield f"TiltAngle = {i}.00\n"
+        yield "NumSubFrames = 10\n"
+        yield "StagePosition = 122.450 -87.300\n"
+        for n in range(extra_keys):
+            yield f"Measure{n} = {n}.5\n"
+
+
+def peak_bytes(sections: int, extra_keys: int = 0) -> int:
+    """What reading that many sections costs at its worst moment."""
+    tracemalloc.start()
+    try:
+        parse(mdoc_lines(sections, extra_keys))
+        return tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+
+
+def test_a_keys_type_does_not_depend_on_how_many_sections_are_read() -> None:
+    """Five images and five thousand of the same acquisition type identically."""
+    short = parse(mdoc_lines(5))
+    long = parse(mdoc_lines(5000))
+
+    assert long.n_sections == 5000
+    assert long.section_keys == short.section_keys == GENERATED_KEYS
+
+
+def test_a_sections_values_are_not_kept_once_it_has_been_read() -> None:
+    """Every value used to be kept just to type its key, so a tilt series cost
+    memory in proportion to its length. A running kind costs one string per
+    key, which is why twenty keys a section now cost about what three do."""
+    assert peak_bytes(2000, extra_keys=17) < 2 * peak_bytes(2000)
 
 
 # Refusals
