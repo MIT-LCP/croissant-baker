@@ -536,8 +536,8 @@ def test_native_rai_flags_generate_metadata(csv_dataset: Path, tmp_path: Path) -
     )
     assert metadata["rai:dataUseCases"] == "Benchmarking"
     assert metadata["conformsTo"] == [
-        "http://mlcommons.org/croissant/1.1",
-        "http://mlcommons.org/croissant/RAI/1.0",
+        CROISSANT_CONFORMS_TO,
+        RAI_CONFORMS_TO,
     ]
     assert metadata["rai:dataCollectionTimeFrame"] == [
         "2023-01-01",
@@ -630,8 +630,8 @@ lineage:
 
     metadata = json.loads(output.read_text())
     assert metadata["conformsTo"] == [
-        "http://mlcommons.org/croissant/1.1",
-        "http://mlcommons.org/croissant/RAI/1.0",
+        CROISSANT_CONFORMS_TO,
+        RAI_CONFORMS_TO,
     ]
 
 
@@ -1359,7 +1359,7 @@ def test_discovery_keys_absent_without_their_flags(
         "isAccessibleForFree",
         "includedInDataCatalog",
     } & set(metadata)
-    assert metadata["conformsTo"] == "http://mlcommons.org/croissant/1.1"
+    assert metadata["conformsTo"] == CROISSANT_CONFORMS_TO
 
 
 def test_all_discovery_fields_construct_under_mlcroissant(
