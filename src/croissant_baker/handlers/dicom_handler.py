@@ -90,10 +90,6 @@ def _read_wsi_properties(ds) -> Dict:
         str(container_id).strip() if container_id is not None else None
     )
 
-    # A sequence, so _safe_get would coerce its items to floats and fail.
-    optical_paths = getattr(ds, "OpticalPathSequence", None)
-    props["optical_path_count"] = len(optical_paths) if optical_paths else None
-
     return props
 
 
@@ -198,6 +194,11 @@ def _read_dicom_properties(source: FileSource) -> Dict:
     # keeps the dict it had before whole slide support existed.
     if props.get("sop_class_uid") == WSI_SOP_CLASS_UID:
         props.update(_read_wsi_properties(ds))
+        # The top-level tag wins deliberately, as leniency rather than as a
+        # reading of the standard: the WSI IOD puts the authoritative spacing
+        # in the shared functional groups, but an instance that states one at
+        # the top level states it about the same pixels, and preferring the
+        # nested value would overrule what a writer put where a reader looks.
         if "pixel_spacing" not in props:
             shared_spacing = _shared_pixel_spacing(ds)
             if shared_spacing is not None:
@@ -403,6 +404,26 @@ class DICOMHandler(FileTypeHandler):
                         name="total_pixel_matrix_rows",
                         description="DICOM TotalPixelMatrixRows (0048,0007); height in pixels of the whole slide, across all tiles",
                         data_types=["sc:Integer"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/imaged_volume_width",
+                        name="imaged_volume_width",
+                        description="DICOM ImagedVolumeWidth (0048,0001); width in millimetres of the imaged tissue on the glass",
+                        data_types=["sc:Float"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/imaged_volume_height",
+                        name="imaged_volume_height",
+                        description="DICOM ImagedVolumeHeight (0048,0002); height in millimetres of the imaged tissue on the glass",
+                        data_types=["sc:Float"],
                         source=mlc.Source(
                             file_set=fileset_id,
                             extract=mlc.Extract(file_property="content"),

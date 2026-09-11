@@ -243,7 +243,6 @@ def _make_wsi_dicom(
     imaged_volume_width: float = 24.5,
     imaged_volume_height: float = 16.4,
     container_identifier: str = "SLIDE-0001",
-    optical_paths: int = 1,
     num_frames: int = 12,
     pixel_spacing=(0.00025, 0.00025),
     top_level_pixel_spacing=None,
@@ -293,8 +292,9 @@ def _make_wsi_dicom(
         shared.PixelMeasuresSequence = [measures]
         ds.SharedFunctionalGroupsSequence = [shared]
 
-    if optical_paths:
-        ds.OpticalPathSequence = [Dataset() for _ in range(optical_paths)]
+    # Required of every whole slide instance and read by nothing here: a
+    # slide states its illumination and filters in it.
+    ds.OpticalPathSequence = [Dataset()]
 
     pydicom.dcmwrite(str(path), ds)
     return path
@@ -336,14 +336,6 @@ def test_a_whole_slide_instance_reports_the_container_identifier(
     assert props["container_identifier"] == "S24-12345-A"
 
 
-def test_a_whole_slide_instance_counts_its_optical_paths(
-    handler: DICOMHandler, tmp_path: Path
-) -> None:
-    f = _make_wsi_dicom(tmp_path / "fluor.dcm", optical_paths=4)
-    props = handler.extract(make_source(f))["dicom_properties"]
-    assert props["optical_path_count"] == 4
-
-
 def test_whole_slide_properties_are_none_when_the_slide_omits_them(
     handler: DICOMHandler, tmp_path: Path
 ) -> None:
@@ -356,7 +348,6 @@ def test_whole_slide_properties_are_none_when_the_slide_omits_them(
         imaged_volume_width=None,
         imaged_volume_height=None,
         container_identifier=None,
-        optical_paths=0,
     )
     props = handler.extract(make_source(f))["dicom_properties"]
     assert props["total_pixel_matrix_columns"] is None
@@ -364,7 +355,6 @@ def test_whole_slide_properties_are_none_when_the_slide_omits_them(
     assert props["imaged_volume_width"] is None
     assert props["imaged_volume_height"] is None
     assert props["container_identifier"] is None
-    assert props["optical_path_count"] is None
 
 
 def test_a_non_whole_slide_instance_carries_no_whole_slide_keys(
@@ -380,7 +370,6 @@ def test_a_non_whole_slide_instance_carries_no_whole_slide_keys(
         "imaged_volume_width",
         "imaged_volume_height",
         "container_identifier",
-        "optical_path_count",
     ):
         assert key not in props
 
@@ -523,6 +512,8 @@ def test_a_batch_holding_a_slide_gains_the_whole_slide_fields(
         "wsi_flavor",
         "total_pixel_matrix_columns",
         "total_pixel_matrix_rows",
+        "imaged_volume_width",
+        "imaged_volume_height",
         "container_identifier",
     } <= field_names
 
@@ -570,5 +561,7 @@ def test_a_bake_of_a_slide_directory_describes_the_slides(tmp_path: Path) -> Non
         "wsi_flavor",
         "total_pixel_matrix_columns",
         "total_pixel_matrix_rows",
+        "imaged_volume_width",
+        "imaged_volume_height",
         "container_identifier",
     } <= field_names
