@@ -143,6 +143,12 @@ CELL_EDGES = ("a", "b", "c")
 #: The separator a CIF writes a list of keywords or of strand identifiers with.
 VALUE_SEPARATOR = ","
 
+#: The most digits a count this handler reports may carry. A trillion models,
+#: entities or chains is already far past anything a structure holds, so this
+#: is not a limit any file meets; what it excludes is a field that is not a
+#: count at all.
+MAX_COUNT_DIGITS = 12
+
 #: A standard uncertainty, written as digits in parentheses on the end of a
 #: number: ``10.1234(4)`` is one cell edge and a second value about it.
 UNCERTAINTY = re.compile(r"\(\d+\)$")
@@ -464,8 +470,15 @@ def _number(text: Optional[str]) -> Optional[float]:
 
 
 def _integer(text: Optional[str]) -> Optional[int]:
-    """One counted number, or None when the text is not one."""
-    if text is None:
+    """One counted number, or None when the text is not one.
+
+    Bounded in digits, for the reason :func:`_number` is bounded in magnitude.
+    ``int`` reads a thousand digits as happily as two, and every count this
+    handler reports is a number of models, entities or chains: a run that long
+    is an identifier, a serial number or a corrupt field, and reporting it as a
+    count would be worse than reporting nothing.
+    """
+    if text is None or len(text.lstrip("+-")) > MAX_COUNT_DIGITS:
         return None
     try:
         return int(text)
