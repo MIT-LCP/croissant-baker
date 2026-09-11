@@ -409,6 +409,58 @@ def test_the_read_stops_at_the_atom_site_loop(dataset: Path) -> None:
     assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
 
 
+def test_the_read_stops_at_the_core_cif_coordinate_loop(dataset: Path) -> None:
+    """The other dialect writes its coordinates under ``_atom_site_label``
+    rather than ``_atom_site.``, and a supercell or a disordered structure puts
+    as many rows behind it as a protein does behind its own."""
+    body = "C1 0.1234 0.5678 0.9012\n" * 200000
+    path = write(dataset, "big.cif", SMALL_MOLECULE_CIF + body.encode())
+    opened: list = []
+    assert path.stat().st_size > 4 * 1024 * 1024
+
+    meta = HANDLER.extract(counting_source(path, opened))
+
+    assert meta["formula"] == "C6 H6"
+    assert sum(stream.read_bytes for stream in opened) < BOUNDED_PREFIX
+
+
+#: What a chunked reader may overshoot the point it stops at by: the chunk it
+#: found the stop in, and slack for the buffer underneath it.
+CHUNK_OVERSHOOT = 64 * 1024
+
+
+def test_a_large_uncollected_loop_is_walked_through_without_being_stored(
+    dataset: Path,
+) -> None:
+    """A loop of a category this handler does not collect still has to be
+    counted through, because a reader knows where a row ends only by counting
+    the names against the values. What it must not do is keep any of it, or let
+    it carry the read on into the coordinates behind it.
+    """
+    rows = "".join(f"{i} 'P 1' 1.0 0.0 0.0\n" for i in range(20000))
+    operations = (
+        "loop_\n"
+        "_pdbx_struct_oper_list.id\n"
+        "_pdbx_struct_oper_list.type\n"
+        "_pdbx_struct_oper_list.matrix[1][1]\n"
+        "_pdbx_struct_oper_list.matrix[1][2]\n"
+        "_pdbx_struct_oper_list.matrix[1][3]\n"
+    ) + rows
+    header = CIF_HEADER_TEXT + operations
+    coordinates = CIF_ATOM_SITE_TEXT + "ATOM 4 C -7.221 2.458 -1.897\n" * 150000
+    path = write(dataset, "opers.cif", (header + coordinates).encode())
+    opened: list = []
+
+    meta = HANDLER.extract(counting_source(path, opened))
+
+    # Nothing of the loop was kept: the same fields, and only those, as the
+    # same header carries without it.
+    assert set(meta) == set(extract(sample_cif(dataset)))
+    assert meta["entry_id"] == "1ABC"
+    assert meta["chain_count"] == 3
+    assert sum(stream.read_bytes for stream in opened) < len(header) + CHUNK_OVERSHOOT
+
+
 def test_a_file_with_no_data_block_is_refused_with_a_reason(dataset: Path) -> None:
     """Claiming and extracting are separate questions: a file reaches extraction
     whenever a caller hands it over directly."""
