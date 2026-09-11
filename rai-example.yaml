@@ -72,7 +72,7 @@ ai_fairness:
   # Articulate what new capabilities the dataset enables, who benefits, potential
   # harms, affected groups, and concrete mitigation steps (licensing, access
   # controls, usage agreements).
-  social_impact: >
+  data_social_impact: >
     This dataset enables research that could improve clinical AI tools and
     patient outcomes. However, models trained on biased data risk perpetuating
     health disparities if deployed without careful evaluation. Access is
@@ -90,14 +90,18 @@ lineage:
 
   # prov:wasDerivedFrom — datasets this dataset was derived from.
   # url is required; all other fields are optional.
+  # id is your own identifier for the source, if you use one.
   source_datasets:
     - url: https://physionet.org/content/mimiciii/
+      id: SOURCE-001
       name: MIMIC-III
       organisation: PhysioNet
       license: PhysioNet Credentialed Health Data License 1.5.0
 
   # rai:usedBy — models or assets that have used this dataset (e.g. for training
   # or evaluation). url is required; name and id are optional.
+  # An entry here asserts that a named model used this dataset, so the shape is
+  # shown as a comment: fill it in only for a model you know of.
   models: []
   # models:
   #   - url: https://huggingface.co/my-org/my-model
@@ -145,6 +149,7 @@ activities:
         is_synthetic: false
     platforms:
       - name: Hospital Electronic Health Record System
+        url: https://www.bidmc.org
         description: >
           Institutional EHR system used for routine clinical documentation,
           from which the raw data was extracted.

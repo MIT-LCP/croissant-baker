@@ -855,35 +855,9 @@ def main(
         )
         raise typer.Exit(code=1)
 
-    # Listing every file is the point of this mode, so the fixed-size rule
-    # governing the default bake summary does not apply here.
-    if dry_run:
-        try:
-            entries = _dry_run_entries(input, include, exclude)
-            claimed = [e for e in entries if e.outcome is Outcome.WOULD_PROCESS]
-            unclaimed = [e for e in entries if e.outcome is Outcome.UNCLAIMED]
-
-            typer.echo(
-                f"Dry run: {len(claimed)} file(s) would be processed in '{input}':"
-            )
-            for entry in claimed:
-                typer.echo(f"  {entry.path}")
-
-            if unclaimed:
-                typer.echo(
-                    f"{len(unclaimed)} file(s) would not be described in '{input}':"
-                )
-                for entry in unclaimed:
-                    typer.echo(f"  {entry.detail}. File: {entry.path}")
-
-            if report:
-                _write_scan_report(ScanReport(entries), report)
-        except Exception as e:
-            typer.echo(f"Error: {e}", err=True)
-            raise typer.Exit(code=1)
-        return
-
-    generator: Optional[MetadataGenerator] = None
+    # The RAI inputs are read before anything looks at the dataset: they are
+    # inputs like any other flag, so a conflict or a typo in the config is
+    # reported now, including under --dry-run, and not after a discarded bake.
     try:
         native_rai_fields = _build_native_rai_fields(
             rai_data_collection=rai_data_collection,
@@ -917,6 +891,45 @@ def main(
             )
             raise typer.Exit(code=1)
 
+        rai = None
+        if rai_config:
+            from croissant_baker.rai import load_rai_config
+
+            rai = load_rai_config(rai_config)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    # Listing every file is the point of this mode, so the fixed-size rule
+    # governing the default bake summary does not apply here.
+    if dry_run:
+        try:
+            entries = _dry_run_entries(input, include, exclude)
+            claimed = [e for e in entries if e.outcome is Outcome.WOULD_PROCESS]
+            unclaimed = [e for e in entries if e.outcome is Outcome.UNCLAIMED]
+
+            typer.echo(
+                f"Dry run: {len(claimed)} file(s) would be processed in '{input}':"
+            )
+            for entry in claimed:
+                typer.echo(f"  {entry.path}")
+
+            if unclaimed:
+                typer.echo(
+                    f"{len(unclaimed)} file(s) would not be described in '{input}':"
+                )
+                for entry in unclaimed:
+                    typer.echo(f"  {entry.detail}. File: {entry.path}")
+
+            if report:
+                _write_scan_report(ScanReport(entries), report)
+        except Exception as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(code=1)
+        return
+
+    generator: Optional[MetadataGenerator] = None
+    try:
         # Parse creators following mlcroissant specification
         # Allows flexible Person/Organization objects with optional properties
         parsed_creators = _parse_creators(creator)
@@ -1015,10 +1028,9 @@ def main(
             )
 
         # Inject RAI attributes when a config file is provided
-        if rai_config:
-            from croissant_baker.rai import inject_rai, load_rai_config
+        if rai is not None:
+            from croissant_baker.rai import inject_rai
 
-            rai = load_rai_config(rai_config)
             metadata_dict = inject_rai(metadata_dict, rai)
 
         _ensure_rai_conforms_to(
@@ -1067,6 +1079,9 @@ def main(
             date_published=date_published,
         )
 
+    except typer.Exit:
+        # Already reported by whoever raised it; do not relabel it below.
+        raise
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         # A bake that described nothing is when coverage matters most.
