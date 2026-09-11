@@ -14,13 +14,25 @@ import inspect
 import mlcroissant as mlc
 
 
-# Fields the Croissant 1.1 spec defines that mlcroissant 1.1.0 does NOT expose
-# as Python parameters. Each is post-hoc-injected by MetadataGenerator.
+# Fields MetadataGenerator post-hoc-injects because mlcroissant 1.1.0 exposes
+# no Python parameter for them. Two kinds sit in one set: fields the Croissant
+# 1.1 spec itself defines (``alternate_name``, ``is_live_dataset``,
+# ``temporal_coverage``, ``usage_info``) and plain schema.org properties the
+# document reaches through the @vocab in its @context (``identifier``,
+# ``conditions_of_access``, ``is_accessible_for_free``,
+# ``included_in_data_catalog``). One set rather than two because the action
+# when the assertion fires is the same for both: switch that field to the
+# native parameter and delete its inject. The kinds differ only in how likely
+# mlcroissant is to close the gap.
 _METADATA_GAPS_AS_OF_MLC_1_1_0 = {
     "alternate_name",
     "is_live_dataset",
     "temporal_coverage",
     "usage_info",
+    "identifier",
+    "conditions_of_access",
+    "is_accessible_for_free",
+    "included_in_data_catalog",
 }
 
 
