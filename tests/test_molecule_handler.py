@@ -7,6 +7,7 @@ this handler rather than one parametrised case of a sweep over all of them.
 
 from __future__ import annotations
 
+import tracemalloc
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ from croissant_baker.handlers.base_handler import BuildResult
 from croissant_baker.handlers.registry import select_handler
 from croissant_baker.handlers.structural_biology.molecule_handler import (
     SmallMoleculeHandler,
+    parse_mdl,
 )
 from croissant_baker.sources import make_source
 
@@ -96,6 +98,23 @@ USER_CHARGES
 
 @<TRIPOS>ATOM
       1 C1     0.0000   0.0000   0.0000 C.3     1  ETHANOL  -0.0600
+"""
+
+
+#: The same file with the molecule type line filled with something else. The
+#: line is free text in a format anyone can write, and a converter that lost
+#: its place puts a whole atom record there.
+MOL2_UNTYPED = """@<TRIPOS>MOLECULE
+benzene
+ 6 6 1 0 0
+      1 C1     0.0000   0.0000   0.0000 C.ar    1  BENZENE  -0.0620
+GASTEIGER
+
+@<TRIPOS>MOLECULE
+ethanol
+ 9 8 1 0 0
+      1 C1     0.0000   0.0000   0.0000 C.3     1  ETHANOL  -0.0600
+USER_CHARGES
 """
 
 
@@ -272,6 +291,82 @@ def test_a_mol2_declares_its_molecules_counts_and_types(dataset: Path) -> None:
     assert parsed.bond_range == (6, 8)
     assert parsed.kinds == ("SMALL",)
     assert parsed.tags == ()
+
+
+def test_a_molecule_type_outside_the_tripos_vocabulary_is_counted_not_quoted(
+    dataset: Path,
+) -> None:
+    """The type line is free text, so copying every distinct value into the
+    description would bound that description by the size of the file rather
+    than by the five types Tripos defines."""
+    parsed = extract(write(dataset, "converted.mol2", MOL2_UNTYPED))["molecules"]
+
+    assert parsed.kinds == ("other",)
+
+
+def test_a_record_set_never_repeats_what_a_type_line_held(dataset: Path) -> None:
+    """A 1.4 MB library whose type lines were junk once wrote a 229 KB
+    description, which is the failure this bounds."""
+    (record_set,) = build(write(dataset, "converted.mol2", MOL2_UNTYPED))
+
+    assert "BENZENE" not in record_set.description
+    assert "C.ar" not in record_set.description
+    assert "other" in record_set.description
+
+
+# A library of many records
+
+
+#: The tags every generated record carries, and the type each one's values
+#: agree on however many records are read.
+GENERATED_TAGS = (
+    ("MW", "sc:Float"),
+    ("RING_COUNT", "sc:Integer"),
+    ("SOURCE", "sc:Text"),
+)
+
+
+def sdf_lines(records: int, extra_tags: int = 0):
+    """``records`` SDF records as a stream of lines, with tags to spare.
+
+    A generator rather than a string: what the reader keeps is the thing under
+    test, and a whole file held in memory beside it would hide that.
+    """
+    tags = [("MW", "46.07"), ("RING_COUNT", "1"), ("SOURCE", "in house")]
+    tags += [(f"MEASURE_{n}", f"{n}.5") for n in range(extra_tags)]
+    for i in range(records):
+        yield from _v2000(f"molecule {i}", 2, 1).splitlines(keepends=True)
+        for tag, value in tags:
+            yield f"> <{tag}>\n"
+            yield f"{value}\n"
+            yield "\n"
+        yield "$$$$\n"
+
+
+def peak_bytes(records: int, extra_tags: int = 0) -> int:
+    """What reading that many records costs at its worst moment."""
+    tracemalloc.start()
+    try:
+        parse_mdl(sdf_lines(records, extra_tags), "MDL SDF")
+        return tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+
+
+def test_a_tags_type_does_not_depend_on_how_many_records_are_read() -> None:
+    """Five records and five thousand of the same shape type identically."""
+    small = parse_mdl(sdf_lines(5), "MDL SDF")
+    large = parse_mdl(sdf_lines(5000), "MDL SDF")
+
+    assert large.n_molecules == 5000
+    assert large.tags == small.tags == GENERATED_TAGS
+
+
+def test_a_records_values_are_not_kept_once_it_has_been_read() -> None:
+    """Every value used to be kept just to type its tag, so describing a 44 MB
+    library cost 321 MB. A running kind costs one string per tag, which is why
+    twenty tags a record now cost about what three do."""
+    assert peak_bytes(2000, extra_tags=17) < 2 * peak_bytes(2000)
 
 
 # Refusals

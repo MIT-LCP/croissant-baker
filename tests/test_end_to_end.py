@@ -377,7 +377,9 @@ def test_mimiciv_demo_omop_generation(
     assert len(metadata["recordSet"]) > 0
 
 
+# ---------------------------------------------------------------------------
 # Glaucoma fundus dataset (JPG images + CSV labels)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -451,7 +453,9 @@ def test_glaucoma_fundus_generation(
     assert len(label_rs) == 1
 
 
+# ---------------------------------------------------------------------------
 # Satellite public health dataset (multi-band TIFF + CSV metadata)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -518,7 +522,9 @@ def test_satellite_generation(satellite_path: Path, output_dir: Path) -> None:
     )
 
 
+# ---------------------------------------------------------------------------
 # Synthetic Open Targets-like dataset (partitioned Parquet tables)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -874,7 +880,9 @@ def test_open_targets_like_generation(
     )
 
 
+# ---------------------------------------------------------------------------
 # Real Open Targets subset (committed Parquet, no download required)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -948,7 +956,9 @@ def test_open_targets_subset(open_targets_subset_path: Path, output_dir: Path) -
     assert len(dhpo_fields) == 6
 
 
+# ---------------------------------------------------------------------------
 # MIMIC-IV FHIR Demo (NDJSON bulk export, gzip-compressed)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -1041,7 +1051,9 @@ def test_mimiciv_fhir_demo_generation(
     assert "sc:Date" in patient_fields.get("birthDate", {}).get("dataType", [])
 
 
+# ---------------------------------------------------------------------------
 # GH Archive demo (committed JSONL.GZ fixture — no download required)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -1130,7 +1142,9 @@ def test_gharchive_demo_generation(gharchive_demo_path: Path, output_dir: Path) 
     assert "subField" in actor_field, "actor should expand to subFields (nested struct)"
 
 
+# ---------------------------------------------------------------------------
 # UniProt TSV — real-world TSV end-to-end
+# ---------------------------------------------------------------------------
 #
 # Dataset: UniProt reviewed human proteins (Swiss-Prot)
 # Columns: 14 — integers (Length, Mass), free text, GO terms, empty cells
@@ -1300,7 +1314,9 @@ def test_spect_demo_generation(spect_demo_path: Path, output_dir: Path) -> None:
     assert "tr_seconds" not in nifti_fields  # no 4D file in this fixture
 
 
+# ---------------------------------------------------------------------------
 # GEO SOFT
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -1522,7 +1538,9 @@ def test_ome_tiff_generation(ome_dataset: Path, tmp_path: Path) -> None:
     assert file_sets["image-files"]["cr:excludes"] == "morphology.ome.tif"
 
 
+# ---------------------------------------------------------------------------
 # HDF5 (AnnData, two 10x feature matrices, and one file matching no layout)
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture

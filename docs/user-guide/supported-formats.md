@@ -405,6 +405,12 @@ the assembly of a whole virus capsid is the case where it does.
   STAR file is: one record set per loop, and one for a block's pairs taken
   together.
 
+What settles the third case is whether a model can be built, not which tags are
+present. A validation report names the entry it reports on, so it carries
+`_entry.id`, and an entry stripped of its coordinates keeps the `_atom_site`
+columns and drops their rows. Neither yields a model, so both are described as
+their tables rather than read as a structure holding nothing.
+
 The last two are `chemical/x-cif`, because mmCIF is the macromolecular
 dictionary and calling either of them mmCIF would misname the file. PDB and
 `.ent` are `chemical/x-pdb`. None of the three is registered with IANA; they
@@ -415,13 +421,16 @@ structure at any media type.
 Because a CIF document that holds no structure is still described, a
 `**/*.cif` include would sweep it into the structure FileSet and the record set
 counting one record per structure file. The FileSet therefore excludes each
-such document by name.
+such document by name. Only a document described as tables is excluded that
+way: a `.cif` the handler failed to read is still matched by the include,
+because the generator, not the handler, is what knows a file failed.
 
-**No field carries an `extract`.** mlcroissant dispatches its reader on
-`encodingFormat` over a fixed list none of these formats is on, so an `extract`
-here would be a promise nobody can keep. The `structures` fields read
-`fileProperty: content` over the FileSet, which is what the record set is: one
-record per file, not one per atom.
+**The fields are descriptive.** The `structures` fields read
+`fileProperty: content` over the FileSet, as the NIfTI and DICOM fields do,
+which is what the record set is: one record per file, not one per atom.
+Reading that content selects no header attribute, and mlcroissant dispatches
+its reader on `encodingFormat` over a fixed list none of these formats is on,
+so no `Field.value` is emitted and the fields cannot be read back.
 
 ### Failure modes
 
@@ -453,6 +462,10 @@ refined particle stack has millions, and every row costs a Python-level call.
 The CIF null tokens `.` and `?` say nothing about a type and are skipped, so
 one missing measurement does not turn a column of floats into text. A column of
 nothing but nulls is text, which claims the least.
+
+That bound limits the typing work and not the reading: gemmi parses the whole
+document into memory before any of it is described, so a multi-gigabyte
+particle table costs memory in proportion to its size.
 
 Identifiers are the file's stem and the block's name: `run_data.star` with
 `data_optics` and `data_particles` gives `run_data_optics` and
@@ -492,9 +505,12 @@ Voxel size is the cell divided by the sampling, and it is omitted where the
 sampling is zero, since a number divided out of nothing would be invented.
 
 Like structures, maps share one FileSet and one `mrc_maps` record set over the
-batch, whose fields read `fileProperty: content`: one record per file, not one
-per voxel. `encodingFormat` is `application/x-mrc`, unregistered, and no field
-carries an `extract`.
+batch, and the fields are descriptive for the same reason: they read
+`fileProperty: content` over the FileSet, one record per file and not one per
+voxel, and reading that content selects no header word. `encodingFormat` is
+`application/x-mrc`, unregistered and on no reader's list, so no `Field.value`
+is emitted and the fields cannot be read back. Where every map in the batch
+carries the same first header label, the FileSet description names it.
 
 `.mrc`, `.mrcs` and `.ccp4` are claimed on the extension alone, because an
 older CCP4 writer may leave the format signature out and a file this handler
@@ -515,7 +531,10 @@ An MTZ keeps its header at the end of the file and says where in its second
 word, so the reader seeks straight there. **The reflection data in between is
 never touched.** What is described is the column list, one typed field per
 reflection column, plus the unit cell, space group, resolution range and the
-datasets the columns belong to.
+datasets the columns belong to. The record set's description carries the
+header's `TITLE` and, for each dataset, the wavelength it was collected at,
+which is what tells two datasets of one crystal apart; a wavelength of zero is
+what a writer leaves for a dataset with no beam behind it and is left out.
 
 Column types come from the MTZ type letter, not from the values: `H`, `I`, `B`
 and `Y` count things and are integers, and every other letter is a measurement.
@@ -602,8 +621,11 @@ front.
 ## Trajectories are out of scope
 
 XTC, TRR and DCD are not read, and a `.xtc` is reported under `no_handler`
-rather than described. The libraries that read them require Python 3.11 or
-later, and this package supports 3.10. A molecular dynamics run is also the one
+rather than described. The current releases of the libraries that read them,
+mdtraj 1.11 and MDAnalysis 2.10, target Python 3.11 or later, while this
+package supports 3.10; older releases such as mdtraj 1.10 and MDAnalysis 2.9
+still install on 3.10, so the floor is a matter of which release a dataset
+would pin rather than a hard barrier. A molecular dynamics run is also the one
 case in this family where the frames, rather than the header, are what a
 consumer wants, and nothing here reads array data.
 
