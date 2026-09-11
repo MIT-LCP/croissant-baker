@@ -1,8 +1,8 @@
 # Whole-slide demo (synthetic pathology slides)
 
 A small fixture used by `tests/test_end_to_end.py`. One slide per scanner
-vendor beside a DICOM slide, so one bake exercises the whole-slide handler and
-the DICOM handler's whole-slide awareness at the same time.
+vendor beside two DICOM slide instances, so one bake exercises the whole-slide
+handler and the DICOM handler's whole-slide awareness at the same time.
 
 ```
 wsi_demo/
@@ -12,28 +12,30 @@ wsi_demo/
 ├── ventana.bif         Ventana: an iScan XMP packet in tag 700, Ventana software
 ├── akoya.qptiff        Akoya: PerkinElmer-QPI software and QPI image description
 ├── dicom/slide.dcm     VL Whole Slide Microscopy Image, VOLUME flavor
-├── generate.py         the script that writes all six
+├── dicom/label.dcm     the same glass slide's barcode label, LABEL flavor
+├── generate.py         the script that writes all seven
 └── README.md           this file, which no handler claims
 ```
 
 Each vendor file carries the one signature `tifffile` identifies that make by,
-which is what `croissant_baker.handlers.wsi` dispatches on. The DICOM instance
-carries the whole-slide SOP class, so it takes the slide branch of the DICOM
-handler rather than the cross-section one.
+which is what `croissant_baker.handlers.wsi` dispatches on. Both DICOM
+instances carry the whole-slide SOP class, so they take the slide branch of the
+DICOM handler rather than the cross-section one, and their two flavors are what
+make the flavor list in the DICOM description more than one word long.
 
 ## Source
 
 **Synthetic**, and zero-pixel: every image plane is a small array of zeros, so
 a deflated slide costs a few kilobytes rather than the gigabytes a real
 pyramid does. Nothing here came off a scanner, and no file carries patient
-data, a patient identifier or an acquisition date: the DICOM instance states a
-synthetic container barcode, synthetic study and series UIDs, and nothing
+data, a patient identifier or an acquisition date: each DICOM instance states
+a synthetic container barcode, synthetic study and series UIDs, and nothing
 else that a real instance would carry about a person.
 
 The five vendor slides are written by the builders in `tests/helpers.py`, the
 same ones `tests/test_wsi.py` and `tests/test_wsi_handler.py` read, so the
 fixture and the unit tests describe the same synthetic scanners. The DICOM
-instance is built in `generate.py` itself, with fixed UIDs rather than
+instances are built in `generate.py` itself, with fixed UIDs rather than
 generated ones, because a fixture whose identifiers changed on every run would
 rewrite the golden document with them.
 

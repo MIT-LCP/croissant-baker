@@ -108,6 +108,15 @@
     {
       "@type": "cr:FileObject",
       "@id": "file_5",
+      "name": "label.dcm",
+      "contentSize": "704",
+      "contentUrl": "dicom/label.dcm",
+      "encodingFormat": "application/dicom",
+      "sha256": "a56e1a7168f7149fd444a6fc377d6cf8b17a2a013d4acee10b2af2bc55d4309d"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_6",
       "name": "slide.dcm",
       "contentSize": "792",
       "contentUrl": "dicom/slide.dcm",
@@ -137,7 +146,7 @@
       "@type": "cr:FileSet",
       "@id": "dicom-files",
       "name": "DICOM files",
-      "description": "1 DICOM file(s) (SM (1))",
+      "description": "2 DICOM file(s) (SM (2))",
       "encodingFormat": "application/dicom",
       "includes": [
         "**/*.dcm",
@@ -323,7 +332,7 @@
       "@type": "cr:RecordSet",
       "@id": "dicom",
       "name": "dicom",
-      "description": "1 DICOM files (512x512): SM (1); 1 whole-slide microscopy instance (VOLUME)",
+      "description": "2 DICOM files (64-512x64-512): SM (2); 2 whole-slide microscopy instances (VOLUME, LABEL)",
       "field": [
         {
           "@type": "cr:Field",
