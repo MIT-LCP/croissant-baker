@@ -996,6 +996,23 @@ def test_identifier_repeated_and_comma_delimited_emits_a_list(
     ]
 
 
+def test_repeated_identifier_is_emitted_once(csv_dataset: Path, tmp_path: Path) -> None:
+    """A duplicate must not flip the JSON type from a string to a list."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--identifier",
+        "phs000218.v1.p1",
+        "--identifier",
+        "phs000218.v1.p1",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["identifier"] == "phs000218.v1.p1"
+
+
 def test_conditions_of_access_passes_through(csv_dataset: Path, tmp_path: Path) -> None:
     """--conditions-of-access is free text; it reaches the output unchanged."""
     output = tmp_path / "output.jsonld"

@@ -272,7 +272,8 @@ class MetadataGenerator:
                 ODRL Offer URL).
             identifier: Accessions or persistent identifiers the dataset is
                 known by (e.g. a dbGaP phs number, an EGA study accession, a
-                DOI). A single value is emitted as a string, several as a list.
+                DOI). Deduplicated in the order given; one value is emitted
+                as a string, several as a list.
             conditions_of_access: How access is obtained, in free text (e.g.
                 the data access agreement and committee for a controlled
                 release). schema.org/conditionsOfAccess.
@@ -650,10 +651,11 @@ class MetadataGenerator:
             result["usageInfo"] = self.usage_info
         if self.identifier:
             # One accession reads as a string, the way mlcroissant flattens its
-            # own single-element lists; several stay a list.
-            result["identifier"] = (
-                self.identifier[0] if len(self.identifier) == 1 else self.identifier
-            )
+            # own single-element lists; several stay a list. Deduplicated in
+            # declared order first, so naming an accession twice does not turn
+            # the same claim into a list of two.
+            accessions = list(dict.fromkeys(self.identifier))
+            result["identifier"] = accessions[0] if len(accessions) == 1 else accessions
         if self.conditions_of_access is not None:
             result["conditionsOfAccess"] = self.conditions_of_access
         if self.is_accessible_for_free is not None:
