@@ -7,6 +7,7 @@ from croissant_baker.handlers.utils import (
     PrefixLines,
     _disambiguate_ids,
     allocate_record_set_ids,
+    decode_line,
     make_field_id,
     normalize_array_shape,
     shard_template,
@@ -242,6 +243,12 @@ def test_prefix_lines_reports_what_it_pulled_and_what_it_holds() -> None:
 
     assert seen == [(7, 3)]
     assert reader.read == 7
+
+
+def test_decode_line_drops_only_the_carriage_return_of_the_line_ending() -> None:
+    """One CRLF is one line ending. A carriage return in front of it is a byte
+    the line carries, and stripping the run took content off the line."""
+    assert decode_line(b"a\r\r") == "a\r"
 
 
 def test_prefix_lines_keeps_a_last_line_that_ends_exactly_on_the_bound() -> None:
