@@ -103,13 +103,22 @@ PDBX_CATEGORIES = frozenset(
     }
 )
 
+#: What a file may call the compound, in the order a reader would prefer them.
+#: A mineral deposit often states only the last of the three.
+CHEMICAL_NAME_ITEMS = (
+    "_chemical_name_common",
+    "_chemical_name_systematic",
+    "_chemical_name_mineral",
+)
+
 #: The core CIF item names kept. Core CIF has no category separator, so these
 #: are whole names rather than prefixes, and they are held lower-cased because
-#: CIF item names are case-insensitive and files spell them both ways.
+#: CIF item names are case-insensitive and files spell them both ways. The name
+#: items are spread in from the tuple above rather than listed again, so a
+#: spelling added there cannot be left out of what is collected.
 CORE_ITEMS = frozenset(
     {
-        "_chemical_name_common",
-        "_chemical_name_systematic",
+        *CHEMICAL_NAME_ITEMS,
         "_chemical_formula_sum",
         "_cell_length_a",
         "_cell_length_b",
@@ -645,6 +654,20 @@ def _describe_pdbx(name: str, metadata: dict) -> str:
     )
 
 
+def _chemical_name(columns: Dict) -> Optional[str]:
+    """What the file calls the compound, by the first name it states.
+
+    In the order of :data:`CHEMICAL_NAME_ITEMS`: the common name, then the
+    systematic one, then the mineral name. Falling through to the last is what
+    names a mineral deposit at all, since many state that item and no other.
+    """
+    for item in CHEMICAL_NAME_ITEMS:
+        stated = _one(columns, item)
+        if stated:
+            return stated
+    return None
+
+
 def _small_molecule_metadata(name: str, block: str, columns: Dict) -> dict:
     """What a core CIF block states, and the sentence that states it."""
     written = {key: _one(columns, item) for key, item in CELL_ITEMS}
@@ -655,11 +678,7 @@ def _small_molecule_metadata(name: str, block: str, columns: Dict) -> dict:
         # ``data_`` with nothing after it is a legal header naming nothing, so
         # this field is absent rather than empty like every other one here.
         ("data_block", block),
-        (
-            "chemical_name",
-            _one(columns, "_chemical_name_common")
-            or _one(columns, "_chemical_name_systematic"),
-        ),
+        ("chemical_name", _chemical_name(columns)),
         ("formula", _one(columns, "_chemical_formula_sum")),
         (
             "space_group",
