@@ -505,6 +505,11 @@ def pdb_record(text: str) -> str:
 #: ``ljust`` for the same reason: classification is columns 11 to 50, the
 #: deposition date 51 to 59 and the ID code 63 to 66, and that is visible here
 #: rather than counted off a run of spaces.
+#:
+#: The same entry as ``CIF_HEADER_TEXT`` below, down to its two molecules over
+#: chains A, B and C: they are one structure in the two formats an archive
+#: ships it in, so the two handlers describe the same thing and a test can hold
+#: them to that.
 PDB_TITLE_RECORDS = (
     "HEADER    " + "HYDROLASE".ljust(40) + "12-JAN-98" + "   " + "1ABC",
     "TITLE     CRYSTAL STRUCTURE OF A MINIATURE HYDROLASE AT 1.80",
@@ -512,8 +517,13 @@ PDB_TITLE_RECORDS = (
     "COMPND    MOL_ID: 1;",
     "COMPND   2 MOLECULE: MINIATURE HYDROLASE;",
     "COMPND   3 CHAIN: A, B;",
+    "COMPND   4 MOL_ID: 2;",
+    "COMPND   5 MOLECULE: HYDROLASE INHIBITOR PEPTIDE;",
+    "COMPND   6 CHAIN: C;",
     "SOURCE    MOL_ID: 1;",
     "SOURCE   2 ORGANISM_SCIENTIFIC: ESCHERICHIA COLI;",
+    "SOURCE   3 MOL_ID: 2;",
+    "SOURCE   4 SYNTHETIC: YES;",
     "KEYWDS    HYDROLASE, SERINE PROTEASE",
     "EXPDTA    X-RAY DIFFRACTION",
     "AUTHOR    J.DOE,A.SMITH",
@@ -521,6 +531,7 @@ PDB_TITLE_RECORDS = (
     "REMARK   2 RESOLUTION.    1.80 ANGSTROMS.",
     "SEQRES   1 A    3  GLY ILE VAL",
     "SEQRES   1 B    3  PHE VAL ASN",
+    "SEQRES   1 C    3  ALA GLY SER",
     "CRYST1   40.960   18.650   22.520  90.00  90.77  90.00 P 1 21 1      2",
 )
 
@@ -554,6 +565,9 @@ def _pdb() -> list:
 #: items, quoted values carrying spaces, a multi-line ``;`` text field, and
 #: loops of two and three columns. An archive entry is megabytes of
 #: ``_atom_site`` rows behind a header about this size.
+#:
+#: The same entry as ``PDB_TITLE_RECORDS`` above: two polymer entities over
+#: strands A, B and C, which are the chains that file's ``COMPND`` names.
 CIF_HEADER_TEXT = """\
 #
 data_1ABC

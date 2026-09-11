@@ -19,6 +19,7 @@ import pytest
 from croissant_baker.entries import Reason
 from croissant_baker.handlers import cif_handler
 from croissant_baker.handlers.cif_handler import CIFHandler
+from croissant_baker.handlers.pdb_handler import PDBHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import make_source
 
@@ -153,6 +154,23 @@ def test_the_chains_are_counted_from_the_strand_ids(dataset: Path) -> None:
 
 def test_the_asym_units_are_counted_under_their_own_key(dataset: Path) -> None:
     assert extract(sample_cif(dataset))["asym_unit_count"] == 3
+
+
+def test_the_two_handlers_count_the_same_chains_in_the_same_entry(
+    dataset: Path,
+) -> None:
+    """``1abc.pdb`` and ``1abc.cif`` are one structure written twice, which is
+    what an archive ships: the strand identifiers the CIF's polymer entities
+    name and the ``CHAIN:`` tokens the PDB's ``COMPND`` names are the same
+    chains, and a dataset holding both copies must not describe them as two
+    structures of different sizes."""
+    logical, payload = SAMPLES["PDBHandler"]()[0]
+    pdb = write(dataset, logical, payload)
+
+    from_cif = extract(sample_cif(dataset))
+    from_pdb = PDBHandler().extract(source_for(pdb))
+
+    assert from_cif["chain_count"] == from_pdb["chain_count"] == 3
 
 
 #: A haemoglobin-shaped block: two polymer entities over four chains, a heme
