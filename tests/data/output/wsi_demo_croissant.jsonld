@@ -150,7 +150,7 @@
       "@type": "cr:RecordSet",
       "@id": "slides",
       "name": "slides",
-      "description": "5 whole-slide image(s) (64-256x64-256): akoya (1), aperio (1), hamamatsu (1), leica (1), ventana (1). Objective magnification: 20-40.",
+      "description": "5 whole-slide image(s) (64-256x64-256): akoya (1), aperio (1), hamamatsu (1), leica (1), ventana (1). Objective magnification: 20-40. Compression: deflate. Associated images: label, macro, thumbnail.",
       "field": [
         {
           "@type": "cr:Field",
@@ -232,6 +232,36 @@
           "@id": "slides/level_count",
           "name": "level_count",
           "description": "Pyramid levels, the base level included (2)",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/tile_width",
+          "name": "tile_width",
+          "description": "Tile width of the base level in pixels (128)",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "wsi-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "slides/tile_height",
+          "name": "tile_height",
+          "description": "Tile height of the base level in pixels (128)",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
