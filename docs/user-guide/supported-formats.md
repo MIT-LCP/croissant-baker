@@ -370,8 +370,16 @@ Measured on a 120 MB `.h5ad` holding incompressible data, reading its structure 
 
 ## Macromolecular structures (`.pdb`, `.ent`, `.cif`, `.mmcif`)
 
-A PDB or mmCIF entry is read with `gemmi`, and what is kept is the header and
-the counts: entry id, title, experimental method, resolution, unit cell, space
+A PDB or mmCIF entry is read with `gemmi`, which ships as the optional
+`structural-biology` extra:
+`pip install "croissant-baker[structural-biology]"`. Without it a `.pdb`,
+`.ent`, `.cif`, `.mmcif` or `.star` file is still claimed and is reported with
+that install line as its reason, so it shows up as a file this install cannot
+read rather than as one nothing recognises. MRC, MTZ, mdoc, SDF, MOL and MOL2
+need no extra.
+
+What is kept is the header and the
+counts: entry id, title, experimental method, resolution, unit cell, space
 group, and the number of models, chains, residues and atoms. Every structure
 file in a dataset shares one FileSet and one `structures` record set, because
 every one of them answers the same questions. Splitting them per file would

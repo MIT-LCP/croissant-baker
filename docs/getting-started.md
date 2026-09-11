@@ -14,6 +14,13 @@ uv add croissant-baker
 
 Requires Python 3.10 or later.
 
+To describe PDB, mmCIF or STAR files, add the structural biology extra, which
+brings in [gemmi](https://gemmi.readthedocs.io/):
+`pip install "croissant-baker[structural-biology]"` (or
+`uv add "croissant-baker[structural-biology]"`). Without it those files are
+reported with that hint rather than described; every other format, MRC, MTZ,
+mdoc, SDF, MOL and MOL2 included, is read either way.
+
 ## Your first metadata file
 
 Try it on the bundled MIMIC-IV Demo test data (included in the repo):
