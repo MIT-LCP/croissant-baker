@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://www.gharchive.org/",
   "name": "GH Archive (demo slice)",
   "description": "200-event slice of GitHub Archive hourly JSONL export (2023-01-01 00:00 UTC)",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -10411,6 +10412,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://www.gharchive.org/"
+  ]
 }

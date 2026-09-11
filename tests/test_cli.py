@@ -1051,6 +1051,18 @@ def test_url_becomes_the_dataset_id(csv_dataset: Path, tmp_path: Path) -> None:
     assert json.loads(output.read_text())["@id"] == "https://example.org/ds"
 
 
+def test_dataset_id_sits_with_the_other_node_keywords(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A reader looks for the subject at the top, not after the record sets."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--url", "https://example.org/ds")
+
+    assert result.exit_code == 0, result.output
+    assert list(json.loads(output.read_text()))[:3] == ["@context", "@type", "@id"]
+
+
 @pytest.mark.parametrize(
     "url,usable",
     [

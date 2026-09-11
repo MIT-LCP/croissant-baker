@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://example.com/reserved-name-test",
   "name": "Reserved-name regression test",
   "description": "Dataset containing 1 files (application/vnd.apache.parquet) with automatically inferred types and structure",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -185,6 +186,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://example.com/reserved-name-test"
+  ]
 }

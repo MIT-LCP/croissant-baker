@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://platform.opentargets.org",
   "name": "Open Targets Platform (subset)",
   "description": "Subset of Open Targets Platform for testing",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -454,6 +455,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://platform.opentargets.org"
+  ]
 }

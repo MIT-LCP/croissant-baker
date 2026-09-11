@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://physionet.org/content/eicu-crd-demo/2.0.1/",
   "name": "eICU Collaborative Research Database Demo",
   "description": "Demo version of the eICU Collaborative Research Database",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -6561,6 +6562,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://physionet.org/content/eicu-crd-demo/2.0.1/"
+  ]
 }

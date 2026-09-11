@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://www.ncbi.nlm.nih.gov/geo/",
   "name": "GEO SOFT family exports (demo)",
   "description": "Three NCBI GEO family exports: two modern tableless deposits and one classic series with data tables",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -3531,6 +3532,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://www.ncbi.nlm.nih.gov/geo/"
+  ]
 }

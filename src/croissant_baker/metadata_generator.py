@@ -659,8 +659,15 @@ class MetadataGenerator:
         # and it is what Bioschemas expects there. A url no IRI can be built
         # from is skipped rather than written: the CLI says so on stderr, and
         # a declared profile that requires @id refuses the bake outright.
+        # Written beside the other node keywords, where a reader looks for the
+        # subject of the graph, rather than trailing the record sets.
         if url_is_iri_safe(self.url):
-            result["@id"] = self.url
+            result = {
+                "@context": result.pop("@context"),
+                "@type": result.pop("@type"),
+                "@id": self.url,
+                **result,
+            }
         if self.alternate_name is not None:
             result["alternateName"] = self.alternate_name
         if self.is_live_dataset is not None:

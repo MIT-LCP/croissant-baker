@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://physionet.org/content/mimic-iv-demo-meds/0.0.1/",
   "name": "MIMIC-IV demo data in the Medical Event Data Standard (MEDS)",
   "description": "MEDS demo of MIMIC-IV represented as Parquet event streams",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -1244,6 +1245,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://physionet.org/content/mimic-iv-demo-meds/0.0.1/"
+  ]
 }

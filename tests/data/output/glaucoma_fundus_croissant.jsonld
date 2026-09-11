@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://physionet.org/content/hyg-dataset/1.0.0/",
   "name": "Hillel Yaffe Glaucoma Dataset (subset)",
   "description": "Subset of fundus images for glaucoma screening with GON labels",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -281,6 +282,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://physionet.org/content/hyg-dataset/1.0.0/"
+  ]
 }

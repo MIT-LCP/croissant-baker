@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://physionet.org/content/mitdb/1.0.0/",
   "name": "MIT-BIH Arrhythmia Database",
   "description": "MIT-BIH Arrhythmia Database containing 48 ECG recordings with annotations",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -4251,6 +4252,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://physionet.org/content/mitdb/1.0.0/"
+  ]
 }

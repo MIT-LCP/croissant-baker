@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://physionet.org/content/mimic-iv-demo-omop/0.9/",
   "name": "MIMIC-IV demo data in the OMOP Common Data Model",
   "description": "A 100-patient demo of MIMIC-IV in the OMOP Common Data Model",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -6121,6 +6122,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://physionet.org/content/mimic-iv-demo-omop/0.9/"
+  ]
 }

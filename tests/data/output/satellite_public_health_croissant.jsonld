@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://physionet.org/content/multimodal-satellite-data/1.0.0/",
   "name": "Multi-Modal Satellite Imagery for Public Health (subset)",
   "description": "Subset of Sentinel-2 satellite imagery linked to public health indicators in Colombia",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
@@ -15458,6 +15459,5 @@
         }
       ]
     }
-  ],
-  "@id": "https://physionet.org/content/multimodal-satellite-data/1.0.0/"
+  ]
 }
