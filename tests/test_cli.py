@@ -9,6 +9,11 @@ import pytest
 from typer.testing import CliRunner
 
 from croissant_baker.__main__ import app
+from croissant_baker.metadata_generator import (
+    BIOSCHEMAS_CONFORMS_TO,
+    MetadataGenerator,
+)
+from tests.helpers import cli
 
 runner = CliRunner()
 
@@ -938,3 +943,207 @@ def test_baked_output_round_trips_through_mlcroissant(
     record_sets = list(ds.metadata.record_sets)
     fields = list(record_sets[0].fields)
     assert {f.name for f in fields} == {"id", "name", "age"}
+
+
+def test_identifier_single_value_emits_a_string(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """One --identifier emits a bare string, the shape a lone accession takes."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--identifier", "phs000218.v1.p1")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["identifier"] == "phs000218.v1.p1"
+
+
+def test_identifier_repeated_and_comma_delimited_emits_a_list(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--identifier accepts both input shapes, and several values become a list."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--identifier",
+        "phs000218.v1.p1,EGAS00001000255",
+        "--identifier",
+        "https://doi.org/10.1234/example",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["identifier"] == [
+        "phs000218.v1.p1",
+        "EGAS00001000255",
+        "https://doi.org/10.1234/example",
+    ]
+
+
+def test_conditions_of_access_passes_through(csv_dataset: Path, tmp_path: Path) -> None:
+    """--conditions-of-access is free text; it reaches the output unchanged."""
+    output = tmp_path / "output.jsonld"
+    conditions = "Controlled access: Data Access Agreement via the DAC"
+
+    result = cli(csv_dataset, output, "--conditions-of-access", conditions)
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conditionsOfAccess"] == conditions
+
+
+@pytest.mark.parametrize(
+    "flag,expected",
+    [("--is-accessible-for-free", True), ("--not-accessible-for-free", False)],
+)
+def test_is_accessible_for_free_emits_the_boolean_asked_for(
+    csv_dataset: Path, tmp_path: Path, flag: str, expected: bool
+) -> None:
+    """Both halves of the flag pair emit a JSON boolean, not a string."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, flag)
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["isAccessibleForFree"] is expected
+
+
+def test_included_in_data_catalog_passes_through(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--included-in-data-catalog carries the catalog URL through verbatim."""
+    output = tmp_path / "output.jsonld"
+    catalog = "https://datacatalog.ccdi.cancer.gov/"
+
+    result = cli(csv_dataset, output, "--included-in-data-catalog", catalog)
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["includedInDataCatalog"] == catalog
+
+
+def test_profile_bioschemas_appends_to_conforms_to(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """--profile bioschemas declares the second profile alongside Croissant 1.1."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--profile", "bioschemas")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        "http://mlcommons.org/croissant/1.1",
+        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
+    ]
+
+
+def test_repeated_profile_is_declared_once(csv_dataset: Path, tmp_path: Path) -> None:
+    """A profile named twice is still one entry in conformsTo."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset, output, "--profile", "bioschemas", "--profile", "bioschemas"
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        "http://mlcommons.org/croissant/1.1",
+        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
+    ]
+
+
+def test_profile_coexists_with_rai_conformance(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The RAI declaration appends to the profile list rather than replacing it."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--profile",
+        "bioschemas",
+        "--rai-data-collection",
+        "Retrospective chart review",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        "http://mlcommons.org/croissant/1.1",
+        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
+        "http://mlcommons.org/croissant/RAI/1.0",
+    ]
+
+
+def test_unknown_profile_is_rejected(csv_dataset: Path, tmp_path: Path) -> None:
+    """An unrecognised profile name fails loudly and names what is accepted."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--profile", "biocroissant")
+
+    assert result.exit_code != 0
+    assert "bioschemas" in result.output
+
+
+def test_unknown_profile_is_rejected_by_the_generator(tmp_path: Path) -> None:
+    """A library caller gets the same refusal at construction, not a KeyError."""
+    with pytest.raises(ValueError, match="bioschemas"):
+        MetadataGenerator(dataset_path=str(tmp_path), profiles=["biocroissant"])
+
+
+def test_padded_profile_name_is_accepted(csv_dataset: Path, tmp_path: Path) -> None:
+    """Validation reads the same normalised names the generator is handed."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--profile", " bioschemas")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == [
+        "http://mlcommons.org/croissant/1.1",
+        "https://bioschemas.org/profiles/Dataset/1.0-RELEASE",
+    ]
+
+
+def test_discovery_keys_absent_without_their_flags(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """None of the five appear unless asked for; optional keys stay absent."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output)
+
+    assert result.exit_code == 0, result.output
+    metadata = json.loads(output.read_text())
+    assert not {
+        "identifier",
+        "conditionsOfAccess",
+        "isAccessibleForFree",
+        "includedInDataCatalog",
+    } & set(metadata)
+    assert metadata["conformsTo"] == "http://mlcommons.org/croissant/1.1"
+
+
+def test_all_discovery_fields_construct_under_mlcroissant(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """An output carrying all five still loads as a Croissant dataset."""
+    import mlcroissant as mlc
+
+    output = tmp_path / "output.jsonld"
+
+    result = cli(
+        csv_dataset,
+        output,
+        "--identifier",
+        "phs000218.v1.p1,EGAS00001000255",
+        "--conditions-of-access",
+        "Controlled access: Data Access Agreement via the DAC",
+        "--not-accessible-for-free",
+        "--included-in-data-catalog",
+        "https://datacatalog.ccdi.cancer.gov/",
+        "--profile",
+        "bioschemas",
+    )
+
+    assert result.exit_code == 0, result.output
+    metadata = mlc.Dataset(str(output)).metadata
+    assert metadata.name == "test_dataset"
+    assert BIOSCHEMAS_CONFORMS_TO in metadata.conforms_to
