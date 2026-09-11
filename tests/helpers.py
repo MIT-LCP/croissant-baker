@@ -11,6 +11,7 @@ from typing import Callable, Iterable, Optional
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pytest
 import tifffile
 
 from typer.testing import CliRunner
@@ -233,6 +234,62 @@ def _hdf5() -> list:
     return [("filtered_feature_bc_matrix.h5", tenx_bytes())]
 
 
+def _needs_gemmi() -> None:
+    """Skip the calling test when the structural-biology extra is not installed.
+
+    Three of the samples below are written or read through gemmi, and a test
+    that cannot read its sample has nothing left to check. Every caller of
+    :data:`SAMPLES` goes through the builder, so this is the one place the
+    skip has to be.
+    """
+    pytest.importorskip("gemmi")
+
+
+def _structure() -> list:
+    """One PDB entry. The CIF paths are exercised by the demo dataset, which
+    holds an mmCIF, a small-molecule CIF and a CIF that is neither."""
+    _needs_gemmi()
+    from tests.structural_biology_fixtures import PDB_ENTRY
+
+    return [("1abc.pdb", PDB_ENTRY.encode("ascii"))]
+
+
+def _star() -> list:
+    """A RELION particle table: an optics block and a particles block."""
+    _needs_gemmi()
+    from tests.structural_biology_fixtures import PARTICLES_STAR
+
+    return [("run_data.star", PARTICLES_STAR.encode("ascii"))]
+
+
+def _mrc() -> list:
+    """A volume: a header and the data block whose size it declares."""
+    from tests.structural_biology_fixtures import mrc_bytes
+
+    return [("tomogram.mrc", mrc_bytes())]
+
+
+def _mtz() -> list:
+    # The reader needs no gemmi; writing the sample does.
+    _needs_gemmi()
+    from tests.structural_biology_fixtures import mtz_bytes
+
+    return [("native.mtz", mtz_bytes())]
+
+
+def _mdoc() -> list:
+    from tests.structural_biology_fixtures import TILT_SERIES_MDOC
+
+    return [("tilt_series.mdoc", TILT_SERIES_MDOC.encode("ascii"))]
+
+
+def _molecules() -> list:
+    """Two molecules with property tags, which is what an SDF is read for."""
+    from tests.structural_biology_fixtures import LIGANDS_SDF
+
+    return [("ligands.sdf", LIGANDS_SDF.encode("ascii"))]
+
+
 def _nifti() -> list:
     source = next(_SPECT.rglob("*.nii.gz"), None)
     assert source is not None, f"tracked NIfTI fixture missing under {_SPECT}"
@@ -254,6 +311,12 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "NIfTIHandler": _nifti,
     "SOFTHandler": _soft,
     "HDF5Handler": _hdf5,
+    "StructureHandler": _structure,
+    "STARHandler": _star,
+    "MRCHandler": _mrc,
+    "MTZHandler": _mtz,
+    "MdocHandler": _mdoc,
+    "SmallMoleculeHandler": _molecules,
 }
 
 #: Handlers with no sample, and why.
