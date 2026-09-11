@@ -21,7 +21,7 @@ a fragment of three.
 Nothing in front of the header says how long it is, so, as in PDB, what bounds
 the read is that stop. A file that never reaches a coordinate table must still
 stop somewhere, so the header is taken a chunk at a time and bounded three
-ways: a cap on one line, a cap on the header, and a bound past which a block
+ways: a cap on one line, a cap on the header, and a bound past which a file
 that has named neither dialect is refused for the dialect it has not named.
 
 The tokenizer covers the CIF 1.1 subset the two dialects are written in, and no
@@ -141,6 +141,24 @@ PDBX_MARKERS = ("_entry.id", "_audit_conform.dict_name")
 #: The two that say a block is a small molecule, once PDBx has been ruled out.
 CORE_MARKERS = ("_cell_length_a", "_chemical_formula_sum")
 
+#: The undotted item names that say a block is a crystal structure, as prefixes:
+#: its cell, its compound, its symmetry, its coordinates, its refinement, its
+#: diffraction, or the paper it was published in. Wider than :data:`CORE_MARKERS`
+#: and asked of a different question. What is described is decided by the items
+#: that were collected; what is read on for is decided by these, which a block
+#: names whether or not this handler stores anything of them.
+CORE_NAME_PREFIXES = (
+    "_cell_",
+    "_chemical_",
+    "_symmetry_",
+    "_space_group",
+    "_atom_site_",
+    "_publ_",
+    "_journal_",
+    "_refine_",
+    "_diffrn_",
+)
+
 #: The cell, as the description and the ``cell`` field both name its parts.
 CELL_ITEMS = (
     ("a", "_cell_length_a"),
@@ -179,21 +197,63 @@ UNCERTAINTY = re.compile(r"\(\d+\)$")
 #: and the square of it in copying before the cap is reached.
 MAX_LINE_BYTES = 1024 * 1024
 
-#: How far a block is read before it has to have named a dialect. A block
-#: states what it is in its first items: an archive entry writes ``_entry.id``
-#: on the line after its ``data_`` line, and a small-molecule deposit its cell
-#: and formula within a screenful. What this bounds is the other case, a CIF
-#: that is neither: a chemical component definition, a dictionary or a powder
-#: pattern carries no coordinate table at all, so nothing else ends the read
-#: before the header cap, and a six-megabyte dictionary was read whole to find
-#: out it could not be described. A block silent on both dialects through a
-#: megabyte of its own items will not name one in the megabytes after.
+#: How far a file is read before it has to have named a dialect. Counted from
+#: the first byte read rather than from the ``data_`` line, the banner of
+#: comments a deposit opens with included, because what this bounds is the read
+#: and those bytes were read too. A block states what it is in its first items:
+#: an archive entry writes ``_entry.id`` on the line after its ``data_`` line,
+#: and a small-molecule deposit its cell and formula within a screenful. What
+#: this bounds is the other case, a CIF that is neither: a chemical component
+#: definition, a dictionary or a powder pattern carries no coordinate table at
+#: all, so nothing else ends the read before the header cap, and a six-megabyte
+#: dictionary was read whole to find out it could not be described. A file
+#: silent on both dialects through a megabyte of items will not name one in the
+#: megabytes after.
 MAX_DIALECT_BYTES = 1024 * 1024
 
 #: How much of the head is read to decide a claim. A core CIF from the COD or
 #: the CSD opens with a banner of comment lines, so the ``data_`` line is not
 #: the first line of the file; a few kilobytes clears any banner anyone writes.
 CLAIM_BYTES = 8 * 1024
+
+
+class _Named:
+    """What the read has passed that says what it is reading.
+
+    Kept beside the collected items rather than read out of them. What is
+    collected is a short list of categories, and a block is legally written of
+    items outside all of them: an entry that writes its bibliography before its
+    ``_entry.id``, or a deposit its references before its formula, has named its
+    dialect on every line of a megabyte this handler stores nothing from, and a
+    reader that looked only at what it had stored would refuse it. So every item
+    name the parser passes is offered here, collected or not.
+
+    A dotted name is PDBx and nothing else: the category separator is what the
+    dialect added to core CIF. An undotted one naming a cell, a compound, a
+    symmetry, a coordinate, a refinement, a diffraction or a publication is a
+    crystal structure. Anything else names neither, and a file of nothing else
+    is what the bounded read exists to refuse.
+    """
+
+    def __init__(self) -> None:
+        #: Whether a ``data_`` line has been reached.
+        self.block = False
+        #: Whether any name since it belongs to one of the two dialects.
+        self.dialect = False
+
+    def opened(self) -> None:
+        """A ``data_`` line: what is named after it is named by this block."""
+        self.block = True
+
+    def name(self, item: str) -> None:
+        """One item name from inside a block, whether or not it is collected.
+
+        Names in front of the first block are never offered: they belong to no
+        block, as :func:`_parse` reads them.
+        """
+        if not self.dialect:
+            lowered = item.lower()
+            self.dialect = "." in lowered or lowered.startswith(CORE_NAME_PREFIXES)
 
 
 class _Pushback:
@@ -318,7 +378,7 @@ def _tokenize(
         yield from _line_tokens(line)
 
 
-def _read_loop(stream: _Pushback, columns: Dict[str, List[str]]) -> bool:
+def _read_loop(stream: _Pushback, columns: Dict[str, List[str]], named: _Named) -> bool:
     """One ``loop_`` table. False once the coordinates have been reached.
 
     The names come first, one per line, and then the rows run together: a
@@ -333,6 +393,7 @@ def _read_loop(stream: _Pushback, columns: Dict[str, List[str]]) -> bool:
         if token is None:
             return True
         if token[0] == NAME:
+            named.name(token[1])
             names.append(token[1].lower())
             continue
         stream.push(token)
@@ -368,12 +429,14 @@ def _collected(name: str) -> bool:
     return name.lower() in CORE_ITEMS or _category(name) in PDBX_CATEGORIES
 
 
-def _parse(tokens: Iterator[Tuple[str, str]], columns: Dict) -> Optional[str]:
+def _parse(
+    tokens: Iterator[Tuple[str, str]], columns: Dict, named: _Named
+) -> Optional[str]:
     """The first data block's name; its collected items fill ``columns``.
 
-    ``columns`` is passed in rather than returned so that the caller can watch
-    it fill, and refuse a block that has named neither dialect by the time it
-    has read enough of it to have named one.
+    ``columns`` and ``named`` are passed in rather than returned so that the
+    caller can watch them fill, and refuse a file that has named neither
+    dialect by the time it has read enough of it to have named one.
 
     One dict for both spellings an item has: a single item becomes a column of
     one value and a loop column becomes a column of as many as it has rows, so
@@ -396,12 +459,14 @@ def _parse(tokens: Iterator[Tuple[str, str]], columns: Dict) -> Optional[str]:
             if block is not None:
                 break
             block = text
+            named.opened()
         elif block is None:
             continue  # Anything in front of the first block states nothing.
         elif kind == LOOP:
-            if not _read_loop(stream, columns):
+            if not _read_loop(stream, columns, named):
                 break
         elif kind == NAME:
+            named.name(text)
             value = stream.next()
             if value is None:
                 break
@@ -761,6 +826,29 @@ def _unsupported_dialect(
     )
     if after is None:
         return ValueError(refusal)
+    return ValueError(
+        f"{refusal}; decided after reading {after} bytes of it, in which it "
+        "named no item of either dialect"
+    )
+
+
+def _no_data_block(
+    format_name: str, name: str, after: Optional[int] = None
+) -> ValueError:
+    """The refusal a file that states no data block gets, wherever from.
+
+    Two places reach it, as with the refusal above: the end of a file that held
+    none, and a bounded point part way through one, where a megabyte has gone
+    by with no ``data_`` line in it. A file stating no block states no dialect
+    either, and refusing it for the dialect its block did not name would be
+    describing a block there is none of.
+    """
+    refusal = (
+        f"Not a {format_name} file: {name} holds no data block, so there is "
+        "nothing in it to describe"
+    )
+    if after is None:
+        return ValueError(refusal)
     return ValueError(f"{refusal}; decided after reading {after} bytes of it")
 
 
@@ -832,10 +920,7 @@ class CIFHandler(FileTypeHandler):
         name = str(source.relative_path)
         block, columns = self._read_header(source, name)
         if block is None:
-            raise ValueError(
-                f"Not a {self.FORMAT_NAME} file: {name} holds no data block, so "
-                "there is nothing in it to describe"
-            )
+            raise _no_data_block(self.FORMAT_NAME, name)
 
         metadata = {
             "file_name": source.name,
@@ -863,23 +948,26 @@ class CIFHandler(FileTypeHandler):
         which is bounded in bytes and delivers the tail of a file that ends
         without a line ending as the line it is. The caps are checked once a
         chunk, because a header that never reaches a coordinate table, a line
-        that never ends, and a block that names no dialect are each owed a
+        that never ends, and a file that names no dialect are each owed a
         refusal before the file does.
 
-        The collected items are owned here rather than by :func:`_parse`, so
-        the chunk check can see what has been found so far.
+        The collected items and the names passed are owned here rather than by
+        :func:`_parse`, so the chunk check can see what has been found so far.
         """
         columns: Dict[str, List[str]] = {}
+        named = _Named()
         try:
             with source.open() as stream:
                 reader = PrefixLines(
                     stream,
                     MAX_HEADER_BYTES + 1,
                     on_chunk=lambda read, pending: self._still_a_header(
-                        pending, read, name, columns
+                        pending, read, name, named
                     ),
                 )
-                block = _parse(_tokenize(reader, name, self.FORMAT_NAME), columns)
+                block = _parse(
+                    _tokenize(reader, name, self.FORMAT_NAME), columns, named
+                )
             return block, columns
         except UNREADABLE as exc:
             raise ValueError(
@@ -887,17 +975,18 @@ class CIFHandler(FileTypeHandler):
             ) from exc
 
     def _still_a_header(
-        self, line_bytes: int, header_bytes: int, name: str, columns: Dict
+        self, line_bytes: int, header_bytes: int, name: str, named: _Named
     ) -> None:
         """Refuse a read that has gone past a bound, saying which one.
 
         Three bounds rather than one. A file with no line ending in it holds
         and re-copies every byte on the way to any cap measured in bytes read,
-        so the line cap ends that one first. A block that has read a megabyte
-        of its own items without naming a dialect is refused for the dialect it
-        has not named, which is the answer it would reach at the end anyway.
-        The header cap is what is left: a file that named a dialect and then
-        never reached its coordinate table.
+        so the line cap ends that one first. A file that has been read a
+        megabyte into without anything in it naming a dialect is refused for
+        the dialect it has not named, which is the answer it would reach at the
+        end anyway, or for the block it has not opened. The header cap is what
+        is left: a file that named a dialect and then never reached its
+        coordinate table.
         """
         if line_bytes > MAX_LINE_BYTES:
             raise ValueError(
@@ -911,11 +1000,9 @@ class CIFHandler(FileTypeHandler):
                 f"the {MAX_HEADER_BYTES}-byte cap without reaching a coordinate "
                 "table"
             )
-        if (
-            header_bytes > MAX_DIALECT_BYTES
-            and not _is_pdbx(columns)
-            and not _is_small_molecule(columns)
-        ):
+        if header_bytes > MAX_DIALECT_BYTES and not named.dialect:
+            if not named.block:
+                raise _no_data_block(self.FORMAT_NAME, name, header_bytes)
             raise _unsupported_dialect(self.FORMAT_NAME, name, header_bytes)
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:

@@ -544,20 +544,48 @@ def test_a_block_of_neither_dialect_is_refused_with_a_reason(dataset: Path) -> N
     assert "other.cif" in str(caught.value)
 
 
-#: Past the bound at which a block that has named neither dialect is refused,
-#: so a fixture crossing it exercises that decision rather than the cap far
-#: behind it.
+#: Past the bound at which a file that has named neither dialect is refused, so
+#: a fixture crossing it exercises that decision rather than the cap far behind
+#: it.
 PAST_DIALECT_BOUND = 1536 * 1024
 
 
 def unrelated(byte_count: int = PAST_DIALECT_BOUND) -> str:
-    """Items of a category neither dialect is decided by, past the bound.
+    """Items that name neither dialect, past the bound.
 
     A powder pattern, which is one of the things a CIF that is not a structure
-    turns out to be.
+    turns out to be. The pdCIF dictionary spells its names without a category
+    separator, which is what makes these items name neither dialect: a dotted
+    name would be PDBx whatever category it sat in.
     """
-    line = "_pd_meas.intensity_total   1234.5\n"
+    line = "_pd_meas_intensity_total   1234.5\n"
     return line * (byte_count // len(line) + 1)
+
+
+def citations(byte_count: int = PAST_DIALECT_BOUND) -> str:
+    """A bibliography, past the bound, of items this handler stores nothing of.
+
+    ``_citation`` is legal PDBx that is collected by no category here, and an
+    entry is free to write it before it writes anything that is.
+    """
+    line = "_citation.title   'A structure of a hydrolase at some resolution'\n"
+    return line * (byte_count // len(line) + 1)
+
+
+def operations(byte_count: int = PAST_DIALECT_BOUND) -> str:
+    """A ``_pdbx_struct_oper_list`` loop, past the bound, collected by nothing.
+
+    The other shape a megabyte of uncollected PDBx comes in: a table rather
+    than a run of single items, which the parser has to count through.
+    """
+    names = (
+        "loop_\n"
+        "_pdbx_struct_oper_list.id\n"
+        "_pdbx_struct_oper_list.type\n"
+        "_pdbx_struct_oper_list.matrix[1][1]\n"
+    )
+    row = "1 'crystal symmetry operation' 1.0\n"
+    return names + row * (byte_count // len(row) + 1)
 
 
 def test_a_block_naming_neither_dialect_is_refused_before_the_header_cap(
@@ -599,6 +627,105 @@ def test_a_large_block_naming_a_cell_early_is_still_described(dataset: Path) -> 
     assert path.stat().st_size > PAST_DIALECT_BOUND
 
     assert extract(path)["formula"] == "C6 H6"
+
+
+def test_an_entry_writing_a_megabyte_of_citations_first_is_still_described(
+    dataset: Path,
+) -> None:
+    """What says a block is PDBx is not only the handful of items this handler
+    stores. A dotted item name is PDBx and nothing else, whatever category it
+    sits in, so an entry that writes its bibliography in front of its
+    ``_entry.id`` has named its dialect on every line of it."""
+    payload = "data_1ABC\n" + citations() + "_entry.id   1ABC\n"
+    path = write(dataset, "cited.cif", payload.encode())
+    assert path.stat().st_size > PAST_DIALECT_BOUND
+
+    assert extract(path)["entry_id"] == "1ABC"
+
+
+def test_an_entry_writing_a_megabyte_of_operations_first_is_still_described(
+    dataset: Path,
+) -> None:
+    """The names of an uncollected loop say as much as an uncollected item
+    does, and a large assembly writes its symmetry operations as a table."""
+    payload = "data_1ABC\n" + operations() + "_entry.id   1ABC\n"
+    path = write(dataset, "opers_first.cif", payload.encode())
+    assert path.stat().st_size > PAST_DIALECT_BOUND
+
+    assert extract(path)["entry_id"] == "1ABC"
+
+
+def test_an_entry_that_has_stated_collected_items_is_not_refused_behind_them(
+    dataset: Path,
+) -> None:
+    """A block may state what it was determined by and what it polymerises into
+    before it states which entry it is, and both of those are items this
+    handler keeps: a megabyte of bibliography after them does not make the
+    block undecided."""
+    payload = (
+        "data_1ABC\n"
+        "_exptl.method   'X-RAY DIFFRACTION'\n"
+        "_entity_poly.pdbx_strand_id   A,B\n" + citations() + "_entry.id   1ABC\n"
+    )
+    path = write(dataset, "late_id.cif", payload.encode())
+    assert path.stat().st_size > PAST_DIALECT_BOUND
+
+    assert extract(path)["entry_id"] == "1ABC"
+
+
+def test_a_deposit_writing_a_megabyte_of_references_first_is_still_described(
+    dataset: Path,
+) -> None:
+    """The core-CIF half of the same statement. A COD deposit writes its
+    references as one ``;`` text field, which is a megabyte of a value rather
+    than of item names, and the name in front of it is what says the block is a
+    crystal structure."""
+    references = "A paper about a mineral, and the journal it appeared in.\n"
+    payload = (
+        "data_1000007\n"
+        "_publ_section_references\n;\n"
+        + references * (PAST_DIALECT_BOUND // len(references) + 1)
+        + ";\n_chemical_formula_sum   'Ca Mg Si2 O6'\n"
+    )
+    path = write(dataset, "referenced.cif", payload.encode())
+    assert path.stat().st_size > PAST_DIALECT_BOUND
+
+    assert extract(path)["formula"] == "Ca Mg Si2 O6"
+
+
+def test_a_dialect_named_only_past_the_bound_is_refused_all_the_same(
+    dataset: Path,
+) -> None:
+    """The side of the trade-off the bound gives up. A block whose first
+    megabyte names neither dialect is refused for the dialect it has not named,
+    and a file that names one in its second megabyte is refused with it: the
+    alternative is reading a six-megabyte dictionary whole to find out it could
+    not be described."""
+    payload = "data_x\n" + unrelated() + "_entry.id   1ABC\n"
+    path = write(dataset, "late.cif", payload.encode())
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert "late.cif" in str(caught.value)
+
+
+def test_a_file_reaching_no_data_block_within_the_bound_says_so(
+    dataset: Path,
+) -> None:
+    """The bound counts from the first byte read, preamble included, so a file
+    that never opens a block at all is stopped by it too. What it is refused
+    for is that: a file stating no block states no dialect either, and saying
+    the block named neither would be describing a block there is none of."""
+    path = write(dataset, "blockless.cif", unrelated(4 * 1024 * 1024).encode())
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "blockless.cif" in str(caught.value)
+    assert "holds no data block" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < PAST_DIALECT_BOUND
 
 
 def test_a_header_above_the_cap_is_refused(
