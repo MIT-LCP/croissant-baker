@@ -8,8 +8,11 @@ from croissant_baker.handlers.utils import (
     _disambiguate_ids,
     allocate_record_set_ids,
     decode_line,
+    deposited,
+    determined,
     make_field_id,
     normalize_array_shape,
+    plural,
     shard_template,
 )
 
@@ -290,3 +293,45 @@ def test_prefix_lines_never_pulls_more_than_one_byte_past_the_bound() -> None:
     assert list(reader) == []
     assert reader.bounded is True
     assert stream.read_bytes <= 8 + 1
+
+
+def test_plural_adds_an_s_to_a_regular_noun() -> None:
+    assert (plural(1, "chain"), plural(2, "chain")) == ("1 chain", "2 chains")
+
+
+def test_plural_takes_the_plural_of_an_irregular_noun() -> None:
+    """``polymer entitys`` is what the trailing ``s`` makes of the one noun the
+    structure handlers count that does not take one."""
+    assert plural(2, "polymer entity", "polymer entities") == "2 polymer entities"
+
+
+def test_plural_ignores_the_irregular_form_for_a_count_of_one() -> None:
+    assert plural(1, "polymer entity", "polymer entities") == "1 polymer entity"
+
+
+def test_deposited_states_the_date_a_file_wrote() -> None:
+    """Both spellings, because the two structure handlers report what their own
+    format writes rather than converting either."""
+    assert deposited("12-JAN-98") == "deposited 12-JAN-98"
+    assert deposited("1998-01-12") == "deposited 1998-01-12"
+
+
+def test_deposited_states_nothing_without_a_date() -> None:
+    assert deposited(None) == "" and deposited("") == ""
+
+
+def test_determined_joins_the_methods_with_the_resolution() -> None:
+    metadata = {
+        "experimental_methods": ["X-RAY DIFFRACTION", "NEUTRON DIFFRACTION"],
+        "resolution_angstrom": 1.8,
+    }
+
+    assert determined(metadata) == ("X-RAY DIFFRACTION, NEUTRON DIFFRACTION at 1.80 A")
+
+
+def test_determined_states_a_resolution_with_no_method_on_its_own() -> None:
+    assert determined({"resolution_angstrom": 2.0}) == "2.00 A resolution"
+
+
+def test_determined_states_nothing_about_a_structure_that_says_neither() -> None:
+    assert determined({}) == ""
