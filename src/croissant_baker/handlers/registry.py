@@ -153,9 +153,9 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.soft_handler import SOFTHandler
     from croissant_baker.handlers.hdf5_handler import HDF5Handler
 
-    # From the submodules rather than the package, so that constructing the
-    # registry pulls gemmi in only for the modules that parse through it, and
-    # only when the optional structural-biology extra is installed.
+    # Constructing the registry pulls gemmi in only when the optional
+    # structural-biology extra is installed: each module that parses through it
+    # guards its own import.
     from croissant_baker.handlers.structural_biology.structure_handler import (
         StructureHandler,
     )

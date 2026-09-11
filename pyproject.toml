@@ -42,7 +42,7 @@ dependencies = [
 # Structural biology: PDB, mmCIF and STAR parsing through gemmi. MRC, MTZ,
 # mdoc, SDF, MOL and MOL2 are read without it. Install with:
 #   pip install "croissant-baker[structural-biology]"
-# Without it those three formats are still claimed and refused with that hint,
+# Without it those files are still claimed and refused with that hint,
 # so a folder of CSVs does not have to carry a crystallography library.
 structural-biology = ["gemmi>=0.7.0"]
 

@@ -41,6 +41,8 @@ which ships as an optional extra so the other formats do not have to carry it:
 
 ```bash
 pip install "croissant-baker[structural-biology]"
+# or
+uv add "croissant-baker[structural-biology]"
 ```
 
 ## Quick start
