@@ -331,7 +331,12 @@ def _uri_option(
     option instead of being swallowed by the broad handler and reported as an
     unexpected error. Normalising first means a blank value is absent rather
     than a URI check nobody asked for.
+
+    Resilient parsing is shell completion and the like working out what the
+    command line means; it must never raise, so the value goes back untouched.
     """
+    if ctx.resilient_parsing:
+        return value
     value = _normalize_optional_text(value)
     if value is not None and not _URI_SCHEME.match(value):
         raise typer.BadParameter(
@@ -350,12 +355,15 @@ def _profile_option(
 
     The rule belongs to the generator, which every caller goes through; this
     only translates its refusal into the CLI's own error type so the message
-    is worded once.
+    is worded once. Resilient parsing gets the value back untouched, for the
+    same reason as above.
     """
+    if ctx.resilient_parsing:
+        return value
     try:
         return normalize_profiles(list(value or []))
     except ValueError as e:
-        raise typer.BadParameter(str(e), ctx=ctx, param=param)
+        raise typer.BadParameter(str(e), ctx=ctx, param=param) from e
 
 
 def _validate_iso_datetimes(option_name: str, values: Optional[List[str]]) -> None:
