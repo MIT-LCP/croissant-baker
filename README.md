@@ -88,6 +88,12 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | SAM | `.sam` | As BAM, from the text header |
 | FASTQ | `.fastq`, `.fq` | Sequencing reads: read length of the first record; read names are not reported |
 | FASTA | `.fa`, `.fasta`, `.fna` | Sequences and references: format only; record names and sequences are not read |
+| MOL | `.mol` | MDL molfiles: version, title, atom and bond counts, from V2000 columns or a V3000 `COUNTS` line (header only) |
+| SDF | `.sdf`, `.sd` | Compound libraries: molfile version and data field names with types, from a bounded sample of records |
+| SMILES | `.smi`, `.smiles` | Chemical structures: delimiter, column count and header names from a bounded sample of lines; no structure or compound name is read |
+| PDB | `.pdb`, `.ent` | Structures: ID code, classification, title, experimental method, resolution, chain count (header only) |
+| mmCIF / CIF | `.cif`, `.mmcif` | Structures: PDBx entry id, title, experimental method, resolution, entity and chain counts; small-molecule formula, space group and cell (header only) |
+| XYZ | `.xyz` | Cartesian coordinates: atom count and comment line of the first frame, extended-XYZ property names; frames are not counted and no coordinate is read |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly

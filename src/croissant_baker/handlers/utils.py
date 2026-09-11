@@ -6,7 +6,16 @@ import logging
 import re
 import warnings
 from pathlib import Path
-from typing import BinaryIO, Dict, Iterator, List, Optional, Sequence, Union
+from typing import (
+    BinaryIO,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Union,
+)
 
 
 import mlcroissant as mlc
@@ -114,6 +123,10 @@ def read_prefix_chunks(
     read a megabyte off a file to look at the first line of it. Chunked rather
     than iterated by line, because a file holding no line ending is one line,
     and reading it is reading the whole file.
+
+    Exactly ``limit`` bytes are yielded when the bound stopped the read, and
+    fewer whenever the stream ended first, so the total tells the two apart in
+    every case but the one where they coincide.
     """
     remaining = limit
     while remaining > 0:
@@ -122,6 +135,93 @@ def read_prefix_chunks(
             return
         remaining -= len(data)
         yield data
+
+
+def decode_line(raw: bytes) -> str:
+    """One line as text, with the carriage return of a CRLF file gone.
+
+    Decoded permissively: the line-oriented formats in this tree are printable
+    ASCII by specification, and a stray byte in a title, a comment or a data
+    item is not a reason to refuse a file whose structure is otherwise
+    readable.
+
+    One carriage return, because one CRLF is one line ending. A return in front
+    of that one is a byte the line carries, and stripping the whole run took
+    content off the line to remove a line ending that was already gone.
+    """
+    return raw.decode("utf-8", "replace").removesuffix("\r")
+
+
+class PrefixLines:
+    """The head of a stream as decoded lines, bounded in bytes.
+
+    Chunked rather than iterated by line, because a stream iterated by line
+    hands back the whole file as one line when the file holds no line ending,
+    and reading the whole file is the one thing a bounded read exists not to
+    do. One of these replaces the loop every line-oriented handler used to
+    write out for itself.
+
+    What follows the last line ending is delivered as a final line when the
+    stream ended there: that is where a writer closing the file straight after
+    its last line leaves it. It is dropped when the bound stopped the read
+    instead, because a tail the bound cut in half is not a line and nothing may
+    be read off it.
+
+    Which of the two happened is not the byte count's to say: a stream whose
+    last byte is the bound's has been read to its end, and reading ``limit``
+    bytes off it looks the same as reading the first ``limit`` of a file twice
+    the size. So one further byte is pulled when, and only when, the bound is
+    reached, and whether it arrives is the answer. That byte is the whole of
+    what the class reads past its bound, and it is never delivered as content:
+    it belongs to the line behind the bound, which is a line this reader has
+    already declined to read.
+
+    ``on_chunk(read, pending)`` is called once per chunk, with the bytes pulled
+    off the stream so far and the length of the line still being assembled, for
+    a caller that owes the file a refusal before the line it is reading ends.
+    """
+
+    def __init__(
+        self,
+        stream: BinaryIO,
+        limit: int,
+        chunk_size: int = PREFIX_CHUNK_BYTES,
+        on_chunk: Optional[Callable[[int, int], None]] = None,
+    ) -> None:
+        self._stream = stream
+        self._limit = limit
+        self._chunk_size = chunk_size
+        self._on_chunk = on_chunk
+        #: Bytes of the prefix pulled off the stream, the probe byte behind the
+        #: bound excluded: it is a byte of the file, not of the prefix.
+        self.read = 0
+        #: Bytes of the line still being assembled.
+        self.pending = 0
+        #: Whether the bound stopped the read rather than the end of the
+        #: stream. Answered once the iteration has run to its end; a caller
+        #: that stops early stopped for a bound of its own.
+        self.bounded = False
+
+    def __iter__(self) -> Iterator[str]:
+        pending = b""
+        for chunk in read_prefix_chunks(self._stream, self._limit, self._chunk_size):
+            self.read += len(chunk)
+            complete = (pending + chunk).split(b"\n")
+            # The tail after the last line ending is not yet a line.
+            pending = complete.pop()
+            self.pending = len(pending)
+            for raw in complete:
+                yield decode_line(raw)
+            if self._on_chunk is not None:
+                self._on_chunk(self.read, self.pending)
+        # Short of the bound, the chunk loop stopped because the stream ended.
+        # On the bound it stopped for the bound, and only the byte behind it
+        # says whether the stream ends there as well.
+        ended = self.read < self._limit or not self._stream.read(1)
+        self.bounded = not ended
+        if pending and ended:
+            yield decode_line(pending)
+            self.pending = 0
 
 
 def decompress_prefix(head: bytes, count: int) -> bytes:
@@ -136,9 +236,43 @@ def decompress_prefix(head: bytes, count: int) -> bytes:
         return payload.read(count)
 
 
-def plural(count: int, noun: str) -> str:
-    """``1 read group``, ``2 reference sequences``."""
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+def plural(count: int, noun: str, several: Optional[str] = None) -> str:
+    """``1 read group``, ``2 reference sequences``, ``2 polymer entities``.
+
+    ``several`` spells the plural of a noun that does not take a trailing
+    ``s``, which is the only reason a caller passes it.
+    """
+    if count == 1:
+        return f"{count} {noun}"
+    return f"{count} {several or f'{noun}s'}"
+
+
+def deposited(date: Optional[str]) -> str:
+    """``deposited 12-JAN-98``, or nothing when the file states no date.
+
+    Shared by the structure handlers, which each state the date their own
+    format writes: PDB writes ``DD-MMM-YY`` and mmCIF writes ``YYYY-MM-DD``,
+    and converting either would invent precision the file does not carry.
+    """
+    return f"deposited {date}" if date else ""
+
+
+def determined(metadata: dict) -> str:
+    """How a structure was determined, and at what resolution.
+
+    Read out of ``experimental_methods`` and ``resolution_angstrom``, which is
+    the shape both structure handlers build, so one sentence describes a
+    structure the same way whichever format it arrived in. The resolution is
+    written to two decimals because that is the precision the records and items
+    it comes from are quoted at.
+    """
+    methods = ", ".join(metadata.get("experimental_methods", []))
+    resolution = metadata.get("resolution_angstrom")
+    if methods and resolution is not None:
+        return f"{methods} at {resolution:.2f} A"
+    if resolution is not None:
+        return f"{resolution:.2f} A resolution"
+    return methods
 
 
 # Characters that are invalid in Croissant @id values.

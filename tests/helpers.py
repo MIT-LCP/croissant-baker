@@ -492,6 +492,200 @@ def _fasta() -> list:
     return [("reference.fa", b">chr1 test contig\nACGTACGTNN\n>chr2\nGGCCAATT\n")]
 
 
+def pdb_record(text: str) -> str:
+    """One PDB record, padded to the eighty columns a real file writes."""
+    return f"{text:<80}\n"
+
+
+#: The title section of the sample structure, in the columns PDB v3.3 fixes.
+#:
+#: Written out record by record rather than downloaded, because every field the
+#: handler reads sits at a fixed column and a fixture whose columns nobody can
+#: count is one nobody can change. The HEADER record is assembled with
+#: ``ljust`` for the same reason: classification is columns 11 to 50, the
+#: deposition date 51 to 59 and the ID code 63 to 66, and that is visible here
+#: rather than counted off a run of spaces.
+#:
+#: The same entry as ``CIF_HEADER_TEXT`` below, down to its two molecules over
+#: chains A, B and C: they are one structure in the two formats an archive
+#: ships it in, so the two handlers describe the same thing and a test can hold
+#: them to that.
+PDB_TITLE_RECORDS = (
+    "HEADER    " + "HYDROLASE".ljust(40) + "12-JAN-98" + "   " + "1ABC",
+    "TITLE     CRYSTAL STRUCTURE OF A MINIATURE HYDROLASE AT 1.80",
+    "TITLE    2 ANGSTROM RESOLUTION",
+    "COMPND    MOL_ID: 1;",
+    "COMPND   2 MOLECULE: MINIATURE HYDROLASE;",
+    "COMPND   3 CHAIN: A, B;",
+    "COMPND   4 MOL_ID: 2;",
+    "COMPND   5 MOLECULE: HYDROLASE INHIBITOR PEPTIDE;",
+    "COMPND   6 CHAIN: C;",
+    "SOURCE    MOL_ID: 1;",
+    "SOURCE   2 ORGANISM_SCIENTIFIC: ESCHERICHIA COLI;",
+    "SOURCE   3 MOL_ID: 2;",
+    "SOURCE   4 SYNTHETIC: YES;",
+    "KEYWDS    HYDROLASE, SERINE PROTEASE",
+    "EXPDTA    X-RAY DIFFRACTION",
+    "AUTHOR    J.DOE,A.SMITH",
+    "REMARK   2",
+    "REMARK   2 RESOLUTION.    1.80 ANGSTROMS.",
+    "SEQRES   1 A    3  GLY ILE VAL",
+    "SEQRES   1 B    3  PHE VAL ASN",
+    "SEQRES   1 C    3  ALA GLY SER",
+    "CRYST1   40.960   18.650   22.520  90.00  90.77  90.00 P 1 21 1      2",
+)
+
+#: The coordinate records behind it. Never parsed by anything: they are here so
+#: a test proving the read stops at the first of them has one to stop at.
+PDB_COORDINATE_RECORDS = (
+    "ATOM      1  N   GLY A   1      -8.901   4.127  -0.555  1.00 11.99           N",
+    "ATOM      2  CA  GLY A   1      -8.608   3.135  -1.618  1.00 11.85           C",
+    "TER       3      GLY A   1",
+    "END",
+)
+
+PDB_HEADER_TEXT = "".join(pdb_record(record) for record in PDB_TITLE_RECORDS)
+PDB_COORDINATE_TEXT = "".join(pdb_record(record) for record in PDB_COORDINATE_RECORDS)
+
+
+def _pdb() -> list:
+    """One small structure: a title section, then a few coordinate records.
+
+    The coordinates are the point, as the alignment records are in the SAM
+    sample: a title-section-only fixture cannot tell a handler that stops at the
+    first coordinate record apart from one that reads to end of file.
+    """
+    return [("1abc.pdb", (PDB_HEADER_TEXT + PDB_COORDINATE_TEXT).encode())]
+
+
+#: One PDBx/mmCIF entry, up to but not including its coordinate table.
+#:
+#: Written out by hand rather than downloaded, because every syntactic shape the
+#: handler has to get right is here and nowhere else: comment lines, single
+#: items, quoted values carrying spaces, a multi-line ``;`` text field, and
+#: loops of two and three columns. An archive entry is megabytes of
+#: ``_atom_site`` rows behind a header about this size.
+#:
+#: The same entry as ``PDB_TITLE_RECORDS`` above: two polymer entities over
+#: strands A, B and C, which are the chains that file's ``COMPND`` names.
+CIF_HEADER_TEXT = """\
+#
+data_1ABC
+#
+_entry.id   1ABC
+#
+_audit_conform.dict_name       mmcif_pdbx.dic
+_audit_conform.dict_version    5.279
+#
+_pdbx_database_status.recvd_initial_deposition_date   1998-01-12
+#
+loop_
+_audit_author.name
+_audit_author.pdbx_ordinal
+'Doe, J.'     1
+'Smith, A.'   2
+#
+_struct.entry_id   1ABC
+_struct.title
+;Crystal structure of a miniature hydrolase
+ at 1.80 angstrom resolution
+;
+#
+_struct_keywords.entry_id        1ABC
+_struct_keywords.pdbx_keywords   HYDROLASE
+_struct_keywords.text            'HYDROLASE, SERINE PROTEASE'
+#
+loop_
+_exptl.entry_id
+_exptl.method
+1ABC 'X-RAY DIFFRACTION'
+1ABC 'NEUTRON DIFFRACTION'
+#
+_refine.ls_d_res_high   1.80
+#
+loop_
+_entity_poly.entity_id
+_entity_poly.type
+_entity_poly.pdbx_strand_id
+1 'polypeptide(L)' A,B
+2 'polypeptide(L)' C
+#
+loop_
+_struct_asym.id
+_struct_asym.entity_id
+A 1
+B 1
+C 2
+#
+"""
+
+#: The coordinate table behind it. Never parsed by anything: it is here so a
+#: test proving the read stops at the ``_atom_site`` loop has one to stop at.
+CIF_ATOM_SITE_TEXT = """\
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+ATOM 1 N -8.901 4.127 -0.555
+ATOM 2 C -8.608 3.135 -1.618
+ATOM 3 C -7.221 2.458 -1.897
+"""
+
+#: A small-molecule CIF, the other dialect the handler tells apart: no category
+#: prefixes, a banner of comments in front of the data block the way a COD
+#: deposit ships one, cell lengths carrying their uncertainties, and a space
+#: group whose value has to be quoted because it holds spaces.
+SMALL_MOLECULE_CIF = """\
+#==============================================================================
+# A deposit opens with a banner of comment lines, so the data block is not the
+# first line of the file and the claim has to look past them to find it.
+# This block was produced for a test and describes nothing real.
+#==============================================================================
+data_7101243
+_chemical_name_common            'benzene'
+_chemical_formula_sum            'C6 H6'
+_cell_length_a                   10.1234(4)
+_cell_length_b                   5.4321(3)
+_cell_length_c                   7.6543(5)
+_cell_angle_alpha                90
+_cell_angle_beta                 95.123(2)
+_cell_angle_gamma                90
+_space_group_name_H-M_alt        'P 21/c'
+_diffrn_radiation_wavelength     0.71073
+_refine_ls_R_factor_gt           0.0412
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+C1 0.1234 0.5678 0.9012
+C2 0.2345 0.6789 0.0123
+H1 0.3456 0.7890 0.1234
+""".encode()
+
+
+def _cif() -> list:
+    """One PDBx entry: a header, then a few coordinate rows.
+
+    The coordinate rows are the point, as they are in the PDB sample: a
+    header-only fixture cannot tell a handler that stops at the ``_atom_site``
+    loop apart from one that reads to end of file.
+    """
+    return [("1abc.cif", (CIF_HEADER_TEXT + CIF_ATOM_SITE_TEXT).encode())]
+
+
+def _smiles() -> list:
+    """Three molecules with a name beside each, which is the common layout.
+
+    Three rather than one, so the sweep sees a file whose column count is
+    agreed on by several lines rather than declared by the only one there is.
+    """
+    return [("molecules.smi", b"CCO\tethanol\nC\tmethane\nc1ccccc1\tbenzene\n")]
+
+
 def bcf_payload(text: bytes = VCF_HEADER_TEXT, minor: int = 2) -> bytes:
     """The uncompressed bytes of a BCF 2.x container, header and no record.
 
@@ -513,6 +707,126 @@ def _bcf() -> list:
     the header this handler describes.
     """
     return [("calls.bcf", gzip.compress(bcf_payload(), mtime=0))]
+
+
+def _xyz() -> list:
+    """One water molecule: a count, a titled comment line, three atom lines.
+
+    The comment carries a title rather than being blank, so the sweep sees the
+    line a writer actually fills in, and the three atoms give a file whose first
+    frame the handler has to stop part way through.
+    """
+    return [
+        (
+            "water.xyz",
+            b"3\nwater molecule\n"
+            b"O 0.000 0.000 0.117\n"
+            b"H 0.000 0.757 -0.469\n"
+            b"H 0.000 -0.757 -0.469\n",
+        )
+    ]
+
+
+#: An ethanol connection table, V2000, written to the fixed-width columns the
+#: format specifies: three atoms in columns 1-3 of the counts line, two bonds in
+#: columns 4-6, and the version literal in columns 34-39. Written out by hand
+#: rather than by a toolkit because the columns are the thing under test, and a
+#: fixture nobody can check by eye is one nobody can change.
+MOL_V2000 = (
+    b"ethanol\n"
+    b"  Baker   01012000002D\n"
+    b"\n"
+    b"  3  2  0  0  0  0  0  0  0  0999 V2000\n"
+    b"    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"    1.2990    0.7500    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"    2.5981    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"  1  2  1  0  0  0  0\n"
+    b"  2  3  1  0  0  0  0\n"
+    b"M  END\n"
+)
+
+#: Methane: one atom and no bond at all, so a zero count is exercised as well as
+#: a positive one.
+MOL_METHANE = (
+    b"methane\n"
+    b"  Baker   01012000002D\n"
+    b"\n"
+    b"  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+    b"    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"M  END\n"
+)
+
+#: The same molecule in the V3000 layout, whose counts line carries only the
+#: version: the real counts sit on the ``COUNTS`` line inside the CTAB block.
+MOL_V3000 = (
+    b"ethanol\n"
+    b"  Baker   01012000003D\n"
+    b"\n"
+    b"  0  0  0     0  0            999 V3000\n"
+    b"M  V30 BEGIN CTAB\n"
+    b"M  V30 COUNTS 3 2 0 0 0\n"
+    b"M  V30 BEGIN ATOM\n"
+    b"M  V30 1 C 0.0000 0.0000 0.0000 0\n"
+    b"M  V30 2 C 1.2990 0.7500 0.0000 0\n"
+    b"M  V30 3 O 2.5981 0.0000 0.0000 0\n"
+    b"M  V30 END ATOM\n"
+    b"M  V30 BEGIN BOND\n"
+    b"M  V30 1 1 1 2\n"
+    b"M  V30 2 1 2 3\n"
+    b"M  V30 END BOND\n"
+    b"M  V30 END CTAB\n"
+    b"M  END\n"
+)
+
+
+def _mol() -> list:
+    """One ethanol molfile, the smallest thing that is a whole connection table."""
+    return [("ethanol.mol", MOL_V2000)]
+
+
+def sdf_record(block: bytes, items: Iterable[tuple] = ()) -> bytes:
+    """One SD file record: a molfile block, its data items, and the terminator.
+
+    A data item is a header line naming the field between angle brackets, the
+    value on the lines below it, and a blank line closing it. Built rather than
+    written out so a test needing two hundred records does not carry them.
+    """
+    out = block
+    for name, value in items:
+        out += f"> <{name}>\n{value}\n\n".encode()
+    return out + b"$$$$\n"
+
+
+def _sdf() -> list:
+    """Two records, carrying an integer, a float, a text and a multi-line item.
+
+    Two rather than one, so the sweep sees a file with a record terminator in
+    the middle of it as well as at the end, and so a field whose type has to
+    agree across records has a second record to agree with.
+    """
+    return [
+        (
+            "molecules.sdf",
+            sdf_record(
+                MOL_V2000,
+                [
+                    ("ID", "1"),
+                    ("LogP", "-0.31"),
+                    ("Name", "ethanol"),
+                    ("Notes", "primary alcohol\nmiscible with water"),
+                ],
+            )
+            + sdf_record(
+                MOL_METHANE,
+                [
+                    ("ID", "2"),
+                    ("LogP", "1.09"),
+                    ("Name", "methane"),
+                    ("Notes", "simplest alkane\ngas at room temperature"),
+                ],
+            ),
+        )
+    ]
 
 
 def _nifti() -> list:
@@ -541,8 +855,14 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "SAMHandler": _sam,
     "FASTQHandler": _fastq,
     "FASTAHandler": _fasta,
+    "SMILESHandler": _smiles,
     "BCFHandler": _bcf,
     "CRAMHandler": _cram,
+    "PDBHandler": _pdb,
+    "CIFHandler": _cif,
+    "XYZHandler": _xyz,
+    "MOLHandler": _mol,
+    "SDFHandler": _sdf,
 }
 
 #: Handlers with no sample, and why.
@@ -676,13 +996,22 @@ def by_name(nodes: Iterable[dict], key: str = "name") -> dict:
 WRAPPER_SUFFIXES = [c.suffix for c in compression.BUILTIN_COMPRESSIONS]
 
 __all__ = [
+    "CIF_ATOM_SITE_TEXT",
+    "CIF_HEADER_TEXT",
     "DATA",
     "EXEMPT",
+    "MOL_METHANE",
+    "MOL_V2000",
+    "MOL_V3000",
     "OME_NAMESPACE",
     "OME_PIXELS",
     "OME_TIFF",
+    "PDB_COORDINATE_TEXT",
+    "PDB_HEADER_TEXT",
+    "PDB_TITLE_RECORDS",
     "PNG_1X1",
     "SAMPLES",
+    "SMALL_MOLECULE_CIF",
     "VCF_HEADER_TEXT",
     "WRAPPER_SUFFIXES",
     "bake",
@@ -700,7 +1029,9 @@ __all__ = [
     "ome_bomb",
     "ome_image",
     "ome_xml",
+    "pdb_record",
     "record_sets",
+    "sdf_record",
     "tiff_bytes",
     "runner",
     "write_all",
