@@ -7,10 +7,13 @@ descriptions out. The handler that turns those into record sets is covered in
 
 from __future__ import annotations
 
-import gemmi
 import pytest
 
 from croissant_baker.handlers.structural_biology import cif
+
+# The grammar under test is gemmi's, which ships in the optional
+# structural-biology extra.
+gemmi = pytest.importorskip("gemmi")
 
 #: A two-block RELION particles file, trimmed to the columns that matter here:
 #: one optics row, three particles, and a column of ``index@stack`` names that

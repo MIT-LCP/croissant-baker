@@ -1651,6 +1651,11 @@ def test_structural_biology_demo_generation(
     orders, because ``rglob`` order is the filesystem's rather than sorted:
     comparing the text directly passed on macOS and failed on Linux.
     """
+    # The golden was baked with the structural-biology extra installed.
+    # Without gemmi the PDB, mmCIF, CIF and STAR files are refused rather
+    # than described, which is a different document and a case of its own.
+    pytest.importorskip("gemmi")
+
     if reverse_discovery:
         from croissant_baker import scan
 

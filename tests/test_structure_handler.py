@@ -12,6 +12,10 @@ from croissant_baker.handlers.structural_biology.structure_handler import (
 )
 from croissant_baker.sources import make_source
 
+# Every file here is parsed through gemmi, which ships in the optional
+# structural-biology extra, so without it there is nothing to check.
+pytest.importorskip("gemmi")
+
 
 #: A hand-written entry: a header, two protein chains and one water, in a cell.
 MINIMAL_PDB = """\
