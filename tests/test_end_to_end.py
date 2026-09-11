@@ -1341,6 +1341,8 @@ def _discovery_independent(document: dict) -> dict:
     A FileSet carries no contentUrl and needs none: its id is the handler's
     own, the same in every discovery order.
     """
+    # A FileSet carries globs rather than a URL, and its own id is already
+    # stable, so only the files are resolved.
     file_urls = {
         d["@id"]: d["contentUrl"] for d in document["distribution"] if "contentUrl" in d
     }
@@ -1703,3 +1705,89 @@ def test_wsi_demo_generation(
     assert _discovery_independent(metadata) == _discovery_independent(
         json.loads(golden.read_text())
     )
+
+
+# Structural biology: six handlers over one deposit, and the cases that only
+# arise when they sit beside one another.
+
+
+@pytest.fixture
+def structural_biology_demo_path() -> Path:
+    """Path to the structural biology demo dataset, which this repository tracks.
+
+    A hard failure rather than a skip: the fixture is committed, so it can only
+    go missing by accident, and skipping would hide the loss.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "structural_biology_demo"
+    assert dataset_path.is_dir(), (
+        f"tracked structural biology fixture missing at {dataset_path}"
+    )
+    return dataset_path
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_structural_biology_demo_generation(
+    structural_biology_demo_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+    reverse_discovery: bool,
+) -> None:
+    """The whole CLI over six structural biology formats at once, compared
+    against the committed document.
+
+    Read rather than overwritten, which is what makes the golden worth
+    committing: both the input fixture and the output are frozen, so any change
+    to what these handlers emit shows up here as a diff rather than as a
+    silently rewritten file. The input's README says how to regenerate both.
+
+    Compared through :func:`_discovery_independent`, and run in both discovery
+    orders, because ``rglob`` order is the filesystem's rather than sorted:
+    comparing the text directly passed on macOS and failed on Linux.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output_file = tmp_path / "structural_biology_demo_croissant.jsonld"
+    golden = (
+        Path(__file__).parent
+        / "data"
+        / "output"
+        / "structural_biology_demo_croissant.jsonld"
+    )
+    assert golden.is_file(), f"tracked structural biology golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(structural_biology_demo_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "Structural biology demo (synthetic structures, maps and metadata)",
+            "--description",
+            "PDB and mmCIF entries, a small-molecule CIF, a CIF dictionary, RELION STAR files, MRC maps, an MTZ, a SerialEM mdoc and a small-molecule library",
+            "--url",
+            "https://example.org/structural-biology-demo",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--dataset-version",
+            "1.0.0",
+            "--date-published",
+            "2026-01-01",
+            "--creator",
+            "croissant-baker test suite",
+        ],
+    )
+
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "Scanned 15 file(s): 14 described, 1 not described" in result.stdout
+    assert _discovery_independent(
+        json.loads(output_file.read_text())
+    ) == _discovery_independent(json.loads(golden.read_text()))

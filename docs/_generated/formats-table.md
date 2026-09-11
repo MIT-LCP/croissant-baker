@@ -27,3 +27,9 @@
 | PDB | `.pdb`, `.ent` | `.gz`, `.bz2`, `.xz` | ID code, classification, title, experimental method, resolution, chain count (header only) |
 | mmCIF | `.cif`, `.mmcif` | `.gz`, `.bz2`, `.xz` | PDBx entry id, title, experimental method, resolution, entity and chain counts; small-molecule CIF formula and cell (header only) |
 | XYZ | `.xyz` | `.gz`, `.bz2`, `.xz` | Atom count and comment line of the first frame; frames are not counted |
+| Macromolecular structure | `.pdb`, `.ent`, `.cif`, `.mmcif` | `.gz`, `.bz2`, `.xz` | Entry id, title, experimental method, resolution, unit cell, space group, and model, chain, residue and atom counts; a CIF holding no structure is described as the tables it declares |
+| STAR | `.star` | `.gz`, `.bz2`, `.xz` | RELION and other cryo-EM STAR files: one table per data block, columns typed from values |
+| MRC / CCP4 map | `.mrc`, `.mrcs`, `.map`, `.ccp4` | `.gz`, `.bz2`, `.xz` | Grid dimensions, data type, voxel size, space group, volume or stack |
+| MTZ | `.mtz` | `.gz`, `.bz2`, `.xz` | Reflection column labels and types, unit cell, space group, resolution range, datasets |
+| SerialEM mdoc | `.mdoc` | `.gz`, `.bz2`, `.xz` | Acquisition globals and the per-section keys of a tilt series or montage |
+| Small molecules | `.sdf`, `.mol`, `.mol2` | `.gz`, `.bz2`, `.xz` | Molecule and atom counts, and the property tags an SDF library declares |

@@ -95,6 +95,12 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | PDB | `.pdb`, `.ent` | Structures: ID code, classification, title, experimental method, resolution, chain count (header only) |
 | mmCIF / CIF | `.cif`, `.mmcif` | Structures: PDBx entry id, title, experimental method, resolution, entity and chain counts; small-molecule formula, space group and cell (header only) |
 | XYZ | `.xyz` | Cartesian coordinates: atom count and comment line of the first frame, extended-XYZ property names; frames are not counted and no coordinate is read |
+| Macromolecular structure | `.pdb`, `.ent`, `.cif`, `.mmcif` | Entry id, title, method, resolution, cell, space group and model, chain, residue and atom counts via gemmi; a small-molecule CIF by its cell and formula, and a CIF holding no structure by its tables |
+| STAR | `.star` | RELION and other cryo-EM metadata: one record set per data block, columns typed from values |
+| MRC / CCP4 map | `.mrc`, `.mrcs`, `.map`, `.ccp4` | Grid dimensions, data type, voxel size, space group, volume or stack (1024-byte header only) |
+| MTZ | `.mtz` | Reflection column labels and types, unit cell, space group, resolution range, datasets (header only) |
+| SerialEM mdoc | `.mdoc` | Acquisition globals and the per-section keys of a tilt series or montage |
+| Small molecules | `.sdf`, `.mol`, `.mol2` | Molecule, atom and bond counts, and the property tags an SDF library declares |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly

@@ -1086,6 +1086,45 @@ def _sdf() -> list:
             ),
         )
     ]
+def _structure() -> list:
+    """One PDB entry. The CIF paths are exercised by the demo dataset, which
+    holds an mmCIF, a small-molecule CIF and a CIF that is neither."""
+    from tests.structural_biology_fixtures import PDB_ENTRY
+
+    return [("1abc.pdb", PDB_ENTRY.encode("ascii"))]
+
+
+def _star() -> list:
+    """A RELION particle table: an optics block and a particles block."""
+    from tests.structural_biology_fixtures import PARTICLES_STAR
+
+    return [("run_data.star", PARTICLES_STAR.encode("ascii"))]
+
+
+def _mrc() -> list:
+    """A volume: a header and the data block whose size it declares."""
+    from tests.structural_biology_fixtures import mrc_bytes
+
+    return [("tomogram.mrc", mrc_bytes())]
+
+
+def _mtz() -> list:
+    from tests.structural_biology_fixtures import mtz_bytes
+
+    return [("native.mtz", mtz_bytes())]
+
+
+def _mdoc() -> list:
+    from tests.structural_biology_fixtures import TILT_SERIES_MDOC
+
+    return [("tilt_series.mdoc", TILT_SERIES_MDOC.encode("ascii"))]
+
+
+def _molecules() -> list:
+    """Two molecules with property tags, which is what an SDF is read for."""
+    from tests.structural_biology_fixtures import LIGANDS_SDF
+
+    return [("ligands.sdf", LIGANDS_SDF.encode("ascii"))]
 
 
 def _nifti() -> list:
@@ -1123,6 +1162,12 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "XYZHandler": _xyz,
     "MOLHandler": _mol,
     "SDFHandler": _sdf,
+    "StructureHandler": _structure,
+    "STARHandler": _star,
+    "MRCHandler": _mrc,
+    "MTZHandler": _mtz,
+    "MdocHandler": _mdoc,
+    "SmallMoleculeHandler": _molecules,
 }
 
 #: Handlers with no sample, and why.
