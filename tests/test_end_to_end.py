@@ -1337,8 +1337,15 @@ def _discovery_independent(document: dict) -> dict:
     FileObject ids are scan counters. Resolve each to its contentUrl so that
     reordered files compare equally, while a source pointing at the wrong
     file still fails. Preserve field order and all other metadata.
+
+    A FileSet carries no contentUrl and needs none: its id is the handler's
+    own, the same in every discovery order.
     """
-    file_urls = {d["@id"]: d["contentUrl"] for d in document["distribution"]}
+    # A FileSet carries globs rather than a URL, and its own id is already
+    # stable, so only the files are resolved.
+    file_urls = {
+        d["@id"]: d["contentUrl"] for d in document["distribution"] if "contentUrl" in d
+    }
 
     def resolve(value):
         if isinstance(value, dict):
@@ -1605,6 +1612,182 @@ def test_hdf5_demo_generation(
 
     assert result.exit_code == 0, f"Command failed: {result.stdout}"
     assert "Scanned 6 file(s): 5 described, 1 not described" in result.stdout
+    assert _discovery_independent(
+        json.loads(output_file.read_text())
+    ) == _discovery_independent(json.loads(golden.read_text()))
+
+
+# Whole-slide images (one slide per vendor, and a DICOM slide beside them)
+
+
+@pytest.fixture
+def wsi_demo_path() -> Path:
+    """Path to the whole-slide demo dataset, which this repository tracks.
+
+    A hard failure rather than a skip, as for the other synthetic fixtures:
+    the files are committed, so they can only go missing by accident, and
+    skipping would hide the loss.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "wsi_demo"
+    assert dataset_path.is_dir(), (
+        f"tracked whole-slide fixture missing at {dataset_path}"
+    )
+    return dataset_path
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_wsi_demo_generation(
+    wsi_demo_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
+    """The whole CLI over five vendor slides and one DICOM slide.
+
+    Two handlers in one bake, which no unit test covers: the vendor TIFFs
+    become the ``slides`` record set and the two DICOM instances go to the
+    DICOM handler, which reports them as whole-slide microscopy rather than as
+    cross sections. Compared against the committed document, as the HDF5 and
+    GEO SOFT bakes are, and run in both discovery orders because ``rglob``
+    order is the filesystem's rather than sorted: with two flavors in the
+    batch, a reversed discovery is what would list them the other way round.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output_file = tmp_path / "wsi_demo_croissant.jsonld"
+    golden = Path(__file__).parent / "data" / "output" / "wsi_demo_croissant.jsonld"
+    assert golden.is_file(), f"tracked whole-slide golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(wsi_demo_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "Whole-slide demo (synthetic pathology slides)",
+            "--description",
+            "One synthetic slide per scanner vendor, and one DICOM whole-slide microscopy instance",
+            "--url",
+            "https://example.org/wsi-demo",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--dataset-version",
+            "1.0.0",
+            "--date-published",
+            "2026-01-01",
+            "--creator",
+            "croissant-baker test suite",
+        ],
+    )
+
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "Scanned 8 file(s): 7 described, 1 not described" in result.stdout
+
+    metadata = json.loads(output_file.read_text())
+    record_sets = {r["name"]: r for r in metadata["recordSet"]}
+    assert set(record_sets) == {"slides", "dicom"}
+
+    slides = record_sets["slides"]["description"]
+    for vendor in ("aperio", "akoya", "hamamatsu", "leica", "ventana"):
+        assert f"{vendor} (1)" in slides, slides
+
+    assert (
+        "2 whole-slide microscopy instances (VOLUME, LABEL)"
+        in record_sets["dicom"]["description"]
+    )
+
+    assert _discovery_independent(metadata) == _discovery_independent(
+        json.loads(golden.read_text())
+    )
+
+
+# Structural biology: six handlers over one deposit, and the cases that only
+# arise when they sit beside one another.
+
+
+@pytest.fixture
+def structural_biology_demo_path() -> Path:
+    """Path to the structural biology demo dataset, which this repository tracks.
+
+    A hard failure rather than a skip: the fixture is committed, so it can only
+    go missing by accident, and skipping would hide the loss.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "structural_biology_demo"
+    assert dataset_path.is_dir(), (
+        f"tracked structural biology fixture missing at {dataset_path}"
+    )
+    return dataset_path
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_structural_biology_demo_generation(
+    structural_biology_demo_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+    reverse_discovery: bool,
+) -> None:
+    """The whole CLI over six structural biology formats at once, compared
+    against the committed document.
+
+    Read rather than overwritten, which is what makes the golden worth
+    committing: both the input fixture and the output are frozen, so any change
+    to what these handlers emit shows up here as a diff rather than as a
+    silently rewritten file. The input's README says how to regenerate both.
+
+    Compared through :func:`_discovery_independent`, and run in both discovery
+    orders, because ``rglob`` order is the filesystem's rather than sorted:
+    comparing the text directly passed on macOS and failed on Linux.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output_file = tmp_path / "structural_biology_demo_croissant.jsonld"
+    golden = (
+        Path(__file__).parent
+        / "data"
+        / "output"
+        / "structural_biology_demo_croissant.jsonld"
+    )
+    assert golden.is_file(), f"tracked structural biology golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(structural_biology_demo_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "Structural biology demo (synthetic structures, maps and metadata)",
+            "--description",
+            "PDB and mmCIF entries, a small-molecule CIF, a CIF dictionary, RELION STAR files, MRC maps, an MTZ, a SerialEM mdoc and a small-molecule library",
+            "--url",
+            "https://example.org/structural-biology-demo",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--dataset-version",
+            "1.0.0",
+            "--date-published",
+            "2026-01-01",
+            "--creator",
+            "croissant-baker test suite",
+        ],
+    )
+
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "Scanned 15 file(s): 14 described, 1 not described" in result.stdout
     assert _discovery_independent(
         json.loads(output_file.read_text())
     ) == _discovery_independent(json.loads(golden.read_text()))

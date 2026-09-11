@@ -8,7 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import mlcroissant as mlc
 
@@ -54,6 +54,16 @@ _CARRIED_BY_ANOTHER = (Outcome.UNCLAIMED, Outcome.FAILED)
 # https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html
 CROISSANT_CONFORMS_TO = "http://mlcommons.org/croissant/1.1"
 RAI_CONFORMS_TO = "http://mlcommons.org/croissant/RAI/1.0"
+BIOSCHEMAS_CONFORMS_TO = "https://bioschemas.org/profiles/Dataset/1.0-RELEASE"
+
+# Profiles a document can additionally declare, by the name --profile takes.
+# A new profile is one entry here: the CLI validates against these keys and
+# the generator declares the URI alongside CROISSANT_CONFORMS_TO. Nothing else
+# in the document changes, so declaring a profile is a claim about the
+# vocabulary, not a validation against it.
+PROFILE_CONFORMS_TO = {
+    "bioschemas": BIOSCHEMAS_CONFORMS_TO,
+}
 
 
 def _apply_field_mappings(
@@ -166,8 +176,14 @@ class MetadataGenerator:
         is_live_dataset: Optional[bool] = None,
         temporal_coverage: Optional[str] = None,
         usage_info: Optional[str] = None,
+        identifier: Optional[List[str]] = None,
+        conditions_of_access: Optional[str] = None,
+        is_accessible_for_free: Optional[bool] = None,
+        included_in_data_catalog: Optional[str] = None,
+        profiles: Optional[List[str]] = None,
         field_mappings: Optional[Dict[str, Dict[str, object]]] = None,
         count_csv_rows: bool = False,
+        genomic_sample_ids: bool = False,
         max_workers: Optional[int] = None,
         detect_references: bool = False,
         includes: Optional[List[str]] = None,
@@ -206,12 +222,30 @@ class MetadataGenerator:
                 free text or ISO 8601 (e.g., "2008/2019", "2023-01-15").
             usage_info: URL of a usage/consent policy (e.g., a DUO term URL,
                 ODRL Offer URL).
+            identifier: Accessions or persistent identifiers the dataset is
+                known by (e.g. a dbGaP phs number, an EGA study accession, a
+                DOI). A single value is emitted as a string, several as a list.
+            conditions_of_access: How access is obtained, in free text (e.g.
+                the data access agreement and committee for a controlled
+                release). schema.org/conditionsOfAccess.
+            is_accessible_for_free: Whether the data can be had without payment
+                or an access agreement. Tri-state: None leaves the key absent.
+            included_in_data_catalog: URL of a catalog entry that lists this
+                dataset (schema.org/includedInDataCatalog).
+            profiles: Additional profiles the document declares in
+                ``conformsTo`` alongside Croissant 1.1, by the names in
+                ``PROFILE_CONFORMS_TO``. Declaring a profile does not
+                validate against it.
             field_mappings: Per-column overrides keyed by field name. Each value
                 is a dict with optional ``equivalent_property`` (vocab URI) and
                 ``data_types`` (list of vocab URIs). Used to link columns to
                 external vocabularies like Wikidata/SNOMED/LOINC.
             count_csv_rows: If True, scan each CSV fully for exact row counts.
                 Defaults to False for performance.
+            genomic_sample_ids: If True, emit the sample identifiers a genomic
+                file names in its header. Defaults to False: for a controlled
+                release those identifiers are a manifest of the cohort, and the
+                counts answer the structural question without publishing one.
             max_workers: Maximum worker threads for per-file metadata
                 extraction. None (default) auto-sizes from the CPU count; 1
                 forces serial. Output is identical regardless of this value.
@@ -227,7 +261,8 @@ class MetadataGenerator:
                 or with a handler the baker does not ship.
 
         Raises:
-            ValueError: If dataset_path is not a directory.
+            ValueError: If dataset_path is not a directory, or a named profile
+                is not one of ``PROFILE_CONFORMS_TO``.
         """
         self.dataset_path = Path(dataset_path).resolve()
         if not self.dataset_path.is_dir():
@@ -253,6 +288,17 @@ class MetadataGenerator:
         self.is_live_dataset = is_live_dataset
         self.temporal_coverage = temporal_coverage
         self.usage_info = usage_info
+        self.identifier = identifier
+        self.conditions_of_access = conditions_of_access
+        self.is_accessible_for_free = is_accessible_for_free
+        self.included_in_data_catalog = included_in_data_catalog
+        unknown = sorted(set(profiles or []) - set(PROFILE_CONFORMS_TO))
+        if unknown:
+            raise ValueError(
+                f"Unknown profile(s) {', '.join(unknown)}; "
+                f"known profiles: {', '.join(sorted(PROFILE_CONFORMS_TO))}"
+            )
+        self.profiles = profiles
         self.field_mappings = field_mappings or {}
         self.includes = includes
         self.excludes = excludes
@@ -265,6 +311,7 @@ class MetadataGenerator:
         # To add a new handler-specific flag: add one key here — the call site never changes.
         self._handler_kwargs = {
             "count_rows": count_csv_rows,
+            "genomic_sample_ids": genomic_sample_ids,
         }
         # One entry per file the last generate_metadata() call scanned, each
         # carrying what became of it. Empty until then.
@@ -516,7 +563,7 @@ class MetadataGenerator:
             date_modified=self._parse_iso(self.date_modified),
             version=self.version or "1.0.0",
             cite_as=self._build_citation(),
-            conforms_to=CROISSANT_CONFORMS_TO,
+            conforms_to=self._resolve_conforms_to(),
             keywords=self.keywords,
             in_language=self.in_language,
             same_as=self.same_as,
@@ -548,6 +595,18 @@ class MetadataGenerator:
             result["temporalCoverage"] = self.temporal_coverage
         if self.usage_info is not None:
             result["usageInfo"] = self.usage_info
+        if self.identifier:
+            # One accession reads as a string, the way mlcroissant flattens its
+            # own single-element lists; several stay a list.
+            result["identifier"] = (
+                self.identifier[0] if len(self.identifier) == 1 else self.identifier
+            )
+        if self.conditions_of_access is not None:
+            result["conditionsOfAccess"] = self.conditions_of_access
+        if self.is_accessible_for_free is not None:
+            result["isAccessibleForFree"] = self.is_accessible_for_free
+        if self.included_in_data_catalog is not None:
+            result["includedInDataCatalog"] = self.included_in_data_catalog
         if self.field_mappings:
             _apply_field_mappings(result, self.field_mappings)
         return result
@@ -619,6 +678,11 @@ class MetadataGenerator:
         A list, because a multi-file record produces several: WFDB reads a
         header together with its sibling ``.dat`` and ``.atr``. Everything here
         addresses the file *as stored*, wrapper included.
+
+        ``description`` is optional and belongs to the handler: a format whose
+        content is not a table has properties worth stating and no record set
+        to state them on, and BAM is one. Absent, the FileObject carries none,
+        which is what every other handler produces today.
         """
         meta = entry.meta
         objects = [
@@ -626,6 +690,7 @@ class MetadataGenerator:
                 id=f"file_{counter}",
                 name=entry.path.name,
                 content_url=str(entry.path),
+                description=meta.get("description"),
                 encoding_formats=_encoding_formats(
                     meta["encoding_format"], entry.path.name
                 ),
@@ -691,6 +756,20 @@ class MetadataGenerator:
             f"Dataset containing {len(file_metadata)} files "
             f"({', '.join(sorted(file_types))}) with automatically inferred types and structure"
         )
+
+    def _resolve_conforms_to(self) -> Union[str, List[str]]:
+        """Croissant 1.1, plus any profile the caller asked to declare.
+
+        A bare string when there is nothing to add, because that is what the
+        canonical 1.1 examples carry. ``dict.fromkeys`` keeps the declared
+        order while dropping a profile named twice.
+        """
+        if not self.profiles:
+            return CROISSANT_CONFORMS_TO
+        profile_uris = dict.fromkeys(
+            PROFILE_CONFORMS_TO[profile] for profile in self.profiles
+        )
+        return [CROISSANT_CONFORMS_TO, *profile_uris]
 
     def _resolve_license(self) -> str:
         if not self.license:

@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/MIT-LCP/croissant-baker/actions/workflows/test.yaml"><img src="https://github.com/MIT-LCP/croissant-baker/actions/workflows/test.yaml/badge.svg" alt="CI"></a>
+  <a href="https://htmlpreview.github.io/?https://github.com/MIT-LCP/croissant-baker/blob/python-coverage-comment-action-data/htmlcov/index.html"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/MIT-LCP/croissant-baker/python-coverage-comment-action-data/endpoint.json" alt="Coverage"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
   <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv"></a>
   <a href="https://github.com/MIT-LCP/croissant-baker/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
@@ -68,18 +69,38 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 
 ## Supported formats
 
-| Format | Extensions | Notes |
-|--------|------------|-------|
-| CSV / TSV | `.csv`, `.tsv` | Streaming with automatic type inference |
-| Parquet | `.parquet` | Partitioned datasets supported |
-| FHIR | `.ndjson`, `.json` (Bundle) | NDJSON bulk export and JSON Bundle |
-| JSON / JSONL | `.json`, `.jsonl` | Arrays, single objects, and JSON Lines |
-| WFDB | `.hea` + `.dat` / `.atr` | PhysioNet waveform data |
-| Images | `.png`, `.jpg`, `.tiff`, `.btf`, `.bmp`, `.gif`, `.webp` | Dimensions and format; BigTIFF via tifffile; OME-XML header fields for OME-TIFF |
-| DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only) |
-| NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
-| GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
-| HDF5 | `.h5`, `.h5ad`, `.hdf5` | Dataset paths, dtypes and shapes via h5py (structure only); AnnData and 10x table columns where the layout is recognised |
+| Field | Format | Extensions | Notes |
+|-------|--------|------------|-------|
+| General | CSV / TSV | `.csv`, `.tsv` | Streaming with automatic type inference |
+| General | Parquet | `.parquet` | Partitioned datasets supported |
+| General | JSON / JSONL | `.json`, `.jsonl` | Arrays, single objects, and JSON Lines |
+| General | Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.ico`, `.tiff`, `.tif`, `.btf` | Dimensions and format; BigTIFF via tifffile; OME-XML header fields for OME-TIFF |
+| General | HDF5 | `.h5`, `.h5ad`, `.hdf5` | Dataset paths, dtypes and shapes via h5py (structure only); AnnData and 10x table columns where the layout is recognised |
+| Clinical records | FHIR | `.ndjson`, `.json` (Bundle) | NDJSON bulk export and JSON Bundle |
+| Physiological signals | WFDB | `.hea` (with sibling `.dat` / `.atr` located by path) | PhysioNet waveform data |
+| Radiology | DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only); image flavor, total pixel matrix size and slide barcode for whole-slide microscopy instances |
+| Radiology | NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
+| Pathology | Whole-slide images | `.svs`, `.ndpi`, `.scn`, `.bif`, `.qptiff` | Vendor, pyramid levels, tile size, microns per pixel, objective magnification and associated images via tifffile (header only); Aperio, Hamamatsu, Leica, Ventana and Akoya scanners |
+| Genomics | GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
+| Genomics | VCF / gVCF | `.vcf` | Variant callsets: reference, contigs, typed INFO and FORMAT keys, sample count (header only) |
+| Genomics | BCF | `.bcf` | Binary VCF 2.x: the container is unwrapped in-handler and the VCF header inside it yields the same record set as VCF |
+| Genomics | BAM | `.bam` | Sort order, reference sequences and assembly, read groups, program chain (header only) |
+| Genomics | CRAM | `.cram` | As BAM, plus the CRAM version; versions 2.x and 3.x, no reference needed (header only) |
+| Genomics | SAM | `.sam` | As BAM, from the text header |
+| Genomics | FASTQ | `.fastq`, `.fq` | Sequencing reads: read length of the first record; read names are not reported |
+| Genomics | FASTA | `.fa`, `.fasta`, `.fna` | Sequences and references: format only; record names and sequences are not read |
+| Chemistry and chemoinformatics | MOL | `.mol` | MDL molfiles: version, title, atom and bond counts, from V2000 columns or a V3000 `COUNTS` line (header only) |
+| Chemistry and chemoinformatics | SDF | `.sdf`, `.sd` | Compound libraries: molfile version and data field names with types, from a bounded sample of records |
+| Chemistry and chemoinformatics | SMILES | `.smi`, `.smiles` | Chemical structures: delimiter, column count and header names from a bounded sample of lines; no structure or compound name is read |
+| Chemistry and chemoinformatics | XYZ | `.xyz` | Cartesian coordinates: atom count and comment line of the first frame, extended-XYZ property names; frames are not counted and no coordinate is read |
+| Chemistry and chemoinformatics | Small molecules | `.sdf`, `.mol`, `.mol2` | Molecule, atom and bond counts, and the property tags an SDF library declares |
+| Structural biology | PDB | `.pdb`, `.ent` | Structures: ID code, classification, title, experimental method, resolution, chain count (header only) |
+| Structural biology | mmCIF / CIF | `.cif`, `.mmcif` | Structures: PDBx entry id, title, experimental method, resolution, entity and chain counts; small-molecule formula, space group and cell (header only) |
+| Structural biology | Macromolecular structure | `.pdb`, `.ent`, `.cif`, `.mmcif` | Entry id, title, method, resolution, cell, space group and model, chain, residue and atom counts via gemmi; a small-molecule CIF by its cell and formula, and a CIF holding no structure by its tables |
+| Structural biology | STAR | `.star` | RELION and other cryo-EM metadata: one record set per data block, columns typed from values |
+| Structural biology | MRC / CCP4 map | `.mrc`, `.mrcs`, `.map`, `.ccp4` | Grid dimensions, data type, voxel size, space group, volume or stack (1024-byte header only) |
+| Structural biology | MTZ | `.mtz` | Reflection column labels and types, unit cell, space group, resolution range, datasets (header only) |
+| Structural biology | SerialEM mdoc | `.mdoc` | Acquisition globals and the per-section keys of a tilt series or montage |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly
@@ -92,6 +113,7 @@ describes are reported with a reason rather than skipped in silence.
 
 - **Automatic type inference** for all supported formats
 - **RAI metadata** via `--rai-*` CLI flags or `--rai-config rai.yaml`
+- **Genomic sample identifiers withheld by default**: VCF and BCF report a sample count and BAM, CRAM and SAM a read-group count; the identifiers themselves are listed only with `--genomic-sample-ids`
 - **Validation** against the Croissant spec via `mlcroissant`
 - **Dry-run mode**, include/exclude glob filters, multiple creators
 

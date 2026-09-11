@@ -6,9 +6,25 @@ on:
   pull_request:
     branches: [ main ]
 
+# Every job below states what it needs.
+permissions: {}
+
+# Queue rather than race: two pushes to main in quick succession would otherwise
+# have both runs committing to the coverage data branch at once. Nothing is
+# cancelled, so a run in progress always finishes and comments.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      # Publish or update the coverage comment on a trusted pull request.
+      # GitHub downgrades both of these to read-only for runs from forks, which
+      # is why coverage-comment.yaml exists.
+      pull-requests: write
+      # Push the coverage data branch that feeds the README badge.
+      contents: write
     # Without this the default is six hours, and a suite that hangs burns all
     # of it on every matrix job before anyone sees a log.
     timeout-minutes: 20
@@ -19,6 +35,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # The coverage action hands the token it is given straight to git, so
+          # a write-scoped credential need not be left in .git/config where a
+          # later step in the job could read it.
+          persist-credentials: false
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -26,7 +46,25 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --group test
+        run: uv sync --group test --group mcp
 
       - name: Run tests
-        run: uv run pytest -v
+        run: uv run pytest -v --cov --cov-report=term-missing:skip-covered
+
+      # The badge and the comment describe one run, so only the 3.12 leg of the
+      # matrix reports; the 3.10 leg still measures coverage, it just drops it.
+      - name: Coverage comment
+        id: coverage_comment
+        if: matrix.python-version == '3.12'
+        uses: py-cov-action/python-coverage-comment-action@v4.3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Store pull request comment to be posted
+        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          # Renaming either of these means setting COMMENT_ARTIFACT_NAME or
+          # COMMENT_FILENAME on the action in both workflows.
+          name: python-coverage-comment-action
+          path: python-coverage-comment-action.txt

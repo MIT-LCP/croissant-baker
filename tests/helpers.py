@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import base64
+import bz2
 import gzip
 import io
+import lzma
+import struct
+import zlib
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
@@ -158,6 +162,265 @@ def ome_bomb(levels: int = 6) -> str:
 OME_TIFF = tiff_bytes(ome_xml(ome_image()), planes=3)
 
 
+# Whole-slide images
+#
+# One synthetic slide per vendor, small enough to build in memory on every
+# run. Each carries the signal tifffile identifies that vendor by, and
+# ``tests/test_wsi.py`` asserts the corresponding ``is_*`` property before any
+# other test relies on it.
+
+
+def _rgb(width: int, height: int) -> np.ndarray:
+    """One RGB plane. Zeros, so a deflated page costs a few hundred bytes."""
+    return np.zeros((height, width, 3), np.uint8)
+
+
+APERIO_HEADER = "Aperio Image Library v12.0.15"
+
+#: What an Aperio scanner writes into tag 270: a two-line header, then
+#: pipe-separated ``key = value`` items. The dimensions are the fixture's own,
+#: so nothing in the file contradicts anything else in it.
+APERIO_DESCRIPTION = (
+    f"{APERIO_HEADER}\r\n256x256 [0,0 256x256] (128x128) JPEG/RGB Q=30"
+    "|AppMag = 20|StripeWidth = 2040|ScanScope ID = CPAPERIOCS"
+    "|MPP = 0.4990|Left = 25.7|Top = 23.4"
+)
+
+#: A Leica SCN document, cut down to the elements a slide always carries.
+#: The root element decides the format: tifffile calls a page SCN when its
+#: description ends in ``</scn>``.
+SCN_XML = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<scn xmlns="http://www.leica-microsystems.com/scn/2010/10/01">'
+    '<collection name="collection" sizeX="256" sizeY="256">'
+    '<image name="Image1">'
+    "<scanSettings><objectiveSettings><objective>40</objective>"
+    "</objectiveSettings></scanSettings>"
+    '<pixels sizeX="256" sizeY="256">'
+    '<dimension sizeX="256" sizeY="256" r="0" ifd="0"/>'
+    '<dimension sizeX="128" sizeY="128" r="1" ifd="1"/>'
+    "</pixels>"
+    '<view sizeX="64000" sizeY="64000" offsetX="0" offsetY="0"/>'
+    "</image></collection></scn>"
+)
+
+#: The root element of an SCN document, which is what tifffile calls the
+#: format by: a page is SCN when its description ends in ``</scn>``.
+SCN_ROOT = '<scn xmlns="http://www.leica-microsystems.com/scn/2010/10/01">'
+
+#: One entity declaration is enough: the refusal is on the declaration itself,
+#: not on how far the expansion would have got. Beside :func:`ome_bomb`,
+#: which is the same refusal in the other XML the repository parses.
+SCN_BOMB = (
+    '<?xml version="1.0"?>\n<!DOCTYPE scn [\n<!ENTITY a "lol">\n]>\n'
+    f'{SCN_ROOT}<collection name="&a;"/></scn>'
+)
+
+#: An SCN document whose collection element is never closed.
+SCN_MALFORMED = f"{SCN_ROOT}<collection></scn>"
+
+#: The XMP packet a Ventana scanner puts in tag 700. ``ScanRes`` is microns
+#: per pixel and ``Magnification`` the objective power.
+VENTANA_XMP = (
+    '<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>'
+    '<x:xmpmeta xmlns:x="adobe:ns:meta/">'
+    '<iScan Magnification="40" ScanRes="0.2500" Z="0"/>'
+    "</x:xmpmeta><?xpacket end='w'?>"
+).encode("utf-8")
+
+#: The XML an Akoya scanner writes into tag 270, trimmed to the elements that
+#: describe the optics. The scan profile is a large opaque blob in a real file.
+QPI_XML = (
+    "<PerkinElmer-QPI-ImageDescription>"
+    "<DescriptionVersion>2</DescriptionVersion>"
+    "<ImageType>FullResolution</ImageType>"
+    "<Name>DAPI</Name>"
+    "<Objective>20x</Objective>"
+    "<ScanProfile>{}</ScanProfile>"
+    "</PerkinElmer-QPI-ImageDescription>"
+)
+
+
+def aperio_bytes(
+    description: Optional[str] = None, *, tiled_label: bool = False
+) -> bytes:
+    """An Aperio SVS, in the page order tifffile's SVS series builder assumes.
+
+    Base, thumbnail, one further level, label, macro. The thumbnail sits at
+    page 1 whatever it holds, so a fixture that omits it hands page 1 to the
+    builder as the thumbnail and loses a pyramid level.
+
+    ``tiled_label`` stores the label in tiles rather than strips, which real
+    Ventana and Leica scanners do: a page walk then finds a page that looks
+    like a level, and only the vendor series tells the two apart.
+    """
+    buffer = io.BytesIO()
+    plane = {"photometric": "rgb", "metadata": None}
+    tiled = {**plane, "tile": (128, 128), "compression": "deflate"}
+    label = {**tiled, "tile": (16, 16)} if tiled_label else plane
+    with tifffile.TiffWriter(buffer) as writer:
+        writer.write(
+            _rgb(256, 256),
+            description=APERIO_DESCRIPTION if description is None else description,
+            **tiled,
+        )
+        writer.write(
+            _rgb(64, 64),
+            description=f"{APERIO_HEADER}\r\n256x256 -> 64x64 - |AppMag = 20",
+            **plane,
+        )
+        writer.write(
+            _rgb(128, 128),
+            description=f"{APERIO_HEADER}\r\n256x256 -> 128x128 - |AppMag = 20",
+            **tiled,
+        )
+        writer.write(
+            _rgb(32, 32),
+            subfiletype=1,
+            description=f"{APERIO_HEADER}\r\nlabel 32x32",
+            **label,
+        )
+        writer.write(
+            _rgb(48, 48),
+            subfiletype=9,
+            description=f"{APERIO_HEADER}\r\nmacro 48x48",
+            **plane,
+        )
+    return buffer.getvalue()
+
+
+def hamamatsu_bytes(*, mpp: float = 0.46, objective: float = 20.0) -> bytes:
+    """A Hamamatsu NDPI: tags 65420 and 271, and a resolution in centimetres.
+
+    Two pages, the second a reduced level, so the NDPI branch of the pyramid
+    walk describes a pyramid rather than a single page.
+
+    Written big-endian. tifffile decides a little-endian classic TIFF named
+    ``.ndpi`` has 64-bit IFD offsets, which a real NDPI does and this
+    synthetic one does not, and then finds no page in it at all. A
+    big-endian file never takes that branch, and no real NDPI is big-endian,
+    so nothing else in the suite is misled by the choice.
+    """
+    ndpi = [
+        (65420, 3, 1, 1, True),  # NDPI version
+        (65421, 11, 1, objective, True),  # SourceLens
+        (271, 2, None, "Hamamatsu", True),  # Make
+        (272, 2, None, "C13220", True),  # Model
+    ]
+    buffer = io.BytesIO()
+    with tifffile.TiffWriter(buffer, byteorder=">") as writer:
+        writer.write(
+            _rgb(64, 64),
+            photometric="rgb",
+            metadata=None,
+            compression="deflate",
+            resolution=(10000 / mpp, 10000 / mpp),
+            resolutionunit="CENTIMETER",
+            extratags=ndpi,
+        )
+        writer.write(
+            _rgb(32, 32),
+            photometric="rgb",
+            metadata=None,
+            compression="deflate",
+            tile=(16, 16),
+            extratags=ndpi,
+        )
+    return buffer.getvalue()
+
+
+def leica_bytes(xml: str = SCN_XML) -> bytes:
+    """A Leica SCN: two tiled levels, the XML on the first page."""
+    buffer = io.BytesIO()
+    tiled = {
+        "photometric": "rgb",
+        "metadata": None,
+        "tile": (128, 128),
+        "compression": "deflate",
+    }
+    with tifffile.TiffWriter(buffer) as writer:
+        writer.write(_rgb(256, 256), description=xml, **tiled)
+        writer.write(_rgb(128, 128), description="", **tiled)
+    return buffer.getvalue()
+
+
+def ventana_bytes(xmp: bytes = VENTANA_XMP) -> bytes:
+    """A Ventana BIF: tag 700, ``Ventana`` software, and a label page.
+
+    tifffile reads the level order out of the ``level=`` items in each page's
+    description and the label out of the literal description ``Label Image``.
+    """
+    buffer = io.BytesIO()
+    tiled = {
+        "photometric": "rgb",
+        "metadata": None,
+        "tile": (128, 128),
+        "compression": "deflate",
+    }
+    with tifffile.TiffWriter(buffer) as writer:
+        writer.write(
+            _rgb(256, 256),
+            description="level=0 mag=40 quality=90",
+            software="Ventana Scanner",
+            extratags=[(700, 1, len(xmp), xmp, True)],
+            **tiled,
+        )
+        writer.write(_rgb(128, 128), description="level=1 mag=20 quality=90", **tiled)
+        writer.write(
+            _rgb(32, 32),
+            photometric="rgb",
+            metadata=None,
+            description="Label Image",
+        )
+    return buffer.getvalue()
+
+
+def akoya_bytes(description: str = QPI_XML, *, mpp: float = 0.5) -> bytes:
+    """An Akoya qptiff: ``PerkinElmer-QPI`` software, base, thumbnail, level.
+
+    The thumbnail sits between the base and the first reduced level, which is
+    the order tifffile's QPI series builder walks.
+    """
+    buffer = io.BytesIO()
+    plane = {"photometric": "rgb", "metadata": None, "software": "PerkinElmer-QPI"}
+    tiled = {**plane, "tile": (128, 128), "compression": "deflate"}
+    with tifffile.TiffWriter(buffer) as writer:
+        writer.write(
+            _rgb(256, 256),
+            description=description,
+            resolution=(10000 / mpp, 10000 / mpp),
+            resolutionunit="CENTIMETER",
+            **tiled,
+        )
+        writer.write(_rgb(64, 64), description=description, **plane)
+        writer.write(_rgb(128, 128), description=description, **tiled)
+    return buffer.getvalue()
+
+
+#: Vendor name -> builder. The names are the ones the reader reports.
+WSI_BUILDERS: dict[str, Callable[..., bytes]] = {
+    "aperio": aperio_bytes,
+    "hamamatsu": hamamatsu_bytes,
+    "leica": leica_bytes,
+    "ventana": ventana_bytes,
+    "akoya": akoya_bytes,
+}
+
+
+def wsi_bytes(vendor: str = "aperio", **kwargs) -> bytes:
+    """One synthetic whole-slide image, by the vendor that would have written it."""
+    return WSI_BUILDERS[vendor](**kwargs)
+
+
+#: One Aperio slide, built once so the bytes are the same on every run.
+APERIO_SVS = aperio_bytes()
+
+
+def _wsi() -> list:
+    """Aperio is the vendor most public pathology archives publish."""
+    return [("slide.svs", APERIO_SVS)]
+
+
 def _images() -> list:
     """A PNG and a three-channel OME-TIFF: the two collections the handler splits.
 
@@ -233,6 +496,639 @@ def _hdf5() -> list:
     return [("filtered_feature_bc_matrix.h5", tenx_bytes())]
 
 
+#: The SAM text header of the sample BAM, which its own test also reads.
+BAM_HEADER_TEXT = (
+    "@HD\tVN:1.6\tSO:coordinate\n"
+    "@SQ\tSN:chr1\tLN:248956422\tAS:GRCh38\n"
+    "@SQ\tSN:chr2\tLN:242193529\tAS:GRCh38\n"
+    "@RG\tID:rg1\tPL:ILLUMINA\tCN:STJUDE\tLB:lib1\tSM:NA00001\n"
+    "@PG\tID:bwa\tPN:bwa\tVN:0.7.17\n"
+    "@PG\tID:samtools\tPN:samtools\tVN:1.19\tPP:bwa\n"
+)
+
+
+def bam_payload(text: str = BAM_HEADER_TEXT, references: int = 2) -> bytes:
+    """The uncompressed bytes of a header-only BAM.
+
+    Built rather than committed: a BAM carries its lengths inside it, and a
+    fixture nobody can read by eye is one nobody can change.
+    """
+    encoded = text.encode()
+    payload = b"BAM\x01" + struct.pack("<i", len(encoded)) + encoded
+    payload += struct.pack("<i", references)
+    for i in range(references):
+        name = f"chr{i + 1}".encode() + b"\x00"
+        payload += struct.pack("<i", len(name)) + name + struct.pack("<i", 248956422)
+    return payload
+
+
+def _bam() -> list:
+    """One header-only BAM: two references, one read group, a two-step @PG chain.
+
+    Plain gzip rather than BGZF, and ``mtime=0`` so the same header is the same
+    bytes on every call. Python's gzip module reads both spellings, and it is
+    the header this handler describes.
+    """
+    return [("sample.bam", gzip.compress(bam_payload(), mtime=0))]
+
+
+#: One alignment record, in the eleven mandatory SAM columns. Present so a test
+#: proving the read stops at the first record has a record to stop at.
+SAM_ALIGNMENT_TEXT = (
+    "read1\t0\tchr1\t100\t60\t10M\t*\t0\t0\tACGTACGTAC\tIIIIIIIIII\n"
+    "read2\t16\tchr2\t200\t60\t10M\t*\t0\t0\tTGCATGCATG\tIIIIIIIIII\n"
+)
+
+
+def _sam() -> list:
+    """One SAM carrying the same header as the sample BAM, then two reads.
+
+    The reads are the point: a header-only fixture cannot tell a handler that
+    stops at the first alignment apart from one that reads to end of file.
+    """
+    return [("sample.sam", (BAM_HEADER_TEXT + SAM_ALIGNMENT_TEXT).encode())]
+
+
+#: The header of the sample callset, which a BCF carries verbatim.
+#:
+#: Small, but not degenerate. ``AF`` is per-alternate-allele, ``DB`` is a flag
+#: and ``AD`` is per-allele, so the sweep sees the cardinalities a real callset
+#: has rather than one column of scalars. It is a constant because the binary
+#: container declares the same text, and the two fixtures have to agree for the
+#: record set built from either to be comparable.
+VCF_HEADER_TEXT = (
+    b"##fileformat=VCFv4.2\n"
+    b'##FILTER=<ID=PASS,Description="All filters passed">\n'
+    b"##reference=file:///ref/GRCh38.fa\n"
+    b"##contig=<ID=chr1,length=248956422>\n"
+    b"##contig=<ID=chr2,length=242193529>\n"
+    b'##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth">\n'
+    b'##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency, for each ALT allele">\n'
+    b'##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP membership">\n'
+    b'##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+    b'##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">\n'
+    b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001\tNA00002\n"
+)
+
+
+def _tf8(value: int, forms: int) -> bytes:
+    """The shared body of ITF8 and LTF8, or ``b""`` when neither form fits.
+
+    Both encodings spell a number the same way: the leading one-bits of the
+    first byte count the bytes that follow, and the bits left over in that
+    first byte are the number's most significant ones. Only the widest form of
+    each differs, so only that is written out per encoding.
+    """
+    for extra in range(forms):
+        if value < 1 << (7 + 7 * extra):
+            prefix = (0xFF << (8 - extra)) & 0xFF
+            tail = value & ((1 << (8 * extra)) - 1)
+            return bytes([prefix | (value >> (8 * extra))]) + tail.to_bytes(
+                extra, "big"
+            )
+    return b""
+
+
+def _itf8(value: int) -> bytes:
+    """One non-negative integer in CRAM's ITF8 encoding.
+
+    Non-negative only: every field a header-only fixture writes is a count, an
+    offset or an identifier, and the negative form exists for the unmapped
+    reference id such a container never declares.
+
+    The five-byte form is the odd one, and the reason this is not just
+    ``_tf8``: the first byte carries the top four bits and the last carries
+    only its own low four, so the five together hold exactly 32.
+    """
+    if value < 0:
+        raise ValueError(f"ITF8 encodes no negative value; got {value}")
+    return _tf8(value, 4) or bytes(
+        [
+            0xF0 | ((value >> 28) & 0x0F),
+            (value >> 20) & 0xFF,
+            (value >> 12) & 0xFF,
+            (value >> 4) & 0xFF,
+            value & 0x0F,
+        ]
+    )
+
+
+def _ltf8(value: int) -> bytes:
+    """One non-negative integer in CRAM's LTF8 encoding, the 64-bit ITF8.
+
+    The widest form is regular where ITF8's is not: a first byte of all ones,
+    then the whole number in the eight that follow.
+    """
+    if value < 0:
+        raise ValueError(f"LTF8 encodes no negative value; got {value}")
+    return _tf8(value, 8) or b"\xff" + value.to_bytes(8, "big")
+
+
+#: The compressors CRAM's block methods name, by method number. 4 is rANS,
+#: which has no stdlib codec and which the handler refuses; a fixture asking
+#: for it declares the method over uncompressed bytes, because the refusal is
+#: reached before anything is decoded.
+_CRAM_COMPRESSORS = {
+    0: lambda data: data,
+    1: lambda data: gzip.compress(data, mtime=0),
+    2: bz2.compress,
+    3: lzma.compress,
+}
+
+
+def _cram_container_header(major: int, length: int) -> bytes:
+    """The first container's header: every field zero but the block count.
+
+    A header-only container spans no reference and holds no record, so the one
+    field with anything to say is that a single block follows. Written in the
+    major-2 layout below version 3, which is what the handler reads there; a
+    version-1 fixture is given the same bytes, and is refused on its version
+    long before the handler reaches them.
+    """
+    header = (
+        struct.pack("<i", length)
+        # Reference id, alignment start, alignment span, record count.
+        + _itf8(0) * 4
+        + (_ltf8(0) if major >= 3 else _itf8(0))
+        + _ltf8(0)
+        + _itf8(1)
+        + _itf8(0)
+    )
+    if major >= 3:
+        header += struct.pack("<I", zlib.crc32(header))
+    return header
+
+
+def cram_payload(
+    text: str = BAM_HEADER_TEXT,
+    version: tuple = (3, 0),
+    method: int = 0,
+    content_type: int = 0,
+    compressed_size: Optional[int] = None,
+    raw_size: Optional[int] = None,
+    compress: Optional[Callable[[bytes], bytes]] = None,
+) -> bytes:
+    """The bytes of a header-only CRAM: file definition, container, one block.
+
+    Built rather than committed, for the reason ``bam_payload`` is: a container
+    states its own lengths, and a fixture nobody can read by eye is one nobody
+    can change. ``compressed_size`` and ``raw_size`` override what the block
+    declares, so a test can state a size the file does not hold, and
+    ``compress`` overrides how the block is written, so a test can state a
+    method over a spelling of it the default table does not use.
+    """
+    major, minor = version
+    encoded = text.encode()
+    content = struct.pack("<i", len(encoded)) + encoded
+    compressor = compress or _CRAM_COMPRESSORS.get(method, _CRAM_COMPRESSORS[0])
+    data = compressor(content)
+    block = (
+        bytes([method, content_type])
+        + _itf8(0)
+        + _itf8(len(data) if compressed_size is None else compressed_size)
+        + _itf8(len(content) if raw_size is None else raw_size)
+        + data
+    )
+    if major >= 3:
+        block += struct.pack("<I", zlib.crc32(block))
+    definition = b"CRAM" + bytes([major, minor]) + bytes(20)
+    return definition + _cram_container_header(major, len(block)) + block
+
+
+def _cram() -> list:
+    """One header-only CRAM 3.0, carrying the SAM header the BAM sample carries.
+
+    The same text on purpose: a difference between the two handlers is then a
+    difference in what they read, not in what they were given.
+    """
+    return [("sample.cram", cram_payload())]
+
+
+def _vcf() -> list:
+    """A small multi-sample VCFv4.2 export: two samples, two variant records.
+
+    The second record carries two ALTs, so the per-allele keys the header
+    declares are exercised by data as well as by declaration.
+    """
+    return [
+        (
+            "calls.vcf",
+            VCF_HEADER_TEXT
+            + b"chr1\t100\trs1\tA\tG\t50.0\tPASS\tDP=14;AF=0.5;DB\tGT:AD\t0/1:7,7\t1/1:0,14\n"
+            + b"chr1\t200\t.\tC\tT,A\t99.0\tPASS\tDP=20;AF=0.25,0.25\tGT:AD\t0/1:15,5,0\t0/0:20,0,0\n",
+        )
+    ]
+
+
+def _fastq() -> list:
+    """Two well-formed reads, named the way an Illumina sequencer names them.
+
+    Two rather than one, so the sweep sees a file the handler has to stop part
+    way through rather than one it happens to reach the end of.
+    """
+    return [
+        (
+            "reads.fastq",
+            b"@A00123:45:HVXXXDSXX:1:1101:1000:1000 1:N:0:ATCACG\n"
+            b"ACGTACGT\n"
+            b"+\n"
+            b"IIIIIIII\n"
+            b"@A00123:45:HVXXXDSXX:1:1101:1000:2000 1:N:0:ATCACG\n"
+            b"TTGGCCAA\n"
+            b"+\n"
+            b"IIIIFFFF\n",
+        )
+    ]
+
+
+def _fasta() -> list:
+    """Two records, so the sweep sees a file whose first line is not its only one.
+
+    The description line carries a name and a comment, which is the shape a
+    record name takes when it is a sample identifier, and nothing the handler
+    emits may repeat either.
+    """
+    return [("reference.fa", b">chr1 test contig\nACGTACGTNN\n>chr2\nGGCCAATT\n")]
+
+
+def pdb_record(text: str) -> str:
+    """One PDB record, padded to the eighty columns a real file writes."""
+    return f"{text:<80}\n"
+
+
+#: The title section of the sample structure, in the columns PDB v3.3 fixes.
+#:
+#: Written out record by record rather than downloaded, because every field the
+#: handler reads sits at a fixed column and a fixture whose columns nobody can
+#: count is one nobody can change. The HEADER record is assembled with
+#: ``ljust`` for the same reason: classification is columns 11 to 50, the
+#: deposition date 51 to 59 and the ID code 63 to 66, and that is visible here
+#: rather than counted off a run of spaces.
+#:
+#: The same entry as ``CIF_HEADER_TEXT`` below, down to its two molecules over
+#: chains A, B and C: they are one structure in the two formats an archive
+#: ships it in, so the two handlers describe the same thing and a test can hold
+#: them to that.
+PDB_TITLE_RECORDS = (
+    "HEADER    " + "HYDROLASE".ljust(40) + "12-JAN-98" + "   " + "1ABC",
+    "TITLE     CRYSTAL STRUCTURE OF A MINIATURE HYDROLASE AT 1.80",
+    "TITLE    2 ANGSTROM RESOLUTION",
+    "COMPND    MOL_ID: 1;",
+    "COMPND   2 MOLECULE: MINIATURE HYDROLASE;",
+    "COMPND   3 CHAIN: A, B;",
+    "COMPND   4 MOL_ID: 2;",
+    "COMPND   5 MOLECULE: HYDROLASE INHIBITOR PEPTIDE;",
+    "COMPND   6 CHAIN: C;",
+    "SOURCE    MOL_ID: 1;",
+    "SOURCE   2 ORGANISM_SCIENTIFIC: ESCHERICHIA COLI;",
+    "SOURCE   3 MOL_ID: 2;",
+    "SOURCE   4 SYNTHETIC: YES;",
+    "KEYWDS    HYDROLASE, SERINE PROTEASE",
+    "EXPDTA    X-RAY DIFFRACTION",
+    "AUTHOR    J.DOE,A.SMITH",
+    "REMARK   2",
+    "REMARK   2 RESOLUTION.    1.80 ANGSTROMS.",
+    "SEQRES   1 A    3  GLY ILE VAL",
+    "SEQRES   1 B    3  PHE VAL ASN",
+    "SEQRES   1 C    3  ALA GLY SER",
+    "CRYST1   40.960   18.650   22.520  90.00  90.77  90.00 P 1 21 1      2",
+)
+
+#: The coordinate records behind it. Never parsed by anything: they are here so
+#: a test proving the read stops at the first of them has one to stop at.
+PDB_COORDINATE_RECORDS = (
+    "ATOM      1  N   GLY A   1      -8.901   4.127  -0.555  1.00 11.99           N",
+    "ATOM      2  CA  GLY A   1      -8.608   3.135  -1.618  1.00 11.85           C",
+    "TER       3      GLY A   1",
+    "END",
+)
+
+PDB_HEADER_TEXT = "".join(pdb_record(record) for record in PDB_TITLE_RECORDS)
+PDB_COORDINATE_TEXT = "".join(pdb_record(record) for record in PDB_COORDINATE_RECORDS)
+
+
+def _pdb() -> list:
+    """One small structure: a title section, then a few coordinate records.
+
+    The coordinates are the point, as the alignment records are in the SAM
+    sample: a title-section-only fixture cannot tell a handler that stops at the
+    first coordinate record apart from one that reads to end of file.
+    """
+    return [("1abc.pdb", (PDB_HEADER_TEXT + PDB_COORDINATE_TEXT).encode())]
+
+
+#: One PDBx/mmCIF entry, up to but not including its coordinate table.
+#:
+#: Written out by hand rather than downloaded, because every syntactic shape the
+#: handler has to get right is here and nowhere else: comment lines, single
+#: items, quoted values carrying spaces, a multi-line ``;`` text field, and
+#: loops of two and three columns. An archive entry is megabytes of
+#: ``_atom_site`` rows behind a header about this size.
+#:
+#: The same entry as ``PDB_TITLE_RECORDS`` above: two polymer entities over
+#: strands A, B and C, which are the chains that file's ``COMPND`` names.
+CIF_HEADER_TEXT = """\
+#
+data_1ABC
+#
+_entry.id   1ABC
+#
+_audit_conform.dict_name       mmcif_pdbx.dic
+_audit_conform.dict_version    5.279
+#
+_pdbx_database_status.recvd_initial_deposition_date   1998-01-12
+#
+loop_
+_audit_author.name
+_audit_author.pdbx_ordinal
+'Doe, J.'     1
+'Smith, A.'   2
+#
+_struct.entry_id   1ABC
+_struct.title
+;Crystal structure of a miniature hydrolase
+ at 1.80 angstrom resolution
+;
+#
+_struct_keywords.entry_id        1ABC
+_struct_keywords.pdbx_keywords   HYDROLASE
+_struct_keywords.text            'HYDROLASE, SERINE PROTEASE'
+#
+loop_
+_exptl.entry_id
+_exptl.method
+1ABC 'X-RAY DIFFRACTION'
+1ABC 'NEUTRON DIFFRACTION'
+#
+_refine.ls_d_res_high   1.80
+#
+loop_
+_entity_poly.entity_id
+_entity_poly.type
+_entity_poly.pdbx_strand_id
+1 'polypeptide(L)' A,B
+2 'polypeptide(L)' C
+#
+loop_
+_struct_asym.id
+_struct_asym.entity_id
+A 1
+B 1
+C 2
+#
+"""
+
+#: The coordinate table behind it. Never parsed by anything: it is here so a
+#: test proving the read stops at the ``_atom_site`` loop has one to stop at.
+CIF_ATOM_SITE_TEXT = """\
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+ATOM 1 N -8.901 4.127 -0.555
+ATOM 2 C -8.608 3.135 -1.618
+ATOM 3 C -7.221 2.458 -1.897
+"""
+
+#: A small-molecule CIF, the other dialect the handler tells apart: no category
+#: prefixes, a banner of comments in front of the data block the way a COD
+#: deposit ships one, cell lengths carrying their uncertainties, and a space
+#: group whose value has to be quoted because it holds spaces.
+SMALL_MOLECULE_CIF = """\
+#==============================================================================
+# A deposit opens with a banner of comment lines, so the data block is not the
+# first line of the file and the claim has to look past them to find it.
+# This block was produced for a test and describes nothing real.
+#==============================================================================
+data_7101243
+_chemical_name_common            'benzene'
+_chemical_formula_sum            'C6 H6'
+_cell_length_a                   10.1234(4)
+_cell_length_b                   5.4321(3)
+_cell_length_c                   7.6543(5)
+_cell_angle_alpha                90
+_cell_angle_beta                 95.123(2)
+_cell_angle_gamma                90
+_space_group_name_H-M_alt        'P 21/c'
+_diffrn_radiation_wavelength     0.71073
+_refine_ls_R_factor_gt           0.0412
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+C1 0.1234 0.5678 0.9012
+C2 0.2345 0.6789 0.0123
+H1 0.3456 0.7890 0.1234
+""".encode()
+
+
+def _cif() -> list:
+    """One PDBx entry: a header, then a few coordinate rows.
+
+    The coordinate rows are the point, as they are in the PDB sample: a
+    header-only fixture cannot tell a handler that stops at the ``_atom_site``
+    loop apart from one that reads to end of file.
+    """
+    return [("1abc.cif", (CIF_HEADER_TEXT + CIF_ATOM_SITE_TEXT).encode())]
+
+
+def _smiles() -> list:
+    """Three molecules with a name beside each, which is the common layout.
+
+    Three rather than one, so the sweep sees a file whose column count is
+    agreed on by several lines rather than declared by the only one there is.
+    """
+    return [("molecules.smi", b"CCO\tethanol\nC\tmethane\nc1ccccc1\tbenzene\n")]
+
+
+def bcf_payload(text: bytes = VCF_HEADER_TEXT, minor: int = 2) -> bytes:
+    """The uncompressed bytes of a BCF 2.x container, header and no record.
+
+    Built rather than committed, for the reason ``bam_payload`` is: the length
+    lives inside the bytes, and a fixture nobody can read by eye is one nobody
+    can change. ``l_text`` counts the terminating NUL, as the specification
+    says it does.
+    """
+    return (
+        b"BCF\x02" + bytes([minor]) + struct.pack("<I", len(text) + 1) + text + b"\x00"
+    )
+
+
+def _bcf() -> list:
+    """The sample callset again, in its binary container.
+
+    Plain gzip rather than BGZF, and ``mtime=0`` so the same header is the same
+    bytes on every call. Python's gzip module reads both spellings, and it is
+    the header this handler describes.
+    """
+    return [("calls.bcf", gzip.compress(bcf_payload(), mtime=0))]
+
+
+def _xyz() -> list:
+    """One water molecule: a count, a titled comment line, three atom lines.
+
+    The comment carries a title rather than being blank, so the sweep sees the
+    line a writer actually fills in, and the three atoms give a file whose first
+    frame the handler has to stop part way through.
+    """
+    return [
+        (
+            "water.xyz",
+            b"3\nwater molecule\n"
+            b"O 0.000 0.000 0.117\n"
+            b"H 0.000 0.757 -0.469\n"
+            b"H 0.000 -0.757 -0.469\n",
+        )
+    ]
+
+
+#: An ethanol connection table, V2000, written to the fixed-width columns the
+#: format specifies: three atoms in columns 1-3 of the counts line, two bonds in
+#: columns 4-6, and the version literal in columns 34-39. Written out by hand
+#: rather than by a toolkit because the columns are the thing under test, and a
+#: fixture nobody can check by eye is one nobody can change.
+MOL_V2000 = (
+    b"ethanol\n"
+    b"  Baker   01012000002D\n"
+    b"\n"
+    b"  3  2  0  0  0  0  0  0  0  0999 V2000\n"
+    b"    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"    1.2990    0.7500    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"    2.5981    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"  1  2  1  0  0  0  0\n"
+    b"  2  3  1  0  0  0  0\n"
+    b"M  END\n"
+)
+
+#: Methane: one atom and no bond at all, so a zero count is exercised as well as
+#: a positive one.
+MOL_METHANE = (
+    b"methane\n"
+    b"  Baker   01012000002D\n"
+    b"\n"
+    b"  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+    b"    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"M  END\n"
+)
+
+#: The same molecule in the V3000 layout, whose counts line carries only the
+#: version: the real counts sit on the ``COUNTS`` line inside the CTAB block.
+MOL_V3000 = (
+    b"ethanol\n"
+    b"  Baker   01012000003D\n"
+    b"\n"
+    b"  0  0  0     0  0            999 V3000\n"
+    b"M  V30 BEGIN CTAB\n"
+    b"M  V30 COUNTS 3 2 0 0 0\n"
+    b"M  V30 BEGIN ATOM\n"
+    b"M  V30 1 C 0.0000 0.0000 0.0000 0\n"
+    b"M  V30 2 C 1.2990 0.7500 0.0000 0\n"
+    b"M  V30 3 O 2.5981 0.0000 0.0000 0\n"
+    b"M  V30 END ATOM\n"
+    b"M  V30 BEGIN BOND\n"
+    b"M  V30 1 1 1 2\n"
+    b"M  V30 2 1 2 3\n"
+    b"M  V30 END BOND\n"
+    b"M  V30 END CTAB\n"
+    b"M  END\n"
+)
+
+
+def _mol() -> list:
+    """One ethanol molfile, the smallest thing that is a whole connection table."""
+    return [("ethanol.mol", MOL_V2000)]
+
+
+def sdf_record(block: bytes, items: Iterable[tuple] = ()) -> bytes:
+    """One SD file record: a molfile block, its data items, and the terminator.
+
+    A data item is a header line naming the field between angle brackets, the
+    value on the lines below it, and a blank line closing it. Built rather than
+    written out so a test needing two hundred records does not carry them.
+    """
+    out = block
+    for name, value in items:
+        out += f"> <{name}>\n{value}\n\n".encode()
+    return out + b"$$$$\n"
+
+
+def _sdf() -> list:
+    """Two records, carrying an integer, a float, a text and a multi-line item.
+
+    Two rather than one, so the sweep sees a file with a record terminator in
+    the middle of it as well as at the end, and so a field whose type has to
+    agree across records has a second record to agree with.
+    """
+    return [
+        (
+            "molecules.sdf",
+            sdf_record(
+                MOL_V2000,
+                [
+                    ("ID", "1"),
+                    ("LogP", "-0.31"),
+                    ("Name", "ethanol"),
+                    ("Notes", "primary alcohol\nmiscible with water"),
+                ],
+            )
+            + sdf_record(
+                MOL_METHANE,
+                [
+                    ("ID", "2"),
+                    ("LogP", "1.09"),
+                    ("Name", "methane"),
+                    ("Notes", "simplest alkane\ngas at room temperature"),
+                ],
+            ),
+        )
+    ]
+
+
+def _structure() -> list:
+    """One PDB entry. The CIF paths are exercised by the demo dataset, which
+    holds an mmCIF, a small-molecule CIF and a CIF that is neither."""
+    from tests.structural_biology_fixtures import PDB_ENTRY
+
+    return [("1abc.pdb", PDB_ENTRY.encode("ascii"))]
+
+
+def _star() -> list:
+    """A RELION particle table: an optics block and a particles block."""
+    from tests.structural_biology_fixtures import PARTICLES_STAR
+
+    return [("run_data.star", PARTICLES_STAR.encode("ascii"))]
+
+
+def _mrc() -> list:
+    """A volume: a header and the data block whose size it declares."""
+    from tests.structural_biology_fixtures import mrc_bytes
+
+    return [("tomogram.mrc", mrc_bytes())]
+
+
+def _mtz() -> list:
+    from tests.structural_biology_fixtures import mtz_bytes
+
+    return [("native.mtz", mtz_bytes())]
+
+
+def _mdoc() -> list:
+    from tests.structural_biology_fixtures import TILT_SERIES_MDOC
+
+    return [("tilt_series.mdoc", TILT_SERIES_MDOC.encode("ascii"))]
+
+
+def _molecules() -> list:
+    """Two molecules with property tags, which is what an SDF is read for."""
+    from tests.structural_biology_fixtures import LIGANDS_SDF
+
+    return [("ligands.sdf", LIGANDS_SDF.encode("ascii"))]
+
+
 def _nifti() -> list:
     source = next(_SPECT.rglob("*.nii.gz"), None)
     assert source is not None, f"tracked NIfTI fixture missing under {_SPECT}"
@@ -250,10 +1146,30 @@ SAMPLES: dict[str, Callable[[], list]] = {
     "FHIRHandler": _ndjson,
     "ParquetHandler": _parquet,
     "ImageHandler": _images,
+    "WSIHandler": _wsi,
     "DICOMHandler": _dicom,
     "NIfTIHandler": _nifti,
     "SOFTHandler": _soft,
     "HDF5Handler": _hdf5,
+    "VCFHandler": _vcf,
+    "BAMHandler": _bam,
+    "SAMHandler": _sam,
+    "FASTQHandler": _fastq,
+    "FASTAHandler": _fasta,
+    "SMILESHandler": _smiles,
+    "BCFHandler": _bcf,
+    "CRAMHandler": _cram,
+    "PDBHandler": _pdb,
+    "CIFHandler": _cif,
+    "XYZHandler": _xyz,
+    "MOLHandler": _mol,
+    "SDFHandler": _sdf,
+    "StructureHandler": _structure,
+    "STARHandler": _star,
+    "MRCHandler": _mrc,
+    "MTZHandler": _mtz,
+    "MdocHandler": _mdoc,
+    "SmallMoleculeHandler": _molecules,
 }
 
 #: Handlers with no sample, and why.
@@ -276,6 +1192,17 @@ def write_wrapped(directory: Path, name: str, payload: bytes, suffix: str = "") 
     with comp.opener(target, "wb") as fh:
         fh.write(payload)
     return target
+
+
+def cut_gzip(payload: bytes) -> bytes:
+    """A gzip member of ``payload``, cut off part way through its stream.
+
+    Past the ten-byte header and short of the trailer, so the member opens and
+    then ends mid-stream: what a partly downloaded file looks like to a reader,
+    and what makes a decompressor raise rather than return.
+    """
+    data = gzip.compress(payload, mtime=0)
+    return data[: len(data) * 2 // 3]
 
 
 def write_all(directory: Path, files: Iterable[tuple], suffix: str = "") -> None:
@@ -376,19 +1303,46 @@ def by_name(nodes: Iterable[dict], key: str = "name") -> dict:
 WRAPPER_SUFFIXES = [c.suffix for c in compression.BUILTIN_COMPRESSIONS]
 
 __all__ = [
+    "CIF_ATOM_SITE_TEXT",
+    "CIF_HEADER_TEXT",
     "DATA",
     "EXEMPT",
+    "MOL_METHANE",
+    "MOL_V2000",
+    "MOL_V3000",
     "OME_NAMESPACE",
     "OME_PIXELS",
     "OME_TIFF",
+    "PDB_COORDINATE_TEXT",
+    "PDB_HEADER_TEXT",
+    "PDB_TITLE_RECORDS",
     "PNG_1X1",
     "SAMPLES",
+    "APERIO_DESCRIPTION",
+    "APERIO_HEADER",
+    "APERIO_SVS",
+    "QPI_XML",
+    "SCN_BOMB",
+    "SCN_MALFORMED",
+    "SCN_XML",
+    "SMALL_MOLECULE_CIF",
+    "VCF_HEADER_TEXT",
+    "VENTANA_XMP",
     "WRAPPER_SUFFIXES",
+    "aperio_bytes",
+    "akoya_bytes",
+    "hamamatsu_bytes",
+    "leica_bytes",
+    "ventana_bytes",
+    "wsi_bytes",
     "bake",
     "bake_with",
     "bake_with_report",
+    "bcf_payload",
     "by_name",
     "cli",
+    "cram_payload",
+    "cut_gzip",
     "file_objects",
     "file_sets",
     "file_set_members",
@@ -396,7 +1350,9 @@ __all__ = [
     "ome_bomb",
     "ome_image",
     "ome_xml",
+    "pdb_record",
     "record_sets",
+    "sdf_record",
     "tiff_bytes",
     "runner",
     "write_all",

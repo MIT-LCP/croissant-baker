@@ -1,0 +1,1308 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/",
+    "citeAs": "cr:citeAs",
+    "column": "cr:column",
+    "conformsTo": "dct:conformsTo",
+    "cr": "http://mlcommons.org/croissant/",
+    "rai": "http://mlcommons.org/croissant/RAI/",
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
+    "dct": "http://purl.org/dc/terms/",
+    "equivalentProperty": "cr:equivalentProperty",
+    "examples": {
+      "@id": "cr:examples",
+      "@type": "@json"
+    },
+    "extract": "cr:extract",
+    "field": "cr:field",
+    "fileProperty": "cr:fileProperty",
+    "fileObject": "cr:fileObject",
+    "fileSet": "cr:fileSet",
+    "format": "cr:format",
+    "includes": "cr:includes",
+    "isLiveDataset": "cr:isLiveDataset",
+    "jsonPath": "cr:jsonPath",
+    "key": "cr:key",
+    "md5": "cr:md5",
+    "parentField": "cr:parentField",
+    "path": "cr:path",
+    "recordSet": "cr:recordSet",
+    "references": "cr:references",
+    "regex": "cr:regex",
+    "repeated": "cr:repeated",
+    "replace": "cr:replace",
+    "samplingRate": "cr:samplingRate",
+    "sc": "https://schema.org/",
+    "separator": "cr:separator",
+    "source": "cr:source",
+    "subField": "cr:subField",
+    "transform": "cr:transform"
+  },
+  "@type": "sc:Dataset",
+  "name": "Structural biology demo (synthetic structures, maps and metadata)",
+  "description": "PDB and mmCIF entries, a small-molecule CIF, a CIF dictionary, RELION STAR files, MRC maps, an MTZ, a SerialEM mdoc and a small-molecule library",
+  "conformsTo": "http://mlcommons.org/croissant/1.1",
+  "citeAs": "croissant-baker test suite. (2026). Structural biology demo (synthetic structures, maps and metadata) [Data set].",
+  "creator": {
+    "@type": "sc:Person",
+    "name": "croissant-baker test suite"
+  },
+  "datePublished": "2026-01-01",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "url": "https://example.org/structural-biology-demo",
+  "version": "1.0.0",
+  "distribution": [
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_0",
+      "name": "1abc.cif",
+      "contentSize": "1765",
+      "contentUrl": "entries/1abc.cif",
+      "encodingFormat": "chemical/x-mmcif",
+      "sha256": "a01978db01f34f6f53fdd7d865e9ce864409598dc9d60dd091e58f803ef1706b"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_1",
+      "name": "1abc.pdb",
+      "contentSize": "719",
+      "contentUrl": "entries/1abc.pdb",
+      "encodingFormat": "chemical/x-pdb",
+      "sha256": "7725d13169625bc208ee52b0dd5736d8c06a6c193fc734763d5ac474ab1c2f76"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_2",
+      "name": "model.cif.gz",
+      "contentSize": "612",
+      "contentUrl": "entries/model.cif.gz",
+      "encodingFormat": [
+        "chemical/x-mmcif",
+        "application/gzip"
+      ],
+      "sha256": "3a28d9614edf3ebd55c5ed82dbb9da83048e61169dd7f8c11b13eedafecc4c01"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_3",
+      "name": "ethanol.mol2",
+      "contentSize": "327",
+      "contentUrl": "chemistry/ethanol.mol2",
+      "encodingFormat": "chemical/x-mol2",
+      "sha256": "2cbe96f3e1cce778b0c565c0ba4ac79ff46386bb9ac9d9e7201dcd83d8ce4812"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_4",
+      "name": "ligands.sdf",
+      "contentSize": "627",
+      "contentUrl": "chemistry/ligands.sdf",
+      "encodingFormat": "chemical/x-mdl-sdfile",
+      "sha256": "59515ea413f46a80c4896d886adb377185619be8daef804f252a8fe35017560a"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_5",
+      "name": "glycine.cif",
+      "contentSize": "636",
+      "contentUrl": "chemistry/glycine.cif",
+      "encodingFormat": "chemical/x-cif",
+      "sha256": "abf7d7385a5fdadb874825fdaba92476a54829c3930da33a53476bd5c6f49967"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_6",
+      "name": "audit.cif",
+      "contentSize": "228",
+      "contentUrl": "dictionaries/audit.cif",
+      "encodingFormat": "chemical/x-cif",
+      "sha256": "1a407936db9d06be20e84fc1ab3ea54cc68425f0cda256b8e199842b6d3d6fdb"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_7",
+      "name": "tomogram.mrc",
+      "contentSize": "2560",
+      "contentUrl": "cryoem/tomogram.mrc",
+      "encodingFormat": "application/x-mrc",
+      "sha256": "bdfe9a33f7e5d9cba433d46403ec5b28eaff6e50cb939f0a4058a61a10b70c2a"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_8",
+      "name": "particles.mrcs",
+      "contentSize": "2048",
+      "contentUrl": "cryoem/particles.mrcs",
+      "encodingFormat": "application/x-mrc",
+      "sha256": "183f8587c0fb1ce509901f5434a04abfb6cb238a9ed7e79cf21080f8e3420601"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_9",
+      "name": "postprocess.star",
+      "contentSize": "373",
+      "contentUrl": "cryoem/postprocess.star",
+      "encodingFormat": "application/x-star",
+      "sha256": "b721f6d98b5d29ca75664bcdc04f381d05143a4112bd0660863ab7f244dcec27"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_10",
+      "name": "tilt_series.mdoc",
+      "contentSize": "702",
+      "contentUrl": "cryoem/tilt_series.mdoc",
+      "encodingFormat": "text/x-mdoc",
+      "sha256": "4a630fb91e2997cbf73222eb1da68e32fa26ceb7e018b3f9ac04a06ebb4427ba"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_11",
+      "name": "native.mtz",
+      "contentSize": "3136",
+      "contentUrl": "xray/native.mtz",
+      "encodingFormat": "application/x-mtz",
+      "sha256": "0c53bbacec034ff733abb07551b051d52d61d2eb9bb9803b751e1fed9273df07"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_12",
+      "name": "run_data.star",
+      "contentSize": "471",
+      "contentUrl": "cryoem/job001/run_data.star",
+      "encodingFormat": "application/x-star",
+      "sha256": "979987c5f0c89f7c38b792069919057266a40e7a67a4f808e5113cbfdc51a2e9"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "file_13",
+      "name": "run_data.star",
+      "contentSize": "417",
+      "contentUrl": "cryoem/job002/run_data.star",
+      "encodingFormat": "application/x-star",
+      "sha256": "25a4bb2dee95a077ed4f468130189b628190a0d830a8e62941c2540384513f72"
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "structure-files",
+      "name": "Structure files",
+      "description": "4 structure file(s) in CIF, PDB, mmCIF format",
+      "cr:excludes": "dictionaries/audit.cif",
+      "encodingFormat": [
+        "chemical/x-cif",
+        "chemical/x-mmcif",
+        "chemical/x-pdb",
+        "application/gzip"
+      ],
+      "includes": [
+        "**/*.pdb",
+        "**/*.cif",
+        "**/*.cif.gz"
+      ]
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "mrc-files",
+      "name": "MRC / CCP4 maps",
+      "description": "2 MRC/CCP4 map file(s) (8x8x4-6; image stack, volume). Labelled: created by the croissant-baker test suite",
+      "encodingFormat": "application/x-mrc",
+      "includes": [
+        "**/*.mrc",
+        "**/*.mrcs"
+      ]
+    }
+  ],
+  "recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "@id": "structures",
+      "name": "structures",
+      "description": "One record per structure file: 4 structure file(s) in CIF, PDB, mmCIF format. Experimental method(s): ELECTRON MICROSCOPY, X-RAY DIFFRACTION. Resolution: 1.8 A.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "structures/entry_id",
+          "name": "entry_id",
+          "description": "_entry.id, or the identifier on the HEADER record",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/title",
+          "name": "title",
+          "description": "_struct.title, or the TITLE record of a PDB file",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/experimental_method",
+          "name": "experimental_method",
+          "description": "_exptl.method, or the EXPDTA record of a PDB file",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/resolution_angstrom",
+          "name": "resolution_angstrom",
+          "description": "_refine.ls_d_res_high, or the RESOLUTION value of REMARK 2",
+          "dataType": "sc:Float",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/space_group",
+          "name": "space_group",
+          "description": "_symmetry.space_group_name_H-M, or the group named on CRYST1",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/unit_cell",
+          "name": "unit_cell",
+          "description": "_cell lengths a, b, c and angles alpha, beta, gamma, or the same six values from CRYST1",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/n_models",
+          "name": "n_models",
+          "description": "Models in the file, an NMR ensemble's members",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/n_chains",
+          "name": "n_chains",
+          "description": "Chains in the first model",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/n_residues",
+          "name": "n_residues",
+          "description": "Residues across the chains of the first model",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/n_atoms",
+          "name": "n_atoms",
+          "description": "Rows of _atom_site, or ATOM and HETATM records",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/formula",
+          "name": "formula",
+          "description": "_chemical_formula_sum, the sum formula of a small-molecule CIF",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "structures/format",
+          "name": "format",
+          "description": "PDB, mmCIF or CIF, from the syntax the file is written in",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "structure-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "audit_audit_1",
+      "name": "audit_audit_1",
+      "description": "Data block 'audit' of audit.cif (1 row, 3 columns). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "audit_audit_1/audit_creation_method",
+          "name": "audit_creation_method",
+          "description": "Column 'audit_creation_method'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_6"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "audit_audit_1/audit_creation_date",
+          "name": "audit_creation_date",
+          "description": "Column 'audit_creation_date'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_6"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "audit_audit_1/audit_revision_count",
+          "name": "audit_revision_count",
+          "description": "Column 'audit_revision_count'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_6"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "audit_audit_2",
+      "name": "audit_audit_2",
+      "description": "Data block 'audit' of audit.cif (2 rows, 2 columns). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "audit_audit_2/audit_author_name",
+          "name": "audit_author_name",
+          "description": "Column 'audit_author_name'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_6"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "audit_audit_2/audit_author_address",
+          "name": "audit_author_address",
+          "description": "Column 'audit_author_address'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_6"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "ethanol",
+      "name": "ethanol",
+      "description": "Tripos MOL2 records in ethanol.mol2 (1 molecule, 3 atoms, 2 bonds). SMALL. No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "ethanol/name",
+          "name": "name",
+          "description": "Molecule name in ethanol.mol2",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "ethanol/n_atoms",
+          "name": "n_atoms",
+          "description": "Atom count of one molecule in ethanol.mol2",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "ethanol/n_bonds",
+          "name": "n_bonds",
+          "description": "Bond count of one molecule in ethanol.mol2",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "ligands",
+      "name": "ligands",
+      "description": "MDL SDF records in ligands.sdf (2 molecules, 2 atoms, 1 bond, 3 property tags). V2000. No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "ligands/name",
+          "name": "name",
+          "description": "Molecule name in ligands.sdf",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_4"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "ligands/n_atoms",
+          "name": "n_atoms",
+          "description": "Atom count of one molecule in ligands.sdf",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_4"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "ligands/n_bonds",
+          "name": "n_bonds",
+          "description": "Bond count of one molecule in ligands.sdf",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_4"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "ligands/COMPOUND_ID",
+          "name": "COMPOUND_ID",
+          "description": "Property tag COMPOUND_ID in ligands.sdf",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_4"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "ligands/MOLECULAR_WEIGHT",
+          "name": "MOLECULAR_WEIGHT",
+          "description": "Property tag MOLECULAR_WEIGHT in ligands.sdf",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_4"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "ligands/SOURCE",
+          "name": "SOURCE",
+          "description": "Property tag SOURCE in ligands.sdf",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "mrc_maps",
+      "name": "mrc_maps",
+      "description": "2 MRC/CCP4 map file(s) (8x8x4-6): image stack, volume; stored as float32",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "mrc_maps/dim_x",
+          "name": "dim_x",
+          "description": "MRC word 1 (nx); grid columns",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "mrc-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "mrc_maps/dim_y",
+          "name": "dim_y",
+          "description": "MRC word 2 (ny); grid rows",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "mrc-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "mrc_maps/dim_z",
+          "name": "dim_z",
+          "description": "MRC word 3 (nz); grid sections",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "mrc-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "mrc_maps/data_dtype",
+          "name": "data_dtype",
+          "description": "MRC word 4 (mode); stored data type (float32)",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "mrc-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "mrc_maps/voxel_size",
+          "name": "voxel_size",
+          "description": "MRC cella divided by mx, my, mz; x, y, z in Angstrom",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "mrc-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "mrc_maps/space_group",
+          "name": "space_group",
+          "description": "MRC word 23 (ispg); 0 for an image stack, otherwise the space group",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "mrc-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "mrc_maps/kind",
+          "name": "kind",
+          "description": "What the file holds (image stack, volume)",
+          "dataType": "sc:Text",
+          "source": {
+            "fileSet": {
+              "@id": "mrc-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "mrc_maps/n_images",
+          "name": "n_images",
+          "description": "Images or volumes stacked along the z axis",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileSet": {
+              "@id": "mrc-files"
+            },
+            "extract": {
+              "fileProperty": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "postprocess_general",
+      "name": "postprocess_general",
+      "description": "Data block 'general' of postprocess.star (1 row, 4 columns). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "postprocess_general/rlnFinalResolution",
+          "name": "rlnFinalResolution",
+          "description": "Column 'rlnFinalResolution'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_9"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "postprocess_general/rlnBfactorUsedForSharpening",
+          "name": "rlnBfactorUsedForSharpening",
+          "description": "Column 'rlnBfactorUsedForSharpening'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_9"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "postprocess_general/rlnParticleBoxFractionSolventMask",
+          "name": "rlnParticleBoxFractionSolventMask",
+          "description": "Column 'rlnParticleBoxFractionSolventMask'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_9"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "postprocess_general/rlnRandomiseFrom",
+          "name": "rlnRandomiseFrom",
+          "description": "Column 'rlnRandomiseFrom'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_9"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "postprocess_fsc",
+      "name": "postprocess_fsc",
+      "description": "Data block 'fsc' of postprocess.star (4 rows, 3 columns). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "postprocess_fsc/rlnSpectralIndex",
+          "name": "rlnSpectralIndex",
+          "description": "Column 'rlnSpectralIndex'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_9"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "postprocess_fsc/rlnResolution",
+          "name": "rlnResolution",
+          "description": "Column 'rlnResolution'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_9"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "postprocess_fsc/rlnFourierShellCorrelationCorrected",
+          "name": "rlnFourierShellCorrelationCorrected",
+          "description": "Column 'rlnFourierShellCorrelationCorrected'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_9"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "job001__run_data_optics",
+      "name": "job001__run_data_optics",
+      "description": "Data block 'optics' of run_data.star (1 row, 6 columns). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_optics/rlnOpticsGroupName",
+          "name": "rlnOpticsGroupName",
+          "description": "Column 'rlnOpticsGroupName'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_optics/rlnOpticsGroup",
+          "name": "rlnOpticsGroup",
+          "description": "Column 'rlnOpticsGroup'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_optics/rlnMicrographPixelSize",
+          "name": "rlnMicrographPixelSize",
+          "description": "Column 'rlnMicrographPixelSize'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_optics/rlnVoltage",
+          "name": "rlnVoltage",
+          "description": "Column 'rlnVoltage'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_optics/rlnSphericalAberration",
+          "name": "rlnSphericalAberration",
+          "description": "Column 'rlnSphericalAberration'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_optics/rlnImageSize",
+          "name": "rlnImageSize",
+          "description": "Column 'rlnImageSize'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "job001__run_data_particles",
+      "name": "job001__run_data_particles",
+      "description": "Data block 'particles' of run_data.star (3 rows, 5 columns). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_particles/rlnCoordinateX",
+          "name": "rlnCoordinateX",
+          "description": "Column 'rlnCoordinateX'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_particles/rlnCoordinateY",
+          "name": "rlnCoordinateY",
+          "description": "Column 'rlnCoordinateY'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_particles/rlnImageName",
+          "name": "rlnImageName",
+          "description": "Column 'rlnImageName'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_particles/rlnClassNumber",
+          "name": "rlnClassNumber",
+          "description": "Column 'rlnClassNumber'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job001__run_data_particles/rlnAngleRot",
+          "name": "rlnAngleRot",
+          "description": "Column 'rlnAngleRot'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_12"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "job002__run_data_optics",
+      "name": "job002__run_data_optics",
+      "description": "Data block 'optics' of run_data.star (1 row, 6 columns). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_optics/rlnOpticsGroupName",
+          "name": "rlnOpticsGroupName",
+          "description": "Column 'rlnOpticsGroupName'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_optics/rlnOpticsGroup",
+          "name": "rlnOpticsGroup",
+          "description": "Column 'rlnOpticsGroup'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_optics/rlnMicrographPixelSize",
+          "name": "rlnMicrographPixelSize",
+          "description": "Column 'rlnMicrographPixelSize'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_optics/rlnVoltage",
+          "name": "rlnVoltage",
+          "description": "Column 'rlnVoltage'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_optics/rlnSphericalAberration",
+          "name": "rlnSphericalAberration",
+          "description": "Column 'rlnSphericalAberration'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_optics/rlnImageSize",
+          "name": "rlnImageSize",
+          "description": "Column 'rlnImageSize'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "job002__run_data_particles",
+      "name": "job002__run_data_particles",
+      "description": "Data block 'particles' of run_data.star (2 rows, 5 columns). No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_particles/rlnCoordinateX",
+          "name": "rlnCoordinateX",
+          "description": "Column 'rlnCoordinateX'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_particles/rlnCoordinateY",
+          "name": "rlnCoordinateY",
+          "description": "Column 'rlnCoordinateY'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_particles/rlnImageName",
+          "name": "rlnImageName",
+          "description": "Column 'rlnImageName'",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_particles/rlnClassNumber",
+          "name": "rlnClassNumber",
+          "description": "Column 'rlnClassNumber'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "job002__run_data_particles/rlnAngleRot",
+          "name": "rlnAngleRot",
+          "description": "Column 'rlnAngleRot'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_13"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "tilt_series",
+      "name": "tilt_series",
+      "description": "SerialEM acquisition metadata in tilt_series.mdoc (3 ZValue sections, 7 keys). Declared image file tilt_series.mrc, pixel spacing 1.35, voltage 300. Title: SerialEM: Digitized on a Titan Krios. No value is emitted.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "tilt_series/TiltAngle",
+          "name": "TiltAngle",
+          "description": "Section key TiltAngle in tilt_series.mdoc",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_10"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tilt_series/StagePosition",
+          "name": "StagePosition",
+          "description": "Section key StagePosition in tilt_series.mdoc",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_10"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tilt_series/StageZ",
+          "name": "StageZ",
+          "description": "Section key StageZ in tilt_series.mdoc",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_10"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tilt_series/Magnification",
+          "name": "Magnification",
+          "description": "Section key Magnification in tilt_series.mdoc",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_10"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tilt_series/ExposureDose",
+          "name": "ExposureDose",
+          "description": "Section key ExposureDose in tilt_series.mdoc",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_10"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tilt_series/SubFramePath",
+          "name": "SubFramePath",
+          "description": "Section key SubFramePath in tilt_series.mdoc",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "file_10"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tilt_series/NumSubFrames",
+          "name": "NumSubFrames",
+          "description": "Section key NumSubFrames in tilt_series.mdoc",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_10"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "native",
+      "name": "native",
+      "description": "Reflection data in native.mtz (24 reflections; 6 columns; space group P 21 21 21; cell 40, 50, 60, 90, 90, 90; resolution 31.2348 to 4.78913 Angstrom; datasets HKL_base, native). Title: native data.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "native/H",
+          "name": "H",
+          "description": "Reflection column 'H' (MTZ type H) of dataset 'HKL_base'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_11"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "native/K",
+          "name": "K",
+          "description": "Reflection column 'K' (MTZ type H) of dataset 'HKL_base'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_11"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "native/L",
+          "name": "L",
+          "description": "Reflection column 'L' (MTZ type H) of dataset 'HKL_base'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_11"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "native/FP",
+          "name": "FP",
+          "description": "Reflection column 'FP' (MTZ type F) of dataset 'native'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_11"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "native/SIGFP",
+          "name": "SIGFP",
+          "description": "Reflection column 'SIGFP' (MTZ type Q) of dataset 'native'",
+          "dataType": "sc:Float",
+          "source": {
+            "fileObject": {
+              "@id": "file_11"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "native/FREE",
+          "name": "FREE",
+          "description": "Reflection column 'FREE' (MTZ type I) of dataset 'native'",
+          "dataType": "sc:Integer",
+          "source": {
+            "fileObject": {
+              "@id": "file_11"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

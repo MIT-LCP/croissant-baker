@@ -112,7 +112,13 @@ activities:
         url: https://lcp.mit.edu
 ```
 
+`collection_types` is written out as `rai:dataCollectionType` on the dataset node, unioned across every activity in declaration order, because RAI 1.0 declares that property on the dataset rather than on an activity.
+
 A complete working example is at [`tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml`](https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml).
+
+### Unknown keys are rejected
+
+Every key is checked against the keys its section accepts, at every level of the file. A key that is not recognised stops the run with an error naming the key by its path in the YAML (for example `activities[0].agents[1].nme`) and listing the keys that section does accept. A misspelled key is therefore never dropped in silence, so a field cannot go missing from the output without a word. The config is read before the dataset is scanned, so the error arrives immediately, and `--dry-run` checks it too.
 
 ## Apply RAI to an existing file
 

@@ -1,11 +1,19 @@
 """Tests for handler utilities."""
 
+import io
+
 from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
+    PrefixLines,
     _disambiguate_ids,
     allocate_record_set_ids,
+    decode_line,
+    deposited,
+    determined,
+    extension_globs,
     make_field_id,
     normalize_array_shape,
+    plural,
     shard_template,
 )
 
@@ -118,6 +126,26 @@ def test_a_lone_index_is_still_masked() -> None:
     assert shard_template("readings.parquet") is None
 
 
+def test_extension_globs_covers_the_root_and_nested_form_of_each_extension() -> None:
+    """mlcroissant matches with fnmatch, where ``**/`` requires a directory,
+    and a file sits at the dataset root as often as in a subdirectory."""
+    assert extension_globs(["a.svs", "nested/b.svs", "c.scn"]) == [
+        "**/*.scn",
+        "**/*.svs",
+        "*.scn",
+        "*.svs",
+    ]
+
+
+def test_a_shouted_extension_is_globbed_by_a_character_class() -> None:
+    """Globs are case-sensitive on Linux, and one class pattern covers every
+    observed spelling without two includes matching the same file."""
+    assert extension_globs(["a.TIF", "b.tif"]) == [
+        "**/*.[tT][iI][fF]",
+        "*.[tT][iI][fF]",
+    ]
+
+
 def test_allocate_record_set_ids_derives_one_id_per_suffix() -> None:
     """A handler emitting several record sets per file needs all of them
     unique, not just the file's own base. The stem comes from ``Path.stem``,
@@ -187,3 +215,144 @@ def test_numeric_identifier_collisions_start_at_two() -> None:
         "data__2",
         "data__3",
     ]
+
+
+def prefix_lines(payload: bytes, limit: int, **kwargs) -> PrefixLines:
+    return PrefixLines(io.BytesIO(payload), limit, **kwargs)
+
+
+def test_prefix_lines_yields_one_line_per_line_ending() -> None:
+    assert list(prefix_lines(b"one\ntwo\nthree\n", 1024)) == ["one", "two", "three"]
+
+
+def test_prefix_lines_strips_the_carriage_return_of_a_crlf_file() -> None:
+    assert list(prefix_lines(b"one\r\ntwo\r\n", 1024)) == ["one", "two"]
+
+
+def test_prefix_lines_decodes_a_stray_byte_rather_than_refusing_it() -> None:
+    """A byte outside UTF-8 in a comment is not a reason to lose the file."""
+    (line,) = list(prefix_lines(b"caf\xe9\n", 1024))
+
+    assert line.startswith("caf")
+
+
+def test_prefix_lines_delivers_the_tail_of_a_file_with_no_last_line_ending() -> None:
+    """Where a writer that closes the file straight after its last line leaves
+    it, and the class of bug that used to lose that line."""
+    assert list(prefix_lines(b"one\ntwo", 1024)) == ["one", "two"]
+
+
+def test_prefix_lines_drops_a_tail_the_bound_cut_in_half() -> None:
+    """Half a line is not a line, and nothing may be read off it."""
+    reader = prefix_lines(b"one\ntwo\nthree\n", 9)
+
+    assert list(reader) == ["one", "two"]
+    assert reader.bounded is True
+
+
+def test_prefix_lines_says_when_the_stream_ended_before_the_bound() -> None:
+    reader = prefix_lines(b"one\ntwo\n", 1024)
+    list(reader)
+
+    assert reader.bounded is False
+
+
+def test_prefix_lines_reports_what_it_pulled_and_what_it_holds() -> None:
+    """The two numbers a caller owing a refusal before the line ends needs."""
+    seen: list = []
+    reader = prefix_lines(
+        b"one\ntwo", 1024, on_chunk=lambda read, pending: seen.append((read, pending))
+    )
+    list(reader)
+
+    assert seen == [(7, 3)]
+    assert reader.read == 7
+
+
+def test_decode_line_drops_only_the_carriage_return_of_the_line_ending() -> None:
+    """One CRLF is one line ending. A carriage return in front of it is a byte
+    the line carries, and stripping the run took content off the line."""
+    assert decode_line(b"a\r\r") == "a\r"
+
+
+def test_prefix_lines_keeps_a_last_line_that_ends_exactly_on_the_bound() -> None:
+    """The stream ended where the bound sits, so nothing was cut in half: the
+    tail is a whole line and the read was not stopped by the bound."""
+    reader = prefix_lines(b"abc\ndefg", 8)
+
+    assert list(reader) == ["abc", "defg"]
+    assert reader.bounded is False
+
+
+def test_prefix_lines_drops_a_last_line_the_bound_stopped_one_byte_short() -> None:
+    """One byte less of bound, and the same tail is a fragment."""
+    reader = prefix_lines(b"abc\ndefg", 7)
+
+    assert list(reader) == ["abc"]
+    assert reader.bounded is True
+
+
+class _CountingBytes(io.BytesIO):
+    """A stream that remembers how many bytes were pulled through it."""
+
+    def __init__(self, payload: bytes) -> None:
+        super().__init__(payload)
+        self.read_bytes = 0
+
+    def read(self, size: int = -1) -> bytes:
+        data = super().read(size)
+        self.read_bytes += len(data)
+        return data
+
+
+def test_prefix_lines_never_pulls_more_than_one_byte_past_the_bound() -> None:
+    """The one byte is what tells the end of the stream from the bound. Past it
+    a bounded read would be reading the file it exists not to read."""
+    stream = _CountingBytes(b"x" * 1024)
+    reader = PrefixLines(stream, 8)
+
+    assert list(reader) == []
+    assert reader.bounded is True
+    assert stream.read_bytes <= 8 + 1
+
+
+def test_plural_adds_an_s_to_a_regular_noun() -> None:
+    assert (plural(1, "chain"), plural(2, "chain")) == ("1 chain", "2 chains")
+
+
+def test_plural_takes_the_plural_of_an_irregular_noun() -> None:
+    """``polymer entitys`` is what the trailing ``s`` makes of the one noun the
+    structure handlers count that does not take one."""
+    assert plural(2, "polymer entity", "polymer entities") == "2 polymer entities"
+
+
+def test_plural_ignores_the_irregular_form_for_a_count_of_one() -> None:
+    assert plural(1, "polymer entity", "polymer entities") == "1 polymer entity"
+
+
+def test_deposited_states_the_date_a_file_wrote() -> None:
+    """Both spellings, because the two structure handlers report what their own
+    format writes rather than converting either."""
+    assert deposited("12-JAN-98") == "deposited 12-JAN-98"
+    assert deposited("1998-01-12") == "deposited 1998-01-12"
+
+
+def test_deposited_states_nothing_without_a_date() -> None:
+    assert deposited(None) == "" and deposited("") == ""
+
+
+def test_determined_joins_the_methods_with_the_resolution() -> None:
+    metadata = {
+        "experimental_methods": ["X-RAY DIFFRACTION", "NEUTRON DIFFRACTION"],
+        "resolution_angstrom": 1.8,
+    }
+
+    assert determined(metadata) == ("X-RAY DIFFRACTION, NEUTRON DIFFRACTION at 1.80 A")
+
+
+def test_determined_states_a_resolution_with_no_method_on_its_own() -> None:
+    assert determined({"resolution_angstrom": 2.0}) == "2.00 A resolution"
+
+
+def test_determined_states_nothing_about_a_structure_that_says_neither() -> None:
+    assert determined({}) == ""

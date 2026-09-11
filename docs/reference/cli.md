@@ -36,9 +36,15 @@ $ croissant-baker [OPTIONS] COMMAND [ARGS]...
 * `--is-live-dataset`: Mark the dataset as a live, evolving stream (e.g., a continuously-appended log).
 * `--temporal-coverage TEXT`: Time period the data covers. ISO 8601 recommended: '2008/2019' (interval) or '2023-01-15' (point).
 * `--usage-info TEXT`: URI pointing to a usage or consent policy. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'http://purl.obolibrary.org/obo/DUO_0000042' (DUO term).
+* `--identifier TEXT`: Accession or persistent identifier the dataset is known by (e.g., 'phs000218.v1.p1', 'EGAS00001000255', a DOI). Repeat or comma-delimit.
+* `--conditions-of-access TEXT`: How access is obtained, in free text. Example: 'Controlled access: Data Access Agreement via the Data Access Committee'.
+* `--is-accessible-for-free / --not-accessible-for-free`: Whether the data can be had without payment or an access agreement. Omit to leave the field out.
+* `--included-in-data-catalog TEXT`: URL of a catalog entry listing this dataset (e.g., 'https://datacatalog.ccdi.cancer.gov/').
+* `--profile TEXT`: Additional profile to declare in conformsTo. One of: bioschemas. Declares the profile; it does not validate against it. Repeatable.
 * `--field-mappings FILE`: YAML file mapping columns to external vocabularies (Wikidata, SNOMED, LOINC). Schema: 'fields:\n  <col>:\n    equivalent_property: <URI>\n    data_types: [<URI>, ...]'. Note: column names match across ALL RecordSets, so 'id' applies to every 'id' column in the dataset.
 * `--field-mapping TEXT`: Link one column to an external vocabulary URI. Format: 'COLUMN=URI'. Example: --field-mapping 'age=http://www.wikidata.org/entity/Q11464'. Matches by bare column name across all RecordSets; a warning prints if a name resolves to multiple fields. Repeatable; combine with --field-mappings (flags override YAML).
 * `--count-csv-rows`: Count exact row numbers for CSV files (slow for large datasets)
+* `--genomic-sample-ids`: Emit the sample identifiers a genomic file names in its header (VCF and BCF sample columns; BAM, CRAM and SAM read-group SM tags). Off by default: for a controlled release those identifiers are a manifest of the cohort, and the counts are emitted either way.
 * `-j, --jobs INTEGER`: Worker threads for file extraction. 0 = auto (from CPU count), 1 = serial. Output is identical regardless of this value.  [default: 0]
 * `--detect-references`: Detect foreign keys between tables that share a key column (e.g. subject_id) and emit cr:references links. Conservative: links only when a parent table is identifiable by name; shared keys it will not link are reported, and named under --verbose.
 * `--rai-data-collection TEXT`: How and where the data was gathered.
@@ -72,6 +78,7 @@ $ croissant-baker [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `rai-apply`: Apply RAI attributes from a config YAML to...
+* `mcp`: Serve the dry_run, bake and validate tools...
 * `validate`: Validate a Croissant metadata file.
 
 ## `croissant-baker rai-apply`
@@ -93,6 +100,23 @@ $ croissant-baker rai-apply [OPTIONS] FILE_PATH
 * `--rai-config FILE`: RAI config YAML file  [required]
 * `-o, --output TEXT`: Output path (defaults to overwriting the input file)
 * `--validate / --no-validate`: Validate after applying RAI attributes  [default: validate]
+* `--help`: Show this message and exit.
+
+## `croissant-baker mcp`
+
+Serve the dry_run, bake and validate tools over stdio to a local agent.
+
+Model Context Protocol, stdio transport only: no HTTP listener and no
+outbound requests, so a bake still never leaves the local environment.
+
+**Usage**:
+
+```console
+$ croissant-baker mcp [OPTIONS]
+```
+
+**Options**:
+
 * `--help`: Show this message and exit.
 
 ## `croissant-baker validate`

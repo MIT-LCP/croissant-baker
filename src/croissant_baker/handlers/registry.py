@@ -148,10 +148,37 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.wfdb_handler import WFDBHandler
     from croissant_baker.handlers.parquet_handler import ParquetHandler
     from croissant_baker.handlers.image_handler import ImageHandler
+    from croissant_baker.handlers.wsi_handler import WSIHandler
     from croissant_baker.handlers.dicom_handler import DICOMHandler
     from croissant_baker.handlers.nifti_handler import NIfTIHandler
     from croissant_baker.handlers.soft_handler import SOFTHandler
     from croissant_baker.handlers.hdf5_handler import HDF5Handler
+    from croissant_baker.handlers.vcf_handler import VCFHandler
+    from croissant_baker.handlers.bam_handler import BAMHandler
+    from croissant_baker.handlers.sam_handler import SAMHandler
+    from croissant_baker.handlers.fastq_handler import FASTQHandler
+    from croissant_baker.handlers.fasta_handler import FASTAHandler
+    from croissant_baker.handlers.bcf_handler import BCFHandler
+    from croissant_baker.handlers.cram_handler import CRAMHandler
+    from croissant_baker.handlers.mol_handler import MOLHandler
+    from croissant_baker.handlers.sdf_handler import SDFHandler
+    from croissant_baker.handlers.smiles_handler import SMILESHandler
+    from croissant_baker.handlers.pdb_handler import PDBHandler
+    from croissant_baker.handlers.cif_handler import CIFHandler
+    from croissant_baker.handlers.xyz_handler import XYZHandler
+
+    # From the submodules rather than the package, so that constructing the
+    # registry pulls in gemmi only for the three handlers that need it.
+    from croissant_baker.handlers.structural_biology.structure_handler import (
+        StructureHandler,
+    )
+    from croissant_baker.handlers.structural_biology.star_handler import STARHandler
+    from croissant_baker.handlers.structural_biology.map_handler import MRCHandler
+    from croissant_baker.handlers.structural_biology.mtz_handler import MTZHandler
+    from croissant_baker.handlers.structural_biology.mdoc_handler import MdocHandler
+    from croissant_baker.handlers.structural_biology.molecule_handler import (
+        SmallMoleculeHandler,
+    )
 
     return [
         CSVHandler(),
@@ -162,11 +189,37 @@ def builtin_handlers() -> List[FileTypeHandler]:
         JSONHandler(),
         WFDBHandler(),
         ParquetHandler(),
+        # Ahead of the image handler. The extensions are disjoint, so this
+        # is intent rather than dispatch: a vendor slide is a TIFF, and the
+        # narrower claim on it is stated first.
+        WSIHandler(),
         ImageHandler(),
         DICOMHandler(),
         NIfTIHandler(),
         SOFTHandler(),
         HDF5Handler(),
+        VCFHandler(),
+        BCFHandler(),
+        BAMHandler(),
+        CRAMHandler(),
+        SAMHandler(),
+        FASTQHandler(),
+        FASTAHandler(),
+        # MOL before SDF, as the narrower claim. Both look at the same fourth
+        # line, and their extensions do not overlap, so this is convention
+        # rather than a dependency.
+        MOLHandler(),
+        SDFHandler(),
+        SMILESHandler(),
+        PDBHandler(),
+        CIFHandler(),
+        XYZHandler(),
+        StructureHandler(),
+        STARHandler(),
+        MRCHandler(),
+        MTZHandler(),
+        MdocHandler(),
+        SmallMoleculeHandler(),
     ]
 
 

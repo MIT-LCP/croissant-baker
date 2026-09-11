@@ -8,8 +8,28 @@
 | JSON / JSONL | `.json`, `.jsonl` | `.gz`, `.bz2`, `.xz` | Schema inferred from a sample of records |
 | WFDB | `.hea` | — | Signal names, sampling frequency, duration, number of signals |
 | Parquet | `.parquet` | `.gz`, `.bz2`, `.xz` | Arrow schema, column names and types, row count |
+| Whole-slide image | `.svs`, `.ndpi`, `.scn`, `.bif`, `.qptiff` | `.gz`, `.bz2`, `.xz` | Vendor, pyramid levels, tile size, microns per pixel, objective magnification and associated images for Aperio, Hamamatsu, Leica, Ventana and Akoya slides |
 | Images | `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.webp`, `.ico`, `.tiff`, `.tif`, `.btf` | `.gz`, `.bz2`, `.xz` | Dimensions, color mode, encoding format; OME-XML header fields |
 | DICOM | `.dcm`, `.dicom` | `.gz`, `.bz2`, `.xz` | Image geometry, modality, pixel encoding, acquisition parameters |
 | NIfTI | `.nii` | `.gz`, `.bz2`, `.xz` | Spatial dimensions, voxel spacing, data type, TR for fMRI volumes |
 | GEO SOFT | `.soft` | `.gz`, `.bz2`, `.xz` | Entity attribute names, sample characteristic keys, data table columns |
 | HDF5 | `.h5`, `.h5ad`, `.hdf5` | `.gz`, `.bz2`, `.xz` | Dataset paths, dtypes and shapes; AnnData and 10x table columns where the layout is recognised |
+| VCF | `.vcf` | `.gz`, `.bz2`, `.xz` | Reference, contig count, typed INFO and FORMAT keys, sample count |
+| BCF | `.bcf` | `.gz`, `.bz2`, `.xz` | Reference, contig count, typed INFO and FORMAT keys, sample count |
+| BAM | `.bam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
+| CRAM | `.cram` | `.gz`, `.bz2`, `.xz` | CRAM version, sort order, reference count and assembly, read groups, program chain |
+| SAM | `.sam` | `.gz`, `.bz2`, `.xz` | Sort order, reference count and assembly, read groups, program chain |
+| FASTQ | `.fastq`, `.fq` | `.gz`, `.bz2`, `.xz` | Read length of the first record; no read name or record count |
+| FASTA | `.fa`, `.fasta`, `.fna` | `.gz`, `.bz2`, `.xz` | Format and encoding; record names and sequences are not read |
+| MOL | `.mol` | `.gz`, `.bz2`, `.xz` | Molfile version, title, atom and bond counts (header only) |
+| SDF | `.sdf`, `.sd` | `.gz`, `.bz2`, `.xz` | Molfile version and data field names with types, inferred from a bounded sample of records |
+| SMILES | `.smi`, `.smiles` | `.gz`, `.bz2`, `.xz` | Column count and delimiter from a bounded sample of lines; one record per molecule |
+| PDB | `.pdb`, `.ent` | `.gz`, `.bz2`, `.xz` | ID code, classification, title, experimental method, resolution, chain count (header only) |
+| mmCIF | `.cif`, `.mmcif` | `.gz`, `.bz2`, `.xz` | PDBx entry id, title, experimental method, resolution, entity and chain counts; small-molecule CIF formula and cell (header only) |
+| XYZ | `.xyz` | `.gz`, `.bz2`, `.xz` | Atom count and comment line of the first frame; frames are not counted |
+| Macromolecular structure | `.pdb`, `.ent`, `.cif`, `.mmcif` | `.gz`, `.bz2`, `.xz` | Entry id, title, experimental method, resolution, unit cell, space group, and model, chain, residue and atom counts; a CIF holding no structure is described as the tables it declares |
+| STAR | `.star` | `.gz`, `.bz2`, `.xz` | RELION and other cryo-EM STAR files: one table per data block, columns typed from values |
+| MRC / CCP4 map | `.mrc`, `.mrcs`, `.map`, `.ccp4` | `.gz`, `.bz2`, `.xz` | Grid dimensions, data type, voxel size, space group, volume or stack |
+| MTZ | `.mtz` | `.gz`, `.bz2`, `.xz` | Reflection column labels and types, unit cell, space group, resolution range, datasets |
+| SerialEM mdoc | `.mdoc` | `.gz`, `.bz2`, `.xz` | Acquisition globals and the per-section keys of a tilt series or montage |
+| Small molecules | `.sdf`, `.mol`, `.mol2` | `.gz`, `.bz2`, `.xz` | Molecule and atom counts, and the property tags an SDF library declares |

@@ -1,14 +1,17 @@
 """Image file handler for datasets containing images."""
 
 import logging
-from pathlib import Path
 from typing import Dict, List
 
 import mlcroissant as mlc
 
 from croissant_baker.handlers import ome
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.utils import ARRAY_SHAPE_UNKNOWN_1D
+from croissant_baker.handlers.utils import (
+    ARRAY_SHAPE_UNKNOWN_1D,
+    TIFF_MAGICS,
+    extension_globs,
+)
 from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
@@ -65,17 +68,14 @@ _MIME_TYPES: Dict[str, str] = {
 # We read just enough bytes to satisfy the longest signature (WebP, 12 bytes).
 _IMAGE_MAGIC_PREFIX_BYTES = 12
 
-# Standard TIFF (version 0x2a) and BigTIFF (version 0x2b), little- and big-endian.
-_TIFF_MAGICS = (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+")
-
 _IMAGE_MAGIC_CHECKS = {
     ".png": lambda h: h.startswith(b"\x89PNG\r\n\x1a\n"),
     ".jpg": lambda h: h.startswith(b"\xff\xd8\xff"),
     ".jpeg": lambda h: h.startswith(b"\xff\xd8\xff"),
     ".gif": lambda h: h.startswith((b"GIF87a", b"GIF89a")),
-    ".tiff": lambda h: h.startswith(_TIFF_MAGICS),
-    ".tif": lambda h: h.startswith(_TIFF_MAGICS),
-    ".btf": lambda h: h.startswith(_TIFF_MAGICS),
+    ".tiff": lambda h: h.startswith(TIFF_MAGICS),
+    ".tif": lambda h: h.startswith(TIFF_MAGICS),
+    ".btf": lambda h: h.startswith(TIFF_MAGICS),
     ".bmp": lambda h: h.startswith(b"BM"),
     ".webp": lambda h: h[:4] == b"RIFF" and h[8:12] == b"WEBP",
     ".ico": lambda h: h[:4] in (b"\x00\x00\x01\x00", b"\x00\x00\x02\x00"),
@@ -314,29 +314,12 @@ def _image_file_set(file_metas: List[Dict], ome_metas: List[Dict]) -> mlc.FileSe
     thousands of plain TIFF tiles then needs only one exception.
     """
     summary = collect_image_summary(file_metas)
-    extensions = {Path(meta["file_name"]).suffix for meta in file_metas}
-    patterns = {}
-    for extension in extensions:
-        lower = extension.lower()
-        if extension != lower:
-            # Globs are case-sensitive on Linux. One character-class pattern
-            # covers every observed spelling without overlapping include globs.
-            spelling = "".join(
-                f"[{char}{char.upper()}]" if char.isalpha() else char for char in lower
-            )
-            patterns[lower] = f"**/*{spelling}"
-        else:
-            patterns.setdefault(lower, f"**/*{lower}")
     return mlc.FileSet(
         id="image-files",
         name="Image files",
         description=f"{summary['num_images']} image files ({_formats(summary)})",
         encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
-        # mlcroissant uses fnmatch, where **/ requires a directory. Both forms
-        # cover root and nested images with that reader and filesystem globbing.
-        includes=sorted(
-            glob for pattern in patterns.values() for glob in (pattern, pattern[3:])
-        ),
+        includes=extension_globs(meta["file_name"] for meta in file_metas),
         excludes=sorted(_relative(meta) for meta in ome_metas) or None,
     )
 
