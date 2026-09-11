@@ -74,12 +74,21 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | Parquet | `.parquet` | Partitioned datasets supported |
 | FHIR | `.ndjson`, `.json` (Bundle) | NDJSON bulk export and JSON Bundle |
 | JSON / JSONL | `.json`, `.jsonl` | Arrays, single objects, and JSON Lines |
-| WFDB | `.hea` + `.dat` / `.atr` | PhysioNet waveform data |
-| Images | `.png`, `.jpg`, `.tiff`, `.btf`, `.bmp`, `.gif`, `.webp` | Dimensions and format; BigTIFF via tifffile; OME-XML header fields for OME-TIFF |
+| WFDB | `.hea` (with sibling `.dat` / `.atr` located by path) | PhysioNet waveform data |
+| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.ico`, `.tiff`, `.tif`, `.btf` | Dimensions and format; BigTIFF via tifffile; OME-XML header fields for OME-TIFF |
 | DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only) |
 | NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
 | GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
 | HDF5 | `.h5`, `.h5ad`, `.hdf5` | Dataset paths, dtypes and shapes via h5py (structure only); AnnData and 10x table columns where the layout is recognised |
+| VCF / gVCF | `.vcf` | Variant callsets: reference, contigs, typed INFO and FORMAT keys, sample count (header only) |
+| BCF | `.bcf` | Binary VCF 2.x: the container is unwrapped in-handler and the VCF header inside it yields the same record set as VCF |
+| BAM | `.bam` | Sort order, reference sequences and assembly, read groups, program chain (header only) |
+| CRAM | `.cram` | As BAM, plus the CRAM version; versions 2.x and 3.x, no reference needed (header only) |
+| SAM | `.sam` | As BAM, from the text header |
+| FASTQ | `.fastq`, `.fq` | Sequencing reads: read length of the first record; read names are not reported |
+| FASTA | `.fa`, `.fasta`, `.fna` | Sequences and references: format only; record names and sequences are not read |
+| SMILES | `.smi`, `.smiles` | Chemical structures: delimiter, column count and header names from a bounded sample of lines; no structure or compound name is read |
+| XYZ | `.xyz` | Cartesian coordinates: atom count and comment line of the first frame, extended-XYZ property names; frames are not counted and no coordinate is read |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly
@@ -92,6 +101,7 @@ describes are reported with a reason rather than skipped in silence.
 
 - **Automatic type inference** for all supported formats
 - **RAI metadata** via `--rai-*` CLI flags or `--rai-config rai.yaml`
+- **Genomic sample identifiers withheld by default**: VCF and BCF report a sample count and BAM, CRAM and SAM a read-group count; the identifiers themselves are listed only with `--genomic-sample-ids`
 - **Validation** against the Croissant spec via `mlcroissant`
 - **Dry-run mode**, include/exclude glob filters, multiple creators
 

@@ -309,6 +309,50 @@ def test_an_archive_is_refused_with_the_archive_reason(name: str, tmp_path) -> N
     assert selection.reason is Reason.ARCHIVE
 
 
+def _corrupt_deflate() -> bytes:
+    """A gzip member whose header is valid and whose body is not.
+
+    The reason the guard names ``zlib.error`` as well: this raises it, where a
+    bad gzip *header* raises ``BadGzipFile``, which is an ``OSError``.
+    """
+    whole = gzip.compress(b"payload" * 200)
+    return whole[:10] + bytes(20) + whole[30:]
+
+
+@pytest.mark.parametrize(
+    ("name", "payload"),
+    [
+        ("x.vcf.xz", b"not really compressed"),
+        ("x.dcm.xz", b"not really compressed"),
+        ("x.png.xz", b"not really compressed"),
+        ("x.bam.gz", _corrupt_deflate()),
+        ("x.vcf.gz", _corrupt_deflate()),
+    ],
+    ids=["vcf-xz", "dcm-xz", "png-xz", "bam-gz", "vcf-gz"],
+)
+def test_a_corrupt_wrapper_falls_through_dispatch(
+    name: str, payload: bytes, tmp_path: Path
+) -> None:
+    """A handler that sniffs magic has to decompress to do it, and a wrapper
+    that will not open raises the decompression library's own exception type
+    rather than OSError.
+
+    Escaping a claim, that ends dispatch for every handler behind it and the
+    file gets an exception instead of a reason. It is the same bug for every
+    sniffing handler, so it is fixed once, where the bytes are read.
+
+    Only formats claimed on their content. A handler claiming on the extension
+    alone takes the file whatever the bytes are, and reports it at extraction
+    with a reason of its own.
+    """
+    (tmp_path / name).write_bytes(payload)
+
+    selection = select_handler(tmp_path / name)
+
+    assert selection.handler is None
+    assert selection.reason is Reason.NO_HANDLER
+
+
 def _executable_strings(path: Path):
     """Every string literal in a module except the docstrings."""
     tree = ast.parse(path.read_text())

@@ -564,6 +564,11 @@ def main(
         "--count-csv-rows",
         help="Count exact row numbers for CSV files (slow for large datasets)",
     ),
+    genomic_sample_ids: bool = typer.Option(
+        False,
+        "--genomic-sample-ids",
+        help="Emit the sample identifiers a genomic file names in its header (VCF and BCF sample columns; BAM, CRAM and SAM read-group SM tags). Off by default: for a controlled release those identifiers are a manifest of the cohort, and the counts are emitted either way.",
+    ),
     jobs: int = typer.Option(
         0,
         "--jobs",
@@ -906,6 +911,7 @@ def main(
             usage_info=usage_info,
             field_mappings=merged_field_mappings,
             count_csv_rows=count_csv_rows,
+            genomic_sample_ids=genomic_sample_ids,
             max_workers=jobs or None,
             detect_references=detect_references,
             includes=include,

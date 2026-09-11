@@ -367,6 +367,354 @@ Column names, dataset paths, dtypes, shapes and row counts only. A categorical's
 `.h5.gz` is described identically to `.h5`, but not as cheaply. h5py seeks backwards through the file, and a non-seekable codec pays for that by decompressing and discarding everything it skips.
 
 Measured on a 120 MB `.h5ad` holding incompressible data, reading its structure took 2 ms uncompressed, 0.7 s gzipped, 6 s xz-wrapped and 7 s bz2-wrapped. That cost tracks the file's size rather than its structure — uncompressed does not — so a 5 GB `.h5ad.gz` is of the order of half a minute, and the same file bz2-wrapped is several minutes. Uncompressed is worth it for this format, and gzip is worth it over the other two.
+## VCF and gVCF
+
+VCF (`.vcf`) is the variant call format. The handler reads the header and stops
+at the first record: nothing below the `#CHROM` line is ever parsed.
+
+A VCF is claimed on its opening `##fileformat=VCF` declaration rather than on
+its extension, because `.vcf` is also the vCard extension. A vCard is therefore
+reported as a file no handler claimed, and a callset saved under another name is
+still described.
+
+Each file produces one record set whose fields are the columns the `#CHROM` line
+declares, in that order: `CHROM` (`sc:Text`), `POS` (`cr:Int64`), `ID`
+(`sc:Text`), `REF` (`sc:Text`), `ALT` (`sc:Text`, repeated), `QUAL`
+(`cr:Float64`), `FILTER` (`sc:Text`, repeated) and `INFO`. A file carrying
+genotypes adds `FORMAT` and a single repeated `samples` field standing for the
+genotype columns.
+
+`INFO` and `FORMAT` are per-record key-value bags rather than columns of their
+own, so each declared key becomes a sub-field of the column that carries it.
+The declared `Type` gives the Croissant type (`Integer` to `cr:Int64`, `Float`
+to `cr:Float64`, `Flag` to `sc:Boolean`, `String` and `Character` to `sc:Text`),
+and any `Number` other than `0` or `1` marks the sub-field repeated, which
+covers `A`, `R`, `G`, `.` and literal counts above one. The declared
+`Description` becomes the sub-field description; it is a header byte, so
+traceability holds.
+
+The declared `##fileformat`, `##reference`, the number of `##contig`
+declarations and the sample count are stated in the record set description
+rather than in JSON-LD keys no Croissant vocabulary defines. A gVCF is the same
+handler and the same shape: `##GVCFBlock` lines or a `NON_REF` alternate allele
+are recorded, and the description says so.
+
+Fields carry `source: {fileObject: …}` and **no `extract`**, for the reason
+given under GEO SOFT: `mlcroissant` does not read VCF, so a column reference
+would be a promise nothing can keep. `encodingFormat` is `text/x-vcf`, with the
+compression media type added by the input layer.
+
+A header with no `#CHROM` line declares no columns, and the file is reported
+with that reason rather than described.
+
+### Sample identifiers
+
+Sample column names are a manifest of the cohort. They are withheld by default:
+the record set states how many samples the file carries, not what they are
+called. `--genomic-sample-ids` emits them, mirroring the opt-in shape of
+`--count-csv-rows`.
+
+## BCF
+
+BCF (`.bcf`) is the binary form of a VCF: the same header text, followed by
+records packed into a binary encoding. A `.bcf` is already a compressed
+container, and the input layer does not treat it as one: it is a format, not a
+transport wrapper, so the handler decompresses it itself, exactly as the BAM
+handler does. It reads the magic, the declared header length and the header
+text, then stops. No record is decoded.
+
+A BCF is claimed on the `BCF` every generation of the format opens with, in
+either of the two forms the pipeline can hand over: a stream whose payload
+starts with it, or one that already starts with it because a second wrapper was
+taken off on the way in. Both minor versions of BCF 2 are read, because they
+differ in how records are encoded and not in the header. BCF1, samtools' own
+first-generation encoding, declares no VCF header text at all: it is claimed so
+that it can be reported as the BCF it is, with that as its reason, rather than
+left to be reported as a file nothing recognised.
+
+The header is then the VCF handler's, so a callset describes the same way in
+either container: one record set per file, whose fields are the columns the
+`#CHROM` line declares, with `INFO` and `FORMAT` carrying one sub-field per
+declared key, and the `##fileformat`, `##reference`, contig count and sample
+count stated in the record set description. `encodingFormat` is
+`application/x-bcf`, with the compression media type added by the input layer
+when the file arrives under a further wrapper.
+
+Sample column names are withheld under the same `--genomic-sample-ids` opt-in
+that governs a plain VCF. Index files (`.csi`) are reported as unsupported;
+nothing claims them.
+
+## BAM
+
+BAM (`.bam`) is the compressed binary form of a SAM alignment file. A `.bam` is
+already a compressed container, and the input layer does not treat it as one: it
+is a format, not a transport wrapper, so the handler decompresses it itself. It
+reads the magic, the SAM text header and the reference count, then stops. No
+alignment record is read.
+
+A BAM is claimed on that magic, in either of the two forms the pipeline can hand
+over: a stream whose payload starts with `BAM\1`, or one that already starts with
+it because a second wrapper was taken off on the way in.
+
+From the text header: `@HD` gives the SAM version and sort order, `@SQ` the
+number of reference sequences and, from the first, the assembly name; `@RG` the
+number of read groups with their sequencing platforms and centres; `@PG` the
+program chain in declaration order. The binary `n_ref` that follows the text is
+recorded alongside the `@SQ` count.
+
+**No record set is emitted.** Aligned reads are records of a genome, not of a
+dataset schema, so a BAM is described as a file: the properties above are stated
+in the `description` of its `cr:FileObject`. That description is the one thing
+this handler produces; `encodingFormat` is `application/x-bam`, with the
+compression media type added by the input layer when the file arrives under one.
+
+`@RG SM` names the sample a read group came from, and the tags together are a
+cohort manifest, so they are withheld under the same `--genomic-sample-ids`
+opt-in as the VCF sample columns. Index files (`.bai`, `.csi`, `.tbi`) are
+reported as unsupported; nothing claims them.
+
+## CRAM
+
+CRAM (`.cram`) stores the same alignment a BAM does, encoded against the
+reference the reads were placed on rather than storing their bases. That
+reference is not needed to describe the file: the SAM text header sits in the
+first block of the first container, and the header is all that is read, so a
+CRAM whose reference is a URL nobody can reach is still described in full.
+
+A CRAM is claimed on its magic, the four bytes `CRAM` a file definition opens
+with. Reaching the header block after it means walking the first container
+header field by field: those fields are written in CRAM's two variable-width
+integer encodings, ITF8 and LTF8, so the block behind them cannot be seeked to.
+The block is then decoded from raw, gzip, bzip2 or LZMA, whichever it declares;
+a gzip block may also be written as a bare zlib stream, and both spellings are
+read, as htslib reads them. The decode is bounded by the raw size the block
+itself declares: one byte past it is enough to see that the block holds more
+than it says, and a block holding anything other than what it declares is
+refused rather than expanded. The text it holds is read exactly as a BAM's is:
+`@HD` for the SAM version and
+sort order, `@SQ` for the reference sequences and, from the first, the assembly
+name, `@RG` for the read groups with their platforms and centres, and `@PG` for
+the program chain in declaration order. The CRAM version itself is recorded
+alongside them.
+
+Four things are refused with a reason rather than guessed at. Major versions
+other than 2 and 3: CRAM 1 is obsolete and CRAM 4 changes the integer encodings
+a container header is written in, so neither can be walked with this layout. A
+file header block coded with rANS, CRAM's own entropy coder, which has no
+decoder in the standard library. A block or header text whose declared size is
+larger than any real header, which is refused before a byte behind it is read.
+And a block whose stream ends early, or that decodes to anything other than the
+raw size it declares. CRC32 values are read past rather than checked: what is
+described is the header text, and a mismatch is a decoder's corruption report,
+not metadata.
+
+**No record set is emitted**, for the reason a BAM emits none: aligned reads are
+records of a genome, not of a dataset schema. The properties above are stated in
+the `description` of the file's `cr:FileObject`, and `encodingFormat` is
+`application/x-cram`, with the compression media type added by the input layer
+when the file arrives under one. `@RG SM` sample tags are withheld under the
+same `--genomic-sample-ids` opt-in as the BAM tags and the VCF sample columns.
+Index files (`.crai`) are reported as unsupported; nothing claims them.
+
+## SAM
+
+SAM (`.sam`) is the text form of the same alignment file, and it opens with the
+same header. `@HD` gives the SAM version and sort order, `@SQ` the number of
+reference sequences and, from the first, the assembly name; `@RG` the number of
+read groups with their sequencing platforms and centres; `@PG` the program chain
+in declaration order. Nothing in front of the header says how long it is, so the
+read is bounded by the stop at the first line that does not start with `@`: no
+alignment record is read, whatever the size of the file. The header is taken a
+chunk at a time, and a file that never reaches a line that is not a header line
+is reported: a single line above 1 MiB is not a header line, and a header above
+64 MiB, the cap the binary containers state their own header length against, is
+not a header.
+
+A SAM is claimed on its extension **and** its first header line, and needs both.
+A FASTQ opens with `@` as well, so the leading character alone would describe one
+as an alignment it is not; and the header shape alone is not what makes a file a
+SAM. A `.sam` carrying only alignment records is therefore reported as unclaimed,
+which is the honest outcome: with no header it declares no sort order, no
+assembly and no read group.
+
+**No record set is emitted**, for the reason BAM emits none: the properties above
+are stated in the `description` of the file's `cr:FileObject`. `encodingFormat`
+is `text/x-sam`, with the compression media type added by the input layer when
+the file arrives under one. `@RG SM` is withheld under the same
+`--genomic-sample-ids` opt-in.
+
+## FASTQ
+
+FASTQ (`.fastq`, `.fq`) is the same four lines repeated until the run is
+exhausted: a read name, the bases, a `+` separator, and one quality character
+per base. The handler reads the first record and stops. Nothing behind it is
+opened, so a run of a hundred million reads costs the same read as a run of
+one. The record is taken from a bounded prefix of 1 MiB, which holds the
+longest read any instrument writes twice over, once as bases and once as
+quality scores; a first record that does not end inside it is reported rather
+than read for.
+
+The claim needs both the extension and the structure, because neither holds on
+its own. `@` opens a record's name line, but it also opens every line of a SAM
+header, so the first byte cannot decide; the extension cannot decide either,
+because it would claim any text a user happened to name `.fq`. Together they
+are the record's own shape: a name line, a sequence, and a separator on the
+third line. A `.fastq` whose third line is not `+` is left to the other
+handlers and reported with a reason.
+
+What is extracted is the length of the first read. A record whose quality line
+does not match its sequence in length, or that has no `+` on its third line, is
+a record this handler cannot describe truthfully, and the file is reported with
+that reason rather than described. Multi-line FASTQ, where a read is wrapped
+across several lines, is deliberately unsupported for the same reason.
+
+**Read names are never reported.** An Illumina read name spells out the
+instrument, run, flowcell and lane the read came from, and none of that is
+structure. It reaches neither the metadata nor the description, and there is no
+flag to turn it on. Records are not counted either: counting them means reading
+the whole file, which is the one thing this handler exists not to do.
+
+**No record set is emitted.** Sequencing reads are records of a run, not of a
+dataset schema, so a FASTQ is described as a file: the read length is stated in
+the `description` of its `cr:FileObject`. `encodingFormat` is `text/x-fastq`,
+with the compression media type added by the input layer when the file arrives
+under one, so `reads.fastq.gz` is described exactly as `reads.fastq` is.
+
+## FASTA
+
+FASTA (`.fa`, `.fasta`, `.fna`) is a description line followed by sequence,
+repeated. The handler reads the first description line and stops there. No
+sequence line is ever read: a reference genome is gigabytes of bases and none of
+them is metadata.
+
+A FASTA is claimed on its extension **and** on its first byte, and neither half
+would do alone. `>` is a single character that a quoted email, a shell
+transcript and a diff all begin with, so it is too little to own a file on. The
+extension alone would claim any text a user happened to name `.fa`, and past
+that first byte the format has no other marker to fall back on: a FASTA is
+letters, which is what an unrelated text file is too. A `.fa` that does not open
+with `>` is therefore reported as a file no handler claimed, and an empty file
+or a bare `>` line is reported with that as its reason rather than described.
+
+What is reported is the format and the encoding. Deliberately not reported:
+
+- **Record names.** A description line names the record, and for a per-sample
+  assembly that name is the sample, so it is withheld the way `@RG SM` and the
+  VCF sample columns are. Unlike those, it has no opt-in: one line is read, and
+  which record it names is not a structural fact about the dataset.
+- **The comment text** following the name on the same line, for the same reason.
+- **The number of records**, and the sequence lengths. Counting either means
+  reading the whole file, which is what header-only reading exists to avoid.
+
+**No record set is emitted.** Bases are records of a genome, not of a dataset
+schema, so a FASTA is described as a file: the statement above is carried in the
+`description` of its `cr:FileObject`. `encodingFormat` is `text/x-fasta`, with
+the compression media type added by the input layer when the file arrives under
+one. FASTA has no IANA registration, so the `x-` form follows `text/x-vcf`.
+
+Index and dictionary files (`.fai`, `.dict`, `.gzi`) are reported as unsupported;
+nothing claims them.
+
+## SMILES
+
+SMILES (`.smi`, `.smiles`) is one molecule per line: the structure first, then
+usually whitespace and a name or a registry identifier, and sometimes further
+columns after that. The format declares none of it. There are no magic bytes, no
+header line it requires, no delimiter it fixes and no column count it states, so
+the layout is read off a **bounded sample** of the head: the first 1000 lines, or
+the first 1 MiB, whichever ends first. A library of a million molecules therefore
+costs the same read as one of a thousand.
+
+What is reported is the delimiter (`tab` when the sample holds tabs, otherwise
+runs of spaces), the column count, and one `sc:Text` field per column. The column
+count is the widest line of the sample; a line carrying fewer fields has simply
+left the trailing ones off, which is what a molecule with no name looks like, and
+that is not an error.
+
+The record set description states the sample the layout came from, either
+`from all 42 lines` or `from the first 1000 lines`. A column count read off a
+sample is a claim about that sample, and a consumer deciding whether to trust it
+needs to know how many lines it was read from.
+
+A SMILES file is claimed on its extension **and** on its first record, and
+neither half would do alone. The extension alone would claim any text a user
+happened to name `.smi`. The first record alone would not do either, because a
+short structure is also a plausible line of many other things. The record is read
+as symbols rather than as characters: each letter run outside a bracket atom has
+to spell an atom of the OpenSMILES organic subset, so `CCO` and `c1ccccc1` are
+structures while `ethanol` and `SMILES` are not. Lines opening with `#` are
+comments in the dialects that have one, and are skipped before the check; `#` is
+a triple bond, and no structure opens with a bond.
+
+**Column names come from a header line when the file wrote one.** A header is
+detected, not declared: a first record whose first field is no structure,
+followed by one whose first field is, is a file that named its columns, and the
+names are taken from it. Otherwise the columns are named by position, `smiles`
+and `name` and then `column_3`, `column_4`, because the file states nothing for
+them to be named after. A file whose first record is no structure and whose
+second is none either is reported with that as its reason rather than described
+as a molecule table it is not, as is an empty file and one holding only comments.
+
+**Nothing from a data line is emitted.** A structure is the data, and the name
+beside it is a depositor's label for a compound; neither reaches the metadata,
+and the column names from a header line are the only text out of the file that
+does. Molecules are not counted either: counting them means reading the whole
+file.
+
+`encodingFormat` is `chemical/x-daylight-smiles`, with the compression media type
+added by the input layer when the file arrives under one. SMILES has no IANA
+registration, so the media type follows the `chemical/x-*` family cheminformatics
+tools register theirs under.
+
+## XYZ
+
+XYZ (`.xyz`) is an atom count, a comment line, and then one line of `symbol x y
+z` per atom; a trajectory or a multi-structure export repeats that frame back to
+back. The handler reads the first frame's header and stops there. No further
+frame is opened and no coordinate is read: the geometry is the data, and a
+molecular dynamics run is gigabytes of it.
+
+An XYZ is claimed on its extension **and** on the shape of its head, and neither
+half would do alone. A leading integer on a line of its own is also how a
+numbered list, a record count and a line-oriented log all open, so it is too
+little to own a file on; the extension alone would claim anything a user
+happened to name `.xyz`, which several unrelated formats have. Together they are
+a frame: a count, a comment line that may say anything at all, and under them a
+line of a symbol and three numbers. A `.xyz` whose first line is not a count, or
+whose third line is not an atom line, is therefore reported as a file no handler
+claimed.
+
+What is reported is the first frame's atom count and its comment line, verbatim
+and stripped of surrounding whitespace. The comment is usually a title and is
+often empty, and either way it is bytes the file states rather than a reading of
+them. When it carries the extended-XYZ `Properties=species:S:1:pos:R:3` term,
+the file is reported as extended XYZ and the property names in that term are
+reported with it: they are the columns the file declares its atom lines to
+carry.
+
+Deliberately not reported:
+
+- **The number of frames.** Counting them means reading the whole file, which is
+  what header-only reading exists to avoid. One structure and a million-frame
+  trajectory cost the same read.
+- **The coordinates**, and anything derived from them: no cell, no bounding box,
+  no per-element tally. The first atom line is looked at only to confirm the
+  frame is one, and is then discarded.
+- **What the extended-XYZ columns hold.** The names come off the `Properties=`
+  declaration; the values under them are never parsed.
+
+A frame of zero atoms is legal and is described as one, because a trajectory
+writer emits it for an empty cell. A header that declares atoms with no atom
+line under it, an empty file, and a first atom line that is not a symbol and
+three numbers are each reported with that as the reason rather than described.
+
+**No record set is emitted.** Atoms are records of a structure, not of a dataset
+schema, so an XYZ is described as a file: the statement above is carried in the
+`description` of its `cr:FileObject`. `encodingFormat` is `chemical/x-xyz`, with
+the compression media type added by the input layer when the file arrives under
+one. XYZ has no IANA registration; `chemical/*` is the family the chemistry
+tools have used for these files for decades, and the `x-` form marks it as
+unregistered the way `text/x-fasta` does.
 
 ## Hidden files and directories
 
