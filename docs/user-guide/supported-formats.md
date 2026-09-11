@@ -841,10 +841,15 @@ From a PDBx block:
   resolution is reported.
 - **Model count**, from `_pdbx_nmr_ensemble.conformers_submitted_total_number`.
 - **Polymer entity count**, the rows of `_entity_poly`, and **chain count**, the
-  rows of `_struct_asym`. A `_struct_asym` row is one chain instance, so the
-  count includes the non-polymer and solvent asyms alongside the polymer chains.
-  An entry carrying no `_struct_asym` is counted from the distinct strand
-  identifiers its `_entity_poly.pdbx_strand_id` values name.
+  distinct strand identifiers those entities name in
+  `_entity_poly.pdbx_strand_id`. That is the same count the PDB handler reports
+  for the same entry, so the two describe a structure alike.
+- **Asym unit count**, the rows of `_struct_asym`, reported beside the chain
+  count rather than as it. An asym unit is not a chain: a deposit gives one to
+  every copy of every ligand and one to its ordered solvent, so a four-chain
+  haemoglobin carries nine. It is stated in the description only where it
+  differs from the chain count, and it stands in for the chain count only in a
+  block that carries no polymer entity at all.
 - **Classification**, from `_struct_keywords.pdbx_keywords`, **keywords**, from
   `_struct_keywords.text` split on commas, and the **dictionary** the file
   declares it conforms to, from `_audit_conform`.
