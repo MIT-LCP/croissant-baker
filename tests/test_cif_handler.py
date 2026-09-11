@@ -145,28 +145,70 @@ def test_the_polymer_entities_are_counted_from_entity_poly(dataset: Path) -> Non
     assert extract(sample_cif(dataset))["polymer_entity_count"] == 2
 
 
-def test_the_chains_are_counted_from_struct_asym(dataset: Path) -> None:
+def test_the_chains_are_counted_from_the_strand_ids(dataset: Path) -> None:
+    """The strands the polymer entities name are the chains, which is the count
+    the PDB handler reports from its own ``COMPND`` ``CHAIN:`` tokens."""
     assert extract(sample_cif(dataset))["chain_count"] == 3
 
 
-def test_the_chains_are_counted_from_the_strand_ids_when_struct_asym_is_absent(
+def test_the_asym_units_are_counted_under_their_own_key(dataset: Path) -> None:
+    assert extract(sample_cif(dataset))["asym_unit_count"] == 3
+
+
+#: A haemoglobin-shaped block: two polymer entities over four chains, a heme
+#: beside each of them, and one ordered solvent, which is nine asym units.
+HAEMOGLOBIN = (
+    "data_4HHB\n"
+    "_entry.id   4HHB\n"
+    "loop_\n"
+    "_entity_poly.entity_id\n"
+    "_entity_poly.pdbx_strand_id\n"
+    "1 A,C\n"
+    "2 B,D\n"
+    "loop_\n"
+    "_struct_asym.id\n"
+    "_struct_asym.entity_id\n"
+    "A 1\nB 2\nC 1\nD 2\nE 3\nF 3\nG 3\nH 3\nI 4\n"
+).encode()
+
+
+def test_a_ligand_bearing_entry_separates_its_chains_from_its_asym_units(
     dataset: Path,
 ) -> None:
-    """One chain instance per row is the direct statement; a stripped entry that
-    does not make it still names its strands on the polymer entities."""
-    path = write(dataset, "strands.cif", without("_struct_asym").encode())
+    """An asym unit is not a chain. A deposit gives one to every copy of every
+    ligand and one to its ordered solvent, so a four-chain haemoglobin carries
+    nine, and reporting nine chains would disagree with the PDB copy of the
+    same entry for no reason a reader could see."""
+    path = write(dataset, "4hhb.cif", HAEMOGLOBIN)
+
+    meta = extract(path)
+
+    assert meta["chain_count"] == 4
+    assert meta["asym_unit_count"] == 9
+    assert "2 polymer entities, 4 chains, 9 asym units" in meta["description"]
+
+
+def test_the_chains_are_counted_from_the_asym_units_when_no_entity_is_polymeric(
+    dataset: Path,
+) -> None:
+    """A block carrying no ``_entity_poly`` names no strand, and then its asym
+    units are the only statement it makes about how many chains it holds."""
+    path = write(dataset, "asyms.cif", without("_entity_poly").encode())
 
     assert extract(path)["chain_count"] == 3
 
 
-def test_a_block_naming_no_chain_at_all_omits_the_count(dataset: Path) -> None:
+def test_a_block_naming_no_chain_at_all_omits_both_counts(dataset: Path) -> None:
     path = write(
         dataset,
         "bare.cif",
         without("_struct_asym", "_entity_poly").encode(),
     )
 
-    assert "chain_count" not in extract(path)
+    meta = extract(path)
+
+    assert "chain_count" not in meta
+    assert "asym_unit_count" not in meta
 
 
 def test_the_classification_and_keywords_are_read(dataset: Path) -> None:

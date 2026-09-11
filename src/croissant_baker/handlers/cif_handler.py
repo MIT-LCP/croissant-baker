@@ -544,6 +544,7 @@ def _pdbx_metadata(name: str, columns: Dict) -> dict:
         ),
         ("polymer_entity_count", _rows(columns, "_entity_poly")),
         ("chain_count", _chain_count(columns)),
+        ("asym_unit_count", _asym_unit_count(columns)),
         ("classification", _one(columns, "_struct_keywords.pdbx_keywords")),
         ("keywords", _split_list(_one(columns, "_struct_keywords.text"))),
         ("dictionary", _dictionary(columns)),
@@ -568,19 +569,34 @@ def _resolution(columns: Dict) -> Optional[float]:
 
 
 def _chain_count(columns: Dict) -> int:
-    """How many chain instances the entry holds.
+    """How many polymer chains the entry holds.
 
-    ``_struct_asym`` is one row per chain instance, which is the direct
-    statement. An entry that does not carry it still names its strands on the
-    polymer entities, one comma-separated list per entity. Chains are counted
-    rather than listed: how many there are is structure, and which letters they
-    were given is not.
+    From the strand identifiers the polymer entities name, one comma-separated
+    list per entity, which is the count the PDB handler reports for the same
+    entry from its ``COMPND`` ``CHAIN:`` tokens. An asym unit is not a chain: a
+    deposit gives one to every copy of every ligand and one to its ordered
+    solvent, so a four-chain haemoglobin carries nine, and that count is
+    reported under :func:`_asym_unit_count` instead. It stands in here only for
+    a block carrying no polymer entity at all, which then says nothing else
+    about how many chains it holds.
+
+    Chains are counted rather than listed: how many there are is structure, and
+    which letters they were given is not.
     """
-    rows = _rows(columns, "_struct_asym")
-    if rows:
-        return rows
+    if not _rows(columns, "_entity_poly"):
+        return _rows(columns, "_struct_asym")
     strands = _all(columns, "_entity_poly.pdbx_strand_id")
     return len(_distinct(item for value in strands for item in _split_list(value)))
+
+
+def _asym_unit_count(columns: Dict) -> int:
+    """How many asym units the entry holds, one per ``_struct_asym`` row.
+
+    Reported beside the chain count rather than as it, because the two answer
+    different questions: how many chains a structure has, and how many
+    instances of anything the coordinates are grouped into.
+    """
+    return _rows(columns, "_struct_asym")
 
 
 def _dictionary(columns: Dict) -> str:
@@ -590,6 +606,29 @@ def _dictionary(columns: Dict) -> str:
     if not name:
         return ""
     return f"{name} {version}" if version else name
+
+
+def _counts(metadata: dict) -> str:
+    """The counts clause: entities, chains, asym units and models.
+
+    The asym unit count is stated only where it differs from the chain count.
+    An entry of one polymer and nothing else has one per chain, and stating the
+    same number twice under two names reads as a distinction the file is not
+    making.
+    """
+    stated = []
+    for key, singular, several in (
+        ("polymer_entity_count", "polymer entity", "polymer entities"),
+        ("chain_count", "chain", "chains"),
+        ("asym_unit_count", "asym unit", "asym units"),
+        ("model_count", "model", "models"),
+    ):
+        if key not in metadata:
+            continue
+        if key == "asym_unit_count" and metadata[key] == metadata.get("chain_count"):
+            continue
+        stated.append(_counted(metadata[key], singular, several))
+    return ", ".join(stated)
 
 
 def _describe_pdbx(name: str, metadata: dict) -> str:
@@ -608,17 +647,10 @@ def _describe_pdbx(name: str, metadata: dict) -> str:
         )
         if part
     )
-    counts = ", ".join(
-        _counted(metadata[key], singular, several)
-        for key, singular, several in (
-            ("polymer_entity_count", "polymer entity", "polymer entities"),
-            ("chain_count", "chain", "chains"),
-            ("model_count", "model", "models"),
-        )
-        if key in metadata
-    )
     title = f"title: {metadata['title']}" if metadata.get("title") else ""
-    clauses = [c for c in (identity, _determined(metadata), counts, title) if c]
+    clauses = [
+        c for c in (identity, _determined(metadata), _counts(metadata), title) if c
+    ]
     stated = f" ({'; '.join(clauses)})" if clauses else ""
     return (
         f"mmCIF structure {name}{stated}. Described from its header; no "
