@@ -873,9 +873,13 @@ The dialect is decided by the block, not by the extension, which the two share.
 A block is PDBx when it states `_entry.id`, names a dictionary in
 `_audit_conform.dict_name`, or carries any `_struct.` item; it is a small
 molecule when, PDBx having been ruled out, it states `_cell_length_a` or
-`_chemical_formula_sum`. A block that is neither, a dictionary or a powder
-pattern, is reported with that as its reason rather than described from the few
-items the two dialects happen to share.
+`_chemical_formula_sum`. A block that is neither, a chemical component
+definition, a dictionary or a powder pattern, is reported with that as its
+reason rather than described from the few items the two dialects happen to
+share. That is decided as soon as a megabyte of the block has gone by with
+neither dialect named, rather than at the end of the file: none of those three
+carries a coordinate table, so nothing else would end the read before the byte
+cap, and a file that is one of the two dialects says so in its first items.
 
 A CIF is claimed on its extension **and** on its opening a `data_` block, and
 neither half would do alone. `.cif` is also the Windows compiled-installation

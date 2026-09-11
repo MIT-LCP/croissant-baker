@@ -544,6 +544,63 @@ def test_a_block_of_neither_dialect_is_refused_with_a_reason(dataset: Path) -> N
     assert "other.cif" in str(caught.value)
 
 
+#: Past the bound at which a block that has named neither dialect is refused,
+#: so a fixture crossing it exercises that decision rather than the cap far
+#: behind it.
+PAST_DIALECT_BOUND = 1536 * 1024
+
+
+def unrelated(byte_count: int = PAST_DIALECT_BOUND) -> str:
+    """Items of a category neither dialect is decided by, past the bound.
+
+    A powder pattern, which is one of the things a CIF that is not a structure
+    turns out to be.
+    """
+    line = "_pd_meas.intensity_total   1234.5\n"
+    return line * (byte_count // len(line) + 1)
+
+
+def test_a_block_naming_neither_dialect_is_refused_before_the_header_cap(
+    dataset: Path,
+) -> None:
+    """A CCD entry, a dictionary and a powder pattern carry no coordinate table
+    at all, so nothing stopped the read before the sixty-four mebibyte cap: a
+    six-megabyte dictionary was read whole to find out it could not be
+    described. A block that has named neither dialect in its first megabyte
+    will not name one in its last."""
+    path = write(
+        dataset, "powder.cif", b"data_pattern\n" + unrelated(4 * 1024 * 1024).encode()
+    )
+    opened: list = []
+    assert path.stat().st_size > 4 * 1024 * 1024
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "powder.cif" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < PAST_DIALECT_BOUND
+
+
+def test_a_large_entry_naming_pdbx_early_is_still_described(dataset: Path) -> None:
+    """The item that says PDBx sits in the first lines of an archive entry, an
+    eighteen-megabyte ribosome included, so the refusal above never reaches a
+    file it would be wrong about."""
+    payload = CIF_HEADER_TEXT + unrelated() + CIF_ATOM_SITE_TEXT
+    path = write(dataset, "ribosome.cif", payload.encode())
+    assert path.stat().st_size > PAST_DIALECT_BOUND
+
+    assert extract(path)["entry_id"] == "1ABC"
+
+
+def test_a_large_block_naming_a_cell_early_is_still_described(dataset: Path) -> None:
+    """A deposit states its cell and its formula in its first lines too."""
+    items, marker, atoms = SMALL_MOLECULE_CIF.partition(b"loop_\n_atom_site_label")
+    path = write(dataset, "big_cod.cif", items + unrelated().encode() + marker + atoms)
+    assert path.stat().st_size > PAST_DIALECT_BOUND
+
+    assert extract(path)["formula"] == "C6 H6"
+
+
 def test_a_header_above_the_cap_is_refused(
     dataset: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
