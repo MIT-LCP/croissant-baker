@@ -12,6 +12,7 @@ from croissant_baker.__main__ import app
 from croissant_baker.metadata_generator import (
     BIOSCHEMAS_CONFORMS_TO,
     MetadataGenerator,
+    normalize_profiles,
 )
 from tests.helpers import cli
 
@@ -1085,8 +1086,37 @@ def test_unknown_profile_is_rejected(csv_dataset: Path, tmp_path: Path) -> None:
 
 def test_unknown_profile_is_rejected_by_the_generator(tmp_path: Path) -> None:
     """A library caller gets the same refusal at construction, not a KeyError."""
-    with pytest.raises(ValueError, match="bioschemas"):
+    with pytest.raises(ValueError, match="biocroissant"):
         MetadataGenerator(dataset_path=str(tmp_path), profiles=["biocroissant"])
+
+
+def test_normalize_profiles_strips_drops_empties_and_dedupes() -> None:
+    """One owner for the rule, so the CLI and a library caller agree."""
+    assert normalize_profiles([" bioschemas ", "", "bioschemas"]) == ["bioschemas"]
+
+
+def test_normalize_profiles_splits_comma_lists() -> None:
+    """--profile takes comma lists, the way --keywords and --identifier do."""
+    assert normalize_profiles(["bioschemas,bioschemas"]) == ["bioschemas"]
+
+
+def test_normalize_profiles_reads_a_bare_string_as_one_name() -> None:
+    """A bare string is one flag's worth of input, not a sequence of letters."""
+    assert normalize_profiles("bioschemas") == ["bioschemas"]
+
+
+def test_normalize_profiles_returns_none_for_nothing() -> None:
+    """Nothing declared leaves conformsTo the bare Croissant string."""
+    assert normalize_profiles(None) is None
+    assert normalize_profiles([]) is None
+    assert normalize_profiles(["  "]) is None
+
+
+def test_generator_stores_the_normalised_profile_names(tmp_path: Path) -> None:
+    """The conformsTo lookup is safe by construction, padding and all."""
+    generator = MetadataGenerator(dataset_path=str(tmp_path), profiles=" bioschemas ")
+
+    assert generator.profiles == ["bioschemas"]
 
 
 def test_padded_profile_name_is_accepted(csv_dataset: Path, tmp_path: Path) -> None:

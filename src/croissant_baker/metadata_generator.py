@@ -66,6 +66,44 @@ PROFILE_CONFORMS_TO = {
 }
 
 
+def normalize_profiles(
+    profiles: Union[str, List[str], None],
+) -> Optional[List[str]]:
+    """The profile names to declare, cleaned and checked, or None.
+
+    The single owner of the rule: the generator calls it from ``__init__`` and
+    the CLI calls it from the ``--profile`` callback, so a library caller and a
+    command line get the same contract and the same message. Strips each name,
+    drops empties, splits comma lists the way ``--keywords`` and
+    ``--identifier`` take them, and deduplicates with ``dict.fromkeys`` so a
+    name given twice is declared once in the order it was first asked for.
+
+    A bare string is one flag's worth of input rather than an iterable of
+    characters, so ``profiles="bioschemas"`` means what it reads as.
+
+    Raises:
+        ValueError: If a name has no conformsTo URI in ``PROFILE_CONFORMS_TO``.
+    """
+    if profiles is None:
+        return None
+    if isinstance(profiles, str):
+        profiles = [profiles]
+    names = [
+        stripped
+        for value in profiles
+        for part in value.split(",")
+        if (stripped := part.strip())
+    ]
+    names = list(dict.fromkeys(names))
+    unknown = [name for name in names if name not in PROFILE_CONFORMS_TO]
+    if unknown:
+        raise ValueError(
+            f"Unknown profile(s): {', '.join(repr(name) for name in unknown)}. "
+            f"Known profiles: {', '.join(sorted(PROFILE_CONFORMS_TO))}"
+        )
+    return names or None
+
+
 def _apply_field_mappings(
     metadata_dict: dict, mappings: Dict[str, Dict[str, object]]
 ) -> None:
@@ -180,7 +218,7 @@ class MetadataGenerator:
         conditions_of_access: Optional[str] = None,
         is_accessible_for_free: Optional[bool] = None,
         included_in_data_catalog: Optional[str] = None,
-        profiles: Optional[List[str]] = None,
+        profiles: Union[str, List[str], None] = None,
         field_mappings: Optional[Dict[str, Dict[str, object]]] = None,
         count_csv_rows: bool = False,
         max_workers: Optional[int] = None,
@@ -233,8 +271,9 @@ class MetadataGenerator:
                 dataset (schema.org/includedInDataCatalog).
             profiles: Additional profiles the document declares in
                 ``conformsTo`` alongside Croissant 1.1, by the names in
-                ``PROFILE_CONFORMS_TO``. Declaring a profile does not
-                validate against it.
+                ``PROFILE_CONFORMS_TO``. A list, or one name as a bare
+                string; either form may carry comma-separated names.
+                Normalised by ``normalize_profiles`` at construction.
             field_mappings: Per-column overrides keyed by field name. Each value
                 is a dict with optional ``equivalent_property`` (vocab URI) and
                 ``data_types`` (list of vocab URIs). Used to link columns to
@@ -287,13 +326,7 @@ class MetadataGenerator:
         self.conditions_of_access = conditions_of_access
         self.is_accessible_for_free = is_accessible_for_free
         self.included_in_data_catalog = included_in_data_catalog
-        unknown = sorted(set(profiles or []) - set(PROFILE_CONFORMS_TO))
-        if unknown:
-            raise ValueError(
-                f"Unknown profile(s) {', '.join(unknown)}; "
-                f"known profiles: {', '.join(sorted(PROFILE_CONFORMS_TO))}"
-            )
-        self.profiles = profiles
+        self.profiles = normalize_profiles(profiles)
         self.field_mappings = field_mappings or {}
         self.includes = includes
         self.excludes = excludes
@@ -905,4 +938,4 @@ class MetadataGenerator:
             f.write("\n")
 
 
-__all__ = ["MetadataGenerator", "serialize_datetime"]
+__all__ = ["MetadataGenerator", "normalize_profiles", "serialize_datetime"]
