@@ -843,23 +843,28 @@ From a PDBx block:
 - **Polymer entity count**, the rows of `_entity_poly`, and **chain count**, the
   distinct strand identifiers those entities name in
   `_entity_poly.pdbx_strand_id`. That is the same count the PDB handler reports
-  for the same entry, so the two describe a structure alike.
+  for the same entry, so the two describe a structure alike. A `?` or a `.`
+  inside a strand list is not a strand: `A,?` is one chain.
 - **Asym unit count**, the rows of `_struct_asym`, reported beside the chain
   count rather than as it. An asym unit is not a chain: a deposit gives one to
   every copy of every ligand and one to its ordered solvent, so a four-chain
   haemoglobin carries nine. It is stated in the description only where it
   differs from the chain count, and it stands in for the chain count only in a
-  block that carries no polymer entity at all.
+  block that names no strand at all, whether because it carries no polymer
+  entity or because it writes the category without the strand item.
 - **Classification**, from `_struct_keywords.pdbx_keywords`, **keywords**, from
   `_struct_keywords.text` split on commas, and the **dictionary** the file
   declares it conforms to, from `_audit_conform`.
 
 From a core CIF block:
 
-- **Data block name**, **chemical name** and **formula**, from
-  `_chemical_formula_sum`. The name is taken from `_chemical_name_common`, then
+- **Data block name**, from the `data_` header itself, and omitted where that
+  header carries none: `data_` with nothing after it is a legal block that names
+  nothing.
+- **Chemical name**, from `_chemical_name_common`, then
   `_chemical_name_systematic`, then `_chemical_name_mineral`, which is the only
   one many mineral deposits state.
+- **Formula**, from `_chemical_formula_sum`.
 - **Space group**, from `_space_group_name_H-M_alt` or, in files written before
   the category was renamed, `_symmetry_space_group_name_H-M`.
 - **Cell**, the three edges and three angles, reported together or not at all: a
@@ -876,10 +881,24 @@ molecule when, PDBx having been ruled out, it states `_cell_length_a` or
 `_chemical_formula_sum`. A block that is neither, a chemical component
 definition, a dictionary or a powder pattern, is reported with that as its
 reason rather than described from the few items the two dialects happen to
-share. That is decided as soon as a megabyte of the block has gone by with
-neither dialect named, rather than at the end of the file: none of those three
-carries a coordinate table, so nothing else would end the read before the byte
-cap, and a file that is one of the two dialects says so in its first items.
+share.
+
+That is decided as soon as a megabyte has gone by with nothing in it naming
+either dialect, rather than at the end of the file: none of those three carries
+a coordinate table, so nothing else would end the read before the byte cap, and
+a file that is one of the two dialects says so in its first items. The megabyte
+is counted from the first byte read, the comment banner in front of the block
+included, because what it bounds is the read. What names a dialect there is
+wider than what is reported above, and is not limited to the items the handler
+keeps: any dotted item name is PDBx and nothing else, `_citation.title` as much
+as `_entry.id`, and an undotted `_cell_`, `_chemical_`, `_symmetry_`,
+`_space_group`, `_atom_site_`, `_publ_`, `_journal_`, `_refine_` or `_diffrn_`
+item is a crystal structure. So an entry that writes a megabyte of bibliography
+before its `_entry.id`, and a deposit that writes its references before its
+formula, are read on for and described. What the bound gives up is the file
+that names its dialect only in its second megabyte, and a file that has reached
+no `data_` block at all within it is reported for that rather than for what its
+block did not say.
 
 A CIF is claimed on its extension **and** on its opening a `data_` block, and
 neither half would do alone. `.cif` is also the Windows compiled-installation
