@@ -33,6 +33,9 @@ dependencies = [
     "pydicom>=2.4",
     "nibabel>=5.0",
     "h5py>=3.11",
+    "openpyxl>=3.1",
+    # xlrd 2.0 dropped .xlsx, which is why openpyxl is here too.
+    "xlrd>=2.0",
 ]
 
 [project.scripts]
