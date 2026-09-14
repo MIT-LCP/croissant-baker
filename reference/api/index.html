@@ -2944,7 +2944,8 @@ still explain itself.</p>
 
         <p>A view over resolved scan entries: what was described, and what was not.</p>
 <p>:meth:<code>summary_lines</code> is for the terminal, and its length depends on how
-many <em>kinds</em> of problem occurred, never on how many files did.
+many <em>kinds</em> of problem occurred, never on how many files did. A
+diagnostic is counted there the same way: one line per code.
 :meth:<code>to_dict</code> carries the per-file detail, for <code>--report</code> and for
 downstream tools checking coverage.</p>
 
@@ -3143,6 +3144,8 @@ two middle buckets appear only when non-zero.</p>
 the sentence for a human. <code>described</code>, <code>linked</code> and <code>referenced</code>
 are the three ways into the document and sum with <code>undescribed</code> to
 <code>total</code>; <code>by_reason</code> accounts for the <code>undescribed</code> alone.</p>
+<p><code>by_diagnostic</code> is orthogonal to all of them, and a file's
+<code>diagnostics</code> key appears only when it has one.</p>
 
 
     </div>
