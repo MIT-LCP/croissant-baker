@@ -2112,7 +2112,7 @@ found nothing, and a populated one otherwise.</p>
 
 
 <h3 id="croissant_baker.metadata_generator.MetadataGenerator.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">citation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_published</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_created</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_modified</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">creators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">publisher</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_language</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">same_as</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternate_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_live_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temporal_coverage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">usage_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">field_mappings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">count_csv_rows</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">detect_references</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">excludes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rai_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">handlers</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">citation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_published</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_created</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_modified</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">creators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">publisher</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_language</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">same_as</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternate_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_live_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temporal_coverage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">usage_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">identifier</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conditions_of_access</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_accessible_for_free</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">included_in_data_catalog</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">profiles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">field_mappings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">count_csv_rows</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">detect_references</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">excludes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rai_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">handlers</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2477,6 +2477,101 @@ ODRL Offer URL).</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>identifier</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="typing.List">List</span>[<span title="str">str</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Accessions or persistent identifiers the dataset is
+known by (e.g. a dbGaP phs number, an EGA study accession, a
+DOI). Deduplicated in the order given; one value is emitted
+as a string, several as a list.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>conditions_of_access</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How access is obtained, in free text (e.g.
+the data access agreement and committee for a controlled
+release). schema.org/conditionsOfAccess.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>is_accessible_for_free</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="bool">bool</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether the data can be had without payment
+or an access agreement. Tri-state: None leaves the key absent.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>included_in_data_catalog</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>URL of a catalog entry that lists this
+dataset. Emitted as a <code>sc:DataCatalog</code> node carrying the
+URL, the one range schema.org/includedInDataCatalog has.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>profiles</code>
+            </td>
+            <td>
+                  <code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.List">List</span>[<span title="str">str</span>], None]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Additional profiles the document declares in
+<code>conformsTo</code> alongside Croissant 1.1, by the names in
+<code>PROFILE_CONFORMS_TO</code>. A list, or one name as a bare
+string; either form may carry comma-separated names.
+Normalised by <code>normalize_profiles</code> at construction.
+<code>generate_metadata</code> refuses a document that declares a
+profile without the fields <code>PROFILE_MINIMUM_KEYS</code> lists
+for it.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>field_mappings</code>
             </td>
             <td>
@@ -2633,7 +2728,8 @@ or with a handler the baker does not ship.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If dataset_path is not a directory.</p>
+                <p>If dataset_path is not a directory, or a named profile
+is not one of <code>PROFILE_CONFORMS_TO</code>.</p>
               </div>
             </td>
           </tr>
@@ -2692,6 +2788,31 @@ invoked once per file as it finishes extraction.</p>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If nothing in the dataset could be described, or a
+declared profile's minimum fields are missing from the
+document that was assembled.</p>
+              </div>
             </td>
           </tr>
       </tbody>
