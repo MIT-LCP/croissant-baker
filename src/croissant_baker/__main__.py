@@ -151,10 +151,13 @@ def _echo_scan_coverage(
     """Print how much of the dataset was described, and optionally why not.
 
     The default is a fixed-size summary: a header plus at most one line per
-    reason, so a directory with one undescribed file and one with ten thousand
-    print the same shape. This is the only place a file is named one per line,
-    and only under ``--verbose``; the machine-readable form is ``--report``.
-    Diagnostics a parser emits on its own are outside this.
+    reason and one per diagnostic code, so a directory with one undescribed
+    file and one with ten thousand print the same shape. This is the only
+    place a file is named one per line, and only under ``--verbose``; the
+    machine-readable form is ``--report``.
+
+    A diagnostic is not a refusal: it names a part of a file that was not
+    described while the file itself is in the document.
 
     Accepts ``None`` so the failure paths can call it unconditionally.
     """
@@ -168,13 +171,18 @@ def _echo_scan_coverage(
         typer.echo(line)
 
     undescribed = scan_report.undescribed
+    diagnosed = scan_report.diagnosed
     if verbose:
         for entry in undescribed:
             typer.echo(f"  {generator.describe_refusal(entry)}")
+        for entry in diagnosed:
+            for diagnostic in entry.diagnostics:
+                part = f" [{diagnostic.part}]" if diagnostic.part else ""
+                typer.echo(f"  {entry.path}{part}: {diagnostic.detail}")
 
     if report_path:
         _write_scan_report(scan_report, report_path)
-    elif undescribed and not verbose:
+    elif (undescribed or diagnosed) and not verbose:
         typer.echo(
             "Tip: re-run with --verbose, or --report FILE, to see which files "
             "were not described"
