@@ -12,6 +12,7 @@ from croissant_baker.handlers.base_handler import BuildResult, Declined, FileTyp
 from croissant_baker.handlers.csv_handler import CSVHandler
 from croissant_baker.handlers.registry import HandlerRegistry
 from croissant_baker.metadata_generator import MetadataGenerator
+from croissant_baker.entries import Diagnostic, DiagnosticCode
 from croissant_baker.scan import Outcome, Reason, ScanEntry, ScanReport
 
 from tests.helpers import (
@@ -429,3 +430,69 @@ def test_a_referenced_file_keeps_what_its_own_failure_said(
     assert "good.csv" in entry.detail
     assert "cannot be read on its own" in entry.detail
     assert entry.reason is None
+
+
+class _PartialHandler(FileTypeHandler):
+    """Claims ``.part``, describes the file, and says one piece of it is missing."""
+
+    EXTENSIONS = (".part",)
+    FORMAT_NAME = "Partial"
+
+    def claims(self, source) -> bool:
+        return source.suffix == ".part"
+
+    def extract(self, source, **kwargs) -> dict:
+        return {
+            "file_name": source.name,
+            "file_size": source.size,
+            "sha256": source.sha256,
+            "encoding_format": "application/x-part",
+            "description": "Piece 'two' was not described because it is upside down.",
+            "diagnostics": [
+                Diagnostic(
+                    DiagnosticCode.SHEET_SKIPPED, "it is upside down", part="two"
+                )
+            ],
+        }
+
+    def build_croissant(self, file_metas, file_ids):
+        return BuildResult([], [])
+
+
+def test_a_diagnostic_survives_a_file_being_described(dataset: Path) -> None:
+    """Describing a file must not clear its diagnostics, which is exactly
+    what happens to ``detail``. Coverage is per file and stays that way."""
+    write_wrapped(dataset, "half.part", b"payload")
+    write_wrapped(dataset, "good.csv", CSV)
+
+    metadata, report = bake_with([_PartialHandler()], dataset)
+    payload = report.to_dict()
+
+    entry = _entry(report, "half.part")
+    assert entry.outcome is Outcome.DESCRIBED and entry.reason is None
+    assert [(d.code, d.part) for d in entry.diagnostics] == [
+        (DiagnosticCode.SHEET_SKIPPED, "two")
+    ]
+    assert (payload["described"], payload["undescribed"]) == (2, 0)
+    assert payload["by_reason"] == {}
+    assert payload["by_diagnostic"] == {"sheet_skipped": 1}
+    assert "  sheet not described: 1" in report.summary_lines()
+    # A handler that diagnosed nothing keeps the entry shape it always had.
+    assert (
+        "diagnostics" not in [f for f in payload["files"] if f["path"] == "good.csv"][0]
+    )
+    described = {node["name"]: node for node in file_objects(metadata)}
+    assert described["half.part"]["description"].startswith("Piece 'two'")
+
+
+def test_the_summary_stays_one_line_per_kind_however_many_files(dataset: Path) -> None:
+    """Terminal output grows with the number of *kinds*, never of files."""
+    for n in range(12):
+        write_wrapped(dataset, f"half{n}.part", b"payload")
+
+    _, report = bake_with([_PartialHandler()], dataset)
+
+    assert report.summary_lines() == [
+        "Scanned 12 file(s): 12 described, 0 not described.",
+        "  sheet not described: 12",
+    ]

@@ -619,6 +619,9 @@ class MetadataGenerator:
         A list, because a multi-file record produces several: WFDB reads a
         header together with its sibling ``.dat`` and ``.atr``. Everything here
         addresses the file *as stored*, wrapper included.
+
+        A handler's ``description`` is how what it could not describe reaches
+        a reader holding the manifest alone.
         """
         meta = entry.meta
         objects = [
@@ -626,6 +629,7 @@ class MetadataGenerator:
                 id=f"file_{counter}",
                 name=entry.path.name,
                 content_url=str(entry.path),
+                description=meta.get("description"),
                 encoding_formats=_encoding_formats(
                     meta["encoding_format"], entry.path.name
                 ),

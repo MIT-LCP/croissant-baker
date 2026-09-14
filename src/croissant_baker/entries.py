@@ -1,4 +1,4 @@
-"""The vocabulary of the scan stage: outcomes, reasons, and the per-file entry.
+"""The vocabulary of the scan stage: outcomes, reasons, diagnostics, entries.
 
 A leaf module. It imports nothing from the package, so any module that needs to
 name an outcome or a reason can import it without pulling in the pipeline —
@@ -10,10 +10,10 @@ read back in scan order, so output does not depend on how many workers ran.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - handlers import this module at runtime
     from croissant_baker.handlers.base_handler import FileTypeHandler
@@ -92,6 +92,42 @@ REASON_LABELS: Dict[Reason, str] = {
 }
 
 
+class DiagnosticCode(str, Enum):
+    """Why part of a file the document carries was not described.
+
+    The other half of :class:`Reason`, which says why a *file* is not. A
+    diagnostic changes no outcome and no coverage total.
+    """
+
+    #: A part of the file could not be described. A workbook's sheet is one.
+    SHEET_SKIPPED = "sheet_skipped"
+    #: An optional part of the container was malformed and was ignored.
+    PROPERTIES_IGNORED = "properties_ignored"
+
+
+#: One short label per code, for the fixed-size terminal summary.
+DIAGNOSTIC_LABELS: Dict[DiagnosticCode, str] = {
+    DiagnosticCode.SHEET_SKIPPED: "sheet not described",
+    DiagnosticCode.PROPERTIES_IGNORED: "malformed optional properties ignored",
+}
+
+
+@dataclass(frozen=True)
+class Diagnostic:
+    """One thing a handler could not do to a file it otherwise described.
+
+    Attributes:
+        code: The category a caller branches on and the summary counts.
+        detail: The sentence for a human.
+        part: The part it applies to — a sheet name, for a workbook — or
+            ``None`` when it is about the file as a whole.
+    """
+
+    code: DiagnosticCode
+    detail: str
+    part: Optional[str] = None
+
+
 @dataclass(eq=False)
 class ScanEntry:
     """One file the scan found, and what became of it.
@@ -123,6 +159,8 @@ class ScanEntry:
         duplicate_of: The entry this file duplicates. Set for ``LINKED``.
         part_of: The entry whose record carries this file. Set for
             ``REFERENCED``.
+        diagnostics: What a handler could not describe about a file it did
+            describe. Outlives every transition.
 
     Compared by identity, so entries can key the generator's staging dicts.
     """
@@ -135,6 +173,7 @@ class ScanEntry:
     meta: Optional[dict] = None
     duplicate_of: Optional["ScanEntry"] = None
     part_of: Optional["ScanEntry"] = None
+    diagnostics: List[Diagnostic] = field(default_factory=list)
 
     @property
     def name(self) -> str:
@@ -151,13 +190,22 @@ class ScanEntry:
         self.outcome = to
 
     def ready(self, handler: "FileTypeHandler", meta: dict) -> None:
-        """Record that ``handler`` read this file. Its nodes are not built yet."""
+        """Record that ``handler`` read this file. Its nodes are not built yet.
+
+        Diagnostics move onto the entry because ``meta`` is dropped if a later
+        stage fails the file, and what the handler could not read is still so.
+        """
         self._move(Outcome.READY, Outcome.PENDING)
         self.handler = handler
         self.meta = meta
+        self.diagnostics = list(meta.get("diagnostics") or ())
 
     def describe(self) -> None:
-        """Record that this file's Croissant nodes were assembled."""
+        """Record that this file's Croissant nodes were assembled.
+
+        ``reason`` and ``detail`` go; ``diagnostics`` stay, because a
+        described workbook with an unreadable sheet is what they are for.
+        """
         self._move(Outcome.DESCRIBED, Outcome.READY)
         self.reason = None
         self.detail = ""
@@ -178,6 +226,9 @@ class ScanEntry:
 
         A linked duplicate can be lost too: its structure was its primary's, so
         it goes when the primary's does.
+
+        ``meta`` goes, since nothing downstream may read a partial
+        description; ``diagnostics`` record what reading it found, and stay.
         """
         self._move(Outcome.FAILED, Outcome.PENDING, Outcome.READY, Outcome.LINKED)
         self.reason = reason
