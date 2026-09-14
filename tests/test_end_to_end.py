@@ -1331,7 +1331,7 @@ def geo_soft_path() -> Path:
     return dataset_path
 
 
-def _geo_schema(document: dict) -> dict:
+def _discovery_independent(document: dict) -> dict:
     """Compare the graph independently of filesystem discovery order.
 
     FileObject ids are scan counters. Resolve each to its contentUrl so that
@@ -1402,9 +1402,9 @@ def test_geo_soft_generation(
 
     assert result.exit_code == 0, f"CLI failed:\n{result.output}"
     assert "Scanned 4 file(s): 3 described, 1 not described" in result.output
-    assert _geo_schema(json.loads(output_file.read_text())) == _geo_schema(
-        json.loads(golden.read_text())
-    )
+    assert _discovery_independent(
+        json.loads(output_file.read_text())
+    ) == _discovery_independent(json.loads(golden.read_text()))
 
 
 def test_a_stem_shared_with_another_format_suffixes_both_sides(
@@ -1532,3 +1532,79 @@ def test_ome_tiff_generation(ome_dataset: Path, tmp_path: Path) -> None:
         "*.tif",
     ]
     assert file_sets["image-files"]["cr:excludes"] == "morphology.ome.tif"
+
+
+# ---------------------------------------------------------------------------
+# HDF5 (AnnData, two 10x feature matrices, and one file matching no layout)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def hdf5_demo_path() -> Path:
+    """Path to the HDF5 demo dataset, which this repository tracks.
+
+    A hard failure rather than a skip: the fixture is committed, so it can only
+    go missing by accident, and skipping would hide the loss.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "hdf5_demo"
+    assert dataset_path.is_dir(), f"tracked HDF5 fixture missing at {dataset_path}"
+    return dataset_path
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_hdf5_demo_generation(
+    hdf5_demo_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
+    """The whole CLI over HDF5, compared against the committed document.
+
+    Read rather than overwritten, which is what makes the golden worth
+    committing: both the input fixture and the output are frozen, so any change
+    to what this handler emits shows up here as a diff rather than as a
+    silently rewritten file. The input's README says how to regenerate both.
+
+    Compared through :func:`_discovery_independent`, and run in both discovery
+    orders, because ``rglob`` order is the filesystem's rather than sorted:
+    comparing the text directly passed on macOS and failed on Linux.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output_file = tmp_path / "hdf5_demo_croissant.jsonld"
+    golden = Path(__file__).parent / "data" / "output" / "hdf5_demo_croissant.jsonld"
+    assert golden.is_file(), f"tracked HDF5 golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(hdf5_demo_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "HDF5 demo (synthetic single-cell series)",
+            "--description",
+            "Three 10x feature matrices, an integrated AnnData object, and a NetCDF4 file",
+            "--url",
+            "https://example.org/hdf5-demo",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--dataset-version",
+            "1.0.0",
+            "--date-published",
+            "2026-01-01",
+            "--creator",
+            "croissant-baker test suite",
+        ],
+    )
+
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "Scanned 6 file(s): 5 described, 1 not described" in result.stdout
+    assert _discovery_independent(
+        json.loads(output_file.read_text())
+    ) == _discovery_independent(json.loads(golden.read_text()))
