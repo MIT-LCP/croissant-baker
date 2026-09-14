@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://example.org/hdf5-demo",
   "name": "HDF5 demo (synthetic single-cell series)",
   "description": "Three 10x feature matrices, an integrated AnnData object, and a NetCDF4 file",
   "conformsTo": "http://mlcommons.org/croissant/1.1",

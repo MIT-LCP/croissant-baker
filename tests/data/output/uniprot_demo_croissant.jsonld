@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://www.uniprot.org/uniprotkb?query=reviewed:true&organism_id=9606",
   "name": "UniProt Human Reviewed (demo)",
   "description": "200 reviewed human proteins from UniProt Swiss-Prot",
   "conformsTo": "http://mlcommons.org/croissant/1.1",

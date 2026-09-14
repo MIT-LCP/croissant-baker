@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://physionet.org/content/mimic-iv-fhir-demo/2.1.0/",
   "name": "MIMIC-IV Clinical Database Demo on FHIR",
   "description": "100-patient demo of MIMIC-IV represented as FHIR R4 NDJSON resources",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
