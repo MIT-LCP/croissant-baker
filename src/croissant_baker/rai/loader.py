@@ -45,12 +45,15 @@ def _str(value, path: str, file: Path) -> Optional[str]:
     """
     if value is None:
         return None
-    if isinstance(value, (dict, list, bool)):
-        raise ValueError(
-            f"{file}: expected text at {path}, found {type(value).__name__}."
-        )
-    s = str(value).strip()
-    return s if s else None
+    if isinstance(value, bool):
+        found = "a boolean; quote the word if you meant text"
+    elif isinstance(value, dict):
+        found = "a mapping"
+    elif isinstance(value, list):
+        found = "a list"
+    else:
+        return str(value).strip() or None
+    raise ValueError(f"{file}: expected text at {path}, found {found}.")
 
 
 def _required(value, path: str, file: Path, reason: str) -> str:
@@ -69,12 +72,10 @@ def _bool(value, path: str, file: Path) -> Optional[bool]:
     """
     if value is None:
         return None
-    if not isinstance(value, bool):
-        raise ValueError(
-            f"{file}: expected true or false at {path}, "
-            f"found {type(value).__name__} {value!r}."
-        )
-    return value
+    if isinstance(value, bool):
+        return value
+    found = f"the text {value!r}" if isinstance(value, str) else repr(value)
+    raise ValueError(f"{file}: expected true or false at {path}, found {found}.")
 
 
 def _mapping(value, path: str, file: Path) -> dict:

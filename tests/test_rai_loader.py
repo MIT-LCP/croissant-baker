@@ -261,7 +261,8 @@ def test_a_quoted_boolean_is_refused(tmp_path: Path) -> None:
     message = str(excinfo.value)
     assert str(path) in message
     assert "ai_fairness.has_synthetic_data" in message
-    assert "true or false" in message
+    assert "expected true or false" in message
+    assert "found the text 'false'" in message
 
 
 def test_a_quoted_no_for_an_agent_is_refused(tmp_path: Path) -> None:
@@ -281,7 +282,8 @@ def test_a_quoted_no_for_an_agent_is_refused(tmp_path: Path) -> None:
 
     message = str(excinfo.value)
     assert "activities[0].agents[0].is_synthetic" in message
-    assert "true or false" in message
+    assert "expected true or false" in message
+    assert "found the text 'no'" in message
 
 
 def test_an_unquoted_false_loads_as_false(tmp_path: Path) -> None:
@@ -329,6 +331,7 @@ def test_a_list_in_a_text_field_is_refused(tmp_path: Path) -> None:
     message = str(excinfo.value)
     assert str(path) in message
     assert "ai_fairness.data_biases" in message
+    assert "expected text" in message
 
 
 def test_a_mapping_in_a_url_is_refused(tmp_path: Path) -> None:
@@ -340,7 +343,9 @@ def test_a_mapping_in_a_url_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "lineage.source_datasets[0].url" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "lineage.source_datasets[0].url" in message
+    assert "expected text" in message
 
 
 def test_a_boolean_in_a_text_field_is_refused(tmp_path: Path) -> None:
@@ -357,7 +362,10 @@ def test_a_boolean_in_a_text_field_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "activities[0].agents[0].name" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "activities[0].agents[0].name" in message
+    assert "expected text" in message
+    assert "found a boolean" in message
 
 
 def test_an_unquoted_date_loads_as_text(tmp_path: Path) -> None:
@@ -494,6 +502,7 @@ def test_a_source_dataset_without_a_url_is_refused(tmp_path: Path) -> None:
     message = str(excinfo.value)
     assert str(path) in message
     assert "lineage.source_datasets[0].url" in message
+    assert "missing value" in message
 
 
 def test_a_model_without_a_url_is_refused(tmp_path: Path) -> None:
@@ -505,7 +514,9 @@ def test_a_model_without_a_url_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "lineage.models[0].url" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "lineage.models[0].url" in message
+    assert "missing value" in message
 
 
 def test_an_agent_without_a_name_is_refused(tmp_path: Path) -> None:
@@ -525,6 +536,7 @@ def test_an_agent_without_a_name_is_refused(tmp_path: Path) -> None:
     message = str(excinfo.value)
     assert str(path) in message
     assert "activities[0].agents[0].name" in message
+    assert "missing value" in message
 
 
 def test_a_platform_without_a_name_is_refused(tmp_path: Path) -> None:
@@ -540,7 +552,9 @@ def test_a_platform_without_a_name_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "activities[0].platforms[0].name" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "activities[0].platforms[0].name" in message
+    assert "missing value" in message
 
 
 def test_an_activity_without_an_id_is_refused(tmp_path: Path) -> None:
@@ -553,7 +567,9 @@ def test_an_activity_without_an_id_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "activities[0].id" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "activities[0].id" in message
+    assert "missing value" in message
 
 
 def test_an_activity_is_checked_before_the_entries_inside_it(tmp_path: Path) -> None:
@@ -584,7 +600,9 @@ def test_an_activity_without_a_type_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "activities[0].type" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "activities[0].type" in message
+    assert "missing value" in message
 
 
 def test_blank_collection_types_are_dropped(tmp_path: Path) -> None:
