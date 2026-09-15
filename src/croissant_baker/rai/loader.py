@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Optional
@@ -92,7 +93,18 @@ def _check_keys(mapping: dict, allowed: frozenset[str], path: str, file: Path) -
     raise ValueError(
         f"{file}: unknown {label} in the RAI config: {listed}. "
         f"Accepted keys at {path or 'the top level'}: {accepted}."
+        f"{_hints(unknown, allowed)}"
     )
+
+
+def _hints(unknown: list[str], allowed: frozenset[str]) -> str:
+    """Name the accepted key each unknown key came closest to, where there is one."""
+    suggestions = []
+    for key in unknown:
+        close = difflib.get_close_matches(key, sorted(allowed), n=1)
+        if close:
+            suggestions.append(f" Did you mean '{close[0]}'?")
+    return "".join(suggestions)
 
 
 def _entries(value, path: str, file: Path) -> list[dict]:

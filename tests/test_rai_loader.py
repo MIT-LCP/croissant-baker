@@ -131,6 +131,52 @@ def test_unknown_key_inside_an_activity_agent_is_refused(tmp_path: Path) -> None
     assert "is_synthetic" in message
 
 
+def test_a_near_miss_key_suggests_the_key_it_missed(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    started_at: 2011-01-01\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "Did you mean 'start_at'?" in str(excinfo.value)
+
+
+def test_the_old_template_key_suggests_its_replacement(tmp_path: Path) -> None:
+    """The template shipped ``social_impact``, which the loader never read."""
+    path = write_config(
+        tmp_path,
+        "ai_fairness:\n  social_impact: It enables research.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "Did you mean 'data_social_impact'?" in str(excinfo.value)
+
+
+def test_a_key_with_no_near_miss_gets_no_hint(tmp_path: Path) -> None:
+    """A guess that resembles nothing accepted would only mislead."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    notes: Worth knowing.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].notes" in message
+    assert "Did you mean" not in message
+
+
 def test_a_config_of_valid_keys_still_loads(tmp_path: Path) -> None:
     path = write_config(
         tmp_path,
