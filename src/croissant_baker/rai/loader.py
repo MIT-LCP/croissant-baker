@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import difflib
 from dataclasses import fields as dataclass_fields
 from pathlib import Path
@@ -36,6 +37,28 @@ _AGENT_KEYS = _accepted(Agent)
 _PLATFORM_KEYS = _accepted(Platform)
 
 
+#: Longest piece of text quoted back to the author. A whole file read as one
+#: string would bury the message that reports it.
+_TEXT_QUOTED_IN_FULL = 40
+
+
+def _kind(value) -> str:
+    """Name a value in plain words, for the "found ..." half of an error."""
+    if isinstance(value, bool):
+        return "a boolean"
+    if isinstance(value, dict):
+        return "a mapping"
+    if isinstance(value, list):
+        return "a list"
+    if isinstance(value, str):
+        return f"the text {value!r}" if len(value) <= _TEXT_QUOTED_IN_FULL else "text"
+    if isinstance(value, (int, float)):
+        return f"the number {value}"
+    if isinstance(value, datetime.date):
+        return f"the date {value}"
+    return repr(value)
+
+
 def _str(value, path: str, file: Path) -> Optional[str]:
     """Return ``value`` as text, or fail naming where text was expected.
 
@@ -45,15 +68,10 @@ def _str(value, path: str, file: Path) -> Optional[str]:
     """
     if value is None:
         return None
-    if isinstance(value, bool):
-        found = "a boolean; quote the word if you meant text"
-    elif isinstance(value, dict):
-        found = "a mapping"
-    elif isinstance(value, list):
-        found = "a list"
-    else:
+    if not isinstance(value, (bool, dict, list)):
         return str(value).strip() or None
-    raise ValueError(f"{file}: expected text at {path}, found {found}.")
+    advice = "; quote the word if you meant text" if isinstance(value, bool) else ""
+    raise ValueError(f"{file}: expected text at {path}, found {_kind(value)}{advice}.")
 
 
 def _required(value, path: str, file: Path, reason: str) -> str:
@@ -74,8 +92,7 @@ def _bool(value, path: str, file: Path) -> Optional[bool]:
         return None
     if isinstance(value, bool):
         return value
-    found = f"the text {value!r}" if isinstance(value, str) else repr(value)
-    raise ValueError(f"{file}: expected true or false at {path}, found {found}.")
+    raise ValueError(f"{file}: expected true or false at {path}, found {_kind(value)}.")
 
 
 def _mapping(value, path: str, file: Path) -> dict:
@@ -85,7 +102,7 @@ def _mapping(value, path: str, file: Path) -> dict:
     if not isinstance(value, dict):
         raise ValueError(
             f"{file}: expected a mapping at {path or 'the top level'}, "
-            f"found {type(value).__name__}."
+            f"found {_kind(value)}."
         )
     return value
 
@@ -131,9 +148,7 @@ def _entries(value, path: str, file: Path) -> list[dict]:
     if value is None:
         return []
     if not isinstance(value, list):
-        raise ValueError(
-            f"{file}: expected a list at {path}, found {type(value).__name__}."
-        )
+        raise ValueError(f"{file}: expected a list at {path}, found {_kind(value)}.")
     return [_mapping(entry, f"{path}[{i}]", file) for i, entry in enumerate(value)]
 
 
@@ -148,8 +163,7 @@ def _scalars(value, path: str, file: Path) -> list[str]:
         return []
     if not isinstance(value, list):
         raise ValueError(
-            f"{file}: expected a list of values at {path}, "
-            f"found {type(value).__name__}."
+            f"{file}: expected a list of values at {path}, found {_kind(value)}."
         )
     scalars = []
     for i, item in enumerate(value):

@@ -409,7 +409,23 @@ def test_a_top_level_list_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert str(path) in str(excinfo.value)
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "expected a mapping at the top level" in message
+    assert "found a list" in message
+
+
+def test_a_long_value_is_not_quoted_back_in_full(tmp_path: Path) -> None:
+    """A whole file read as one string would bury the message that reports it."""
+    prose = "Notes about this dataset. " * 20
+    path = write_config(tmp_path, prose)
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "found text" in message
+    assert prose.strip() not in message
 
 
 def test_a_yaml_syntax_error_is_refused(tmp_path: Path) -> None:
@@ -437,6 +453,7 @@ def test_a_string_of_collection_types_is_refused(tmp_path: Path) -> None:
     message = str(excinfo.value)
     assert str(path) in message
     assert "activities[0].collection_types" in message
+    assert "found the text 'observations'" in message
 
 
 def test_a_mapping_of_collection_types_is_refused(tmp_path: Path) -> None:
@@ -452,7 +469,9 @@ def test_a_mapping_of_collection_types_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "activities[0].collection_types" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "activities[0].collection_types" in message
+    assert "found a mapping" in message
 
 
 def test_a_nested_collection_type_is_refused(tmp_path: Path) -> None:
