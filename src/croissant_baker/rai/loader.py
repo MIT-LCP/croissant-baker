@@ -253,6 +253,18 @@ def load_rai_config(path: Path) -> RAIConfig:
     ):
         act_path = f"activities[{act_index}]"
         _check_keys(act_raw, _ACTIVITY_KEYS, act_path, path)
+        act_id = _required(
+            act_raw.get("id"),
+            f"{act_path}.id",
+            path,
+            "The id becomes the @id of the activity node.",
+        )
+        act_type = _required(
+            act_raw.get("type"),
+            f"{act_path}.type",
+            path,
+            "The type becomes the prov:label and prov:type of the activity node.",
+        )
 
         agents = []
         for i, a in enumerate(
@@ -309,19 +321,8 @@ def load_rai_config(path: Path) -> RAIConfig:
 
         activities.append(
             Activity(
-                id=_required(
-                    act_raw.get("id"),
-                    f"{act_path}.id",
-                    path,
-                    "The id becomes the @id of the activity node.",
-                ),
-                type=_required(
-                    act_raw.get("type"),
-                    f"{act_path}.type",
-                    path,
-                    "The type becomes the prov:label and prov:type of the "
-                    "activity node.",
-                ),
+                id=act_id,
+                type=act_type,
                 description=_str(
                     act_raw.get("description"), f"{act_path}.description", path
                 ),

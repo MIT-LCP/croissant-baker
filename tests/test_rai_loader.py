@@ -554,6 +554,24 @@ def test_an_activity_without_an_id_is_refused(tmp_path: Path) -> None:
     assert "activities[0].id" in str(excinfo.value)
 
 
+def test_an_activity_is_checked_before_the_entries_inside_it(tmp_path: Path) -> None:
+    """Fix the outer entry first: the agent is inside the activity that is wrong."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - description: Collected.\n"
+        "    agents:\n"
+        "      - url: https://www.bidmc.org\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].id" in message
+    assert "agents" not in message
+
+
 def test_an_activity_without_a_type_is_refused(tmp_path: Path) -> None:
     """The type becomes the prov:label and prov:type of the activity node."""
     path = write_config(
