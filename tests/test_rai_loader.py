@@ -441,8 +441,99 @@ def test_the_template_claims_no_model_used_the_dataset() -> None:
     assert config.lineage.models == []
 
 
+def test_a_source_dataset_without_a_url_is_refused(tmp_path: Path) -> None:
+    """A filled-in entry used to vanish whole because one key was missing."""
+    path = write_config(
+        tmp_path,
+        "lineage:\n"
+        "  source_datasets:\n"
+        "    - name: MIMIC-III\n"
+        "      organisation: PhysioNet\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "lineage.source_datasets[0].url" in message
+
+
+def test_a_model_without_a_url_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "lineage:\n  models:\n    - name: My Clinical NLP Model\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "lineage.models[0].url" in str(excinfo.value)
+
+
+def test_an_agent_without_a_name_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - url: https://www.bidmc.org\n"
+        "        description: Clinical staff.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "activities[0].agents[0].name" in message
+
+
+def test_a_platform_without_a_name_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    platforms:\n"
+        "      - url: https://www.bidmc.org\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "activities[0].platforms[0].name" in str(excinfo.value)
+
+
+def test_an_activity_without_an_id_is_refused(tmp_path: Path) -> None:
+    """The id becomes the @id of the activity node."""
+    path = write_config(
+        tmp_path,
+        "activities:\n  - type: data_collection\n    description: Collected.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "activities[0].id" in str(excinfo.value)
+
+
+def test_an_activity_without_a_type_is_refused(tmp_path: Path) -> None:
+    """The type becomes the prov:label and prov:type of the activity node."""
+    path = write_config(
+        tmp_path,
+        "activities:\n  - id: ACT-001\n    description: Collected.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "activities[0].type" in str(excinfo.value)
+
+
 def test_blank_collection_types_are_dropped(tmp_path: Path) -> None:
-    """Key names are strict; values stay as lenient as they were."""
+    """A blank entry in the list names no collection type, so nothing is written."""
     path = write_config(
         tmp_path,
         "activities:\n"

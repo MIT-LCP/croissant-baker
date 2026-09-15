@@ -53,6 +53,13 @@ def _str(value, path: str, file: Path) -> Optional[str]:
     return s if s else None
 
 
+def _required(value: Optional[str], path: str, file: Path, reason: str) -> str:
+    """Return a value the entry cannot be written without, or say what is missing."""
+    if not value:
+        raise ValueError(f"{file}: missing value at {path}. {reason}")
+    return value
+
+
 def _bool(value, path: str, file: Path) -> Optional[bool]:
     """Return ``value`` as a boolean, or fail naming where one was expected.
 
@@ -190,9 +197,12 @@ def load_rai_config(path: Path) -> RAIConfig:
     ):
         sd_path = f"lineage.source_datasets[{i}]"
         _check_keys(s, _SOURCE_DATASET_KEYS, sd_path, path)
-        url = _str(s.get("url"), f"{sd_path}.url", path)
-        if not url:
-            continue
+        url = _required(
+            _str(s.get("url"), f"{sd_path}.url", path),
+            f"{sd_path}.url",
+            path,
+            "A source dataset is identified by its url.",
+        )
         source_datasets.append(
             SourceDataset(
                 url=url,
@@ -209,9 +219,12 @@ def load_rai_config(path: Path) -> RAIConfig:
     for i, m in enumerate(_entries(ln_raw.get("models"), "lineage.models", path)):
         model_path = f"lineage.models[{i}]"
         _check_keys(m, _MODEL_KEYS, model_path, path)
-        url = _str(m.get("url"), f"{model_path}.url", path)
-        if not url:
-            continue
+        url = _required(
+            _str(m.get("url"), f"{model_path}.url", path),
+            f"{model_path}.url",
+            path,
+            "A model is identified by its url.",
+        )
         models.append(
             ModelRef(
                 url=url,
@@ -236,9 +249,13 @@ def load_rai_config(path: Path) -> RAIConfig:
         ):
             agent_path = f"{act_path}.agents[{i}]"
             _check_keys(a, _AGENT_KEYS, agent_path, path)
-            name = _str(a.get("name"), f"{agent_path}.name", path)
-            if not name:
-                continue
+            name = _required(
+                _str(a.get("name"), f"{agent_path}.name", path),
+                f"{agent_path}.name",
+                path,
+                "An agent is identified by its name, which is what "
+                "prov:wasAssociatedWith points at.",
+            )
             agents.append(
                 Agent(
                     name=name,
@@ -259,9 +276,12 @@ def load_rai_config(path: Path) -> RAIConfig:
         ):
             platform_path = f"{act_path}.platforms[{i}]"
             _check_keys(p, _PLATFORM_KEYS, platform_path, path)
-            name = _str(p.get("name"), f"{platform_path}.name", path)
-            if not name:
-                continue
+            name = _required(
+                _str(p.get("name"), f"{platform_path}.name", path),
+                f"{platform_path}.name",
+                path,
+                "A platform is identified by its name.",
+            )
             platforms.append(
                 Platform(
                     name=name,
@@ -278,8 +298,19 @@ def load_rai_config(path: Path) -> RAIConfig:
 
         activities.append(
             Activity(
-                id=_str(act_raw.get("id"), f"{act_path}.id", path) or "",
-                type=_str(act_raw.get("type"), f"{act_path}.type", path) or "",
+                id=_required(
+                    _str(act_raw.get("id"), f"{act_path}.id", path),
+                    f"{act_path}.id",
+                    path,
+                    "The id becomes the @id of the activity node.",
+                ),
+                type=_required(
+                    _str(act_raw.get("type"), f"{act_path}.type", path),
+                    f"{act_path}.type",
+                    path,
+                    "The type becomes the prov:label and prov:type of the "
+                    "activity node.",
+                ),
                 description=_str(
                     act_raw.get("description"), f"{act_path}.description", path
                 ),
