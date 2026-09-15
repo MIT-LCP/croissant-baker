@@ -89,6 +89,26 @@ def _mapping(value, path: str, file: Path) -> dict:
     return value
 
 
+#: How alike two names have to be before one is offered for the other.
+#: difflib's own default of 0.6 is loose enough to answer ``kind`` with ``id``.
+_HINT_CUTOFF = 0.7
+
+
+def _hints(unknown: list[str], allowed: frozenset[str]) -> str:
+    """Name the accepted key each unknown key came closest to, where there is one.
+
+    Every hint names the key it answers, because one message can carry several.
+    """
+    suggestions = []
+    for key in unknown:
+        close = difflib.get_close_matches(
+            key, sorted(allowed), n=1, cutoff=_HINT_CUTOFF
+        )
+        if close:
+            suggestions.append(f" Did you mean '{close[0]}' for '{key}'?")
+    return "".join(suggestions)
+
+
 def _check_keys(mapping: dict, allowed: frozenset[str], path: str, file: Path) -> None:
     """Refuse a key this level does not read, rather than dropping it silently."""
     unknown = sorted(key for key in mapping if key not in allowed)
@@ -103,16 +123,6 @@ def _check_keys(mapping: dict, allowed: frozenset[str], path: str, file: Path) -
         f"Accepted keys at {path or 'the top level'}: {accepted}."
         f"{_hints(unknown, allowed)}"
     )
-
-
-def _hints(unknown: list[str], allowed: frozenset[str]) -> str:
-    """Name the accepted key each unknown key came closest to, where there is one."""
-    suggestions = []
-    for key in unknown:
-        close = difflib.get_close_matches(key, sorted(allowed), n=1)
-        if close:
-            suggestions.append(f" Did you mean '{close[0]}'?")
-    return "".join(suggestions)
 
 
 def _entries(value, path: str, file: Path) -> list[dict]:

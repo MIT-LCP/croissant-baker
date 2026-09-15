@@ -143,7 +143,7 @@ def test_a_near_miss_key_suggests_the_key_it_missed(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "Did you mean 'start_at'?" in str(excinfo.value)
+    assert "Did you mean 'start_at' for 'started_at'?" in str(excinfo.value)
 
 
 def test_the_old_template_key_suggests_its_replacement(tmp_path: Path) -> None:
@@ -156,7 +156,24 @@ def test_the_old_template_key_suggests_its_replacement(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "Did you mean 'data_social_impact'?" in str(excinfo.value)
+    assert "Did you mean 'data_social_impact' for 'social_impact'?" in str(
+        excinfo.value
+    )
+
+
+def test_each_hint_names_the_key_it_answers(tmp_path: Path) -> None:
+    """Two misspellings of one key would otherwise share one unattached hint."""
+    path = write_config(
+        tmp_path,
+        "ai_fairness:\n  data_bias: Skewed.\n  data_biasses: Skewed again.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "Did you mean 'data_biases' for 'data_bias'?" in message
+    assert "Did you mean 'data_biases' for 'data_biasses'?" in message
 
 
 def test_a_key_with_no_near_miss_gets_no_hint(tmp_path: Path) -> None:
@@ -174,6 +191,24 @@ def test_a_key_with_no_near_miss_gets_no_hint(tmp_path: Path) -> None:
 
     message = str(excinfo.value)
     assert "activities[0].notes" in message
+    assert "Did you mean" not in message
+
+
+def test_a_short_key_is_not_matched_on_a_couple_of_letters(tmp_path: Path) -> None:
+    """``kind`` shares only "id" with ``id``, which is no reason to suggest it."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    kind: observational\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].kind" in message
     assert "Did you mean" not in message
 
 
