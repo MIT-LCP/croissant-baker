@@ -16,7 +16,7 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, testing, releases, and how to ad
 ## Development workflow
 
 1. Create a branch from `main` for your changes.
-2. Make your changes, ensuring tests pass and pre-commit hooks are satisfied.
+2. We recommend using Test-Driven Development: write the failing test first, then the handler. Make your changes, ensuring tests pass and pre-commit hooks are satisfied.
 3. Commit with a message following the [commit conventions](DEVELOPMENT.md#commit-message-conventions).
 4. Open a pull request against `main`.
 
