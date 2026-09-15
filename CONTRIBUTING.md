@@ -22,6 +22,7 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, testing, releases, and how to ad
 
 ## Testing guidelines
 
+- We recommend test-driven development: write the failing test first, then the handler or fix that makes it pass.
 - Add tests for any new functionality or bug fixes.
 - Place test data in `tests/data/input/` and expected output in `tests/data/output/`.
 - Integration tests are in `tests/test_end_to_end.py`; unit tests are in handler-specific files (e.g. `tests/test_csv_handler.py`).
