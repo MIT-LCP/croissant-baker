@@ -167,6 +167,74 @@ def test_a_config_of_valid_keys_still_loads(tmp_path: Path) -> None:
     assert [p.name for p in config.activities[0].platforms] == ["A tool"]
 
 
+def test_a_quoted_boolean_is_refused(tmp_path: Path) -> None:
+    """A quoted "false" is a non-empty string, which reads as true."""
+    path = write_config(
+        tmp_path,
+        'ai_fairness:\n  has_synthetic_data: "false"\n',
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "ai_fairness.has_synthetic_data" in message
+    assert "true or false" in message
+
+
+def test_a_quoted_no_for_an_agent_is_refused(tmp_path: Path) -> None:
+    """ "no" would turn a human team into a prov:SoftwareAgent in the output."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - name: A team\n"
+        '        is_synthetic: "no"\n',
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].agents[0].is_synthetic" in message
+    assert "true or false" in message
+
+
+def test_an_unquoted_false_loads_as_false(tmp_path: Path) -> None:
+    path = write_config(tmp_path, "ai_fairness:\n  has_synthetic_data: false\n")
+
+    config = load_rai_config(path)
+
+    assert config.ai_fairness.has_synthetic_data is False
+
+
+def test_an_absent_synthetic_data_key_stays_unset(tmp_path: Path) -> None:
+    """An absent key leaves the dataset silent about synthetic content."""
+    path = write_config(tmp_path, "ai_fairness:\n  data_biases: None known.\n")
+
+    config = load_rai_config(path)
+
+    assert config.ai_fairness.has_synthetic_data is None
+
+
+def test_an_agent_without_a_synthetic_flag_is_human(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - name: A team\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.activities[0].agents[0].is_synthetic is False
+
+
 def test_an_empty_file_loads_to_an_empty_config(tmp_path: Path) -> None:
     config = load_rai_config(write_config(tmp_path, ""))
 

@@ -42,6 +42,22 @@ def _str(value) -> Optional[str]:
     return s if s else None
 
 
+def _bool(value, path: str, file: Path) -> Optional[bool]:
+    """Return ``value`` as a boolean, or fail naming where one was expected.
+
+    Only a YAML boolean is accepted. A quoted "false" or "no" is a non-empty
+    string, so reading it as a boolean would flip the answer to true.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise ValueError(
+            f"{file}: expected true or false at {path}, "
+            f"found {type(value).__name__} {value!r}."
+        )
+    return value
+
+
 def _mapping(value, path: str, file: Path) -> dict:
     """Return ``value`` as a mapping, or fail naming where one was expected."""
     if value is None:
@@ -129,9 +145,9 @@ def load_rai_config(path: Path) -> RAIConfig:
         ),
         data_use_cases=_str(af_raw.get("data_use_cases")),
         data_social_impact=_str(af_raw.get("data_social_impact")),
-        has_synthetic_data=bool(af_raw["has_synthetic_data"])
-        if "has_synthetic_data" in af_raw
-        else None,
+        has_synthetic_data=_bool(
+            af_raw.get("has_synthetic_data"), "ai_fairness.has_synthetic_data", path
+        ),
     )
 
     # Lineage
@@ -182,7 +198,8 @@ def load_rai_config(path: Path) -> RAIConfig:
         for i, a in enumerate(
             _entries(act_raw.get("agents"), f"{act_path}.agents", path)
         ):
-            _check_keys(a, _AGENT_KEYS, f"{act_path}.agents[{i}]", path)
+            agent_path = f"{act_path}.agents[{i}]"
+            _check_keys(a, _AGENT_KEYS, agent_path, path)
             if not a.get("name"):
                 continue
             agents.append(
@@ -190,7 +207,10 @@ def load_rai_config(path: Path) -> RAIConfig:
                     name=str(a.get("name", "")),
                     url=_str(a.get("url")),
                     description=_str(a.get("description")),
-                    is_synthetic=bool(a.get("is_synthetic", False)),
+                    is_synthetic=_bool(
+                        a.get("is_synthetic"), f"{agent_path}.is_synthetic", path
+                    )
+                    or False,
                 )
             )
 
