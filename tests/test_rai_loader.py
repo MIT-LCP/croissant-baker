@@ -1,0 +1,646 @@
+"""Loader tests for the RAI config YAML: the shipped example, and key checking."""
+
+from __future__ import annotations
+
+import dataclasses
+from pathlib import Path
+
+import pytest
+import yaml
+
+from croissant_baker.rai import schema
+from croissant_baker.rai.loader import load_rai_config
+from croissant_baker.rai.schema import AIFairnessConfig
+
+REPO_ROOT = Path(__file__).parent.parent
+RAI_EXAMPLE = REPO_ROOT / "rai-example.yaml"
+
+
+def write_config(tmp_path: Path, body: str) -> Path:
+    path = tmp_path / "rai.yaml"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+#: A schema dataclass the template is not required to fill in, and why.
+EXEMPT_FROM_TEMPLATE = {
+    "ModelRef": (
+        "a models entry asserts that a third party used the dataset, which no "
+        "template can know, so the template shows the fields in a comment"
+    )
+}
+
+
+def _template_mappings(raw: dict) -> dict[str, list[dict]]:
+    """Every mapping in the template, grouped by the dataclass that reads it.
+
+    Read off the raw YAML rather than the loaded config, so a field counts as
+    shown only when the template literally names the key. A loaded value cannot
+    tell the two apart: ``is_synthetic`` defaults to False whether the author
+    wrote ``false`` or wrote nothing.
+    """
+    lineage = raw.get("lineage") or {}
+    activities = raw.get("activities") or []
+    return {
+        "RAIConfig": [raw],
+        "AIFairnessConfig": [raw.get("ai_fairness") or {}],
+        "LineageConfig": [lineage],
+        "SourceDataset": lineage.get("source_datasets") or [],
+        "ModelRef": lineage.get("models") or [],
+        "Activity": activities,
+        "Agent": [a for act in activities for a in act.get("agents") or []],
+        "Platform": [p for act in activities for p in act.get("platforms") or []],
+    }
+
+
+def test_shipped_example_names_every_schema_field() -> None:
+    """The template has to show every field the config can carry.
+
+    ``--rai-config --help`` points users at ``rai-example.yaml``, so a field
+    missing from it is a field they will never know they could have filled in,
+    and a key it spells wrong is one silently dropped from their output.
+    """
+    raw = yaml.safe_load(RAI_EXAMPLE.read_text(encoding="utf-8"))
+    mappings = _template_mappings(raw)
+
+    declared = {
+        obj.__name__: obj
+        for obj in vars(schema).values()
+        if dataclasses.is_dataclass(obj) and obj.__module__ == schema.__name__
+    }
+    assert sorted(mappings) == sorted(declared), (
+        "a schema dataclass has nowhere to be read from in the template"
+    )
+
+    unnamed = sorted(
+        f"{name}.{f.name}"
+        for name, entries in mappings.items()
+        if name not in EXEMPT_FROM_TEMPLATE
+        for f in dataclasses.fields(declared[name])
+        if not any(f.name in entry for entry in entries)
+    )
+    assert unnamed == []
+
+
+def test_unknown_fairness_key_is_refused(tmp_path: Path) -> None:
+    """The typo from the template: close enough to look right, silently dropped."""
+    path = write_config(
+        tmp_path,
+        "ai_fairness:\n  social_impact: It enables research.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "ai_fairness.social_impact" in message
+    assert "data_social_impact" in message
+
+
+def test_unknown_top_level_key_is_refused(tmp_path: Path) -> None:
+    path = write_config(tmp_path, "provenance:\n  models: []\n")
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "provenance" in message
+    assert "ai_fairness" in message
+    assert "lineage" in message
+    assert "activities" in message
+
+
+def test_unknown_key_inside_an_activity_agent_is_refused(tmp_path: Path) -> None:
+    """The reported path has to say which entry, not just which level."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - name: A team\n"
+        "      - nme: A typo\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].agents[1].nme" in message
+    assert "is_synthetic" in message
+
+
+def test_a_near_miss_key_suggests_the_key_it_missed(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    started_at: 2011-01-01\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "Did you mean 'start_at' for 'started_at'?" in str(excinfo.value)
+
+
+def test_the_old_template_key_suggests_its_replacement(tmp_path: Path) -> None:
+    """The template shipped ``social_impact``, which the loader never read."""
+    path = write_config(
+        tmp_path,
+        "ai_fairness:\n  social_impact: It enables research.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "Did you mean 'data_social_impact' for 'social_impact'?" in str(
+        excinfo.value
+    )
+
+
+def test_each_hint_names_the_key_it_answers(tmp_path: Path) -> None:
+    """Two misspellings of one key would otherwise share one unattached hint."""
+    path = write_config(
+        tmp_path,
+        "ai_fairness:\n  data_bias: Skewed.\n  data_biasses: Skewed again.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "Did you mean 'data_biases' for 'data_bias'?" in message
+    assert "Did you mean 'data_biases' for 'data_biasses'?" in message
+
+
+def test_a_key_with_no_near_miss_gets_no_hint(tmp_path: Path) -> None:
+    """A guess that resembles nothing accepted would only mislead."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    notes: Worth knowing.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].notes" in message
+    assert "Did you mean" not in message
+
+
+def test_a_short_key_is_not_matched_on_a_couple_of_letters(tmp_path: Path) -> None:
+    """``kind`` shares only "id" with ``id``, which is no reason to suggest it."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    kind: observational\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].kind" in message
+    assert "Did you mean" not in message
+
+
+def test_a_config_of_valid_keys_still_loads(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "ai_fairness:\n"
+        "  data_social_impact: It enables research.\n"
+        "  has_synthetic_data: true\n"
+        "lineage:\n"
+        "  source_datasets:\n"
+        "    - url: https://example.org/source\n"
+        "      name: Source\n"
+        "      organisation: Example\n"
+        "      license: CC-BY-4.0\n"
+        "  models:\n"
+        "    - url: https://example.org/model\n"
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types:\n"
+        "      - observations\n"
+        "    agents:\n"
+        "      - name: A team\n"
+        "        is_synthetic: false\n"
+        "    platforms:\n"
+        "      - name: A tool\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.ai_fairness.data_social_impact == "It enables research."
+    assert config.ai_fairness.has_synthetic_data is True
+    assert [s.name for s in config.lineage.source_datasets] == ["Source"]
+    assert [m.url for m in config.lineage.models] == ["https://example.org/model"]
+    assert [a.name for a in config.activities[0].agents] == ["A team"]
+    assert [p.name for p in config.activities[0].platforms] == ["A tool"]
+
+
+def test_a_quoted_boolean_is_refused(tmp_path: Path) -> None:
+    """A quoted "false" is a non-empty string, which reads as true."""
+    path = write_config(
+        tmp_path,
+        'ai_fairness:\n  has_synthetic_data: "false"\n',
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "ai_fairness.has_synthetic_data" in message
+    assert "expected true or false" in message
+    assert "found the text 'false'" in message
+
+
+def test_a_quoted_no_for_an_agent_is_refused(tmp_path: Path) -> None:
+    """ "no" would turn a human team into a prov:SoftwareAgent in the output."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - name: A team\n"
+        '        is_synthetic: "no"\n',
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].agents[0].is_synthetic" in message
+    assert "expected true or false" in message
+    assert "found the text 'no'" in message
+
+
+def test_an_unquoted_false_loads_as_false(tmp_path: Path) -> None:
+    path = write_config(tmp_path, "ai_fairness:\n  has_synthetic_data: false\n")
+
+    config = load_rai_config(path)
+
+    assert config.ai_fairness.has_synthetic_data is False
+
+
+def test_an_absent_synthetic_data_key_stays_unset(tmp_path: Path) -> None:
+    """An absent key leaves the dataset silent about synthetic content."""
+    path = write_config(tmp_path, "ai_fairness:\n  data_biases: None known.\n")
+
+    config = load_rai_config(path)
+
+    assert config.ai_fairness.has_synthetic_data is None
+
+
+def test_an_agent_without_a_synthetic_flag_is_human(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - name: A team\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.activities[0].agents[0].is_synthetic is False
+
+
+def test_a_list_in_a_text_field_is_refused(tmp_path: Path) -> None:
+    """A list would be written out as its Python repr, brackets and all."""
+    path = write_config(
+        tmp_path,
+        "ai_fairness:\n  data_biases:\n    - sampling\n    - labelling\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "ai_fairness.data_biases" in message
+    assert "expected text" in message
+
+
+def test_a_mapping_in_a_url_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "lineage:\n  source_datasets:\n    - url:\n        href: https://example.org\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "lineage.source_datasets[0].url" in message
+    assert "expected text" in message
+
+
+def test_a_boolean_in_a_text_field_is_refused(tmp_path: Path) -> None:
+    """There is no text an agent called ``true`` was meant to carry."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - name: true\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].agents[0].name" in message
+    assert "expected text" in message
+    assert "found a boolean" in message
+
+
+def test_an_unquoted_date_loads_as_text(tmp_path: Path) -> None:
+    """YAML reads an unquoted date as a date object, which still has a spelling."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    start_at: 2011-01-01\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.activities[0].start_at == "2011-01-01"
+
+
+def test_a_numeric_id_loads_as_text(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "lineage:\n  source_datasets:\n    - url: https://example.org\n      id: 42\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.lineage.source_datasets[0].id == "42"
+
+
+def test_an_empty_file_loads_to_an_empty_config(tmp_path: Path) -> None:
+    config = load_rai_config(write_config(tmp_path, ""))
+
+    assert config.ai_fairness == AIFairnessConfig()
+    assert config.lineage.source_datasets == []
+    assert config.lineage.models == []
+    assert config.activities == []
+
+
+def test_a_top_level_list_is_refused(tmp_path: Path) -> None:
+    path = write_config(tmp_path, "- ai_fairness: {}\n")
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "expected a mapping at the top level" in message
+    assert "found a list" in message
+
+
+def test_a_long_value_is_not_quoted_back_in_full(tmp_path: Path) -> None:
+    """A whole file read as one string would bury the message that reports it."""
+    prose = "Notes about this dataset. " * 20
+    path = write_config(tmp_path, prose)
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "found text" in message
+    assert prose.strip() not in message
+
+
+def test_a_yaml_syntax_error_is_refused(tmp_path: Path) -> None:
+    path = write_config(tmp_path, "ai_fairness:\n  data_biases: [unclosed\n")
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert str(path) in str(excinfo.value)
+
+
+def test_a_string_of_collection_types_is_refused(tmp_path: Path) -> None:
+    """Iterating a string yields characters, which is never what was meant."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types: observations\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "activities[0].collection_types" in message
+    assert "found the text 'observations'" in message
+
+
+def test_a_mapping_of_collection_types_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types:\n"
+        "      observations: true\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].collection_types" in message
+    assert "found a mapping" in message
+
+
+def test_a_nested_collection_type_is_refused(tmp_path: Path) -> None:
+    """Each entry in the list names one collection type, so each is plain text."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types:\n"
+        "      - name: observations\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].collection_types[0]" in message
+    assert "expected text" in message
+
+
+def test_the_template_claims_no_model_used_the_dataset() -> None:
+    """A models entry names a third party and asserts it used this dataset.
+
+    Nothing in a template can know that, so the file shows the fields in a
+    comment; a live entry would put a fabricated claim in every bake made
+    from it.
+    """
+    config = load_rai_config(RAI_EXAMPLE)
+
+    assert config.lineage.models == []
+
+
+def test_a_source_dataset_without_a_url_is_refused(tmp_path: Path) -> None:
+    """A filled-in entry used to vanish whole because one key was missing."""
+    path = write_config(
+        tmp_path,
+        "lineage:\n"
+        "  source_datasets:\n"
+        "    - name: MIMIC-III\n"
+        "      organisation: PhysioNet\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "lineage.source_datasets[0].url" in message
+    assert "missing value" in message
+
+
+def test_a_model_without_a_url_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "lineage:\n  models:\n    - name: My Clinical NLP Model\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "lineage.models[0].url" in message
+    assert "missing value" in message
+
+
+def test_an_agent_without_a_name_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - url: https://www.bidmc.org\n"
+        "        description: Clinical staff.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "activities[0].agents[0].name" in message
+    assert "missing value" in message
+
+
+def test_a_platform_without_a_name_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    platforms:\n"
+        "      - url: https://www.bidmc.org\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].platforms[0].name" in message
+    assert "missing value" in message
+
+
+def test_an_activity_without_an_id_is_refused(tmp_path: Path) -> None:
+    """The id becomes the @id of the activity node."""
+    path = write_config(
+        tmp_path,
+        "activities:\n  - type: data_collection\n    description: Collected.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].id" in message
+    assert "missing value" in message
+
+
+def test_an_activity_is_checked_before_the_entries_inside_it(tmp_path: Path) -> None:
+    """Fix the outer entry first: the agent is inside the activity that is wrong."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - description: Collected.\n"
+        "    agents:\n"
+        "      - url: https://www.bidmc.org\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].id" in message
+    assert "agents" not in message
+
+
+def test_an_activity_without_a_type_is_refused(tmp_path: Path) -> None:
+    """The type becomes the prov:label and prov:type of the activity node."""
+    path = write_config(
+        tmp_path,
+        "activities:\n  - id: ACT-001\n    description: Collected.\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert "activities[0].type" in message
+    assert "missing value" in message
+
+
+def test_blank_collection_types_are_dropped(tmp_path: Path) -> None:
+    """A blank entry in the list names no collection type, so nothing is written."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    collection_types:\n"
+        "      - observations\n"
+        '      - ""\n'
+        "      - ~\n"
+        "      - existing_datasets\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.activities[0].collection_types == [
+        "observations",
+        "existing_datasets",
+    ]

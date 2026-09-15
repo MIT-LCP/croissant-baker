@@ -13,6 +13,16 @@ _ACTIVITY_LABELS = {
 }
 
 
+def _one_or_many(values: list):
+    """Croissant writes a single-valued property as a scalar, not a list."""
+    return values[0] if len(values) == 1 else values
+
+
+def _unique(values) -> list:
+    """The values in declaration order, first occurrence kept."""
+    return list(dict.fromkeys(values))
+
+
 def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     """
     Inject RAI and PROV-O attributes into a Croissant metadata dict.
@@ -26,6 +36,9 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     - Models that used this dataset → rai:usedBy.
     - Activities → prov:wasGeneratedBy (list of prov:Activity), each with
       optional prov:wasAssociatedWith (agents) and rai:usedPlatform (platforms).
+    - Collection types → rai:dataCollectionType on the dataset node, unioned
+      across the activities. RAI 1.0 declares the property on sc:Dataset, so
+      it does not go on the prov:Activity that carries the types in the config.
     """
     _ensure_prov_context(metadata, config)
 
@@ -43,6 +56,14 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
         metadata["rai:dataSocialImpact"] = af.data_social_impact
     if af.has_synthetic_data is not None:
         metadata["rai:hasSyntheticData"] = af.has_synthetic_data
+
+    # rai:dataCollectionType is declared on sc:Dataset, so the types every
+    # activity declares are unioned onto the dataset rather than left on it.
+    collection_types = _unique(
+        t for act in config.activities for t in act.collection_types
+    )
+    if collection_types:
+        metadata["rai:dataCollectionType"] = _one_or_many(collection_types)
 
     # Lineage — source datasets
     if config.lineage.source_datasets:
@@ -68,9 +89,7 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     # Activities
     activities = [_build_activity(act) for act in config.activities]
     if activities:
-        metadata["prov:wasGeneratedBy"] = (
-            activities[0] if len(activities) == 1 else activities
-        )
+        metadata["prov:wasGeneratedBy"] = _one_or_many(activities)
 
     return metadata
 
@@ -120,9 +139,7 @@ def _build_activity(act: Activity) -> dict:
             if a.description:
                 agent["prov:description"] = a.description
             agent_nodes.append(agent)
-        node["prov:wasAssociatedWith"] = (
-            agent_nodes[0] if len(agent_nodes) == 1 else agent_nodes
-        )
+        node["prov:wasAssociatedWith"] = _one_or_many(agent_nodes)
 
     if act.platforms:
         platform_nodes = []
@@ -133,9 +150,7 @@ def _build_activity(act: Activity) -> dict:
             if p.description:
                 plat["prov:description"] = p.description
             platform_nodes.append(plat)
-        node["rai:usedPlatform"] = (
-            platform_nodes[0] if len(platform_nodes) == 1 else platform_nodes
-        )
+        node["rai:usedPlatform"] = _one_or_many(platform_nodes)
 
     return node
 

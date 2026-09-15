@@ -11,8 +11,13 @@
 #   When enriching an existing Croissant file:
 #     croissant-maker rai-apply dataset-croissant.jsonld --rai-config rai.yaml
 #
-# All fields are optional. Remove or leave blank any section that does not apply.
+# Every section is optional. Remove or leave blank any section that does not apply.
 # Fields left blank are omitted from the generated Croissant file.
+#
+# An entry you keep needs the field that identifies it: a url on a source dataset
+# or a model, a name on an agent or a platform, an id and a type on an activity.
+# Leaving one of those out stops the run, so no filled-in entry is dropped from
+# the output in silence.
 #
 # OUTPUT STRUCTURE
 # ----------------
@@ -72,7 +77,7 @@ ai_fairness:
   # Articulate what new capabilities the dataset enables, who benefits, potential
   # harms, affected groups, and concrete mitigation steps (licensing, access
   # controls, usage agreements).
-  social_impact: >
+  data_social_impact: >
     This dataset enables research that could improve clinical AI tools and
     patient outcomes. However, models trained on biased data risk perpetuating
     health disparities if deployed without careful evaluation. Access is
@@ -81,6 +86,8 @@ ai_fairness:
   # rai:hasSyntheticData
   # Set to true if the dataset includes any synthetically generated content.
   # If true, document the generation process in the activities section below.
+  # Write true or false without quotes. A quoted "false" is a piece of text,
+  # which the loader refuses rather than read as true.
   has_synthetic_data: false
 
 
@@ -90,14 +97,18 @@ lineage:
 
   # prov:wasDerivedFrom — datasets this dataset was derived from.
   # url is required; all other fields are optional.
+  # id is your own identifier for the source, if you use one.
   source_datasets:
     - url: https://physionet.org/content/mimiciii/
+      id: SOURCE-001
       name: MIMIC-III
       organisation: PhysioNet
       license: PhysioNet Credentialed Health Data License 1.5.0
 
   # rai:usedBy — models or assets that have used this dataset (e.g. for training
   # or evaluation). url is required; name and id are optional.
+  # An entry here asserts that a named model used this dataset, so the shape is
+  # shown as a comment: fill it in only for a model you know of.
   models: []
   # models:
   #   - url: https://huggingface.co/my-org/my-model
@@ -110,6 +121,9 @@ lineage:
 # Document each major step in the dataset's creation as a prov:Activity.
 # Each activity is written into prov:wasGeneratedBy on the dataset node.
 #
+# id and type are both required. The id becomes the @id of the activity node,
+# and the type becomes its label.
+#
 # type — one of: data_collection | data_annotation | data_preprocessing
 #
 # collection_types — only for data_collection activities. One or more of:
@@ -117,11 +131,13 @@ lineage:
 #   crowdsourcing | existing_datasets | simulations | other
 #
 # agents — the humans or automated systems that performed the activity.
+#   name is required; url and description are optional.
 #   is_synthetic: true  → automated / AI agent
 #   is_synthetic: false → human agent (team, crowd workers, domain experts)
 #
 # platforms — tools or systems used during the activity (annotation tools,
 #   data collection systems, processing pipelines, etc.)
+#   name is required; url and description are optional.
 
 activities:
 
@@ -145,6 +161,7 @@ activities:
         is_synthetic: false
     platforms:
       - name: Hospital Electronic Health Record System
+        url: https://www.bidmc.org
         description: >
           Institutional EHR system used for routine clinical documentation,
           from which the raw data was extracted.

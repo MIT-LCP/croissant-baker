@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import datetime
+import difflib
+from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Optional
 
@@ -19,95 +22,324 @@ from croissant_baker.rai.schema import (
 )
 
 
-def _str(value) -> Optional[str]:
+def _accepted(cls) -> frozenset[str]:
+    """The YAML keys a level accepts: the field names of its dataclass."""
+    return frozenset(f.name for f in dataclass_fields(cls))
+
+
+_TOP_LEVEL_KEYS = _accepted(RAIConfig)
+_FAIRNESS_KEYS = _accepted(AIFairnessConfig)
+_LINEAGE_KEYS = _accepted(LineageConfig)
+_SOURCE_DATASET_KEYS = _accepted(SourceDataset)
+_MODEL_KEYS = _accepted(ModelRef)
+_ACTIVITY_KEYS = _accepted(Activity)
+_AGENT_KEYS = _accepted(Agent)
+_PLATFORM_KEYS = _accepted(Platform)
+
+
+#: Longest piece of text quoted back to the author. A whole file read as one
+#: string would bury the message that reports it.
+_TEXT_QUOTED_IN_FULL = 40
+
+
+def _kind(value) -> str:
+    """Name a value in plain words, for the "found ..." half of an error."""
+    if isinstance(value, bool):
+        return "a boolean"
+    if isinstance(value, dict):
+        return "a mapping"
+    if isinstance(value, list):
+        return "a list"
+    if isinstance(value, str):
+        return f"the text {value!r}" if len(value) <= _TEXT_QUOTED_IN_FULL else "text"
+    if isinstance(value, (int, float)):
+        return f"the number {value}"
+    if isinstance(value, datetime.date):
+        return f"the date {value}"
+    return repr(value)
+
+
+def _str(value, path: str, file: Path) -> Optional[str]:
+    """Return ``value`` as text, or fail naming where text was expected.
+
+    A mapping or a list would reach the output as its Python repr. A boolean
+    carries no text the author can have meant, and YAML turns a bare ``yes``
+    or ``on`` into one. Numbers and dates keep their plain spelling.
+    """
     if value is None:
         return None
-    s = str(value).strip()
-    return s if s else None
+    if not isinstance(value, (bool, dict, list)):
+        return str(value).strip() or None
+    advice = "; quote the word if you meant text" if isinstance(value, bool) else ""
+    raise ValueError(f"{file}: expected text at {path}, found {_kind(value)}{advice}.")
+
+
+def _required(value, path: str, file: Path, reason: str) -> str:
+    """Return a value the entry cannot be written without, or say what is missing."""
+    text = _str(value, path, file)
+    if not text:
+        raise ValueError(f"{file}: missing value at {path}. {reason}")
+    return text
+
+
+def _bool(value, path: str, file: Path) -> Optional[bool]:
+    """Return ``value`` as a boolean, or fail naming where one was expected.
+
+    Only a YAML boolean is accepted. A quoted "false" or "no" is a non-empty
+    string, so reading it as a boolean would flip the answer to true.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    raise ValueError(f"{file}: expected true or false at {path}, found {_kind(value)}.")
+
+
+def _mapping(value, path: str, file: Path) -> dict:
+    """Return ``value`` as a mapping, or fail naming where one was expected."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(
+            f"{file}: expected a mapping at {path or 'the top level'}, "
+            f"found {_kind(value)}."
+        )
+    return value
+
+
+#: How alike two names have to be before one is offered for the other.
+#: difflib's own default of 0.6 is loose enough to answer ``kind`` with ``id``.
+_HINT_CUTOFF = 0.7
+
+
+def _hints(unknown: list[str], allowed: frozenset[str]) -> str:
+    """Name the accepted key each unknown key came closest to, where there is one.
+
+    Every hint names the key it answers, because one message can carry several.
+    """
+    suggestions = []
+    for key in unknown:
+        close = difflib.get_close_matches(
+            key, sorted(allowed), n=1, cutoff=_HINT_CUTOFF
+        )
+        if close:
+            suggestions.append(f" Did you mean '{close[0]}' for '{key}'?")
+    return "".join(suggestions)
+
+
+def _check_keys(mapping: dict, allowed: frozenset[str], path: str, file: Path) -> None:
+    """Refuse a key this level does not read, rather than dropping it silently."""
+    unknown = sorted(key for key in mapping if key not in allowed)
+    if not unknown:
+        return
+    prefix = f"{path}." if path else ""
+    listed = ", ".join(f"{prefix}{key}" for key in unknown)
+    accepted = ", ".join(sorted(allowed))
+    label = "key" if len(unknown) == 1 else "keys"
+    raise ValueError(
+        f"{file}: unknown {label} in the RAI config: {listed}. "
+        f"Accepted keys at {path or 'the top level'}: {accepted}."
+        f"{_hints(unknown, allowed)}"
+    )
+
+
+def _entries(value, path: str, file: Path) -> list[dict]:
+    """Return ``value`` as a list of mappings, one per numbered entry."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"{file}: expected a list at {path}, found {_kind(value)}.")
+    return [_mapping(entry, f"{path}[{i}]", file) for i, entry in enumerate(value)]
+
+
+def _scalars(value, path: str, file: Path) -> list[str]:
+    """Return ``value`` as a list of plain values, dropping the blank ones.
+
+    A bare string is refused rather than iterated: its characters are never
+    what the author meant, and a mapping's keys are not either. Each entry is
+    read as text, which is where a nested structure is refused.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(
+            f"{file}: expected a list of values at {path}, found {_kind(value)}."
+        )
+    scalars = []
+    for i, item in enumerate(value):
+        text = _str(item, f"{path}[{i}]", file)
+        if text:
+            scalars.append(text)
+    return scalars
+
+
+def _load_yaml(path: Path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return yaml.safe_load(fh)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"{path}: invalid YAML: {exc}") from exc
 
 
 def load_rai_config(path: Path) -> RAIConfig:
     """Load a RAI YAML config file and return a RAIConfig instance."""
-    with open(path, encoding="utf-8") as fh:
-        raw = yaml.safe_load(fh) or {}
+    raw = _mapping(_load_yaml(path), "", path)
+    _check_keys(raw, _TOP_LEVEL_KEYS, "", path)
 
     # AI Safety and Fairness
-    af_raw = raw.get("ai_fairness") or {}
+    af_raw = _mapping(raw.get("ai_fairness"), "ai_fairness", path)
+    _check_keys(af_raw, _FAIRNESS_KEYS, "ai_fairness", path)
     ai_fairness = AIFairnessConfig(
-        data_limitations=_str(af_raw.get("data_limitations")),
-        data_biases=_str(af_raw.get("data_biases")),
-        personal_sensitive_information=_str(
-            af_raw.get("personal_sensitive_information")
+        data_limitations=_str(
+            af_raw.get("data_limitations"), "ai_fairness.data_limitations", path
         ),
-        data_use_cases=_str(af_raw.get("data_use_cases")),
-        data_social_impact=_str(af_raw.get("data_social_impact")),
-        has_synthetic_data=bool(af_raw["has_synthetic_data"])
-        if "has_synthetic_data" in af_raw
-        else None,
+        data_biases=_str(af_raw.get("data_biases"), "ai_fairness.data_biases", path),
+        personal_sensitive_information=_str(
+            af_raw.get("personal_sensitive_information"),
+            "ai_fairness.personal_sensitive_information",
+            path,
+        ),
+        data_use_cases=_str(
+            af_raw.get("data_use_cases"), "ai_fairness.data_use_cases", path
+        ),
+        data_social_impact=_str(
+            af_raw.get("data_social_impact"), "ai_fairness.data_social_impact", path
+        ),
+        has_synthetic_data=_bool(
+            af_raw.get("has_synthetic_data"), "ai_fairness.has_synthetic_data", path
+        ),
     )
 
     # Lineage
-    ln_raw = raw.get("lineage") or {}
+    ln_raw = _mapping(raw.get("lineage"), "lineage", path)
+    _check_keys(ln_raw, _LINEAGE_KEYS, "lineage", path)
 
-    source_datasets = [
-        SourceDataset(
-            url=str(s.get("url", "")),
-            id=_str(s.get("id")),
-            name=_str(s.get("name")),
-            organisation=_str(s.get("organisation")),
-            license=_str(s.get("license")),
+    source_datasets = []
+    for i, s in enumerate(
+        _entries(ln_raw.get("source_datasets"), "lineage.source_datasets", path)
+    ):
+        sd_path = f"lineage.source_datasets[{i}]"
+        _check_keys(s, _SOURCE_DATASET_KEYS, sd_path, path)
+        url = _required(
+            s.get("url"),
+            f"{sd_path}.url",
+            path,
+            "A source dataset is identified by its url.",
         )
-        for s in (ln_raw.get("source_datasets") or [])
-        if s.get("url")
-    ]
+        source_datasets.append(
+            SourceDataset(
+                url=url,
+                id=_str(s.get("id"), f"{sd_path}.id", path),
+                name=_str(s.get("name"), f"{sd_path}.name", path),
+                organisation=_str(
+                    s.get("organisation"), f"{sd_path}.organisation", path
+                ),
+                license=_str(s.get("license"), f"{sd_path}.license", path),
+            )
+        )
 
-    models = [
-        ModelRef(
-            url=str(m.get("url", "")),
-            id=_str(m.get("id")),
-            name=_str(m.get("name")),
+    models = []
+    for i, m in enumerate(_entries(ln_raw.get("models"), "lineage.models", path)):
+        model_path = f"lineage.models[{i}]"
+        _check_keys(m, _MODEL_KEYS, model_path, path)
+        url = _required(
+            m.get("url"),
+            f"{model_path}.url",
+            path,
+            "A model is identified by its url.",
         )
-        for m in (ln_raw.get("models") or [])
-        if m.get("url")
-    ]
+        models.append(
+            ModelRef(
+                url=url,
+                id=_str(m.get("id"), f"{model_path}.id", path),
+                name=_str(m.get("name"), f"{model_path}.name", path),
+            )
+        )
 
     lineage = LineageConfig(source_datasets=source_datasets, models=models)
 
     # Activities
     activities = []
-    for act_raw in raw.get("activities") or []:
-        agents = [
-            Agent(
-                name=str(a.get("name", "")),
-                url=_str(a.get("url")),
-                description=_str(a.get("description")),
-                is_synthetic=bool(a.get("is_synthetic", False)),
-            )
-            for a in (act_raw.get("agents") or [])
-            if a.get("name")
-        ]
+    for act_index, act_raw in enumerate(
+        _entries(raw.get("activities"), "activities", path)
+    ):
+        act_path = f"activities[{act_index}]"
+        _check_keys(act_raw, _ACTIVITY_KEYS, act_path, path)
+        act_id = _required(
+            act_raw.get("id"),
+            f"{act_path}.id",
+            path,
+            "The id becomes the @id of the activity node.",
+        )
+        act_type = _required(
+            act_raw.get("type"),
+            f"{act_path}.type",
+            path,
+            "The type becomes the prov:label and prov:type of the activity node.",
+        )
 
-        platforms = [
-            Platform(
-                name=str(p.get("name", "")),
-                url=_str(p.get("url")),
-                description=_str(p.get("description")),
+        agents = []
+        for i, a in enumerate(
+            _entries(act_raw.get("agents"), f"{act_path}.agents", path)
+        ):
+            agent_path = f"{act_path}.agents[{i}]"
+            _check_keys(a, _AGENT_KEYS, agent_path, path)
+            name = _required(
+                a.get("name"),
+                f"{agent_path}.name",
+                path,
+                "An agent is identified by its name, which is what "
+                "prov:wasAssociatedWith points at.",
             )
-            for p in (act_raw.get("platforms") or [])
-            if p.get("name")
-        ]
+            agents.append(
+                Agent(
+                    name=name,
+                    url=_str(a.get("url"), f"{agent_path}.url", path),
+                    description=_str(
+                        a.get("description"), f"{agent_path}.description", path
+                    ),
+                    is_synthetic=_bool(
+                        a.get("is_synthetic"), f"{agent_path}.is_synthetic", path
+                    )
+                    or False,
+                )
+            )
 
-        collection_types = [
-            str(t).strip() for t in (act_raw.get("collection_types") or []) if t
-        ]
+        platforms = []
+        for i, p in enumerate(
+            _entries(act_raw.get("platforms"), f"{act_path}.platforms", path)
+        ):
+            platform_path = f"{act_path}.platforms[{i}]"
+            _check_keys(p, _PLATFORM_KEYS, platform_path, path)
+            name = _required(
+                p.get("name"),
+                f"{platform_path}.name",
+                path,
+                "A platform is identified by its name.",
+            )
+            platforms.append(
+                Platform(
+                    name=name,
+                    url=_str(p.get("url"), f"{platform_path}.url", path),
+                    description=_str(
+                        p.get("description"), f"{platform_path}.description", path
+                    ),
+                )
+            )
+
+        collection_types = _scalars(
+            act_raw.get("collection_types"), f"{act_path}.collection_types", path
+        )
 
         activities.append(
             Activity(
-                id=str(act_raw.get("id", "")),
-                type=str(act_raw.get("type", "")),
-                description=_str(act_raw.get("description")),
-                start_at=_str(act_raw.get("start_at")),
-                end_at=_str(act_raw.get("end_at")),
+                id=act_id,
+                type=act_type,
+                description=_str(
+                    act_raw.get("description"), f"{act_path}.description", path
+                ),
+                start_at=_str(act_raw.get("start_at"), f"{act_path}.start_at", path),
+                end_at=_str(act_raw.get("end_at"), f"{act_path}.end_at", path),
                 collection_types=collection_types,
                 agents=agents,
                 platforms=platforms,

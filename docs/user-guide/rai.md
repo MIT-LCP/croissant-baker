@@ -112,7 +112,21 @@ activities:
         url: https://lcp.mit.edu
 ```
 
+`collection_types` is written out as `rai:dataCollectionType` on the dataset node, unioned across every activity in declaration order, because RAI 1.0 declares that property on the dataset rather than on an activity.
+
 A complete working example is at [`tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml`](https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml).
+
+### What a config is rejected for
+
+Every key is checked against the keys its section accepts, at every level of the file. A key that is not recognised stops the run with an error naming the key by its path in the YAML (for example `activities[0].agents[1].nme`) and listing the keys that section does accept. Where the key came close to an accepted one, the error names it: `started_at` is answered with `Did you mean 'start_at' for 'started_at'?`. A message can list several unknown keys, so every hint names the key it answers.
+
+Values are checked as well. `has_synthetic_data` and `is_synthetic` take a bare `true` or `false`. A quoted `"false"` or `"no"` stops the run, because a quoted word is text and any text would be read as true. A text field takes text, a number, or a date, so `start_at: 2011-01-01` is fine. A list or a mapping in a text field stops the run, because it would reach the output as a Python repr such as `"['sampling', 'labelling']"`.
+
+An entry the output has nothing to point at stops the run too. A source dataset and a model each need a `url`. An agent and a platform each need a `name`. An activity needs an `id`, which becomes its `@id`, and a `type`, which becomes its `prov:label` and `prov:type`.
+
+Together these checks mean a field cannot go missing from the output without a word. The config is read before the dataset is scanned, so the error arrives immediately, and `--dry-run` checks it too.
+
+All three checks are new in this release, so a config written against an older one may now stop the run. The template used to spell the social impact key `social_impact`, which the loader never read; the key is `data_social_impact`, and a config still carrying the old spelling now fails with that suggestion, where the text used to be dropped. A quoted `has_synthetic_data: "false"` used to load as true and announce synthetic content the author had just denied. A list under `data_biases` used to reach the output as the string `"['sampling', 'labelling']"`. A source dataset or model with no `url`, and an agent or platform with no `name`, used to be dropped in silence, filled-in fields and all. An activity with no `id` or `type` was written out as a node with an empty `@id` and a blank `prov:label` and `prov:type`. Each of these now stops the run and names the field. Fill the field in, or delete the entry.
 
 ## Apply RAI to an existing file
 
