@@ -16,12 +16,13 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, testing, releases, and how to ad
 ## Development workflow
 
 1. Create a branch from `main` for your changes.
-2. We recommend using Test-Driven Development: write the failing test first, then the handler. Make your changes, ensuring tests pass and pre-commit hooks are satisfied.
+2. Make your changes, ensuring tests pass and pre-commit hooks are satisfied.
 3. Commit with a message following the [commit conventions](DEVELOPMENT.md#commit-message-conventions).
 4. Open a pull request against `main`.
 
 ## Testing guidelines
 
+- We recommend test-driven development: write the failing test first, then the handler or fix that makes it pass.
 - Add tests for any new functionality or bug fixes.
 - Place test data in `tests/data/input/` and expected output in `tests/data/output/`.
 - Integration tests are in `tests/test_end_to_end.py`; unit tests are in handler-specific files (e.g. `tests/test_csv_handler.py`).
