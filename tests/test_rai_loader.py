@@ -235,6 +235,76 @@ def test_an_agent_without_a_synthetic_flag_is_human(tmp_path: Path) -> None:
     assert config.activities[0].agents[0].is_synthetic is False
 
 
+def test_a_list_in_a_text_field_is_refused(tmp_path: Path) -> None:
+    """A list would be written out as its Python repr, brackets and all."""
+    path = write_config(
+        tmp_path,
+        "ai_fairness:\n  data_biases:\n    - sampling\n    - labelling\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    message = str(excinfo.value)
+    assert str(path) in message
+    assert "ai_fairness.data_biases" in message
+
+
+def test_a_mapping_in_a_url_is_refused(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "lineage:\n  source_datasets:\n    - url:\n        href: https://example.org\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "lineage.source_datasets[0].url" in str(excinfo.value)
+
+
+def test_a_boolean_in_a_text_field_is_refused(tmp_path: Path) -> None:
+    """There is no text an agent called ``true`` was meant to carry."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    agents:\n"
+        "      - name: true\n",
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        load_rai_config(path)
+
+    assert "activities[0].agents[0].name" in str(excinfo.value)
+
+
+def test_an_unquoted_date_loads_as_text(tmp_path: Path) -> None:
+    """YAML reads an unquoted date as a date object, which still has a spelling."""
+    path = write_config(
+        tmp_path,
+        "activities:\n"
+        "  - id: ACT-001\n"
+        "    type: data_collection\n"
+        "    start_at: 2011-01-01\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.activities[0].start_at == "2011-01-01"
+
+
+def test_a_numeric_id_loads_as_text(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        "lineage:\n  source_datasets:\n    - url: https://example.org\n      id: 42\n",
+    )
+
+    config = load_rai_config(path)
+
+    assert config.lineage.source_datasets[0].id == "42"
+
+
 def test_an_empty_file_loads_to_an_empty_config(tmp_path: Path) -> None:
     config = load_rai_config(write_config(tmp_path, ""))
 

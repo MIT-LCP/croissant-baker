@@ -35,9 +35,19 @@ _AGENT_KEYS = _accepted(Agent)
 _PLATFORM_KEYS = _accepted(Platform)
 
 
-def _str(value) -> Optional[str]:
+def _str(value, path: str, file: Path) -> Optional[str]:
+    """Return ``value`` as text, or fail naming where text was expected.
+
+    A mapping or a list would reach the output as its Python repr. A boolean
+    carries no text the author can have meant, and YAML turns a bare ``yes``
+    or ``on`` into one. Numbers and dates keep their plain spelling.
+    """
     if value is None:
         return None
+    if isinstance(value, (dict, list, bool)):
+        raise ValueError(
+            f"{file}: expected text at {path}, found {type(value).__name__}."
+        )
     s = str(value).strip()
     return s if s else None
 
@@ -115,7 +125,7 @@ def _scalars(value, path: str, file: Path) -> list[str]:
             raise ValueError(
                 f"{file}: expected a value at {path}[{i}], found {type(item).__name__}."
             )
-        text = _str(item)
+        text = _str(item, f"{path}[{i}]", file)
         if text:
             scalars.append(text)
     return scalars
@@ -138,13 +148,21 @@ def load_rai_config(path: Path) -> RAIConfig:
     af_raw = _mapping(raw.get("ai_fairness"), "ai_fairness", path)
     _check_keys(af_raw, _FAIRNESS_KEYS, "ai_fairness", path)
     ai_fairness = AIFairnessConfig(
-        data_limitations=_str(af_raw.get("data_limitations")),
-        data_biases=_str(af_raw.get("data_biases")),
-        personal_sensitive_information=_str(
-            af_raw.get("personal_sensitive_information")
+        data_limitations=_str(
+            af_raw.get("data_limitations"), "ai_fairness.data_limitations", path
         ),
-        data_use_cases=_str(af_raw.get("data_use_cases")),
-        data_social_impact=_str(af_raw.get("data_social_impact")),
+        data_biases=_str(af_raw.get("data_biases"), "ai_fairness.data_biases", path),
+        personal_sensitive_information=_str(
+            af_raw.get("personal_sensitive_information"),
+            "ai_fairness.personal_sensitive_information",
+            path,
+        ),
+        data_use_cases=_str(
+            af_raw.get("data_use_cases"), "ai_fairness.data_use_cases", path
+        ),
+        data_social_impact=_str(
+            af_raw.get("data_social_impact"), "ai_fairness.data_social_impact", path
+        ),
         has_synthetic_data=_bool(
             af_raw.get("has_synthetic_data"), "ai_fairness.has_synthetic_data", path
         ),
@@ -158,29 +176,35 @@ def load_rai_config(path: Path) -> RAIConfig:
     for i, s in enumerate(
         _entries(ln_raw.get("source_datasets"), "lineage.source_datasets", path)
     ):
-        _check_keys(s, _SOURCE_DATASET_KEYS, f"lineage.source_datasets[{i}]", path)
-        if not s.get("url"):
+        sd_path = f"lineage.source_datasets[{i}]"
+        _check_keys(s, _SOURCE_DATASET_KEYS, sd_path, path)
+        url = _str(s.get("url"), f"{sd_path}.url", path)
+        if not url:
             continue
         source_datasets.append(
             SourceDataset(
-                url=str(s.get("url", "")),
-                id=_str(s.get("id")),
-                name=_str(s.get("name")),
-                organisation=_str(s.get("organisation")),
-                license=_str(s.get("license")),
+                url=url,
+                id=_str(s.get("id"), f"{sd_path}.id", path),
+                name=_str(s.get("name"), f"{sd_path}.name", path),
+                organisation=_str(
+                    s.get("organisation"), f"{sd_path}.organisation", path
+                ),
+                license=_str(s.get("license"), f"{sd_path}.license", path),
             )
         )
 
     models = []
     for i, m in enumerate(_entries(ln_raw.get("models"), "lineage.models", path)):
-        _check_keys(m, _MODEL_KEYS, f"lineage.models[{i}]", path)
-        if not m.get("url"):
+        model_path = f"lineage.models[{i}]"
+        _check_keys(m, _MODEL_KEYS, model_path, path)
+        url = _str(m.get("url"), f"{model_path}.url", path)
+        if not url:
             continue
         models.append(
             ModelRef(
-                url=str(m.get("url", "")),
-                id=_str(m.get("id")),
-                name=_str(m.get("name")),
+                url=url,
+                id=_str(m.get("id"), f"{model_path}.id", path),
+                name=_str(m.get("name"), f"{model_path}.name", path),
             )
         )
 
@@ -200,13 +224,16 @@ def load_rai_config(path: Path) -> RAIConfig:
         ):
             agent_path = f"{act_path}.agents[{i}]"
             _check_keys(a, _AGENT_KEYS, agent_path, path)
-            if not a.get("name"):
+            name = _str(a.get("name"), f"{agent_path}.name", path)
+            if not name:
                 continue
             agents.append(
                 Agent(
-                    name=str(a.get("name", "")),
-                    url=_str(a.get("url")),
-                    description=_str(a.get("description")),
+                    name=name,
+                    url=_str(a.get("url"), f"{agent_path}.url", path),
+                    description=_str(
+                        a.get("description"), f"{agent_path}.description", path
+                    ),
                     is_synthetic=_bool(
                         a.get("is_synthetic"), f"{agent_path}.is_synthetic", path
                     )
@@ -218,14 +245,18 @@ def load_rai_config(path: Path) -> RAIConfig:
         for i, p in enumerate(
             _entries(act_raw.get("platforms"), f"{act_path}.platforms", path)
         ):
-            _check_keys(p, _PLATFORM_KEYS, f"{act_path}.platforms[{i}]", path)
-            if not p.get("name"):
+            platform_path = f"{act_path}.platforms[{i}]"
+            _check_keys(p, _PLATFORM_KEYS, platform_path, path)
+            name = _str(p.get("name"), f"{platform_path}.name", path)
+            if not name:
                 continue
             platforms.append(
                 Platform(
-                    name=str(p.get("name", "")),
-                    url=_str(p.get("url")),
-                    description=_str(p.get("description")),
+                    name=name,
+                    url=_str(p.get("url"), f"{platform_path}.url", path),
+                    description=_str(
+                        p.get("description"), f"{platform_path}.description", path
+                    ),
                 )
             )
 
@@ -235,11 +266,13 @@ def load_rai_config(path: Path) -> RAIConfig:
 
         activities.append(
             Activity(
-                id=str(act_raw.get("id", "")),
-                type=str(act_raw.get("type", "")),
-                description=_str(act_raw.get("description")),
-                start_at=_str(act_raw.get("start_at")),
-                end_at=_str(act_raw.get("end_at")),
+                id=_str(act_raw.get("id"), f"{act_path}.id", path) or "",
+                type=_str(act_raw.get("type"), f"{act_path}.type", path) or "",
+                description=_str(
+                    act_raw.get("description"), f"{act_path}.description", path
+                ),
+                start_at=_str(act_raw.get("start_at"), f"{act_path}.start_at", path),
+                end_at=_str(act_raw.get("end_at"), f"{act_path}.end_at", path),
                 collection_types=collection_types,
                 agents=agents,
                 platforms=platforms,
