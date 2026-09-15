@@ -116,9 +116,17 @@ activities:
 
 A complete working example is at [`tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml`](https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml).
 
-### Unknown keys are rejected
+### What a config is rejected for
 
-Every key is checked against the keys its section accepts, at every level of the file. A key that is not recognised stops the run with an error naming the key by its path in the YAML (for example `activities[0].agents[1].nme`) and listing the keys that section does accept. A misspelled key is therefore never dropped in silence, so a field cannot go missing from the output without a word. The config is read before the dataset is scanned, so the error arrives immediately, and `--dry-run` checks it too.
+Every key is checked against the keys its section accepts, at every level of the file. A key that is not recognised stops the run with an error naming the key by its path in the YAML (for example `activities[0].agents[1].nme`) and listing the keys that section does accept. Where the key came close to an accepted one, the error names it: `started_at` is answered with `Did you mean 'start_at'?`.
+
+Values are checked as well. `has_synthetic_data` and `is_synthetic` take a bare `true` or `false`. A quoted `"false"` or `"no"` stops the run, because a quoted word is text and any text would be read as true. A text field takes text, a number, or a date, so `start_at: 2011-01-01` is fine. A list or a mapping in a text field stops the run, because it would reach the output as a Python repr such as `"['sampling', 'labelling']"`.
+
+An entry the output has nothing to point at stops the run too. A source dataset and a model each need a `url`. An agent and a platform each need a `name`. An activity needs an `id`, which becomes its `@id`, and a `type`, which becomes its `prov:label` and `prov:type`.
+
+Together these checks mean a field cannot go missing from the output without a word. The config is read before the dataset is scanned, so the error arrives immediately, and `--dry-run` checks it too.
+
+Two of these checks are new, so a config written against an older release may stop the run. The template used to spell the social impact key `social_impact`, which the loader never read; the key is `data_social_impact`, and a config still carrying the old spelling now fails with that suggestion instead of dropping the text. A source dataset or model with no `url`, an agent or platform with no `name`, and an activity with no `id` or `type` used to be skipped in silence, and now fail as well. Fill in the named field, or delete the entry.
 
 ## Apply RAI to an existing file
 

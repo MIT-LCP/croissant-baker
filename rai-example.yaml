@@ -11,8 +11,13 @@
 #   When enriching an existing Croissant file:
 #     croissant-maker rai-apply dataset-croissant.jsonld --rai-config rai.yaml
 #
-# All fields are optional. Remove or leave blank any section that does not apply.
+# Every section is optional. Remove or leave blank any section that does not apply.
 # Fields left blank are omitted from the generated Croissant file.
+#
+# An entry you keep needs the field that identifies it: a url on a source dataset
+# or a model, a name on an agent or a platform, an id and a type on an activity.
+# Leaving one of those out stops the run, so no filled-in entry is dropped from
+# the output in silence.
 #
 # OUTPUT STRUCTURE
 # ----------------
@@ -81,6 +86,8 @@ ai_fairness:
   # rai:hasSyntheticData
   # Set to true if the dataset includes any synthetically generated content.
   # If true, document the generation process in the activities section below.
+  # Write true or false without quotes. A quoted "false" is a piece of text,
+  # which the loader refuses rather than read as true.
   has_synthetic_data: false
 
 
@@ -114,6 +121,9 @@ lineage:
 # Document each major step in the dataset's creation as a prov:Activity.
 # Each activity is written into prov:wasGeneratedBy on the dataset node.
 #
+# id and type are both required. The id becomes the @id of the activity node,
+# and the type becomes its label.
+#
 # type — one of: data_collection | data_annotation | data_preprocessing
 #
 # collection_types — only for data_collection activities. One or more of:
@@ -121,11 +131,13 @@ lineage:
 #   crowdsourcing | existing_datasets | simulations | other
 #
 # agents — the humans or automated systems that performed the activity.
+#   name is required; url and description are optional.
 #   is_synthetic: true  → automated / AI agent
 #   is_synthetic: false → human agent (team, crowd workers, domain experts)
 #
 # platforms — tools or systems used during the activity (annotation tools,
 #   data collection systems, processing pipelines, etc.)
+#   name is required; url and description are optional.
 
 activities:
 
