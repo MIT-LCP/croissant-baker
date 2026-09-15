@@ -448,7 +448,7 @@ def test_a_mapping_of_collection_types_is_refused(tmp_path: Path) -> None:
 
 
 def test_a_nested_collection_type_is_refused(tmp_path: Path) -> None:
-    """A list entry has to be a value, not another structure."""
+    """Each entry in the list names one collection type, so each is plain text."""
     path = write_config(
         tmp_path,
         "activities:\n"
@@ -461,7 +461,9 @@ def test_a_nested_collection_type_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as excinfo:
         load_rai_config(path)
 
-    assert "activities[0].collection_types[0]" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "activities[0].collection_types[0]" in message
+    assert "expected text" in message
 
 
 def test_the_template_claims_no_model_used_the_dataset() -> None:

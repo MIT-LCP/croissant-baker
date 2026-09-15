@@ -140,7 +140,8 @@ def _scalars(value, path: str, file: Path) -> list[str]:
     """Return ``value`` as a list of plain values, dropping the blank ones.
 
     A bare string is refused rather than iterated: its characters are never
-    what the author meant, and a mapping's keys are not either.
+    what the author meant, and a mapping's keys are not either. Each entry is
+    read as text, which is where a nested structure is refused.
     """
     if value is None:
         return []
@@ -151,10 +152,6 @@ def _scalars(value, path: str, file: Path) -> list[str]:
         )
     scalars = []
     for i, item in enumerate(value):
-        if isinstance(item, (dict, list)):
-            raise ValueError(
-                f"{file}: expected a value at {path}[{i}], found {type(item).__name__}."
-            )
         text = _str(item, f"{path}[{i}]", file)
         if text:
             scalars.append(text)
