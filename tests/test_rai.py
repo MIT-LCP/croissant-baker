@@ -246,6 +246,23 @@ def test_each_config_token_is_written_as_its_published_term(
     assert document["rai:dataCollectionType"] == term
 
 
+@pytest.mark.parametrize(
+    ("written", "term"),
+    [
+        ("SURVEYS", "Surveys"),
+        ("Web_Scraping", "Web Scraping"),
+        (" observations ", "Passive Data Collection"),
+    ],
+)
+def test_a_value_is_recognised_whatever_its_case_and_padding(
+    written: str, term: str
+) -> None:
+    """A user who shouts or capitalises still means the same collection type."""
+    document = inject_rai({"@context": {}}, _config(_activity("ACT-001", written)))
+
+    assert document["rai:dataCollectionType"] == term
+
+
 def test_an_unknown_collection_type_is_written_as_given() -> None:
     """The range is open text, so a term of the user's own has to survive."""
     document = inject_rai(

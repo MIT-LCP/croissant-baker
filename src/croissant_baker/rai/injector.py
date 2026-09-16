@@ -76,11 +76,13 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
 
     # rai:dataCollectionType is declared on sc:Dataset, so the types every
     # activity declares are unioned onto the dataset rather than left on it.
-    # A value that is not one of our keys is written as given, because the range
-    # of the property is open text. Duplicates are dropped after the lookup, so a
-    # key and the term it stands for count as one value.
+    # Case and padding are not part of what the author meant, so they are
+    # ignored when a value is looked up. A value the table does not list is
+    # written exactly as given, because the range of the property is open text.
+    # Duplicates are dropped after the lookup, so a value and the term it stands
+    # for count as one value.
     collection_types = _unique(
-        COLLECTION_TYPE_TERMS.get(t, t)
+        COLLECTION_TYPE_TERMS.get(t.strip().lower(), t)
         for act in config.activities
         for t in act.collection_types
     )
