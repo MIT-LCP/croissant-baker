@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import io
+import lzma
+import zlib
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
@@ -17,6 +19,16 @@ from typing import BinaryIO, Callable, Optional, TextIO
 from croissant_baker import compression
 
 HASH_CHUNK_SIZE = 64 * 1024
+
+#: What a stream that cannot be read raises, whichever wrapper it is under.
+#:
+#: Not one type: a wrapper that will not open is not an ``OSError`` in general,
+#: because ``lzma`` raises ``LZMAError`` and a corrupt deflate stream raises
+#: ``zlib.error``, neither of which derives from it, and a member that opens and
+#: then ends mid-stream raises ``EOFError``. Named here because it is the same
+#: tuple wherever a stream is read: :meth:`FileSource.peek` answers ``b""`` to
+#: it, and a handler reading past the peek owes the file a reason instead.
+UNREADABLE = (OSError, EOFError, lzma.LZMAError, zlib.error)
 
 
 @dataclass(frozen=True, eq=False)
@@ -67,12 +79,17 @@ class FileSource:
         """Read the first ``size`` decompressed bytes, then close.
 
         Returns fewer bytes than asked for at end of file, and ``b""`` if the
-        file cannot be read at all.
+        file cannot be read at all, which :data:`UNREADABLE` spells out.
+
+        This is the boundary for that, because every caller is a handler
+        sniffing magic while the registry is still deciding who owns the file,
+        and an exception there ends dispatch for every handler behind it rather
+        than leaving the file with a reason.
         """
         try:
             with self.open() as stream:
                 return stream.read(size)
-        except OSError:
+        except UNREADABLE:
             return b""
 
 
