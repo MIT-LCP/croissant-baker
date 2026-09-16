@@ -175,7 +175,10 @@ cython_debug/
 
 # AI assistant context files
 CLAUDE.md
-.agents/
+.agents/*
+# ...except the Agent Skill we ship, which is a symlink to the copy inside the
+# package. It is a product artifact, not one contributor's local context.
+!.agents/skills/
 
 # Planning
 .planning/
