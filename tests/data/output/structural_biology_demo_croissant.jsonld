@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://example.org/structural-biology-demo",
   "name": "Structural biology demo (synthetic structures, maps and metadata)",
   "description": "PDB and mmCIF entries, a small-molecule CIF, a CIF dictionary, RELION STAR files, MRC maps, an MTZ, a SerialEM mdoc and a small-molecule library",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
