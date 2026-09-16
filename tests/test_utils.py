@@ -4,6 +4,7 @@ from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
     _disambiguate_ids,
     allocate_record_set_ids,
+    extension_globs,
     make_field_id,
     normalize_array_shape,
     shard_template,
@@ -116,6 +117,26 @@ def test_a_lone_index_is_still_masked() -> None:
     assert shard_template("part-00001-abc.parquet") == "part-<N>-abc.parquet"
     assert shard_template("000.parquet") == "<N>.parquet"
     assert shard_template("readings.parquet") is None
+
+
+def test_extension_globs_covers_the_root_and_nested_form_of_each_extension() -> None:
+    """mlcroissant matches with fnmatch, where ``**/`` requires a directory,
+    and a file sits at the dataset root as often as in a subdirectory."""
+    assert extension_globs(["a.svs", "nested/b.svs", "c.scn"]) == [
+        "**/*.scn",
+        "**/*.svs",
+        "*.scn",
+        "*.svs",
+    ]
+
+
+def test_a_shouted_extension_is_globbed_by_a_character_class() -> None:
+    """Globs are case-sensitive on Linux, and one class pattern covers every
+    observed spelling without two includes matching the same file."""
+    assert extension_globs(["a.TIF", "b.tif"]) == [
+        "**/*.[tT][iI][fF]",
+        "*.[tT][iI][fF]",
+    ]
 
 
 def test_allocate_record_set_ids_derives_one_id_per_suffix() -> None:

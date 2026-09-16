@@ -18,6 +18,17 @@ MIME_TYPE = "application/dicom"
 _DICOM_MAGIC_OFFSET = 128
 _DICOM_MAGIC = b"DICM"
 
+# VL Whole Slide Microscopy Image Storage: the SOP class digital pathology
+# scanners write. Its instances are slides, not cross sections, so they carry
+# a second geometry (the pixel matrix over the glass) the other classes lack.
+WSI_SOP_CLASS_UID = "1.2.840.10008.5.1.4.1.1.77.1.6"
+
+# The whole slide flavors ImageType value 3 takes, tissue first and then the
+# pictures of the glass. Reporting them in this order rather than the batch's
+# is what keeps one directory describing itself the same way twice: batch
+# order is rglob order, which is the filesystem's rather than sorted.
+WSI_FLAVORS = ("VOLUME", "LABEL", "OVERVIEW", "THUMBNAIL")
+
 
 def _has_dicom_magic(source: FileSource) -> bool:
     head = source.peek(_DICOM_MAGIC_OFFSET + 4)
@@ -34,6 +45,75 @@ def _safe_get(ds, keyword: str, default=None):
         return val
     except Exception:
         return default
+
+
+def _read_wsi_properties(ds) -> Dict:
+    """Slide-only properties, each None when the instance omits the tag.
+
+    Only the SOP class is guaranteed on a whole slide instance: LABEL and
+    OVERVIEW images routinely omit the imaged volume and the container id, so
+    every key is reported rather than dropped, keeping the shape of a slide
+    the same across the flavors of one study.
+    """
+    props: Dict = {}
+
+    # ImageType is a string MultiValue, which _safe_get would try to coerce to
+    # floats and discard. Value 3 is the whole slide flavor: VOLUME (the
+    # tissue pyramid), LABEL, OVERVIEW, or THUMBNAIL.
+    image_type = getattr(ds, "ImageType", None)
+    props["wsi_flavor"] = (
+        str(image_type[2]).strip()
+        if image_type is not None and len(image_type) > 2
+        else None
+    )
+
+    total_columns = _safe_get(ds, "TotalPixelMatrixColumns")
+    props["total_pixel_matrix_columns"] = (
+        int(total_columns) if total_columns is not None else None
+    )
+    total_rows = _safe_get(ds, "TotalPixelMatrixRows")
+    props["total_pixel_matrix_rows"] = (
+        int(total_rows) if total_rows is not None else None
+    )
+
+    volume_width = _safe_get(ds, "ImagedVolumeWidth")
+    props["imaged_volume_width"] = (
+        float(volume_width) if volume_width is not None else None
+    )
+    volume_height = _safe_get(ds, "ImagedVolumeHeight")
+    props["imaged_volume_height"] = (
+        float(volume_height) if volume_height is not None else None
+    )
+
+    container_id = _safe_get(ds, "ContainerIdentifier")
+    props["container_identifier"] = (
+        str(container_id).strip() if container_id is not None else None
+    )
+
+    return props
+
+
+def _shared_pixel_spacing(ds) -> Optional[List[float]]:
+    """PixelSpacing out of the shared functional groups, where a slide puts it.
+
+    A whole slide instance is multi-frame, so the spacing a single-frame CT
+    states at the top level sits inside SharedFunctionalGroupsSequence
+    instead, and reading only the top level leaves every slide with no
+    physical scale at all.
+    """
+    shared = getattr(ds, "SharedFunctionalGroupsSequence", None)
+    if not shared:
+        return None
+    measures = getattr(shared[0], "PixelMeasuresSequence", None)
+    if not measures:
+        return None
+    spacing = getattr(measures[0], "PixelSpacing", None)
+    if spacing is None:
+        return None
+    try:
+        return [float(v) for v in spacing]
+    except (ValueError, TypeError):
+        return None
 
 
 def _read_dicom_properties(source: FileSource) -> Dict:
@@ -109,6 +189,20 @@ def _read_dicom_properties(source: FileSource) -> Dict:
     series_uid = _safe_get(ds, "SeriesInstanceUID")
     if series_uid is not None:
         props["series_instance_uid"] = str(series_uid)
+
+    # Slide properties are added only for slides, so every other SOP class
+    # keeps the dict it had before whole slide support existed.
+    if props.get("sop_class_uid") == WSI_SOP_CLASS_UID:
+        props.update(_read_wsi_properties(ds))
+        # The top-level tag wins deliberately, as leniency rather than as a
+        # reading of the standard: the WSI IOD puts the authoritative spacing
+        # in the shared functional groups, but an instance that states one at
+        # the top level states it about the same pixels, and preferring the
+        # nested value would overrule what a writer put where a reader looks.
+        if "pixel_spacing" not in props:
+            shared_spacing = _shared_pixel_spacing(ds)
+            if shared_spacing is not None:
+                props["pixel_spacing"] = shared_spacing
 
     return props
 
@@ -280,14 +374,112 @@ class DICOMHandler(FileTypeHandler):
             ),
         ]
 
+        # Slide fields are added only when the batch holds a slide, so a
+        # cross-sectional dataset bakes to the document it always baked to.
+        if summary.get("wsi_count"):
+            fields.extend(
+                [
+                    mlc.Field(
+                        id="dicom/wsi_flavor",
+                        name="wsi_flavor",
+                        description="DICOM ImageType (0008,0008) value 3 for whole slide images: VOLUME, LABEL, OVERVIEW, or THUMBNAIL",
+                        data_types=["sc:Text"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/total_pixel_matrix_columns",
+                        name="total_pixel_matrix_columns",
+                        description="DICOM TotalPixelMatrixColumns (0048,0006); width in pixels of the whole slide, across all tiles",
+                        data_types=["sc:Integer"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/total_pixel_matrix_rows",
+                        name="total_pixel_matrix_rows",
+                        description="DICOM TotalPixelMatrixRows (0048,0007); height in pixels of the whole slide, across all tiles",
+                        data_types=["sc:Integer"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/imaged_volume_width",
+                        name="imaged_volume_width",
+                        description="DICOM ImagedVolumeWidth (0048,0001); width in millimetres of the imaged tissue on the glass",
+                        data_types=["sc:Float"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/imaged_volume_height",
+                        name="imaged_volume_height",
+                        description="DICOM ImagedVolumeHeight (0048,0002); height in millimetres of the imaged tissue on the glass",
+                        data_types=["sc:Float"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                    mlc.Field(
+                        id="dicom/container_identifier",
+                        name="container_identifier",
+                        description="DICOM ContainerIdentifier (0040,0512); the slide barcode, shared by every instance imaged from one glass slide",
+                        data_types=["sc:Text"],
+                        source=mlc.Source(
+                            file_set=fileset_id,
+                            extract=mlc.Extract(file_property="content"),
+                        ),
+                    ),
+                ]
+            )
+
         dicom_record_set = mlc.RecordSet(
             id="dicom",
             name="dicom",
-            description=f"{num_files} DICOM files ({dims_note}): {modalities_str}",
+            description=(
+                f"{num_files} DICOM files ({dims_note}): "
+                f"{modalities_str}{_wsi_note(summary)}"
+            ),
             fields=fields,
         )
 
         return BuildResult([dicom_fileset], [dicom_record_set])
+
+
+def _wsi_note(summary: Dict) -> str:
+    """The slide clause appended to the record set description, "" without slides.
+
+    Modality alone hides the shape of a pathology batch: SM (14) says nothing
+    about how many of the instances are tissue pyramids and how many are the
+    label and overview snapshots that come with them.
+    """
+    count = summary.get("wsi_count", 0)
+    if not count:
+        return ""
+    noun = "instance" if count == 1 else "instances"
+    flavors = summary.get("wsi_flavors") or []
+    flavors_note = f" ({', '.join(flavors)})" if flavors else ""
+    return f"; {count} whole-slide microscopy {noun}{flavors_note}"
+
+
+def _ordered_flavors(observed) -> List[str]:
+    """The observed flavors in the order :data:`WSI_FLAVORS` gives them.
+
+    Value 3 is free text, so a scanner may write one the standard does not
+    name; those follow, sorted, rather than being dropped from a batch that
+    holds them.
+    """
+    named = [flavor for flavor in WSI_FLAVORS if flavor in observed]
+    return named + sorted(flavor for flavor in observed if flavor not in WSI_FLAVORS)
 
 
 def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
@@ -300,6 +492,8 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     modalities: Dict[str, int] = {}
     bits_set: set = set()
     unknown_modality = 0
+    wsi_count = 0
+    wsi_flavors: set = set()
 
     for meta in dicom_metadata_list:
         props = meta.get("dicom_properties", {})
@@ -312,6 +506,12 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
             frames_list.append(props["num_frames"])
         if "bits_allocated" in props:
             bits_set.add(props["bits_allocated"])
+
+        if props.get("sop_class_uid") == WSI_SOP_CLASS_UID:
+            wsi_count += 1
+            flavor = props.get("wsi_flavor")
+            if flavor:
+                wsi_flavors.add(flavor)
 
         modality: Optional[str] = props.get("modality")
         if modality:
@@ -337,5 +537,10 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
         summary["modality_counts"] = modalities
     if bits_set:
         summary["bits_allocated_values"] = sorted(bits_set)
+    # Keys stay out of a summary with no slides in it, so a batch of cross
+    # sections summarises exactly as it did before slides were recognised.
+    if wsi_count:
+        summary["wsi_count"] = wsi_count
+        summary["wsi_flavors"] = _ordered_flavors(wsi_flavors)
 
     return summary
