@@ -224,7 +224,7 @@ def test_a_single_collection_type_is_written_as_a_string() -> None:
 
 
 @pytest.mark.parametrize(
-    ("token", "term"),
+    ("value", "term"),
     [
         ("surveys", "Surveys"),
         ("interviews", "Interviews"),
@@ -237,11 +237,11 @@ def test_a_single_collection_type_is_written_as_a_string() -> None:
         ("other", "Others"),
     ],
 )
-def test_each_config_token_is_written_as_its_published_term(
-    token: str, term: str
+def test_each_config_value_is_written_as_its_published_term(
+    value: str, term: str
 ) -> None:
-    """The config keys are ours, so the output has to read as the RAI wording."""
-    document = inject_rai({"@context": {}}, _config(_activity("ACT-001", token)))
+    """The words the config accepts are ours, so the output has to read as RAI."""
+    document = inject_rai({"@context": {}}, _config(_activity("ACT-001", value)))
 
     assert document["rai:dataCollectionType"] == term
 
@@ -280,7 +280,7 @@ def test_a_published_term_written_in_the_config_is_left_alone() -> None:
     assert document["rai:dataCollectionType"] == "Web Scraping"
 
 
-def test_a_token_and_its_term_collapse_to_one_value() -> None:
+def test_a_value_and_its_term_collapse_to_one_value() -> None:
     """Two spellings of one collection type are still one collection type."""
     config = _config(
         _activity("ACT-001", "web_scraping"),

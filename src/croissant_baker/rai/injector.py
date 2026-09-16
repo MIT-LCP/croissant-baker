@@ -12,10 +12,12 @@ _ACTIVITY_LABELS = {
     "data_preprocessing": "Data Preprocessing",
 }
 
-# The config keys are ours, so they are translated on the way out. Where RAI 1.0
-# recommends a term for the same thing, that term is used. Where it recommends
-# none, the token is written in title case: the range of the property is open
-# text and the recommended list is advice, so an honest term beats a poor fit.
+# The words the config accepts are ours, so each value is translated on the way
+# out. Where the RAI 1.0 spec recommends a term for the same thing, that term is
+# used. Where it recommends none, the value is written in title case: the range
+# of the property is open text and the recommended list is advice, so an honest
+# term beats a poor fit. The spec is the place to re-check the split:
+# https://docs.mlcommons.org/croissant/docs/croissant-rai-spec.html
 _COLLECTION_TYPE_TERMS = {
     "surveys": "Surveys",
     "experiments": "Experiments",

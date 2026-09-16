@@ -127,8 +127,8 @@ lineage:
 # type — one of: data_collection | data_annotation | data_preprocessing
 #
 # collection_types — only for data_collection activities. Each value is
-#   translated on the way out: the key on the left is what you write here, the
-#   term on the right is what lands in rai:dataCollectionType.
+#   translated on the way out: the value on the left is what you write here,
+#   the term on the right is what lands in rai:dataCollectionType.
 #     surveys           → Surveys
 #     interviews        → Interviews
 #     observations      → Passive Data Collection
@@ -138,10 +138,11 @@ lineage:
 #     existing_datasets → Secondary Data analysis
 #     simulations       → Simulations
 #     other             → Others
-#   Six of those terms are the ones RAI 1.0 recommends. Interviews,
-#   Crowdsourcing and Simulations have no recommended term, so the key is
-#   written in title case. Any other text you write is written out as given,
-#   so a term of your own reaches the output unchanged.
+#   Case and spacing do not matter, so SURVEYS is read as surveys. Six of
+#   those terms are the ones RAI 1.0 recommends. Interviews, Crowdsourcing and
+#   Simulations have no recommended term, so the value is written in title
+#   case. Any other text you write is written out as given, so a term of your
+#   own reaches the output unchanged.
 #
 # agents — the humans or automated systems that performed the activity.
 #   name is required; url and description are optional.

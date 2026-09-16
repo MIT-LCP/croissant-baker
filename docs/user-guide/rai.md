@@ -112,7 +112,7 @@ activities:
         url: https://lcp.mit.edu
 ```
 
-`collection_types` is written out as `rai:dataCollectionType` on the dataset node, unioned across every activity in declaration order, because RAI 1.0 declares that property on the dataset rather than on an activity. Each key is translated on the way out.
+`collection_types` is written out as `rai:dataCollectionType` on the dataset node, unioned across every activity in declaration order, because RAI 1.0 declares that property on the dataset rather than on an activity. Each value is translated on the way out.
 
 | You write | The output holds |
 |-----------|------------------|
@@ -126,7 +126,7 @@ activities:
 | `simulations` | `Simulations` |
 | `other` | `Others` |
 
-Six of those terms are the ones RAI 1.0 recommends. `interviews`, `crowdsourcing` and `simulations` have no recommended term, so the key is written in title case: the property takes plain text and the recommended list is advice, so an honest term is better than a poor fit. Any other text you write is written out as given, so you can write a recommended term straight into the config, or a term of your own.
+Case and spacing do not matter, so `SURVEYS` is read as `surveys`. Six of those terms are the ones [RAI 1.0](https://docs.mlcommons.org/croissant/docs/croissant-rai-spec.html) recommends. `interviews`, `crowdsourcing` and `simulations` have no recommended term, so the value is written in title case: the property takes plain text and the recommended list is advice, so an honest term is better than a poor fit. Any other text you write is written out as given, so you can write a recommended term straight into the config, or a term of your own.
 
 A complete working example is at [`tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml`](https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml).
 
