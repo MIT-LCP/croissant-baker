@@ -1,0 +1,96 @@
+data_1ABC
+_entry.id 1ABC
+
+_pdbx_database_status.entry_id 1ABC
+_pdbx_database_status.recvd_initial_deposition_date 2000-01-01
+
+_cell.entry_id 1ABC
+_cell.length_a 40
+_cell.length_b 50
+_cell.length_c 60
+_cell.angle_alpha 90
+_cell.angle_beta 90
+_cell.angle_gamma 90
+_cell.Z_PDB 4
+
+_symmetry.entry_id 1ABC
+_symmetry.space_group_name_H-M 'P 21 21 21'
+_symmetry.Int_Tables_number 19
+
+loop_
+_entity.id
+_entity.type
+A polymer
+water water
+B polymer
+
+loop_
+_entity_poly.entity_id
+_entity_poly.type
+_entity_poly.pdbx_strand_id
+_entity_poly.pdbx_seq_one_letter_code
+A polypeptide(L) A ?
+B polypeptide(L) B ?
+
+
+
+loop_
+_chem_comp.id
+_chem_comp.type
+ALA .
+GLY .
+HOH .
+
+loop_
+_exptl.entry_id
+_exptl.method
+1ABC 'X-RAY DIFFRACTION'
+
+_struct.entry_id 1ABC
+_struct.title 'A SMALL TEST STRUCTURE'
+
+_struct_keywords.entry_id 1ABC
+_struct_keywords.pdbx_keywords HYDROLASE
+
+loop_
+_struct_asym.id
+_struct_asym.entity_id
+Axp A
+Axw water
+Bxp B
+
+
+
+loop_
+_atom_type.symbol
+C
+N
+O
+
+
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_alt_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.pdbx_PDB_ins_code
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.pdbx_formal_charge
+_atom_site.auth_seq_id
+_atom_site.auth_asym_id
+_atom_site.pdbx_PDB_model_num
+ATOM 1 N N . ALA Axp A . ? 11.104 6.134 -6.504 1 20 ? 1 A 1
+ATOM 2 C CA . ALA Axp A . ? 11.639 6.071 -5.147 1 20 ? 1 A 1
+ATOM 3 C C . ALA Axp A . ? 12.253 4.699 -4.914 1 20 ? 1 A 1
+HETATM 4 O O . HOH Axw water . ? 20 20 20 1 30 ? 100 A 1
+ATOM 5 N N . GLY Bxp B . ? 15.104 6.134 -6.504 1 20 ? 1 B 1
+ATOM 6 C CA . GLY Bxp B . ? 15.639 6.071 -5.147 1 20 ? 1 B 1

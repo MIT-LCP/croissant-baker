@@ -24,6 +24,9 @@ or with [uv](https://docs.astral.sh/uv/):
 uv add croissant-baker
 ```
 
+PDB, mmCIF and STAR files need [gemmi](https://gemmi.readthedocs.io/), which
+ships as an optional extra: `pip install "croissant-baker[structural-biology]"`.
+
 ## Quick start
 
 ```bash
