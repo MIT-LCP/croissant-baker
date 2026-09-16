@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://example.org/wsi-demo",
   "name": "Whole-slide demo (synthetic pathology slides)",
   "description": "One synthetic slide per scanner vendor, and one DICOM whole-slide microscopy instance",
   "conformsTo": "http://mlcommons.org/croissant/1.1",
