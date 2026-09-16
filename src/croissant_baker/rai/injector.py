@@ -16,7 +16,7 @@ _ACTIVITY_LABELS = {
 # recommends a term for the same thing, that term is used. Where it recommends
 # none, the token is written in title case: the range of the property is open
 # text and the recommended list is advice, so an honest term beats a poor fit.
-COLLECTION_TYPE_TERMS = {
+_COLLECTION_TYPE_TERMS = {
     "surveys": "Surveys",
     "experiments": "Experiments",
     "web_scraping": "Web Scraping",
@@ -82,7 +82,7 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     # Duplicates are dropped after the lookup, so a value and the term it stands
     # for count as one value.
     collection_types = _unique(
-        COLLECTION_TYPE_TERMS.get(t.strip().lower(), t)
+        _COLLECTION_TYPE_TERMS.get(t.strip().lower(), t)
         for act in config.activities
         for t in act.collection_types
     )
