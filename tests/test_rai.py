@@ -1,6 +1,7 @@
 """Integration test for the RAI metadata extension."""
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -8,10 +9,15 @@ from typer.testing import CliRunner
 
 from croissant_baker.__main__ import app
 from croissant_baker.rai import inject_rai
+from croissant_baker.rai.injector import _COLLECTION_TYPE_TERMS
 from croissant_baker.rai.schema import Activity, RAIConfig
 from tests.helpers import cli
 
 runner = CliRunner()
+
+_REPO_ROOT = Path(__file__).parent.parent
+RAI_EXAMPLE = _REPO_ROOT / "rai-example.yaml"
+RAI_DOC = _REPO_ROOT / "docs" / "user-guide" / "rai.md"
 
 _DATA = Path(__file__).parent / "data"
 RAI_YAML = (
@@ -318,6 +324,55 @@ def test_the_reference_output_records_the_fixture_collection_types() -> None:
         "Passive Data Collection",
         "Secondary Data analysis",
     ]
+
+
+#: A row of the template's comment block, such as ``#   surveys → Surveys``.
+_TEMPLATE_ROW = re.compile(r"^#\s+(\S+)\s+→\s+(\S.*?)\s*$")
+
+#: A row of the user guide's table, such as ``| `surveys` | `Surveys` |``.
+_DOC_ROW = re.compile(r"^\| `([^`]+)` \| `([^`]+)` \|$")
+
+_DOC_TABLE_HEADER = "| You write | The output holds |"
+
+
+def _template_pairs() -> list[tuple[str, str]]:
+    """The pairs in the collection_types block of the shipped template.
+
+    Read off the comment text rather than the YAML, because a comment is all
+    the template can say about a value it does not itself write.
+    """
+    lines = RAI_EXAMPLE.read_text(encoding="utf-8").splitlines()
+    start = next(
+        i for i, line in enumerate(lines) if line.startswith("# collection_types")
+    )
+    end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == "#")
+    matches = (_TEMPLATE_ROW.match(line) for line in lines[start:end])
+    return [(m.group(1), m.group(2)) for m in matches if m]
+
+
+def _doc_pairs() -> list[tuple[str, str]]:
+    """The rows of the collection type table in the user guide."""
+    lines = RAI_DOC.read_text(encoding="utf-8").splitlines()
+    rows = []
+    for line in lines[lines.index(_DOC_TABLE_HEADER) + 2 :]:
+        if not line.startswith("|"):
+            break
+        rows.append(line)
+    return [(m.group(1), m.group(2)) for m in map(_DOC_ROW.match, rows) if m]
+
+
+def test_the_terms_are_written_down_the_same_in_every_place() -> None:
+    """The table is copied into the template and the user guide.
+
+    A user reads whichever of the three they open first, so a copy that drifts
+    tells them to write a value the output will not recognise.
+    """
+    template = _template_pairs()
+    doc = _doc_pairs()
+
+    assert dict(template) == _COLLECTION_TYPE_TERMS
+    assert dict(doc) == _COLLECTION_TYPE_TERMS
+    assert len(template) == len(doc) == len(_COLLECTION_TYPE_TERMS)
 
 
 def test_a_dry_run_checks_the_rai_config_too(tmp_path: Path) -> None:
