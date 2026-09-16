@@ -11,33 +11,37 @@ from croissant_baker.metadata_generator import MetadataGenerator
 from croissant_baker.scan import Outcome
 
 
-class LegacyXYZHandler(FileTypeHandler):
-    """A third-party handler that only knows the pre-FileSource contract."""
+class LegacyTableHandler(FileTypeHandler):
+    """A third-party handler that only knows the pre-FileSource contract.
 
-    EXTENSIONS = (".xyz",)
-    FORMAT_NAME = "XYZ"
+    Its extension is one no built-in owns, so what the test shows is the legacy
+    contract rather than the order this double happens to be registered in.
+    """
+
+    EXTENSIONS = (".legacy",)
+    FORMAT_NAME = "Legacy"
     FORMAT_DESCRIPTION = "legacy contract fixture"
 
     def can_handle(self, file_path: Path) -> bool:
-        return file_path.suffix.lower() == ".xyz"
+        return file_path.suffix.lower() == ".legacy"
 
     def extract_metadata(self, file_path: Path, **kwargs) -> dict:
         return {
             "file_name": file_path.name,
             "file_size": file_path.stat().st_size,
             "sha256": "0" * 64,
-            "encoding_format": "application/x-xyz",
+            "encoding_format": "application/x-legacy",
             "column_types": {"a": "sc:Text"},
         }
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
         return [], [
             mlc.RecordSet(
-                id="xyz",
-                name="xyz",
+                id="legacy",
+                name="legacy",
                 fields=[
                     mlc.Field(
-                        id="xyz/a",
+                        id="legacy/a",
                         name="a",
                         data_types="sc:Text",
                         source=mlc.Source(
@@ -52,12 +56,12 @@ class LegacyXYZHandler(FileTypeHandler):
 
 @pytest.fixture
 def legacy_registry() -> HandlerRegistry:
-    return HandlerRegistry([LegacyXYZHandler(), *builtin_handlers()])
+    return HandlerRegistry([LegacyTableHandler(), *builtin_handlers()])
 
 
 @pytest.fixture
 def dataset(tmp_path: Path) -> Path:
-    (tmp_path / "thing.xyz").write_text("a\n1\n")
+    (tmp_path / "thing.legacy").write_text("a\n1\n")
     return tmp_path
 
 
@@ -68,8 +72,8 @@ def test_a_legacy_handler_still_describes_its_files(
         dataset_path=str(dataset), name="legacy", handlers=legacy_registry
     ).generate_metadata()
 
-    assert [rs["@id"] for rs in metadata["recordSet"]] == ["xyz"]
-    assert metadata["distribution"][0]["encodingFormat"] == "application/x-xyz"
+    assert [rs["@id"] for rs in metadata["recordSet"]] == ["legacy"]
+    assert metadata["distribution"][0]["encodingFormat"] == "application/x-legacy"
 
 
 def test_a_legacy_path_handler_still_receives_a_path(tmp_path: Path) -> None:

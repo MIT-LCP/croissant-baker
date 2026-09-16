@@ -1,9 +1,13 @@
 """Tests for handler utilities."""
 
+import io
+
 from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
+    PrefixLines,
     _disambiguate_ids,
     allocate_record_set_ids,
+    decode_line,
     make_field_id,
     normalize_array_shape,
     shard_template,
@@ -187,3 +191,102 @@ def test_numeric_identifier_collisions_start_at_two() -> None:
         "data__2",
         "data__3",
     ]
+
+
+def prefix_lines(payload: bytes, limit: int, **kwargs) -> PrefixLines:
+    return PrefixLines(io.BytesIO(payload), limit, **kwargs)
+
+
+def test_prefix_lines_yields_one_line_per_line_ending() -> None:
+    assert list(prefix_lines(b"one\ntwo\nthree\n", 1024)) == ["one", "two", "three"]
+
+
+def test_prefix_lines_strips_the_carriage_return_of_a_crlf_file() -> None:
+    assert list(prefix_lines(b"one\r\ntwo\r\n", 1024)) == ["one", "two"]
+
+
+def test_prefix_lines_decodes_a_stray_byte_rather_than_refusing_it() -> None:
+    """A byte outside UTF-8 in a comment is not a reason to lose the file."""
+    (line,) = list(prefix_lines(b"caf\xe9\n", 1024))
+
+    assert line.startswith("caf")
+
+
+def test_prefix_lines_delivers_the_tail_of_a_file_with_no_last_line_ending() -> None:
+    """Where a writer that closes the file straight after its last line leaves
+    it, and the class of bug that used to lose that line."""
+    assert list(prefix_lines(b"one\ntwo", 1024)) == ["one", "two"]
+
+
+def test_prefix_lines_drops_a_tail_the_bound_cut_in_half() -> None:
+    """Half a line is not a line, and nothing may be read off it."""
+    reader = prefix_lines(b"one\ntwo\nthree\n", 9)
+
+    assert list(reader) == ["one", "two"]
+    assert reader.bounded is True
+
+
+def test_prefix_lines_says_when_the_stream_ended_before_the_bound() -> None:
+    reader = prefix_lines(b"one\ntwo\n", 1024)
+    list(reader)
+
+    assert reader.bounded is False
+
+
+def test_prefix_lines_reports_what_it_pulled_and_what_it_holds() -> None:
+    """The two numbers a caller owing a refusal before the line ends needs."""
+    seen: list = []
+    reader = prefix_lines(
+        b"one\ntwo", 1024, on_chunk=lambda read, pending: seen.append((read, pending))
+    )
+    list(reader)
+
+    assert seen == [(7, 3)]
+    assert reader.read == 7
+
+
+def test_decode_line_drops_only_the_carriage_return_of_the_line_ending() -> None:
+    """One CRLF is one line ending. A carriage return in front of it is a byte
+    the line carries, and stripping the run took content off the line."""
+    assert decode_line(b"a\r\r") == "a\r"
+
+
+def test_prefix_lines_keeps_a_last_line_that_ends_exactly_on_the_bound() -> None:
+    """The stream ended where the bound sits, so nothing was cut in half: the
+    tail is a whole line and the read was not stopped by the bound."""
+    reader = prefix_lines(b"abc\ndefg", 8)
+
+    assert list(reader) == ["abc", "defg"]
+    assert reader.bounded is False
+
+
+def test_prefix_lines_drops_a_last_line_the_bound_stopped_one_byte_short() -> None:
+    """One byte less of bound, and the same tail is a fragment."""
+    reader = prefix_lines(b"abc\ndefg", 7)
+
+    assert list(reader) == ["abc"]
+    assert reader.bounded is True
+
+
+class _CountingBytes(io.BytesIO):
+    """A stream that remembers how many bytes were pulled through it."""
+
+    def __init__(self, payload: bytes) -> None:
+        super().__init__(payload)
+        self.read_bytes = 0
+
+    def read(self, size: int = -1) -> bytes:
+        data = super().read(size)
+        self.read_bytes += len(data)
+        return data
+
+
+def test_prefix_lines_never_pulls_more_than_one_byte_past_the_bound() -> None:
+    """The one byte is what tells the end of the stream from the bound. Past it
+    a bounded read would be reading the file it exists not to read."""
+    stream = _CountingBytes(b"x" * 1024)
+    reader = PrefixLines(stream, 8)
+
+    assert list(reader) == []
+    assert reader.bounded is True
+    assert stream.read_bytes <= 8 + 1

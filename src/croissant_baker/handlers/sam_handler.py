@@ -21,7 +21,7 @@ from typing import List
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.sam_header import describe_alignment, parse_sam_header
-from croissant_baker.handlers.utils import MAX_HEADER_BYTES, read_prefix_chunks
+from croissant_baker.handlers.utils import MAX_HEADER_BYTES, PrefixLines
 from croissant_baker.sources import UNREADABLE, FileSource
 
 #: SAM has no IANA registration. The ``x-`` form follows ``text/x-vcf`` and
@@ -29,8 +29,7 @@ from croissant_baker.sources import UNREADABLE, FileSource
 ENCODING_FORMAT = "text/x-sam"
 
 #: The character every header line opens with, and no alignment record does.
-#: Bytes, because the header is read as bytes and decoded a line at a time.
-HEADER_PREFIX = b"@"
+HEADER_PREFIX = "@"
 
 #: The largest header this handler will accumulate, and the largest single line
 #: inside it. The header cap is the one the containers carrying the same text
@@ -50,11 +49,6 @@ HEADER_RECORDS = (b"@HD\t", b"@SQ\t", b"@RG\t", b"@PG\t", b"@CO\t")
 
 #: Enough of the head to decide a claim: the longest of the above.
 CLAIM_BYTES = max(len(record) for record in HEADER_RECORDS)
-
-
-def _decode(line: bytes) -> str:
-    """One header line as text, with the carriage return of a CRLF file gone."""
-    return line.decode("utf-8", "replace").rstrip("\r")
 
 
 class SAMHandler(FileTypeHandler):
@@ -152,34 +146,26 @@ class SAMHandler(FileTypeHandler):
     def _read_header_lines(self, source: FileSource, name: str) -> List[str]:
         """Every line up to the first that is not a header line.
 
-        Taken a chunk at a time rather than a line at a time: a stream iterated
-        by line hands back the whole file as one line when the file holds no
-        line ending, and reading the whole file is the one thing this handler
-        exists not to do.
-
-        Decoded permissively: a SAM header is printable ASCII by specification,
-        and a stray byte in a ``@CO`` comment is not a reason to refuse a file
-        whose structure is otherwise readable.
+        Read through :class:`~croissant_baker.handlers.utils.PrefixLines`, which
+        is bounded in bytes and delivers the tail of a file that ends without a
+        line ending as the line it is. The two caps below are checked once a
+        chunk, because a header line that never ends is owed a refusal before
+        it does.
         """
         lines: List[str] = []
-        pending = b""
-        read = 0
         try:
             with source.open() as stream:
-                for chunk in read_prefix_chunks(stream, MAX_HEADER_BYTES + 1):
-                    read += len(chunk)
-                    complete = (pending + chunk).split(b"\n")
-                    # The tail after the last line ending is not yet a line.
-                    pending = complete.pop()
-                    for raw in complete:
-                        if not raw.startswith(HEADER_PREFIX):
-                            return lines
-                        lines.append(_decode(raw))
-                    self._still_a_header(len(pending), read, name)
-                # End of file inside the header: what is left of it is the last
-                # line, written without an ending.
-                if pending.startswith(HEADER_PREFIX):
-                    lines.append(_decode(pending))
+                reader = PrefixLines(
+                    stream,
+                    MAX_HEADER_BYTES + 1,
+                    on_chunk=lambda read, pending: self._still_a_header(
+                        pending, read, name
+                    ),
+                )
+                for line in reader:
+                    if not line.startswith(HEADER_PREFIX):
+                        break
+                    lines.append(line)
         except UNREADABLE as exc:
             raise ValueError(f"Failed to read SAM file {name}: {exc}") from exc
         return lines

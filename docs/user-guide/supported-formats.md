@@ -674,6 +674,107 @@ one. FASTA has no IANA registration, so the `x-` form follows `text/x-vcf`.
 Index and dictionary files (`.fai`, `.dict`, `.gzi`) are reported as unsupported;
 nothing claims them.
 
+## SMILES
+
+SMILES (`.smi`, `.smiles`) is one molecule per line: the structure first, then
+usually whitespace and a name or a registry identifier, and sometimes further
+columns after that. The format declares none of it. There are no magic bytes, no
+header line it requires, no delimiter it fixes and no column count it states, so
+the layout is read off a **bounded sample** of the head: the first 1000 lines, or
+the first 1 MiB, whichever ends first. A library of a million molecules therefore
+costs the same read as one of a thousand.
+
+What is reported is the delimiter (`tab` when the sample holds tabs, otherwise
+runs of spaces), the column count, and one `sc:Text` field per column. The column
+count is the widest line of the sample; a line carrying fewer fields has simply
+left the trailing ones off, which is what a molecule with no name looks like, and
+that is not an error.
+
+The record set description states the sample the layout came from, either
+`from all 42 lines` or `from the first 1000 lines`. A column count read off a
+sample is a claim about that sample, and a consumer deciding whether to trust it
+needs to know how many lines it was read from.
+
+A SMILES file is claimed on its extension **and** on its first record, and
+neither half would do alone. The extension alone would claim any text a user
+happened to name `.smi`. The first record alone would not do either, because a
+short structure is also a plausible line of many other things. The record is read
+as symbols rather than as characters: each letter run outside a bracket atom has
+to spell an atom of the OpenSMILES organic subset, so `CCO` and `c1ccccc1` are
+structures while `ethanol` and `SMILES` are not. Lines opening with `#` are
+comments in the dialects that have one, and are skipped before the check; `#` is
+a triple bond, and no structure opens with a bond.
+
+**Column names come from a header line when the file wrote one.** A header is
+detected, not declared: a first record whose first field is no structure,
+followed by one whose first field is, is a file that named its columns, and the
+names are taken from it. Otherwise the columns are named by position, `smiles`
+and `name` and then `column_3`, `column_4`, because the file states nothing for
+them to be named after. A file whose first record is no structure and whose
+second is none either is reported with that as its reason rather than described
+as a molecule table it is not, as is an empty file and one holding only comments.
+
+**Nothing from a data line is emitted.** A structure is the data, and the name
+beside it is a depositor's label for a compound; neither reaches the metadata,
+and the column names from a header line are the only text out of the file that
+does. Molecules are not counted either: counting them means reading the whole
+file.
+
+`encodingFormat` is `chemical/x-daylight-smiles`, with the compression media type
+added by the input layer when the file arrives under one. SMILES has no IANA
+registration, so the media type follows the `chemical/x-*` family cheminformatics
+tools register theirs under.
+
+## XYZ
+
+XYZ (`.xyz`) is an atom count, a comment line, and then one line of `symbol x y
+z` per atom; a trajectory or a multi-structure export repeats that frame back to
+back. The handler reads the first frame's header and stops there. No further
+frame is opened and no coordinate is read: the geometry is the data, and a
+molecular dynamics run is gigabytes of it.
+
+An XYZ is claimed on its extension **and** on the shape of its head, and neither
+half would do alone. A leading integer on a line of its own is also how a
+numbered list, a record count and a line-oriented log all open, so it is too
+little to own a file on; the extension alone would claim anything a user
+happened to name `.xyz`, which several unrelated formats have. Together they are
+a frame: a count, a comment line that may say anything at all, and under them a
+line of a symbol and three numbers. A `.xyz` whose first line is not a count, or
+whose third line is not an atom line, is therefore reported as a file no handler
+claimed.
+
+What is reported is the first frame's atom count and its comment line, verbatim
+and stripped of surrounding whitespace. The comment is usually a title and is
+often empty, and either way it is bytes the file states rather than a reading of
+them. When it carries the extended-XYZ `Properties=species:S:1:pos:R:3` term,
+the file is reported as extended XYZ and the property names in that term are
+reported with it: they are the columns the file declares its atom lines to
+carry.
+
+Deliberately not reported:
+
+- **The number of frames.** Counting them means reading the whole file, which is
+  what header-only reading exists to avoid. One structure and a million-frame
+  trajectory cost the same read.
+- **The coordinates**, and anything derived from them: no cell, no bounding box,
+  no per-element tally. The first atom line is looked at only to confirm the
+  frame is one, and is then discarded.
+- **What the extended-XYZ columns hold.** The names come off the `Properties=`
+  declaration; the values under them are never parsed.
+
+A frame of zero atoms is legal and is described as one, because a trajectory
+writer emits it for an empty cell. A header that declares atoms with no atom
+line under it, an empty file, and a first atom line that is not a symbol and
+three numbers are each reported with that as the reason rather than described.
+
+**No record set is emitted.** Atoms are records of a structure, not of a dataset
+schema, so an XYZ is described as a file: the statement above is carried in the
+`description` of its `cr:FileObject`. `encodingFormat` is `chemical/x-xyz`, with
+the compression media type added by the input layer when the file arrives under
+one. XYZ has no IANA registration; `chemical/*` is the family the chemistry
+tools have used for these files for decades, and the `x-` form marks it as
+unregistered the way `text/x-fasta` does.
+
 ## Hidden files and directories
 
 Files inside hidden directories (any path component starting with `.`) are always skipped, and do not appear in the coverage report. Use `--include` and `--exclude` glob patterns to further control which files are processed.
