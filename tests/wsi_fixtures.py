@@ -114,8 +114,10 @@ def write_dicom_slide(
 def write_demo(directory: Path) -> None:
     """Write the whole fixture into ``directory``, which need not exist.
 
-    Byte-identical between runs, so regenerating an unchanged fixture leaves
-    the working tree clean.
+    Byte-identical between runs, and between interpreters too: every slide
+    states its resolution as an exact ratio rather than as a float tifffile
+    rounds its own way from one release to the next. So regenerating an
+    unchanged fixture leaves the working tree clean, whichever Python ran it.
     """
     directory.mkdir(parents=True, exist_ok=True)
     for vendor, name in SLIDES.items():
