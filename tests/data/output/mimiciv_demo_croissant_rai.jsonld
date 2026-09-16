@@ -5791,8 +5791,8 @@
   "rai:dataSocialImpact": "This dataset enables research that could improve clinical AI tools and patient outcomes. However, models trained on biased data risk perpetuating health disparities if deployed without careful evaluation.",
   "rai:hasSyntheticData": false,
   "rai:dataCollectionType": [
-    "observations",
-    "existing_datasets"
+    "Passive Data Collection",
+    "Secondary Data analysis"
   ],
   "prov:wasDerivedFrom": [
     {

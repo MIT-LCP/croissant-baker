@@ -211,16 +211,68 @@ def test_collection_types_reach_the_dataset_node() -> None:
     document = inject_rai({"@context": {}}, config)
 
     assert document["rai:dataCollectionType"] == [
-        "observations",
-        "existing_datasets",
-        "surveys",
+        "Passive Data Collection",
+        "Secondary Data analysis",
+        "Surveys",
     ]
 
 
 def test_a_single_collection_type_is_written_as_a_string() -> None:
     document = inject_rai({"@context": {}}, _config(_activity("ACT-001", "surveys")))
 
-    assert document["rai:dataCollectionType"] == "surveys"
+    assert document["rai:dataCollectionType"] == "Surveys"
+
+
+@pytest.mark.parametrize(
+    ("token", "term"),
+    [
+        ("surveys", "Surveys"),
+        ("interviews", "Interviews"),
+        ("observations", "Passive Data Collection"),
+        ("experiments", "Experiments"),
+        ("web_scraping", "Web Scraping"),
+        ("crowdsourcing", "Crowdsourcing"),
+        ("existing_datasets", "Secondary Data analysis"),
+        ("simulations", "Simulations"),
+        ("other", "Others"),
+    ],
+)
+def test_each_config_token_is_written_as_its_published_term(
+    token: str, term: str
+) -> None:
+    """The config keys are ours, so the output has to read as the RAI wording."""
+    document = inject_rai({"@context": {}}, _config(_activity("ACT-001", token)))
+
+    assert document["rai:dataCollectionType"] == term
+
+
+def test_an_unknown_collection_type_is_written_as_given() -> None:
+    """The range is open text, so a term of the user's own has to survive."""
+    document = inject_rai(
+        {"@context": {}}, _config(_activity("ACT-001", "Chart Review"))
+    )
+
+    assert document["rai:dataCollectionType"] == "Chart Review"
+
+
+def test_a_published_term_written_in_the_config_is_left_alone() -> None:
+    document = inject_rai(
+        {"@context": {}}, _config(_activity("ACT-001", "Web Scraping"))
+    )
+
+    assert document["rai:dataCollectionType"] == "Web Scraping"
+
+
+def test_a_token_and_its_term_collapse_to_one_value() -> None:
+    """Two spellings of one collection type are still one collection type."""
+    config = _config(
+        _activity("ACT-001", "web_scraping"),
+        _activity("ACT-002", "Web Scraping"),
+    )
+
+    document = inject_rai({"@context": {}}, config)
+
+    assert document["rai:dataCollectionType"] == "Web Scraping"
 
 
 def test_no_collection_types_writes_no_key() -> None:
@@ -245,7 +297,10 @@ def test_no_activity_node_carries_collection_types() -> None:
 def test_the_reference_output_records_the_fixture_collection_types() -> None:
     expected = json.loads(EXPECTED.read_text())
 
-    assert expected["rai:dataCollectionType"] == ["observations", "existing_datasets"]
+    assert expected["rai:dataCollectionType"] == [
+        "Passive Data Collection",
+        "Secondary Data analysis",
+    ]
 
 
 def test_a_dry_run_checks_the_rai_config_too(tmp_path: Path) -> None:

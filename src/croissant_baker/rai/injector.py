@@ -12,6 +12,22 @@ _ACTIVITY_LABELS = {
     "data_preprocessing": "Data Preprocessing",
 }
 
+# The config keys are ours, so they are translated on the way out. Where RAI 1.0
+# recommends a term for the same thing, that term is used. Where it recommends
+# none, the token is written in title case: the range of the property is open
+# text and the recommended list is advice, so an honest term beats a poor fit.
+COLLECTION_TYPE_TERMS = {
+    "surveys": "Surveys",
+    "experiments": "Experiments",
+    "web_scraping": "Web Scraping",
+    "existing_datasets": "Secondary Data analysis",
+    "other": "Others",
+    "observations": "Passive Data Collection",
+    "interviews": "Interviews",
+    "crowdsourcing": "Crowdsourcing",
+    "simulations": "Simulations",
+}
+
 
 def _one_or_many(values: list):
     """Croissant writes a single-valued property as a scalar, not a list."""
@@ -37,8 +53,9 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     - Activities → prov:wasGeneratedBy (list of prov:Activity), each with
       optional prov:wasAssociatedWith (agents) and rai:usedPlatform (platforms).
     - Collection types → rai:dataCollectionType on the dataset node, unioned
-      across the activities. RAI 1.0 declares the property on sc:Dataset, so
-      it does not go on the prov:Activity that carries the types in the config.
+      across the activities and written with the terms RAI 1.0 recommends.
+      RAI 1.0 declares the property on sc:Dataset, so it does not go on the
+      prov:Activity that carries the types in the config.
     """
     _ensure_prov_context(metadata, config)
 
@@ -59,8 +76,13 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
 
     # rai:dataCollectionType is declared on sc:Dataset, so the types every
     # activity declares are unioned onto the dataset rather than left on it.
+    # A value that is not one of our keys is written as given, because the range
+    # of the property is open text. Duplicates are dropped after the lookup, so a
+    # key and the term it stands for count as one value.
     collection_types = _unique(
-        t for act in config.activities for t in act.collection_types
+        COLLECTION_TYPE_TERMS.get(t, t)
+        for act in config.activities
+        for t in act.collection_types
     )
     if collection_types:
         metadata["rai:dataCollectionType"] = _one_or_many(collection_types)
