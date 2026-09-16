@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import gzip
 import io
+from fractions import Fraction
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
@@ -173,6 +174,25 @@ def _rgb(width: int, height: int) -> np.ndarray:
     return np.zeros((height, width, 3), np.uint8)
 
 
+def _pixels_per_centimetre(mpp: float) -> tuple[int, int]:
+    """``mpp`` microns per pixel as the two integers a resolution tag holds.
+
+    A TIFF states resolution as a ratio, and passing tifffile the float
+    ``10000 / mpp`` leaves that ratio to its own float-to-rational rounding.
+    The rounding has changed between releases: for 0.46 microns per pixel,
+    tifffile 2026.3.3 writes 500000/23, which is exact, while 2025.5.10 takes
+    the float's binary ratio and scales it down into 32 bits, writing
+    4294967295/197568, a slide that states 0.459998 microns per pixel. Working
+    the ratio out here keeps a fixture stating the size it claims under
+    whichever tifffile the interpreter resolves.
+
+    ``Fraction(str(mpp))`` rather than ``Fraction(mpp)``: the decimal the
+    caller wrote, rather than the binary float nearest to it.
+    """
+    per_centimetre = Fraction(10000) / Fraction(str(mpp))
+    return per_centimetre.numerator, per_centimetre.denominator
+
+
 APERIO_HEADER = "Aperio Image Library v12.0.15"
 
 #: What an Aperio scanner writes into tag 270: a two-line header, then
@@ -305,6 +325,7 @@ def hamamatsu_bytes(*, mpp: float = 0.46, objective: float = 20.0) -> bytes:
         (271, 2, None, "Hamamatsu", True),  # Make
         (272, 2, None, "C13220", True),  # Model
     ]
+    per_centimetre = _pixels_per_centimetre(mpp)
     buffer = io.BytesIO()
     with tifffile.TiffWriter(buffer, byteorder=">") as writer:
         writer.write(
@@ -312,7 +333,7 @@ def hamamatsu_bytes(*, mpp: float = 0.46, objective: float = 20.0) -> bytes:
             photometric="rgb",
             metadata=None,
             compression="deflate",
-            resolution=(10000 / mpp, 10000 / mpp),
+            resolution=(per_centimetre, per_centimetre),
             resolutionunit="CENTIMETER",
             extratags=ndpi,
         )
@@ -379,6 +400,7 @@ def akoya_bytes(description: str = QPI_XML, *, mpp: float = 0.5) -> bytes:
     The thumbnail sits between the base and the first reduced level, which is
     the order tifffile's QPI series builder walks.
     """
+    per_centimetre = _pixels_per_centimetre(mpp)
     buffer = io.BytesIO()
     plane = {"photometric": "rgb", "metadata": None, "software": "PerkinElmer-QPI"}
     tiled = {**plane, "tile": (128, 128), "compression": "deflate"}
@@ -386,7 +408,7 @@ def akoya_bytes(description: str = QPI_XML, *, mpp: float = 0.5) -> bytes:
         writer.write(
             _rgb(256, 256),
             description=description,
-            resolution=(10000 / mpp, 10000 / mpp),
+            resolution=(per_centimetre, per_centimetre),
             resolutionunit="CENTIMETER",
             **tiled,
         )

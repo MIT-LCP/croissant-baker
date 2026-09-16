@@ -203,6 +203,26 @@ def test_the_microns_per_pixel_each_vendor_states_are_read(vendor, mpp) -> None:
     assert (header.mpp_x, header.mpp_y) == (mpp, mpp)
 
 
+@pytest.mark.parametrize(
+    ("vendor", "ratio"),
+    [("hamamatsu", (500000, 23)), ("akoya", (20000, 1))],
+)
+def test_a_slide_stating_its_pixel_size_in_the_tags_states_an_exact_ratio(
+    vendor, ratio
+) -> None:
+    """A resolution tag is two integers, so 0.46 microns per pixel is
+    500000/23 pixels per centimetre and nothing else. A fixture that passes
+    tifffile the float 10000/0.46 instead gets whichever ratio that release
+    rounds to: 2025.5.10 writes 4294967295/197568, a slide stating 0.459998,
+    and the test above then reads a different number on every interpreter that
+    resolves a different tifffile. The ratio is pinned here so the fixture is
+    caught rather than the reader."""
+    with open_bytes(wsi_bytes(vendor)) as tif:
+        tags = tif.pages.first.tags
+
+        assert (tags["XResolution"].value, tags["YResolution"].value) == (ratio, ratio)
+
+
 def test_a_leica_slide_states_no_microns_per_pixel() -> None:
     """SCN puts the imaged area in the ``view`` element and the level sizes in
     ``pixels``, and dividing one by the other is an inference the file does not
