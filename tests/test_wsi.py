@@ -9,7 +9,7 @@ import tifffile
 
 from croissant_baker.handlers import wsi
 
-from tests.helpers import SCN_BOMB, SCN_MALFORMED, tiff_bytes, wsi_bytes
+from tests.helpers import QPI_XML, SCN_BOMB, SCN_MALFORMED, tiff_bytes, wsi_bytes
 
 
 def open_bytes(data: bytes) -> tifffile.TiffFile:
@@ -221,6 +221,36 @@ def test_a_slide_stating_its_pixel_size_in_the_tags_states_an_exact_ratio(
         tags = tif.pages.first.tags
 
         assert (tags["XResolution"].value, tags["YResolution"].value) == (ratio, ratio)
+
+
+def test_a_pixel_size_too_precise_for_a_resolution_tag_is_refused() -> None:
+    """Both halves of the ratio have to fit in 32 bits, and 10000/0.123456789
+    pixels per centimetre needs a wider numerator than that. tifffile 2025.5.10
+    would rescale the ratio without a word and 2026.3.3 would fail while
+    packing the tag, so the builder stops first and names the size it could not
+    write."""
+    with pytest.raises(AssertionError, match="wider than a TIFF resolution tag"):
+        wsi_bytes("hamamatsu", mpp=0.123456789)
+
+
+def test_a_pixel_size_the_ratio_cannot_state_is_read_as_the_file_states_it() -> None:
+    """The reader reports the ratio the tag holds and rounds nothing of its
+    own, so a slide whose writer missed the exact ratio reads back a little off
+    the round number it meant. That is the file talking. Exactness is the
+    writing side's to guarantee, which is what the fixture builders now do."""
+    # The ratio tifffile 2025.5.10 wrote when it was handed 10000/0.46 as a
+    # float, in place of the 500000/23 that states 0.46 exactly.
+    lossy = (4294967295, 197568)
+    data = tiff_bytes(
+        QPI_XML,
+        software="PerkinElmer-QPI",
+        resolution=(lossy, lossy),
+        resolutionunit="CENTIMETER",
+    )
+    header = read_bytes(data)
+    stated = pytest.approx(0.459998846, abs=1e-9)
+
+    assert (header.mpp_x, header.mpp_y) == (stated, stated)
 
 
 def test_a_leica_slide_states_no_microns_per_pixel() -> None:

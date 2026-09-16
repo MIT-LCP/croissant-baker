@@ -174,6 +174,10 @@ def _rgb(width: int, height: int) -> np.ndarray:
     return np.zeros((height, width, 3), np.uint8)
 
 
+#: The largest integer either half of a TIFF resolution tag can hold.
+RATIONAL_MAX = 4294967295
+
+
 def _pixels_per_centimetre(mpp: float) -> tuple[int, int]:
     """``mpp`` microns per pixel as the two integers a resolution tag holds.
 
@@ -186,11 +190,22 @@ def _pixels_per_centimetre(mpp: float) -> tuple[int, int]:
     the ratio out here keeps a fixture stating the size it claims under
     whichever tifffile the interpreter resolves.
 
+    Both halves of the ratio have to fit in the 32 bits the tag gives them,
+    which a pixel size of many decimals overflows. Such a size is refused
+    here, because the two releases part company over it again: 2025.5.10
+    rescales the ratio without a word, and 2026.3.3 raises ``struct.error``
+    while packing the tag.
+
     ``Fraction(str(mpp))`` rather than ``Fraction(mpp)``: the decimal the
     caller wrote, rather than the binary float nearest to it.
     """
     per_centimetre = Fraction(10000) / Fraction(str(mpp))
-    return per_centimetre.numerator, per_centimetre.denominator
+    numerator, denominator = per_centimetre.numerator, per_centimetre.denominator
+    assert max(numerator, denominator) <= RATIONAL_MAX, (
+        f"{mpp} microns per pixel is {numerator}/{denominator} pixels per "
+        "centimetre, a ratio wider than a TIFF resolution tag holds"
+    )
+    return numerator, denominator
 
 
 APERIO_HEADER = "Aperio Image Library v12.0.15"
