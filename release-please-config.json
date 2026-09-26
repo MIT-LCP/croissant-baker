@@ -4,6 +4,13 @@
       "release-type": "python",
       "package-name": "croissant-baker",
       "version-file": "pyproject.toml",
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "uv.lock",
+          "jsonpath": "$.package[?(@.name.value=='croissant-baker')].version"
+        }
+      ],
       "changelog-sections": [
         {"type": "feat",  "section": "Features"},
         {"type": "fix",   "section": "Bug Fixes"},
