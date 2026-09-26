@@ -261,3 +261,18 @@ def test_a_suffixed_identifier_that_is_already_taken_falls_back(
     write_wrapped(same_stem, "sample_csv.csv", CSV)
 
     assert _ids(bake(same_stem)) == ["sample_csv", "sample_csv__2", "sample_tsv"]
+
+
+def test_the_fallback_counts_past_every_identifier_already_taken(
+    same_stem: Path,
+) -> None:
+    """With sample_csv and sample_csv__2 both real files, the next free one is used."""
+    write_wrapped(same_stem, "sample_csv.csv", CSV)
+    write_wrapped(same_stem, "sample_csv__2.csv", CSV)
+
+    assert _ids(bake(same_stem)) == [
+        "sample_csv",
+        "sample_csv__2",
+        "sample_csv__3",
+        "sample_tsv",
+    ]
