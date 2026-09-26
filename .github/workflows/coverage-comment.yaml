@@ -13,8 +13,10 @@ on:
 
 concurrency:
   # On workflow_run, github.ref is always the default branch, so group by the
-  # pull request's branch instead. Otherwise one pull request cancels another.
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
+  # pull request's branch instead. The branch name alone repeats across forks
+  # (every web UI edit is patch-1), so the fork's name goes in too. Otherwise one
+  # pull request cancels another's comment.
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 # The job below states what it needs.

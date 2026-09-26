@@ -155,3 +155,12 @@ def test_both_workflows_colour_the_badge_with_the_same_threshold() -> None:
     }
     assert None not in thresholds.values(), thresholds
     assert len(set(thresholds.values())) == 1, thresholds
+
+
+def test_comment_runs_from_different_forks_never_share_a_concurrency_group() -> None:
+    # On workflow_run, head_branch is the branch name inside the contributor's
+    # fork, and names like patch-1 repeat across forks. With cancel-in-progress
+    # a shared group lets one pull request cancel another's comment.
+    group = _workflow("coverage-comment.yaml")["concurrency"]["group"]
+    if "workflow_run.head_branch" in group:
+        assert "workflow_run.head_repository.full_name" in group, group
