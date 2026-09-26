@@ -144,3 +144,14 @@ def test_the_test_workflow_queues_runs_instead_of_cancelling_them() -> None:
     concurrency = _workflow("test.yaml")["concurrency"]
     assert concurrency["group"] == "${{ github.workflow }}-${{ github.ref }}"
     assert "cancel-in-progress" not in concurrency
+
+
+def test_both_workflows_colour_the_badge_with_the_same_threshold() -> None:
+    # The action defaults MINIMUM_GREEN to 100, which paints a healthy repo
+    # orange, so the threshold is set on purpose, and set once for both runs.
+    thresholds = {
+        name: _coverage_step(_workflow(name))["with"].get("MINIMUM_GREEN")
+        for name in ("test.yaml", "coverage-comment.yaml")
+    }
+    assert None not in thresholds.values(), thresholds
+    assert len(set(thresholds.values())) == 1, thresholds

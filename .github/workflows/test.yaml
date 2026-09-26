@@ -59,6 +59,9 @@ jobs:
         uses: py-cov-action/python-coverage-comment-action@v4.3
         with:
           GITHUB_TOKEN: ${{ github.token }}
+          # The action's default is 100, which would paint the badge orange at
+          # anything short of full coverage.
+          MINIMUM_GREEN: 90
 
       - name: Store pull request comment to be posted
         if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
