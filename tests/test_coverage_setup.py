@@ -150,6 +150,8 @@ def test_no_job_that_runs_repository_code_can_write() -> None:
         for job_id, job in workflow["jobs"].items():
             if any("run" in step for step in job["steps"]):
                 scopes = job.get("permissions", {})
+                # The string forms (write-all, read-all) fail here on purpose.
+                assert isinstance(scopes, dict), (name, job_id, scopes)
                 assert "write" not in scopes.values(), (name, job_id, scopes)
 
 
