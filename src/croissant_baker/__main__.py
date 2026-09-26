@@ -907,8 +907,8 @@ def main(
         # Allows flexible Person/Organization objects with optional properties
         parsed_creators = []
         if creator:
-            for creator_info in creator:
-                creator_info = creator_info.strip()
+            for raw_creator in creator:
+                creator_info = raw_creator.strip()
 
                 # Preferred: semicolon
                 if ";" in creator_info:
@@ -919,8 +919,14 @@ def main(
                     creator_parts = next(csv.reader([creator_info]))
                     creator_parts = [p.strip() for p in creator_parts]
 
+                # Skipping it would drop a creator the user asked for, or
+                # leave the placeholder, without a word; refuse it instead.
                 if not creator_parts or not creator_parts[0]:
-                    continue
+                    raise ValueError(
+                        f"--creator {raw_creator!r} has no name.\n"
+                        "Example: --creator 'John Doe,john@example.com' "
+                        "or --creator 'Jane Smith'"
+                    )
 
                 creator_obj = {"name": creator_parts[0]}
 

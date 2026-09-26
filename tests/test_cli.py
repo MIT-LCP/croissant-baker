@@ -213,6 +213,47 @@ def test_creator_parsing_variants(csv_dataset: Path, tmp_path: Path) -> None:
             )
 
 
+@pytest.mark.parametrize(
+    "creator_input", [",jane@example.com", " , x", ";x@y.z", "", "   "]
+)
+def test_creator_without_a_name_is_refused(
+    csv_dataset: Path, tmp_path: Path, creator_input: str
+) -> None:
+    """A creator with a blank name stops the bake with an error."""
+    output = tmp_path / "output.jsonld"
+
+    result = runner.invoke(
+        app,
+        [
+            "--input",
+            str(csv_dataset),
+            "--output",
+            str(output),
+            "--creator",
+            "Alice Smith",
+            "--creator",
+            creator_input,
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert f"Error: --creator {creator_input!r} has no name" in result.stderr
+    assert "Example:" in result.stderr
+    assert "Unexpected error" not in result.stderr
+    assert not output.exists()
+
+
+def test_dry_run_does_not_read_creators(csv_dataset: Path) -> None:
+    """Dry run lists files only, so a creator it never uses is not checked."""
+    result = runner.invoke(
+        app,
+        ["--input", str(csv_dataset), "--dry-run", "--creator", ",jane@example.com"],
+    )
+
+    assert result.exit_code == 0, result.output
+
+
 def test_invalid_date_format(csv_dataset: Path, tmp_path: Path) -> None:
     """Test that invalid date format gives clear error message."""
     output = tmp_path / "output.jsonld"
