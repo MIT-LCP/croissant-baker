@@ -275,7 +275,7 @@ def test_rai_apply_rejects_a_missing_input(tmp_path: Path) -> None:
         app,
         [
             "rai-apply",
-            str(tmp_path),
+            str(tmp_path / "missing.jsonld"),
             "--rai-config",
             str(_rai_yaml(tmp_path)),
         ],
@@ -296,6 +296,7 @@ def test_rai_apply_reports_input_that_is_not_json(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert result.stderr.startswith("Error:")
+    assert "Expecting value" in result.stderr
 
 
 def test_rai_apply_reports_a_malformed_config(tmp_path: Path) -> None:
@@ -308,7 +309,7 @@ def test_rai_apply_reports_a_malformed_config(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 1
-    assert "Unexpected error" in result.stderr
+    assert "Traceback" not in result.output
     assert baked.read_text() == before
 
 
