@@ -207,7 +207,11 @@ def test_a_caller_using_the_old_methods_is_warned_once_and_served(
     path = tmp_path / "notes.csv.gz"
     with gzip.open(path, "wt", encoding="utf-8") as fh:
         fh.write("id,name\n1,Ada\n")
-    handler = CSVHandler()
+
+    class _Csv(CSVHandler):
+        """A fresh class, so no earlier test has used up its one warning."""
+
+    handler = _Csv()
 
     with pytest.warns(DeprecationWarning, match=r"can_handle\(Path\) is deprecated"):
         assert handler.can_handle(path) is True
