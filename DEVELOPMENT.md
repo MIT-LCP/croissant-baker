@@ -42,8 +42,8 @@ the coverage delta. Until that first push to `main` creates the branch, the
 endpoint URL is a 404 and the badge renders as an error rather than as nothing,
 so on a pull request that adds the badge it looks broken until the merge.
 
-Coverage is advisory. Nothing gates on it: there is no `fail_under` and no
-threshold on the action, so the number can drop and every check stays green.
+Coverage is advisory. Nothing gates on it: there is no `fail_under` and
+nothing on the action fails the run, so the number can drop and every check stays green.
 The badge is green from 90% (`MINIMUM_GREEN` in both workflows), orange from
 70% (the action's default `MINIMUM_ORANGE`), and red below that.
 
