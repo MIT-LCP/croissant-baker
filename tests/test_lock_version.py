@@ -12,6 +12,7 @@ from pathlib import Path
 if sys.version_info >= (3, 11):
     import tomllib
 else:
+    # pytest pulls in tomli on Python older than 3.11.
     import tomli as tomllib
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
