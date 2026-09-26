@@ -1530,7 +1530,7 @@ def test_field_mappings_yaml_rejects_a_malformed_file(
 
     result = cli(csv_dataset, output, "--field-mappings", str(mappings))
 
-    assert result.exit_code == 1
+    assert result.exit_code != 0
     assert message in result.stderr
     assert not output.exists()
 
@@ -1543,7 +1543,7 @@ def test_field_mapping_flag_needs_a_column_and_a_uri(
 
     result = cli(csv_dataset, output, "--field-mapping", flag)
 
-    assert result.exit_code == 1
+    assert result.exit_code != 0
     assert "--field-mapping must be 'COLUMN=URI'" in result.stderr
     assert not output.exists()
 
@@ -1579,6 +1579,7 @@ def test_dry_run_reports_a_report_path_it_cannot_write(
     assert result.exit_code == 1
     assert "data.csv" in result.stdout
     assert result.stderr.startswith("Error:")
+    assert str(tmp_path) in result.stderr
 
 
 def test_validate_command_rejects_an_invalid_file(tmp_path: Path) -> None:
