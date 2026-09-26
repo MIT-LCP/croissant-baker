@@ -83,7 +83,7 @@ Re-run `uv run python docs/generate.py` after changing CLI flags or adding/modif
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `test.yaml` | Push/PR to `main` | Runs tests on Python 3.10 + 3.12, and reports coverage from the 3.12 leg |
+| `test.yaml` | Push/PR to `main` | Runs tests on Python 3.10 + 3.12 read-only, then a separate job reports coverage from the 3.12 leg |
 | `coverage-comment.yaml` | `test.yaml` completing | Posts the coverage comment for pull requests from forks |
 | `pre-commit.yaml` | Push/PR | Runs ruff lint + format checks |
 | `release-please.yaml` | Push to `main` | Opens/updates Release PR; on release, runs `uv build` |

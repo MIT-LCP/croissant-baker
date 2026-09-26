@@ -42,6 +42,16 @@ def _coverage_step(workflow: dict) -> dict:
     return steps[0]
 
 
+def _uploads(workflow: dict) -> list[dict]:
+    return [s for s in _steps(workflow) if "upload-artifact" in s.get("uses", "")]
+
+
+def _coverage_data_upload(workflow: dict) -> dict:
+    uploads = [s for s in _uploads(workflow) if s["with"]["path"] == ".coverage"]
+    assert len(uploads) == 1, _uploads(workflow)
+    return uploads[0]
+
+
 def _triggers(workflow: dict) -> dict:
     # YAML 1.1 reads a bare ``on`` key as the boolean True.
     return workflow.get("on", workflow.get(True))
@@ -118,11 +128,13 @@ def test_the_artifact_carries_the_name_the_action_looks_for() -> None:
     # The posting workflow asks the action for an artifact by name, and the
     # action treats a missing one as "nothing to post" and exits 0. Renaming
     # either half here would end comments on pull requests from forks silently.
-    workflow = _workflow("test.yaml")
-    uploads = [s for s in _steps(workflow) if "upload-artifact" in s.get("uses", "")]
-    assert len(uploads) == 1, uploads
-    assert uploads[0]["with"]["name"] == "python-coverage-comment-action"
-    assert uploads[0]["with"]["path"] == "python-coverage-comment-action.txt"
+    comment_uploads = [
+        s
+        for s in _uploads(_workflow("test.yaml"))
+        if s["with"]["path"] == "python-coverage-comment-action.txt"
+    ]
+    assert len(comment_uploads) == 1, comment_uploads
+    assert comment_uploads[0]["with"]["name"] == "python-coverage-comment-action"
 
 
 def test_neither_workflow_renames_the_artifact_the_other_reads() -> None:
@@ -132,10 +144,34 @@ def test_neither_workflow_renames_the_artifact_the_other_reads() -> None:
         assert "COMMENT_FILENAME" not in inputs, name
 
 
-def test_only_one_matrix_leg_reports_coverage() -> None:
-    # Two legs would upload the same artifact name and race each other's commit
-    # to the data branch.
-    assert "matrix.python-version ==" in _coverage_step(_workflow("test.yaml"))["if"]
+def test_only_one_matrix_leg_hands_its_coverage_on() -> None:
+    # Two legs would upload the same artifact name, and the second upload fails.
+    upload = _coverage_data_upload(_workflow("test.yaml"))
+    assert "matrix.python-version ==" in upload["if"]
+
+
+def test_the_coverage_data_survives_the_trip_between_jobs() -> None:
+    # upload-artifact skips dotfiles unless told otherwise, and .coverage is one,
+    # so without the flag the upload is empty and the coverage job finds nothing.
+    workflow = _workflow("test.yaml")
+    upload = _coverage_data_upload(workflow)
+    assert upload["with"].get("include-hidden-files") is True, upload
+    downloads = [
+        s for s in _steps(workflow) if "download-artifact" in s.get("uses", "")
+    ]
+    assert [d["with"]["name"] for d in downloads] == [upload["with"]["name"]]
+
+
+def test_no_job_that_runs_repository_code_can_write() -> None:
+    # Shell steps run the pull request's own tests and uv sync build hooks, so
+    # a job with any of them keeps a read-only token.
+    for name in ("test.yaml", "coverage-comment.yaml"):
+        workflow = _workflow(name)
+        assert workflow["permissions"] == {}, name
+        for job_id, job in workflow["jobs"].items():
+            if any("run" in step for step in job["steps"]):
+                scopes = job.get("permissions", {})
+                assert "write" not in scopes.values(), (name, job_id, scopes)
 
 
 def test_the_test_workflow_queues_runs_instead_of_cancelling_them() -> None:
