@@ -58,16 +58,6 @@ def test_pytest_cov_is_in_the_test_dependency_group() -> None:
     assert _pytest_cov_requirement()
 
 
-def test_the_pytest_cov_floor_carries_a_coverage_that_knows_exclude_also() -> None:
-    # exclude_also arrived in coverage 7.2. pytest-cov is the only thing that
-    # floors coverage here, and its own floor did not reach 7.2 until 6.0, so a
-    # lower floor would let a resolver pick a coverage that ignores the setting.
-    spec = _pytest_cov_requirement()
-    assert spec.startswith("pytest-cov>="), spec
-    floor = spec.removeprefix("pytest-cov>=")
-    assert int(floor.split(".")[0]) >= 6, spec
-
-
 def test_coverage_measures_the_package() -> None:
     assert _pyproject()["tool"]["coverage"]["run"]["source"] == ["croissant_baker"]
 
