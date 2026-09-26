@@ -847,6 +847,37 @@ def test_field_mapping_flag_overrides_yaml(csv_dataset: Path, tmp_path: Path) ->
     assert fields["id"]["equivalentProperty"] == "wdt:P527"  # flag-only column
 
 
+def test_bad_field_mapping_flag_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A malformed --field-mapping prints a plain Error and exits 1."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mapping", "age")
+
+    assert result.exit_code == 1
+    assert "Error: --field-mapping must be 'COLUMN=URI', got 'age'" in result.stderr
+    assert "Unexpected error" not in result.stderr
+    assert not output.exists()
+
+
+def test_bad_field_mappings_file_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A malformed --field-mappings YAML prints a plain Error and exits 1."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text("- age\n", encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert "Error: " in result.stderr
+    assert "must contain a YAML mapping at the top level" in result.stderr
+    assert "Unexpected error" not in result.stderr
+    assert not output.exists()
+
+
 def test_usage_info_rejects_free_text(csv_dataset: Path, tmp_path: Path) -> None:
     """Reject strings without a URI scheme; accept any RFC 3986 scheme."""
     output = tmp_path / "output.jsonld"

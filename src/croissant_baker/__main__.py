@@ -1097,6 +1097,11 @@ def main(
         # A bake that described nothing is when coverage matters most.
         _echo_scan_coverage(generator, report, verbose)
         raise typer.Exit(code=1)
+    except typer.BadParameter as e:
+        # A bad --field-mapping or --field-mappings is a user input error. It is
+        # raised before the bake starts, so there is no coverage to print.
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
     except Exception as e:
         typer.echo(f"Unexpected error: {e}", err=True)
         _echo_scan_coverage(generator, report, verbose)
