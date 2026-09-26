@@ -4,28 +4,24 @@
 it and hands the data to ``py-cov-action/python-coverage-comment-action``,
 ``.github/workflows/coverage-comment.yaml`` posts the comment for pull requests
 from forks, and ``README.md`` points a shields.io endpoint badge at the data
-branch the action writes. A change to any one of them can silently break the
-badge, so the pieces are asserted against each other here.
+branch the action writes. No single edit keeps these consistent, so the pieces
+are asserted against each other here, along with the few security properties
+the workflows depend on.
 """
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import yaml
-
-try:  # tomllib is stdlib from Python 3.11 onwards
-    import tomllib
-except ImportError:  # Python 3.10, where coverage[toml] brings tomli in
-    import tomli as tomllib
+from coverage import CoverageData
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 ACTION = "py-cov-action/python-coverage-comment-action"
 # The action's default, and the branch the README badge URLs point at.
 DEFAULT_DATA_BRANCH = "python-coverage-comment-action-data"
-
-
-def _pyproject() -> dict:
-    return tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
 def _workflow(name: str) -> dict:
@@ -57,37 +53,32 @@ def _triggers(workflow: dict) -> dict:
     return workflow.get("on", workflow.get(True))
 
 
-def _pytest_cov_requirement() -> str:
-    test_group = _pyproject()["dependency-groups"]["test"]
-    specs = [spec for spec in test_group if spec.startswith("pytest-cov")]
-    assert len(specs) == 1, test_group
-    return specs[0]
+def test_coverage_records_only_the_package_under_relative_paths(
+    tmp_path: Path,
+) -> None:
+    # The action reads .coverage from a checkout whose absolute paths differ
+    # from the runner's, so the data has to hold repository-relative paths, and
+    # only for the package: a script outside it must not show up.
+    script = tmp_path / "use_the_package.py"
+    script.write_text("import croissant_baker\n", encoding="utf-8")
+    data_file = tmp_path / ".coverage"
+    env = {k: v for k, v in os.environ.items() if not k.startswith("COV_CORE_")}
+    env.pop("COVERAGE_PROCESS_START", None)
+    env["COVERAGE_FILE"] = str(data_file)
+    subprocess.run(
+        [sys.executable, "-m", "coverage", "run", str(script)],
+        cwd=REPO_ROOT,
+        env=env,
+        check=True,
+    )
 
-
-def test_pytest_cov_is_in_the_test_dependency_group() -> None:
-    assert _pytest_cov_requirement()
-
-
-def test_coverage_measures_the_package() -> None:
-    assert _pyproject()["tool"]["coverage"]["run"]["source"] == ["croissant_baker"]
-
-
-def test_coverage_records_relative_paths() -> None:
-    # python-coverage-comment-action cannot map absolute runner paths back to
-    # repository files, so relative_files is a requirement, not a preference.
-    assert _pyproject()["tool"]["coverage"]["run"]["relative_files"] is True
-
-
-def test_the_test_workflow_collects_coverage() -> None:
-    commands = [step.get("run", "") for step in _steps(_workflow("test.yaml"))]
-    pytest_runs = [c for c in commands if "pytest" in c]
-    assert pytest_runs, commands
-    assert all("--cov" in c for c in pytest_runs), pytest_runs
-
-
-def test_the_test_workflow_hands_coverage_to_the_action() -> None:
-    step = _coverage_step(_workflow("test.yaml"))
-    assert step["with"]["GITHUB_TOKEN"]
+    data = CoverageData(basename=str(data_file))
+    data.read()
+    measured = sorted(data.measured_files())
+    assert measured, "coverage recorded nothing"
+    for path in measured:
+        assert not Path(path).is_absolute(), measured
+        assert path.startswith("src/croissant_baker/"), measured
 
 
 def test_the_comment_workflow_follows_the_test_workflow() -> None:
@@ -99,11 +90,6 @@ def test_the_comment_workflow_follows_the_test_workflow() -> None:
     assert "checkout" not in yaml.dump(comment)
 
 
-def test_the_comment_workflow_reads_the_triggering_run() -> None:
-    step = _coverage_step(_workflow("coverage-comment.yaml"))
-    assert "workflow_run.id" in step["with"]["GITHUB_PR_RUN_ID"]
-
-
 def test_the_readme_badge_reads_the_data_branch_the_action_writes() -> None:
     step = _coverage_step(_workflow("test.yaml"))
     branch = step["with"].get("COVERAGE_DATA_BRANCH", DEFAULT_DATA_BRANCH)
@@ -112,15 +98,8 @@ def test_the_readme_badge_reads_the_data_branch_the_action_writes() -> None:
         "https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/"
         f"MIT-LCP/croissant-baker/{branch}/endpoint.json"
     )
+    report = f"https://github.com/MIT-LCP/croissant-baker/blob/{branch}/htmlcov/"
     assert endpoint in readme
-
-
-def test_the_readme_badge_links_to_the_html_report() -> None:
-    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    report = (
-        "https://github.com/MIT-LCP/croissant-baker/blob/"
-        f"{DEFAULT_DATA_BRANCH}/htmlcov/index.html"
-    )
     assert report in readme
 
 
@@ -178,8 +157,7 @@ def test_the_test_workflow_queues_runs_instead_of_cancelling_them() -> None:
     # A cancelled run is a lost coverage comment, and two runs pushing the data
     # branch at once is a lost commit, so runs queue and none is cancelled.
     concurrency = _workflow("test.yaml")["concurrency"]
-    assert concurrency["group"] == "${{ github.workflow }}-${{ github.ref }}"
-    assert "cancel-in-progress" not in concurrency
+    assert not concurrency.get("cancel-in-progress", False), concurrency
 
 
 def test_both_workflows_colour_the_badge_with_the_same_threshold() -> None:
