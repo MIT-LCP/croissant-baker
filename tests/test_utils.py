@@ -5,6 +5,7 @@ from croissant_baker.handlers.utils import (
     _disambiguate_ids,
     allocate_record_set_ids,
     make_field_id,
+    make_record_set_ids,
     normalize_array_shape,
     shard_template,
 )
@@ -179,6 +180,17 @@ def test_allocation_does_not_depend_on_batch_order() -> None:
     )
 
     assert forward == list(reversed(reversed_))
+
+
+def test_record_set_ids_do_not_depend_on_batch_order() -> None:
+    """``lab results`` and ``lab@results`` sanitize alike and share a parent,
+    so a numeric suffix settles it, and the file that takes it must follow
+    from the paths."""
+    forward = make_record_set_ids(metas("lab results.csv", "lab@results.csv"))
+    backward = make_record_set_ids(metas("lab@results.csv", "lab results.csv"))
+
+    assert forward == ["lab_results", "lab_results__2"]
+    assert backward == ["lab_results__2", "lab_results"]
 
 
 def test_numeric_identifier_collisions_start_at_two() -> None:

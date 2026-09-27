@@ -158,14 +158,34 @@ def make_record_set_ids(file_metas: list) -> list:
     prefixes config-level identifiers into split @id values), so
     consumers familiar with that style do not encounter a new shape.
     """
+    paths = [
+        str(Path(meta.get("relative_path", meta["file_name"]))) for meta in file_metas
+    ]
     items = [
         (
             sanitize_id(get_clean_record_name(meta["file_name"])),
-            list(Path(meta.get("relative_path", meta["file_name"])).parts[:-1]),
+            list(Path(path).parts[:-1]),
         )
-        for meta in file_metas
+        for meta, path in zip(file_metas, paths)
     ]
-    return _disambiguate_ids(items)
+    return disambiguate_in_path_order(items, paths)
+
+
+def disambiguate_in_path_order(items: list, paths: list) -> list:
+    """:func:`_disambiguate_ids` run over ``items`` sorted by ``paths``.
+
+    Batch order is rglob order. Where parents cannot separate two stems (``a b``
+    and ``a@b`` sanitize alike) a numeric suffix settles it, and allocating in
+    path order keeps which file takes it the same on every filesystem.
+
+    Returns:
+        One id per item, parallel to ``items``.
+    """
+    order = sorted(range(len(items)), key=lambda i: paths[i])
+    ids = [""] * len(items)
+    for rs_id, i in zip(_disambiguate_ids([items[i] for i in order]), order):
+        ids[i] = rs_id
+    return ids
 
 
 #: Key under which :func:`allocate_record_set_ids` returns a file's own base
