@@ -306,7 +306,9 @@ def collect_nifti_summary(nifti_metadata_list: List[Dict]) -> Dict:
     if dt:
         summary["dim_t_range"] = (min(dt), max(dt))
     if dtype_counts:
-        summary["dtype_counts"] = dtype_counts
+        # Sorted by dtype, as image formats are: insertion order is rglob
+        # order, which differs between filesystems.
+        summary["dtype_counts"] = dict(sorted(dtype_counts.items()))
     if tr_list:
         summary["tr_range"] = (min(tr_list), max(tr_list))
 

@@ -215,6 +215,73 @@ def test_build_croissant_description_contains_modality(handler: DICOMHandler) ->
     assert "PT" in record_sets[0].description
 
 
+def test_the_modality_breakdown_does_not_follow_discovery_order(
+    handler: DICOMHandler,
+) -> None:
+    """Batch order is rglob order, which differs between filesystems, so a
+    mixed batch listed in the order it arrived describes one directory two
+    ways. The committed SPECT corpus holds one modality, so no golden can
+    catch this."""
+    metas = [
+        _dicom_meta("a.dcm", modality="MR"),
+        _dicom_meta("b.dcm", modality="CT"),
+        _dicom_meta("c.dcm", modality="CT"),
+        {"file_name": "d.dcm", "dicom_properties": {"rows": 512, "columns": 512}},
+    ]
+    ids = ["file_0", "file_1", "file_2", "file_3"]
+
+    forward = handler.build_croissant(metas, ids)
+    backward = handler.build_croissant(metas[::-1], ids[::-1])
+
+    for built in (forward, backward):
+        assert built.file_sets[0].description == (
+            "4 DICOM file(s) (CT (2), MR (1), unknown (1))"
+        )
+        assert built.record_sets[0].description == (
+            "4 DICOM files (512x512): CT (2), MR (1), unknown (1)"
+        )
+
+
+def test_files_without_a_modality_are_counted_last() -> None:
+    """A writer's own lowercase code sorts after "unknown", which must still
+    close the list whatever the codes spell."""
+    metas = [
+        {"dicom_properties": {}},
+        {"dicom_properties": {"modality": "xa"}},
+        {"dicom_properties": {"modality": "CT"}},
+    ]
+
+    assert list(collect_dicom_summary(metas)["modality_counts"]) == [
+        "CT",
+        "xa",
+        "unknown",
+    ]
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_a_mixed_modality_bake_describes_itself_one_way(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reverse_discovery: bool
+) -> None:
+    """The same directory, reached in either order, bakes to one description."""
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    _make_dicom(tmp_path / "a.dcm", modality="MR")
+    _make_dicom(tmp_path / "b.dcm", modality="CT")
+    _make_dicom(tmp_path / "c.dcm", modality="CT")
+
+    document = bake(tmp_path)
+
+    (record_set,) = document["recordSet"]
+    assert record_set["description"] == "3 DICOM files (512x512): CT (2), MR (1)"
+
+
 def test_a_bake_says_how_many_dcm_files_lacked_the_preamble(
     tmp_path: Path, capsys: pytest.CaptureFixture
 ) -> None:

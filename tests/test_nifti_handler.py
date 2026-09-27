@@ -195,6 +195,57 @@ def _nifti_meta(name: str, ndim: int = 3, dim_t: int = None) -> dict:
     }
 
 
+def test_the_dtype_list_does_not_follow_discovery_order(
+    handler: NIfTIHandler,
+) -> None:
+    """Batch order is rglob order, which differs between filesystems, so a
+    mixed batch listed in the order it arrived describes one directory two
+    ways. The committed SPECT corpus holds one dtype, so no golden can catch
+    this."""
+    metas = [_nifti_meta("a.nii.gz"), _nifti_meta("b.nii.gz")]
+    metas[0]["nifti_properties"]["data_dtype"] = "uint8"
+    metas[1]["nifti_properties"]["data_dtype"] = "float32"
+    ids = ["file_0", "file_1"]
+
+    forward = handler.build_croissant(metas, ids)
+    backward = handler.build_croissant(metas[::-1], ids[::-1])
+
+    for built in (forward, backward):
+        record_set = built.record_sets[0]
+        dtype_field = next(f for f in record_set.fields if f.name == "data_dtype")
+        assert record_set.description == "2 NIfTI files (64x64x30): float32, uint8"
+        assert dtype_field.description == (
+            "NIfTI datatype; stored data type (float32, uint8)"
+        )
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_a_mixed_dtype_bake_describes_itself_one_way(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reverse_discovery: bool
+) -> None:
+    """The same directory, reached in either order, bakes to one description."""
+    # Local, since the header field tests in #152 add their own helpers
+    # import on the line a top-level one would take.
+    from tests.helpers import bake
+
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    _make_nifti(tmp_path / "a.nii", dtype=np.uint8)
+    _make_nifti(tmp_path / "b.nii", dtype=np.float32)
+
+    document = bake(tmp_path)
+
+    (record_set,) = document["recordSet"]
+    assert record_set["description"] == "2 NIfTI files (64x64x30): float32, uint8"
+
+
 def test_build_croissant_returns_fileset_and_recordset(handler: NIfTIHandler) -> None:
     metas = [_nifti_meta("T1.nii.gz"), _nifti_meta("T2.nii.gz")]
     filesets, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])

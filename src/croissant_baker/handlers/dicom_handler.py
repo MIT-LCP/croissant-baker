@@ -322,6 +322,9 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
             # modality. Surface them as "unknown" so the per-modality counts
             # add up to num_files.
             unknown_modality += 1
+    # Sorted by modality, as image formats are: insertion order is rglob
+    # order, which differs between filesystems. Files with none come last.
+    modalities = dict(sorted(modalities.items()))
     if unknown_modality:
         modalities["unknown"] = unknown_modality
 
