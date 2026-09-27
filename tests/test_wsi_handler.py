@@ -385,6 +385,54 @@ def test_every_field_says_what_the_batch_holds(
     assert fields["mpp_x"].endswith("(0.499)")
 
 
+def test_the_slide_header_fields_name_the_file_set_without_an_extract(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """mlcroissant decodes the content of an image/tiff file into pixels, so a
+    content extract would cast a slide to an integer. Each header field names
+    only the FileSet, and a reader such as openslide reads the value."""
+    metas, ids = batch(handler, dataset, "a.svs")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+    sources = {field.name: field.source.to_json() for field in record_set.fields}
+    headers = {
+        name: source
+        for name, source in sources.items()
+        if name not in ("image", "filename")
+    }
+
+    assert headers == {
+        name: {"fileSet": {"@id": "wsi-files"}}
+        for name in (
+            "vendor",
+            "width",
+            "height",
+            "level_count",
+            "tile_width",
+            "tile_height",
+            "mpp_x",
+            "mpp_y",
+            "objective_power",
+        )
+    }
+
+
+def test_the_slide_image_and_filename_keep_their_extracts(
+    handler: WSIHandler, dataset: Path
+) -> None:
+    """The image is the file's content and the filename is a file property,
+    so both still say what to extract."""
+    metas, ids = batch(handler, dataset, "a.svs")
+
+    (record_set,) = handler.build_croissant(metas, ids).record_sets
+    sources = {field.name: field.source.to_json() for field in record_set.fields}
+
+    assert (sources["image"], sources["filename"]) == (
+        {"fileSet": {"@id": "wsi-files"}, "extract": {"fileProperty": "content"}},
+        {"fileSet": {"@id": "wsi-files"}, "extract": {"fileProperty": "filename"}},
+    )
+
+
 def test_the_record_set_description_breaks_the_batch_down_by_vendor(
     handler: WSIHandler, dataset: Path
 ) -> None:

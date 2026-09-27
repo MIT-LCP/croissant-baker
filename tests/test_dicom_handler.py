@@ -546,6 +546,36 @@ def test_a_batch_without_a_slide_gains_no_whole_slide_fields(
     }
 
 
+#: The fields a batch gains once it holds a slide. Each describes one header
+#: attribute, which a consumer reads with a DICOM reader.
+WSI_HEADER_FIELDS = (
+    "dicom/wsi_flavor",
+    "dicom/total_pixel_matrix_columns",
+    "dicom/total_pixel_matrix_rows",
+    "dicom/imaged_volume_width",
+    "dicom/imaged_volume_height",
+    "dicom/container_identifier",
+)
+
+
+def test_the_whole_slide_fields_name_the_file_set_without_an_extract(
+    handler: DICOMHandler,
+) -> None:
+    """A content extract would hand a consumer the whole file for a field that
+    describes one attribute, so each slide field names only the FileSet."""
+    _, record_sets_ = handler.build_croissant([_wsi_meta("volume.dcm")], ["file_0"])
+
+    sources = {
+        f.id: f.source.to_json()
+        for f in record_sets_[0].fields
+        if f.id in WSI_HEADER_FIELDS
+    }
+
+    assert sources == {
+        field_id: {"fileSet": {"@id": "dicom-files"}} for field_id in WSI_HEADER_FIELDS
+    }
+
+
 def test_a_bake_of_a_slide_directory_describes_the_slides(tmp_path: Path) -> None:
     """The whole path end to end: a scanner export of one VOLUME image beside
     its LABEL and OVERVIEW snapshots, read, summarised, and described."""

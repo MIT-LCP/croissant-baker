@@ -221,10 +221,7 @@ def _record_set(file_metas: List[Dict]) -> mlc.RecordSet:
                 name=name,
                 description=f"{prefix} ({_observed(values)})",
                 data_types=[data_type],
-                source=mlc.Source(
-                    file_set=FILE_SET_ID,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=FILE_SET_ID),
             )
         )
 
