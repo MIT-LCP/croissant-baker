@@ -383,6 +383,50 @@ def test_build_croissant_keeps_distinct_tables_separate(tmp_path: Path) -> None:
     assert all(rs.name == "Observation" for rs in record_sets)
 
 
+def _chunk_meta(index: int, column_types: dict) -> dict:
+    return {
+        "file_name": f"Observation.{index:03d}.ndjson",
+        "relative_path": f"Observation.{index:03d}.ndjson",
+        "fhir_resource_type": "Observation",
+        "column_types": column_types,
+        "encoding_format": "application/fhir+ndjson",
+        "num_rows": 1,
+    }
+
+
+def _bundle_meta(name: str) -> dict:
+    return {
+        "file_name": name,
+        "relative_path": name,
+        "encoding_format": "application/fhir+json",
+        "fhir_resource_groups": {
+            "Patient": {"column_types": {"id": "sc:Text"}, "num_rows": 1}
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "metas",
+    [
+        [_chunk_meta(i, {"id": "sc:Text"}) for i in (1, 0, 2)],
+        [_bundle_meta(name) for name in ("b.json", "a.json", "c.json")],
+    ],
+    ids=["chunks", "bundles"],
+)
+def test_file_set_includes_do_not_follow_discovery_order(metas: list) -> None:
+    """Batch order is rglob order, which differs between filesystems, so
+    paths listed in the order they arrived make one directory bake two ways.
+    """
+    ids = [f"file_{i}" for i in range(len(metas))]
+
+    forward = FHIRHandler().build_croissant(metas, ids)
+    backward = FHIRHandler().build_croissant(metas[::-1], ids[::-1])
+
+    for built in (forward, backward):
+        (file_set,) = built.file_sets
+        assert file_set.includes == sorted(m["relative_path"] for m in metas)
+
+
 def test_build_croissant_all_skipped_returns_empty(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
