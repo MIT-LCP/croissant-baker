@@ -389,8 +389,9 @@ def test_the_slide_header_fields_name_the_file_set_without_an_extract(
     handler: WSIHandler, dataset: Path
 ) -> None:
     """mlcroissant decodes the content of an image/tiff file into pixels, so a
-    content extract would cast a slide to an integer. Each header field names
-    only the FileSet, and a reader such as openslide reads the value."""
+    content extract would cast a slide to the field's type. Each header field
+    names only the FileSet, and a reader such as tifffile reads the value. The
+    exact name set also catches a new header field added with an extract."""
     metas, ids = batch(handler, dataset, "a.svs")
 
     (record_set,) = handler.build_croissant(metas, ids).record_sets

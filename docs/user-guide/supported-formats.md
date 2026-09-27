@@ -256,7 +256,7 @@ What is read from the file: the vendor signature, the base level's width and hei
 
 The fields are `image` (an `sc:ImageObject`), `filename`, `vendor`, `width`, `height`, `level_count`, `tile_width`, `tile_height`, `mpp_x`, `mpp_y` and `objective_power`. A field is emitted only where the batch has an observed value, so a batch of Leica slides carries no `mpp_x` field describing a measurement none of them made, and a batch of stripped slides no tile size. Every field draws on the `wsi-files` FileSet. As in the OME record set, no `Field.value` is emitted and each header field's description carries the value or range the batch was observed to hold. The record set's description states the slide count, the dimension range, the vendor breakdown, the objective magnifications, the compressions the batch uses and the kinds of associated image it carries.
 
-**Header fields are descriptive.** `image` draws on the file's content and `filename` on its name. Every other field has `source: {fileSet: {"@id": "wsi-files"}}` with no `extract`, because mlcroissant decodes the content of an `image/tiff` file into pixels, and reading a value for one slide takes a slide reader such as `openslide`.
+**Header fields are descriptive.** `image` draws on the file's content and `filename` on its name. Every other field has `source: {fileSet: {"@id": "wsi-files"}}` with no `extract`, because mlcroissant decodes the content of an `image/tiff` file into pixels, and reading a value for one slide takes a slide reader such as `tifffile` or `openslide`. Because these fields name no column, `mlcroissant` 1.1.0 cannot iterate `records("slides")` while they are present; a RecordSet holding only `image` and `filename` loads.
 
 The compression and the kinds of associated image are facts about one file's storage rather than about every row, so they are stated in the record set's description rather than as fields. The per-level dimensions are read and not emitted at all: `width`, `height` and `level_count` derive from them, and the sizes themselves are a list per row that no field shape fits.
 
@@ -297,7 +297,7 @@ A digital pathology scanner writes DICOM too, under the VL Whole Slide Microscop
 
 The fields are added only when the batch holds a slide, so a batch of cross sections is described exactly as it was before slides were recognised. The record set's description names the slide count and the flavors present, alongside the modality counts; the flavors are listed in the standard's own order, `VOLUME`, `LABEL`, `OVERVIEW`, `THUMBNAIL`, rather than in discovery order, so one directory describes itself the same way on any filesystem. `LABEL` and `OVERVIEW` instances routinely omit the imaged volume and the container id, so each of these values is reported as unstated rather than dropped, keeping the shape of a slide the same across the flavors of one study.
 
-These six fields describe header attributes, each with `source: {fileSet: {"@id": "dicom-files"}}` and no `extract`. Reading a value for one instance takes a DICOM reader such as `pydicom`, pointed at the attribute the field's description names.
+These six fields have `source: {fileSet: {"@id": "dicom-files"}}` and no `extract`. A DICOM reader such as `pydicom` reads a value from the attribute each description names.
 
 ## NIfTI
 
