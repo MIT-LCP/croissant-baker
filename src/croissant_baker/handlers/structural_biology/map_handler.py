@@ -166,12 +166,11 @@ class MRCHandler(FileTypeHandler):
     type, voxel size, space group, whether the file is one volume or a stack,
     and the label the writer stamped into it.
 
-    The fields read ``fileProperty: content`` over the FileSet, the way the
-    NIfTI and DICOM fields do, because that is what the record set is: one
-    record per file, not one per voxel. Reading that content selects no header
-    word, and mlcroissant dispatches its reader on ``encodingFormat`` over a
-    fixed list MRC is not on, so the fields describe the batch rather than
-    promise a read.
+    The record set holds one record per map file. Each field names the header
+    word it describes and has a FileSet source with no extract, the shape the
+    OME-TIFF fields use: a content extract would select the whole map, and
+    nothing in it names a header word. Reading a value takes an MRC reader such
+    as ``mrcfile``, so the fields describe the batch and promise no read.
     """
 
     EXTENSIONS = (".mrc", ".mrcs", ".map", ".ccp4")
@@ -328,10 +327,7 @@ def _fields(stacked: bool, dtypes: str, kinds: str) -> list:
             name=name,
             description=description,
             data_types=[data_type],
-            source=mlc.Source(
-                file_set=FILE_SET_ID,
-                extract=mlc.Extract(file_property="content"),
-            ),
+            source=mlc.Source(file_set=FILE_SET_ID),
         )
         for name, data_type, description in described
     ]

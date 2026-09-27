@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import mlcroissant as mlc
 import pytest
 
 from croissant_baker.handlers.base_handler import BuildResult
@@ -552,7 +551,7 @@ def test_the_recordset_fields(handler: StructureHandler) -> None:
     ]
 
 
-def test_every_field_reads_the_content_of_the_fileset(
+def test_every_field_reads_the_fileset(
     handler: StructureHandler,
 ) -> None:
     file_sets, record_sets = handler.build_croissant([macro_meta("1abc.pdb")], ["f0"])
@@ -560,8 +559,50 @@ def test_every_field_reads_the_content_of_the_fileset(
     for field in record_sets[0].fields:
         assert field.id == f"structures/{field.name}"
         assert field.source.file_set == file_sets[0].id
-        assert field.source.extract.file_property is mlc.FileProperty.content
         assert field.data_types
+
+
+#: Every header field the structures record set can declare. resolution_angstrom
+#: and formula appear only when some file in the batch states them.
+STRUCTURE_HEADER_FIELDS = (
+    "entry_id",
+    "title",
+    "experimental_method",
+    "resolution_angstrom",
+    "space_group",
+    "unit_cell",
+    "n_models",
+    "n_chains",
+    "n_residues",
+    "n_atoms",
+    "formula",
+    "format",
+)
+
+
+def test_header_fields_name_the_file_set_without_an_extract(
+    handler: StructureHandler,
+) -> None:
+    """A content extract would hand a consumer the whole entry for a field
+    that describes one header item, so each header field names only the
+    FileSet. The optional resolution and formula follow the same shape."""
+    small = macro_meta(
+        "glycine.cif",
+        kind="small molecule",
+        format="CIF",
+        formula="C2 H5 N O2",
+    )
+
+    _, record_sets = handler.build_croissant(
+        [macro_meta("1abc.pdb"), small], ["file_0", "file_1"]
+    )
+
+    (structures,) = [rs for rs in record_sets if rs.id == "structures"]
+    sources = {f.id: f.source.to_json() for f in structures.fields}
+    assert sources == {
+        f"structures/{name}": {"fileSet": {"@id": "structure-files"}}
+        for name in STRUCTURE_HEADER_FIELDS
+    }
 
 
 def test_a_batch_with_no_resolution_drops_the_field(

@@ -236,9 +236,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -251,9 +248,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -266,9 +260,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -281,9 +272,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -296,9 +284,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -311,9 +296,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -326,9 +308,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -341,9 +320,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -356,9 +332,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -371,9 +344,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -386,9 +356,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -401,9 +368,6 @@
           "source": {
             "fileSet": {
               "@id": "structure-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         }
@@ -624,9 +588,6 @@
           "source": {
             "fileSet": {
               "@id": "mrc-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -639,9 +600,6 @@
           "source": {
             "fileSet": {
               "@id": "mrc-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -654,9 +612,6 @@
           "source": {
             "fileSet": {
               "@id": "mrc-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -669,9 +624,6 @@
           "source": {
             "fileSet": {
               "@id": "mrc-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -684,9 +636,6 @@
           "source": {
             "fileSet": {
               "@id": "mrc-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -699,9 +648,6 @@
           "source": {
             "fileSet": {
               "@id": "mrc-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -714,9 +660,6 @@
           "source": {
             "fileSet": {
               "@id": "mrc-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -729,9 +672,6 @@
           "source": {
             "fileSet": {
               "@id": "mrc-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         }

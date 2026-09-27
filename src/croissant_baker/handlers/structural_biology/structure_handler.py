@@ -209,12 +209,12 @@ class StructureHandler(FileTypeHandler):
     deposition log, is described as the tables it declares instead, the way a
     STAR file is.
 
-    The per-file fields read ``fileProperty: content`` over the FileSet, the
-    way the NIfTI and DICOM fields do, because that is what the record set is:
-    one record per file, not one per atom. Reading that content selects no
-    header attribute, and mlcroissant dispatches its reader on
-    ``encodingFormat`` over a fixed list none of these formats is on, so the
-    fields describe the batch rather than promise a read.
+    The record set holds one record per structure file. Each field names the
+    header item it describes and has a FileSet source with no extract, the
+    shape the OME-TIFF fields use: a content extract would select the whole
+    entry, and nothing in it names a header item. Reading a value takes a
+    structure reader such as ``gemmi``, so the fields describe the batch and
+    promise no read.
     """
 
     EXTENSIONS = (".pdb", ".ent", ".cif", ".mmcif")
@@ -460,10 +460,7 @@ def _fields(summary: dict) -> list:
             name=name,
             description=description,
             data_types=[data_type],
-            source=mlc.Source(
-                file_set=FILE_SET_ID,
-                extract=mlc.Extract(file_property="content"),
-            ),
+            source=mlc.Source(file_set=FILE_SET_ID),
         )
         for name, data_type, description in _FIELDS
         if _CONDITIONAL.get(name, lambda _: True)(summary)

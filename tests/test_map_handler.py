@@ -5,7 +5,6 @@ from __future__ import annotations
 import struct
 from pathlib import Path
 
-import mlcroissant as mlc
 import pytest
 
 from croissant_baker.handlers.registry import select_handler
@@ -503,8 +502,41 @@ def test_every_field_reads_the_file_set(handler: MRCHandler) -> None:
 
     for field in record_sets[0].fields:
         assert field.source.file_set == "mrc-files"
-        assert field.source.extract.file_property is mlc.FileProperty.content
         assert field.id.startswith("mrc_maps/")
+
+
+#: Every header field the MRC record set can declare. n_images appears only
+#: when the batch holds a stack.
+MRC_HEADER_FIELDS = (
+    "dim_x",
+    "dim_y",
+    "dim_z",
+    "data_dtype",
+    "voxel_size",
+    "space_group",
+    "kind",
+    "n_images",
+)
+
+
+def test_header_fields_name_the_file_set_without_an_extract(
+    handler: MRCHandler,
+) -> None:
+    """A content extract would hand a consumer the whole map for a field that
+    describes one header word, so each header field names only the FileSet.
+    The optional image count follows the same shape."""
+    metas = [
+        mrc_meta("map.mrc"),
+        mrc_meta("stack.mrcs", kind="image stack", space_group=0, n_images=40),
+    ]
+
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    sources = {f.id: f.source.to_json() for f in record_sets[0].fields}
+    assert sources == {
+        f"mrc_maps/{name}": {"fileSet": {"@id": "mrc-files"}}
+        for name in MRC_HEADER_FIELDS
+    }
 
 
 def test_the_field_types_follow_the_property_they_carry(handler: MRCHandler) -> None:
