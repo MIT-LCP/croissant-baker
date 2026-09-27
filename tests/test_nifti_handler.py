@@ -12,6 +12,8 @@ from croissant_baker.handlers.nifti_handler import (
 )
 from croissant_baker.sources import make_source
 
+from tests.helpers import bake_validated, record_sets
+
 
 def _make_nifti(
     path: Path, shape=(64, 64, 30), zooms=(1.0, 1.0, 3.0), dtype=np.int16
@@ -238,3 +240,69 @@ def test_build_croissant_4d_includes_tr(handler: NIfTIHandler) -> None:
     _, record_sets = handler.build_croissant(metas, ["file_0"])
     field_names = {f.name for f in record_sets[0].fields}
     assert "tr_seconds" in field_names
+
+
+#: Every header field the NIfTI record set can declare: Croissant type and the
+#: header slot its description names. tr_seconds appears only for 4D batches.
+NIFTI_HEADER_FIELDS = {
+    "nifti/dim_x": ("sc:Integer", "NIfTI dim[1]"),
+    "nifti/dim_y": ("sc:Integer", "NIfTI dim[2]"),
+    "nifti/dim_z": ("sc:Integer", "NIfTI dim[3]"),
+    "nifti/voxel_spacing": ("sc:Text", "NIfTI pixdim[1:4]"),
+    "nifti/data_dtype": ("sc:Text", "NIfTI datatype"),
+    "nifti/nifti_version": ("sc:Integer", "Inferred from sizeof_hdr"),
+    "nifti/tr_seconds": ("sc:Float", "NIfTI pixdim[4]"),
+}
+
+
+@pytest.mark.parametrize(
+    "metas",
+    [
+        [_nifti_meta("T1.nii.gz")],
+        [_nifti_meta("T1.nii.gz"), _nifti_meta("bold.nii.gz", ndim=4, dim_t=120)],
+    ],
+    ids=["3d", "with_optional_tr"],
+)
+def test_build_croissant_header_fields_name_the_file_set_without_an_extract(
+    handler: NIfTIHandler, metas: list
+) -> None:
+    """A content extract would hand a consumer the whole volume for a field
+    that describes one header slot, so each header field names only the
+    FileSet. The optional TR field follows the same shape."""
+    _, record_sets_ = handler.build_croissant(
+        metas, [f"file_{i}" for i in range(len(metas))]
+    )
+
+    sources = {f.id: f.source.to_json() for f in record_sets_[0].fields}
+
+    expected_ids = set(NIFTI_HEADER_FIELDS)
+    if len(metas) == 1:
+        expected_ids.discard("nifti/tr_seconds")
+    assert sources == {
+        field_id: {"fileSet": {"@id": "nifti-files"}} for field_id in expected_ids
+    }
+
+
+def test_compressed_nifti_header_fields_keep_their_schema_without_an_extract(
+    tmp_path: Path,
+) -> None:
+    """A gzipped 4D volume beside a plain 3D one: every header field, the
+    optional TR included, keeps its type and description, and the manifest
+    validates without a content extract."""
+    # Both float32: dtype counts follow discovery order.
+    _make_nifti(tmp_path / "T1.nii", dtype=np.float32)
+    _make_nifti_4d(tmp_path / "bold.nii.gz", shape=(8, 8, 4, 5))
+
+    (nifti,) = record_sets(bake_validated(tmp_path))
+    fields = {f["@id"]: f for f in nifti["field"]}
+    assert set(fields) == set(NIFTI_HEADER_FIELDS)
+    for field_id, (data_type, description) in NIFTI_HEADER_FIELDS.items():
+        field = fields[field_id]
+        assert field["source"] == {"fileSet": {"@id": "nifti-files"}}, field_id
+        assert field["dataType"] == data_type, field_id
+        assert field["description"].startswith(description), field_id
+        assert field["name"] == field_id.split("/", 1)[1]
+        assert "isArray" not in field, field_id
+    assert nifti["description"] == (
+        "2 NIfTI files (8-64x8-64x4-30, 5 volumes): float32"
+    )
