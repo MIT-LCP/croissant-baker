@@ -878,6 +878,42 @@ def test_bad_field_mappings_file_is_a_plain_error(
     assert not output.exists()
 
 
+def test_broken_field_mappings_yaml_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A --field-mappings file that does not parse prints a plain Error and exits 1."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text("fields: [\n", encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert "Error: " in result.stderr
+    assert f"{mappings}: invalid YAML at line 2, column 1" in result.stderr
+    assert "Unexpected error" not in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not output.exists()
+
+
+def test_broken_field_mappings_yaml_error_is_one_line(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The parser's multi-line report is cut to one line that keeps the location."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text("fields:\n  age: a: b\n", encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert (
+        f"Error: {mappings}: invalid YAML at line 2, column 9: "
+        "mapping values are not allowed here\n"
+    ) in result.stderr
+    assert 'in "' not in result.stderr
+
+
 def test_usage_info_rejects_free_text(csv_dataset: Path, tmp_path: Path) -> None:
     """Reject strings without a URI scheme; accept any RFC 3986 scheme."""
     output = tmp_path / "output.jsonld"

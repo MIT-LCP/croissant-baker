@@ -255,6 +255,23 @@ def _normalize_optional_text_list(values: Optional[List[str]]) -> Optional[List[
 _FIELD_MAPPING_KEYS = {"equivalent_property", "data_types"}
 
 
+def _describe_yaml_error(path: Path, error: Exception) -> str:
+    """Say in one line where a YAML file failed to parse and why.
+
+    PyYAML's own text runs over several lines and quotes the source back.
+    Keep the problem and its line and column, which is what the author needs.
+    """
+    mark = getattr(error, "problem_mark", None)
+    problem = getattr(error, "problem", None)
+    if mark is not None and problem:
+        return (
+            f"{path}: invalid YAML at line {mark.line + 1}, "
+            f"column {mark.column + 1}: {problem}"
+        )
+    lines = str(error).strip().splitlines()
+    return f"{path}: invalid YAML: {lines[0]}" if lines else f"{path}: invalid YAML"
+
+
 def _load_field_mappings(path: Optional[Path]) -> Optional[dict]:
     """Load a YAML sidecar mapping column names to vocab URI overrides.
 
@@ -275,7 +292,10 @@ def _load_field_mappings(path: Optional[Path]) -> Optional[dict]:
         return None
     import yaml
 
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as e:
+        raise typer.BadParameter(_describe_yaml_error(path, e)) from e
     if not isinstance(raw, dict):
         raise typer.BadParameter(f"{path} must contain a YAML mapping at the top level")
     fields = raw.get("fields")
