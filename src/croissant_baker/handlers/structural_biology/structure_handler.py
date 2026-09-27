@@ -209,12 +209,12 @@ class StructureHandler(FileTypeHandler):
     deposition log, is described as the tables it declares instead, the way a
     STAR file is.
 
-    The record set holds one record per structure file. Each field names the
-    header item it describes and has a FileSet source with no extract, the
-    shape the OME-TIFF fields use: a content extract would select the whole
-    entry, and nothing in it names a header item. Reading a value takes a
-    structure reader such as ``gemmi``, so the fields describe the batch and
-    promise no read.
+    The record set holds one record per structure file. Each field says in its
+    description what it describes, naming the header item where there is one,
+    and has a FileSet source with no extract, the shape the OME-TIFF fields
+    use: a content extract would select the whole entry, and nothing in it
+    names a header item. Reading a value takes a structure reader such as
+    ``gemmi``, so the fields describe the batch and promise no read.
     """
 
     EXTENSIONS = (".pdb", ".ent", ".cif", ".mmcif")

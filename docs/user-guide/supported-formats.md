@@ -492,14 +492,15 @@ way: a `.cif` the handler failed to read is still matched by the include,
 because the generator, not the handler, is what knows a file failed.
 
 **Header fields are descriptive.** The `structures` record set holds one
-record per file. Each field names the header item it describes and has
+record per file. Each field says in its description what it describes, naming
+the header item where there is one, and has
 `source: {fileSet: {"@id": "structure-files"}}` with no `extract`, the shape
 OME-TIFF header fields use. A `fileProperty: content` extract would select the
 whole entry, and nothing in it identifies a header item. Reading a value for
 one file takes a format-aware reader such as `gemmi`, pointed at the item in
-the field's description. No `Field.value` is emitted. `mlcroissant` 1.1.0
-yields no records for this RecordSet, so `records("structures")` returns
-nothing even when the metadata validates.
+the field's description where one is named. No `Field.value` is emitted.
+`mlcroissant` 1.1.0 yields no records for this RecordSet, so
+`records("structures")` returns nothing even when the metadata validates.
 
 ### Failure modes
 
@@ -577,15 +578,12 @@ Like structures, maps share one FileSet and one `mrc_maps` record set over the
 batch, one record per file. Where every map in the batch carries the same first
 header label, the FileSet description names it.
 
-**Header fields are descriptive.** Each `mrc_maps` field names the header word
-it describes and has `source: {fileSet: {"@id": "mrc-files"}}` with no
-`extract`. A `fileProperty: content` extract would select the whole map, and
-nothing in it identifies a header word. Reading a value for one file takes a
-format-aware reader such as `mrcfile`, pointed at the word in the field's
-description. `encodingFormat` is `application/x-mrc`, unregistered, and no
-`Field.value` is emitted. `mlcroissant` 1.1.0 yields no records for this
-RecordSet, so `records("mrc_maps")` returns nothing even when the metadata
-validates.
+**Header fields are descriptive.** The `mrc_maps` fields follow the same shape
+with `source: {fileSet: {"@id": "mrc-files"}}`, naming the header word where
+there is one. Reading a value takes `mrcfile` or another MRC reader.
+`encodingFormat` is `application/x-mrc`, which is unregistered. No
+`Field.value` is emitted, and `records("mrc_maps")` returns nothing in
+`mlcroissant` 1.1.0.
 
 `.mrc`, `.mrcs` and `.ccp4` are claimed on the extension alone, because an
 older CCP4 writer may leave the format signature out and a file this handler

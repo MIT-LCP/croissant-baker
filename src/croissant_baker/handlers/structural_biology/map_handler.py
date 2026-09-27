@@ -166,11 +166,12 @@ class MRCHandler(FileTypeHandler):
     type, voxel size, space group, whether the file is one volume or a stack,
     and the label the writer stamped into it.
 
-    The record set holds one record per map file. Each field names the header
-    word it describes and has a FileSet source with no extract, the shape the
-    OME-TIFF fields use: a content extract would select the whole map, and
-    nothing in it names a header word. Reading a value takes an MRC reader such
-    as ``mrcfile``, so the fields describe the batch and promise no read.
+    The record set holds one record per map file. Each field says in its
+    description what it describes, naming the header word where there is one,
+    and has a FileSet source with no extract, the shape the OME-TIFF fields
+    use: a content extract would select the whole map, and nothing in it names
+    a header word. Reading a value takes an MRC reader such as ``mrcfile``, so
+    the fields describe the batch and promise no read.
     """
 
     EXTENSIONS = (".mrc", ".mrcs", ".map", ".ccp4")

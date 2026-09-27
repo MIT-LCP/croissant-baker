@@ -497,7 +497,7 @@ def test_the_record_set_describes_the_grid(handler: MRCHandler) -> None:
     ]
 
 
-def test_every_field_reads_the_file_set(handler: MRCHandler) -> None:
+def test_every_field_names_the_file_set(handler: MRCHandler) -> None:
     _, record_sets = handler.build_croissant([mrc_meta("one.mrc")], ["file_0"])
 
     for field in record_sets[0].fields:

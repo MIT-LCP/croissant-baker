@@ -551,7 +551,7 @@ def test_the_recordset_fields(handler: StructureHandler) -> None:
     ]
 
 
-def test_every_field_reads_the_fileset(
+def test_every_field_names_the_file_set(
     handler: StructureHandler,
 ) -> None:
     file_sets, record_sets = handler.build_croissant([macro_meta("1abc.pdb")], ["f0"])
