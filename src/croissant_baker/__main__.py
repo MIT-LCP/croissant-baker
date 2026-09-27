@@ -259,15 +259,18 @@ def _describe_yaml_error(path: Path, error: Exception) -> str:
     """Say in one line where a YAML file failed to parse and why.
 
     PyYAML's own text runs over several lines and quotes the source back.
-    Keep the problem and its line and column, which is what the author needs.
+    Keep its context and problem, joined the way PyYAML joins them, and the
+    line and column of the problem (or of the context when the problem has
+    none), which is what the author needs.
     """
-    mark = getattr(error, "problem_mark", None)
-    problem = getattr(error, "problem", None)
-    if mark is not None and problem:
-        return (
-            f"{path}: invalid YAML at line {mark.line + 1}, "
-            f"column {mark.column + 1}: {problem}"
+    mark = getattr(error, "problem_mark", None) or getattr(error, "context_mark", None)
+    parts = (getattr(error, "context", None), getattr(error, "problem", None))
+    text = ", ".join(part for part in parts if part)
+    if mark is not None:
+        where = (
+            f"{path}: invalid YAML at line {mark.line + 1}, column {mark.column + 1}"
         )
+        return f"{where}: {text}" if text else where
     lines = str(error).strip().splitlines()
     return f"{path}: invalid YAML: {lines[0]}" if lines else f"{path}: invalid YAML"
 

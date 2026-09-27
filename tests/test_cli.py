@@ -914,6 +914,28 @@ def test_broken_field_mappings_yaml_error_is_one_line(
     assert 'in "' not in result.stderr
 
 
+def test_field_mappings_with_two_documents_keeps_the_context(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A second YAML document is reported with what the parser expected."""
+    mappings = tmp_path / "mappings.yaml"
+    # The three dash document marker is built here to keep it out of the source.
+    marker = "-" * 3
+    mappings.write_text(
+        f"fields:\n  age: {{}}\n{marker}\nfields: {{}}\n", encoding="utf-8"
+    )
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert (
+        f"Error: {mappings}: invalid YAML at line 3, column 1: "
+        "expected a single document in the stream, but found another document\n"
+    ) in result.stderr
+    assert not output.exists()
+
+
 def test_usage_info_rejects_free_text(csv_dataset: Path, tmp_path: Path) -> None:
     """Reject strings without a URI scheme; accept any RFC 3986 scheme."""
     output = tmp_path / "output.jsonld"
