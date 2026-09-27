@@ -200,6 +200,69 @@ def test_a_three_member_group_points_at_one_primary(dataset: Path) -> None:
     assert len(set(map(str, same_as))) == 1
 
 
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_a_file_set_lists_every_stored_form_in_one_order(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, reverse_discovery: bool
+) -> None:
+    """A listed path covers each form it is stored in, and those forms used to
+    follow rglob order, which differs between filesystems."""
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    for suffix in ("", ".gz", ".xz"):
+        write_wrapped(dataset, "Patient.000.ndjson", FHIR, suffix)
+    write_wrapped(dataset, "Patient.001.ndjson", FHIR)
+
+    (file_set,) = [
+        node for node in bake(dataset)["distribution"] if node["@type"] == "cr:FileSet"
+    ]
+
+    assert file_set["includes"] == [
+        "Patient.000.ndjson",
+        "Patient.000.ndjson.gz",
+        "Patient.000.ndjson.xz",
+        "Patient.001.ndjson",
+    ]
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_a_file_set_lists_the_duplicates_it_carries_in_one_order(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, reverse_discovery: bool
+) -> None:
+    """A duplicate under another name rides with the file it links to, and
+    those riders used to follow rglob order too."""
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    for name in ("Patient.000", "Patient.001"):
+        write_wrapped(dataset, f"{name}.ndjson", FHIR)
+        write_wrapped(dataset, f"{name}.tsv", FHIR)
+
+    (file_set,) = [
+        node for node in bake(dataset)["distribution"] if node["@type"] == "cr:FileSet"
+    ]
+
+    # The listed members sort first, then the duplicates riding with them.
+    assert file_set["includes"] == [
+        "Patient.000.ndjson",
+        "Patient.001.ndjson",
+        "Patient.000.tsv",
+        "Patient.001.tsv",
+    ]
+
+
 def test_a_duplicate_of_a_file_that_failed_to_parse_is_still_described(
     dataset: Path,
 ) -> None:
