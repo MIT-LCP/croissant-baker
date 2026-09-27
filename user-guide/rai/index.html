@@ -560,6 +560,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#what-a-config-is-rejected-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a config is rejected for
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -806,6 +817,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#what-a-config-is-rejected-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a config is rejected for
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1034,7 +1056,61 @@
 </span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MIT Laboratory for Computational Physiology</span>
 </span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">        </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://lcp.mit.edu</span>
 </span></code></pre></div>
+<p><code>collection_types</code> is written out as <code>rai:dataCollectionType</code> on the dataset node, unioned across every activity in declaration order, because RAI 1.0 declares that property on the dataset rather than on an activity. Each value is translated on the way out.</p>
+<table>
+<thead>
+<tr>
+<th>You write</th>
+<th>The output holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>surveys</code></td>
+<td><code>Surveys</code></td>
+</tr>
+<tr>
+<td><code>interviews</code></td>
+<td><code>Interviews</code></td>
+</tr>
+<tr>
+<td><code>observations</code></td>
+<td><code>Passive Data Collection</code></td>
+</tr>
+<tr>
+<td><code>experiments</code></td>
+<td><code>Experiments</code></td>
+</tr>
+<tr>
+<td><code>web_scraping</code></td>
+<td><code>Web Scraping</code></td>
+</tr>
+<tr>
+<td><code>crowdsourcing</code></td>
+<td><code>Crowdsourcing</code></td>
+</tr>
+<tr>
+<td><code>existing_datasets</code></td>
+<td><code>Secondary Data analysis</code></td>
+</tr>
+<tr>
+<td><code>simulations</code></td>
+<td><code>Simulations</code></td>
+</tr>
+<tr>
+<td><code>other</code></td>
+<td><code>Others</code></td>
+</tr>
+</tbody>
+</table>
+<p>Case and spacing do not matter, so <code>SURVEYS</code> is read as <code>surveys</code>. Six of those terms are the ones <a href="https://docs.mlcommons.org/croissant/docs/croissant-rai-spec.html">RAI 1.0</a> recommends. <code>interviews</code>, <code>crowdsourcing</code> and <code>simulations</code> have no recommended term, so the value is written in title case: the property takes plain text and the recommended list is advice, so an honest term is better than a poor fit. Any other text you write is written out as given, so you can write a recommended term straight into the config, or a term of your own.</p>
 <p>A complete working example is at <a href="https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml"><code>tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml</code></a>.</p>
+<h3 id="what-a-config-is-rejected-for">What a config is rejected for</h3>
+<p>Every key is checked against the keys its section accepts, at every level of the file. A key that is not recognised stops the run with an error naming the key by its path in the YAML (for example <code>activities[0].agents[1].nme</code>) and listing the keys that section does accept. Where the key came close to an accepted one, the error names it: <code>started_at</code> is answered with <code>Did you mean 'start_at' for 'started_at'?</code>. A message can list several unknown keys, so every hint names the key it answers.</p>
+<p>Values are checked as well. <code>has_synthetic_data</code> and <code>is_synthetic</code> take a bare <code>true</code> or <code>false</code>. A quoted <code>"false"</code> or <code>"no"</code> stops the run, because a quoted word is text and any text would be read as true. A text field takes text, a number, or a date, so <code>start_at: 2011-01-01</code> is fine. A list or a mapping in a text field stops the run, because it would reach the output as a Python repr such as <code>"['sampling', 'labelling']"</code>.</p>
+<p>An entry the output has nothing to point at stops the run too. A source dataset and a model each need a <code>url</code>. An agent and a platform each need a <code>name</code>. An activity needs an <code>id</code>, which becomes its <code>@id</code>, and a <code>type</code>, which becomes its <code>prov:label</code> and <code>prov:type</code>.</p>
+<p>Together these checks mean a field cannot go missing from the output without a word. The config is read before the dataset is scanned, so the error arrives immediately, and <code>--dry-run</code> checks it too.</p>
+<p>All three checks are new in this release, so a config written against an older one may now stop the run. The template used to spell the social impact key <code>social_impact</code>, which the loader never read; the key is <code>data_social_impact</code>, and a config still carrying the old spelling now fails with that suggestion, where the text used to be dropped. A quoted <code>has_synthetic_data: "false"</code> used to load as true and announce synthetic content the author had just denied. A list under <code>data_biases</code> used to reach the output as the string <code>"['sampling', 'labelling']"</code>. A source dataset or model with no <code>url</code>, and an agent or platform with no <code>name</code>, used to be dropped in silence, filled-in fields and all. An activity with no <code>id</code> or <code>type</code> was written out as a node with an empty <code>@id</code> and a blank <code>prov:label</code> and <code>prov:type</code>. Each of these now stops the run and names the field. Fill the field in, or delete the entry.</p>
 <h2 id="apply-rai-to-an-existing-file">Apply RAI to an existing file</h2>
 <p>You can inject RAI into a <code>.jsonld</code> file that was already generated:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>croissant-baker<span class="w"> </span>rai-apply<span class="w"> </span>dataset-croissant.jsonld<span class="w"> </span><span class="se">\</span>
