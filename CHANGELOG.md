@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.1](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.0...croissant-baker-v0.6.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* refuse unknown RAI config keys and correct the social impact key in the template ([#134](https://github.com/MIT-LCP/croissant-baker/issues/134)) ([8663e02](https://github.com/MIT-LCP/croissant-baker/commit/8663e02c3414e89bb6034b042c78f2eba7a86312))
+
+
+### Build System
+
+* keep the uv.lock version in step with releases ([#147](https://github.com/MIT-LCP/croissant-baker/issues/147)) ([789a008](https://github.com/MIT-LCP/croissant-baker/commit/789a008c3f70b05f29d36d0839bb459a59283b1e))
+
 ## [0.6.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.5.0...croissant-baker-v0.6.0) (2026-09-14)
 
 
