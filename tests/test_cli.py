@@ -936,6 +936,25 @@ def test_field_mappings_with_two_documents_keeps_the_context(
     assert not output.exists()
 
 
+def test_field_mappings_file_not_utf8_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A --field-mappings file with bytes that are not UTF-8 prints one plain line."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_bytes(b"fields:\n  a: \xff\n")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert result.stderr.startswith("Error: ")
+    assert f"{mappings}: invalid UTF-8 at byte offset 13" in result.stderr
+    assert len(result.stderr.strip().splitlines()) == 1
+    assert "Unexpected error" not in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not output.exists()
+
+
 def test_usage_info_rejects_free_text(csv_dataset: Path, tmp_path: Path) -> None:
     """Reject strings without a URI scheme; accept any RFC 3986 scheme."""
     output = tmp_path / "output.jsonld"

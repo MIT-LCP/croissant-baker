@@ -296,7 +296,13 @@ def _load_field_mappings(path: Optional[Path]) -> Optional[dict]:
     import yaml
 
     try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as e:
+        raise typer.BadParameter(
+            f"{path}: invalid UTF-8 at byte offset {e.start}"
+        ) from e
+    try:
+        raw = yaml.safe_load(text) or {}
     except yaml.YAMLError as e:
         raise typer.BadParameter(_describe_yaml_error(path, e)) from e
     if not isinstance(raw, dict):
