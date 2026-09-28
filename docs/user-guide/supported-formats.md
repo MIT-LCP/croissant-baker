@@ -106,6 +106,64 @@ CSV and TSV files are read with PyArrow's streaming reader — memory is constan
 
 Row counts are omitted by default for speed. Pass `--count-csv-rows` to do a full scan for exact counts (slow on large datasets).
 
+## Spreadsheets (`.xlsx`, `.xlsm`, `.xls`)
+
+Workbooks are read with `openpyxl`, and the legacy format with `xlrd`. A workbook is a drawing surface rather than a schema, so the handler reads the one layout that carries almost all real data — a single table per sheet — and refuses, by name, to guess at anything else. A named skip is worth more than a wrong table: nothing downstream can tell a wrong table from a right one.
+
+Each sheet that reads as one table becomes its own `cr:RecordSet`, named for the sheet, with one `cr:Field` per column.
+
+### How the table is found
+
+A sheet is split into regions: runs of populated rows with blank rows between them. Each region is read on its own, at its own width, so a wider table further down cannot take the columns of the one above it. A lone row of labels directly above a region of the same width is that region's header, so a spacer row under a header does not end the table.
+
+The region's own first row is asked first. It is the header when it reaches the last column, with or without gaps along the way — a gap is filled in by the row beneath and named `column_N` for its worksheet column, which is what `DataFrame.to_excel()` leaves with an empty cell over the index. A row that stops short of the width is a title or a contact block instead, and the header is then the first row below it that names every column and reads as labels throughout.
+
+A header must read as authored column names — a strict majority of its cells text that is not a number or a date. A row of numbers, of dates, or of years stored as text is data, and a sheet whose first row is data is skipped rather than described with its own values as column names.
+
+### What is skipped, and why you are told
+
+A sheet is skipped, and the reason recorded against it, when:
+
+- two tables sit side by side, separated by a column that is empty throughout;
+- two tables are stacked, whichever is wider, and wherever the second one starts — more than one table in the inspected rows means which one describes the sheet would be a guess;
+- its first two rows both read as column names and *neither* of them names every column, which is what a merged header over two rows usually looks like to a reader that cannot see merge ranges (see below for the case where the lower row is complete);
+- a row holds more columns than the header above it names, so dropping those values would be a guess;
+- it has a header with nothing under it, such as a sheet holding only a note;
+- no table starts in its first 100 rows, which is as far down a sheet a header is looked for;
+- it will not parse *while its rows are being read* — a cell that is not the number it claims to be costs that sheet and no more. This is narrower than it sounds: a worksheet part that is not XML at all fails while the package is being opened, before any sheet is reached, and takes the whole workbook with it.
+
+These reach you three ways: a count per kind in the run summary, the file and sheet named under `--verbose`, and structured entries under `--report`. The workbook's `cr:FileObject` also carries them in its description, so a manifest read on its own still says which sheets are missing from it. The file itself stays *described*, and no coverage total moves — a sheet is not a file. An empty sheet is passed over in silence, because Excel leaves `Sheet2` and `Sheet3` behind on every new workbook. A workbook where no sheet reads as a table is a reported failure naming each sheet and its reason.
+
+### Counts, types and limits
+
+At most 1,000 worksheet rows are inspected per sheet, plus one row of lookahead. A header is only looked for in the first 100 of them, but the rest are still examined for a second table. A table whose end is seen inside that budget is described with an exact count; one still running at the budget is described as `at least N rows`. This bounds *worksheet traversal* only — hashing, decompression, seeking through a `.gz` wrapper, the shared string table and `xlrd`'s whole-workbook load are outside it and still cost what they cost. Layout diagnosis is bounded by the same window: a second table below row 1,000 is not seen, so it is not reported.
+
+Each column is typed by a majority of its values over the first 500 data rows, except that one fraction widens a column of whole numbers. A column empty throughout that sample types as `sc:Text`.
+
+Some things inside a contiguous table are not distinguished from data, and are counted and typed as data:
+
+- a units row under the header, so `Age` over `(years)` reads as a one-row table of text;
+- a totals or subtotal row at the foot of a table;
+- a footnote on the row directly below the last data row, with no blank row between them — a shape real GEO supplementary tables use, and one extra row in the count.
+
+Give each table its own sheet, put units in the column name, keep totals on a sheet of their own, and leave a blank row above a footnote.
+
+One shape is neither described as data nor skipped: a merged header layer above a row that *does* name every column. The lower row's names are taken and the upper grouping row is discarded — it is not counted as a data row and does not vote on any column's type. Nothing in a worksheet read this way separates that shape from a contact block above a header, which is the same two rows to this reader, so it is described rather than skipped. `BP` spanning `systolic` and `diastolic` therefore yields those two columns and no record of what grouped them. Put the grouping into the column names if it matters.
+
+Hidden and `veryHidden` sheets are described like any other when they read, and their visibility is stated in the record set description — a reader comparing the document against the workbook would otherwise find a table the document does not mention.
+
+Dates are usually stored as numbers in Excel and both readers hand back `datetime` objects, so a date column normally types as `sc:DateTime`. A date written as an ISO string types as `sc:Date`.
+
+### Reading
+
+Fields carry no `extract`. mlcroissant has no reader for either format and Croissant has no way to name a sheet, so a column reference would point at something no consumer can follow. Formula cells are read at their cached value, which is what Excel last wrote — a workbook produced by a script and never opened in Excel carries no cache, so those cells read as empty.
+
+A `.xls` is a different format rather than an older spelling: it stores whole numbers and booleans as doubles, and dates as serial offsets. All three are converted back before typing, so one table describes the same way whichever format it arrives in.
+
+Declared worksheet dimensions are not trusted. A writer that understates them would otherwise cost a row and a column in silence, so the extent is taken from the cells that are actually there.
+
+Files are claimed on their signature, not their name. A `.xls` that is really HTML or TSV is a common lab-system export, and Excel's `~$` lock files carry no leading dot to hide them from discovery. An OLE2 container under a `.xlsx` or `.xlsm` name is claimed and then refused with a reason: that is what a password-protected workbook looks like, and reporting it as an unknown file type says nothing you can act on. A workbook whose optional custom document properties are malformed — as some GEO supplementary tables are — is read without them, and told so; nothing the document carries came from them.
+
 ## FHIR (`.ndjson`, `.json` Bundle)
 
 Two FHIR serialization formats are supported:

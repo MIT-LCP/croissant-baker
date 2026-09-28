@@ -20,8 +20,11 @@ from rich.progress import (
 
 from croissant_baker.metadata_generator import (
     MetadataGenerator,
+    PROFILE_CONFORMS_TO,
     RAI_CONFORMS_TO,
+    normalize_profiles,
     serialize_datetime,
+    url_has_whitespace,
 )
 from croissant_baker import compression
 from croissant_baker.files import discover_files
@@ -148,10 +151,13 @@ def _echo_scan_coverage(
     """Print how much of the dataset was described, and optionally why not.
 
     The default is a fixed-size summary: a header plus at most one line per
-    reason, so a directory with one undescribed file and one with ten thousand
-    print the same shape. This is the only place a file is named one per line,
-    and only under ``--verbose``; the machine-readable form is ``--report``.
-    Diagnostics a parser emits on its own are outside this.
+    reason and one per diagnostic code, so a directory with one undescribed
+    file and one with ten thousand print the same shape. This is the only
+    place a file is named one per line, and only under ``--verbose``; the
+    machine-readable form is ``--report``.
+
+    A diagnostic is not a refusal: it names a part of a file that was not
+    described while the file itself is in the document.
 
     Accepts ``None`` so the failure paths can call it unconditionally.
     """
@@ -165,13 +171,18 @@ def _echo_scan_coverage(
         typer.echo(line)
 
     undescribed = scan_report.undescribed
+    diagnosed = scan_report.diagnosed
     if verbose:
         for entry in undescribed:
             typer.echo(f"  {generator.describe_refusal(entry)}")
+        for entry in diagnosed:
+            for diagnostic in entry.diagnostics:
+                part = f" [{diagnostic.part}]" if diagnostic.part else ""
+                typer.echo(f"  {entry.path}{part}: {diagnostic.detail}")
 
     if report_path:
         _write_scan_report(scan_report, report_path)
-    elif undescribed and not verbose:
+    elif (undescribed or diagnosed) and not verbose:
         typer.echo(
             "Tip: re-run with --verbose, or --report FILE, to see which files "
             "were not described"
@@ -314,20 +325,53 @@ def _merge_field_mapping_flags(
 _URI_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+\-.]*:")
 
 
-def _validate_uri(option_name: str, value: Optional[str]) -> None:
-    """Reject strings that don't start with an RFC 3986 URI scheme.
+def _uri_option(
+    ctx: typer.Context, param: typer.CallbackParam, value: Optional[str]
+) -> Optional[str]:
+    """Strip a URI-valued option, then reject strings with no URI scheme.
 
     Catches free text like 'see license file' but accepts http(s)://, urn:,
     did:, mailto:, and any other valid scheme. schema.org/usageInfo accepts
     URLs broadly, not just web URLs.
+
+    A parse-time callback rather than a check in the command body: Typer runs
+    it before ``--dry-run`` returns early, and a refusal renders as an invalid
+    option instead of being swallowed by the broad handler and reported as an
+    unexpected error. Normalising first means a blank value is absent rather
+    than a URI check nobody asked for.
+
+    Resilient parsing is shell completion and the like working out what the
+    command line means; it must never raise, so the value goes back untouched.
     """
-    if value is None:
-        return
-    if not _URI_SCHEME.match(value):
+    if ctx.resilient_parsing:
+        return value
+    value = _normalize_optional_text(value)
+    if value is not None and not _URI_SCHEME.match(value):
         raise typer.BadParameter(
-            f"{option_name} must be a URI starting with a scheme "
-            f"(e.g. https://, urn:, did:, mailto:), got {value!r}"
+            "must be a URI starting with a scheme "
+            f"(e.g. https://, urn:, did:, mailto:), got {value!r}",
+            ctx=ctx,
+            param=param,
         )
+    return value
+
+
+def _profile_option(
+    ctx: typer.Context, param: typer.CallbackParam, value: Optional[List[str]]
+) -> Optional[List[str]]:
+    """Normalise and check --profile while Typer parses, for the same reasons.
+
+    The rule belongs to the generator, which every caller goes through; this
+    only translates its refusal into the CLI's own error type so the message
+    is worded once. Resilient parsing gets the value back untouched, for the
+    same reason as above.
+    """
+    if ctx.resilient_parsing:
+        return value
+    try:
+        return normalize_profiles(list(value or []))
+    except ValueError as e:
+        raise typer.BadParameter(str(e), ctx=ctx, param=param) from e
 
 
 def _validate_iso_datetimes(option_name: str, values: Optional[List[str]]) -> None:
@@ -546,6 +590,34 @@ def main(
         None,
         "--usage-info",
         help="URI pointing to a usage or consent policy. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'http://purl.obolibrary.org/obo/DUO_0000042' (DUO term).",
+        callback=_uri_option,
+    ),
+    identifier: Optional[List[str]] = typer.Option(
+        None,
+        "--identifier",
+        help="Accession or persistent identifier the dataset is known by (e.g., 'phs000218.v1.p1', 'EGAS00001000255', a DOI). Repeat or comma-delimit.",
+    ),
+    conditions_of_access: Optional[str] = typer.Option(
+        None,
+        "--conditions-of-access",
+        help="How access is obtained, in free text. Example: 'Controlled access: Data Access Agreement via the Data Access Committee'.",
+    ),
+    is_accessible_for_free: Optional[bool] = typer.Option(
+        None,
+        "--is-accessible-for-free/--not-accessible-for-free",
+        help="Whether the data can be had without payment or an access agreement. Omit to leave the field out.",
+    ),
+    included_in_data_catalog: Optional[str] = typer.Option(
+        None,
+        "--included-in-data-catalog",
+        help="URL of a catalog entry listing this dataset. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'https://datacatalog.ccdi.cancer.gov/'.",
+        callback=_uri_option,
+    ),
+    profile: Optional[List[str]] = typer.Option(
+        None,
+        "--profile",
+        help=f"Additional profile to declare in conformsTo. One of: {', '.join(sorted(PROFILE_CONFORMS_TO))}. The bake is refused if the document lacks the profile's minimum fields. Repeat or comma-delimit.",
+        callback=_profile_option,
     ),
     field_mappings: Optional[Path] = typer.Option(
         None,
@@ -755,6 +827,51 @@ def main(
         )
         raise typer.Exit(code=1)
 
+    # The RAI inputs are read before anything looks at the dataset: they are
+    # inputs like any other flag, so a conflict or a typo in the config is
+    # reported now, including under --dry-run, and not after a discarded bake.
+    try:
+        native_rai_fields = _build_native_rai_fields(
+            rai_data_collection=rai_data_collection,
+            rai_data_collection_type=rai_data_collection_type,
+            rai_data_collection_missing_data=rai_data_collection_missing_data,
+            rai_data_collection_raw_data=rai_data_collection_raw_data,
+            rai_data_collection_timeframe=rai_data_collection_timeframe,
+            rai_data_imputation_protocol=rai_data_imputation_protocol,
+            rai_data_preprocessing_protocol=rai_data_preprocessing_protocol,
+            rai_data_manipulation_protocol=rai_data_manipulation_protocol,
+            rai_data_annotation_protocol=rai_data_annotation_protocol,
+            rai_data_annotation_platform=rai_data_annotation_platform,
+            rai_data_annotation_analysis=rai_data_annotation_analysis,
+            rai_annotations_per_item=rai_annotations_per_item,
+            rai_annotator_demographics=rai_annotator_demographics,
+            rai_machine_annotation_tools=rai_machine_annotation_tools,
+            rai_data_biases=rai_data_biases,
+            rai_data_use_cases=rai_data_use_cases,
+            rai_data_limitations=rai_data_limitations,
+            rai_data_social_impact=rai_data_social_impact,
+            rai_personal_sensitive_information=rai_personal_sensitive_information,
+            rai_data_release_maintenance_plan=rai_data_release_maintenance_plan,
+        )
+
+        if rai_config and native_rai_fields:
+            typer.echo(
+                "Error: native --rai-* flags cannot be combined with --rai-config. "
+                "Use direct flags for native mlcroissant RAI fields, or --rai-config "
+                "for the richer YAML-based workflow.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        rai = None
+        if rai_config:
+            from croissant_baker.rai import load_rai_config
+
+            rai = load_rai_config(rai_config)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
     # Listing every file is the point of this mode, so the fixed-size rule
     # governing the default bake summary does not apply here.
     if dry_run:
@@ -799,38 +916,6 @@ def main(
 
     generator: Optional[MetadataGenerator] = None
     try:
-        native_rai_fields = _build_native_rai_fields(
-            rai_data_collection=rai_data_collection,
-            rai_data_collection_type=rai_data_collection_type,
-            rai_data_collection_missing_data=rai_data_collection_missing_data,
-            rai_data_collection_raw_data=rai_data_collection_raw_data,
-            rai_data_collection_timeframe=rai_data_collection_timeframe,
-            rai_data_imputation_protocol=rai_data_imputation_protocol,
-            rai_data_preprocessing_protocol=rai_data_preprocessing_protocol,
-            rai_data_manipulation_protocol=rai_data_manipulation_protocol,
-            rai_data_annotation_protocol=rai_data_annotation_protocol,
-            rai_data_annotation_platform=rai_data_annotation_platform,
-            rai_data_annotation_analysis=rai_data_annotation_analysis,
-            rai_annotations_per_item=rai_annotations_per_item,
-            rai_annotator_demographics=rai_annotator_demographics,
-            rai_machine_annotation_tools=rai_machine_annotation_tools,
-            rai_data_biases=rai_data_biases,
-            rai_data_use_cases=rai_data_use_cases,
-            rai_data_limitations=rai_data_limitations,
-            rai_data_social_impact=rai_data_social_impact,
-            rai_personal_sensitive_information=rai_personal_sensitive_information,
-            rai_data_release_maintenance_plan=rai_data_release_maintenance_plan,
-        )
-
-        if rai_config and native_rai_fields:
-            typer.echo(
-                "Error: native --rai-* flags cannot be combined with --rai-config. "
-                "Use direct flags for native mlcroissant RAI fields, or --rai-config "
-                "for the richer YAML-based workflow.",
-                err=True,
-            )
-            raise typer.Exit(code=1)
-
         # Parse creators following mlcroissant specification
         # Allows flexible Person/Organization objects with optional properties
         parsed_creators = []
@@ -877,7 +962,20 @@ def main(
                     err=True,
                 )
 
-        _validate_uri("--usage-info", usage_info)
+        # The generator logs this too, for callers who configure logging; a
+        # terminal user has none, since the package ships a NullHandler and
+        # nothing here adds one. Said before the bake rather than after it, so
+        # it is still on screen when a declared profile refuses the document
+        # for the missing @id.
+        if url and url_has_whitespace(url):
+            typer.echo(
+                f"Warning: --url {url!r} contains whitespace, so no @id was "
+                "emitted for the dataset.\n"
+                "  Percent-encode the whitespace (a space becomes %20) to give "
+                "the document an identifier.",
+                err=True,
+            )
+
         merged_field_mappings = _merge_field_mapping_flags(
             _load_field_mappings(field_mappings), field_mapping
         )
@@ -904,6 +1002,11 @@ def main(
             is_live_dataset=is_live_dataset or None,
             temporal_coverage=temporal_coverage,
             usage_info=usage_info,
+            identifier=_split_csv_list(identifier),
+            conditions_of_access=_normalize_optional_text(conditions_of_access),
+            is_accessible_for_free=is_accessible_for_free,
+            included_in_data_catalog=included_in_data_catalog,
+            profiles=profile,
             field_mappings=merged_field_mappings,
             count_csv_rows=count_csv_rows,
             max_workers=jobs or None,
@@ -944,10 +1047,9 @@ def main(
             )
 
         # Inject RAI attributes when a config file is provided
-        if rai_config:
-            from croissant_baker.rai import inject_rai, load_rai_config
+        if rai is not None:
+            from croissant_baker.rai import inject_rai
 
-            rai = load_rai_config(rai_config)
             metadata_dict = inject_rai(metadata_dict, rai)
 
         _ensure_rai_conforms_to(
@@ -996,6 +1098,9 @@ def main(
             date_published=date_published,
         )
 
+    except typer.Exit:
+        # Already reported by whoever raised it; do not relabel it below.
+        raise
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         # A bake that described nothing is when coverage matters most.

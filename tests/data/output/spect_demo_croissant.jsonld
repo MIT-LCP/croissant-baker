@@ -47,6 +47,7 @@
     "transform": "cr:transform"
   },
   "@type": "sc:Dataset",
+  "@id": "https://physionet.org/content/myocardial-perfusion-spect/1.0.0/",
   "name": "Myocardial Perfusion SPECT (demo subset)",
   "description": "Mixed DICOM + NIfTI subset of the PhysioNet open-access SPECT database",
   "conformsTo": "http://mlcommons.org/croissant/1.1",

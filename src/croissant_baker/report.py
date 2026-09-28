@@ -11,9 +11,26 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from croissant_baker.entries import REASON_LABELS, Outcome, Reason, ScanEntry
+from croissant_baker.entries import (
+    DIAGNOSTIC_LABELS,
+    REASON_LABELS,
+    Diagnostic,
+    DiagnosticCode,
+    Outcome,
+    Reason,
+    ScanEntry,
+)
 
 _IN_DOCUMENT = frozenset({Outcome.DESCRIBED, Outcome.LINKED, Outcome.REFERENCED})
+
+
+def _diagnostic_dict(diagnostic: Diagnostic) -> dict:
+    """One diagnostic as JSON, without the ``part`` key when it has no part."""
+    return {
+        "code": diagnostic.code.value,
+        "detail": diagnostic.detail,
+        **({"part": diagnostic.part} if diagnostic.part else {}),
+    }
 
 
 @dataclass(frozen=True)
@@ -21,7 +38,8 @@ class ScanReport:
     """A view over resolved scan entries: what was described, and what was not.
 
     :meth:`summary_lines` is for the terminal, and its length depends on how
-    many *kinds* of problem occurred, never on how many files did.
+    many *kinds* of problem occurred, never on how many files did. A
+    diagnostic is counted there the same way: one line per code.
     :meth:`to_dict` carries the per-file detail, for ``--report`` and for
     downstream tools checking coverage.
     """
@@ -59,6 +77,19 @@ class ScanReport:
         """
         return [e for e in self.entries if e.outcome not in _IN_DOCUMENT]
 
+    @property
+    def diagnosed(self) -> List[ScanEntry]:
+        """Entries carrying a diagnostic, in scan order, whatever the outcome."""
+        return [e for e in self.entries if e.diagnostics]
+
+    def diagnostic_counts(self) -> Dict[DiagnosticCode, int]:
+        """Number of diagnostics per code, in declaration order.
+
+        Per diagnostic, not per file: one workbook can leave four sheets out.
+        """
+        tally = Counter(d.code for e in self.entries for d in e.diagnostics)
+        return {c: tally[c] for c in DiagnosticCode if tally[c]}
+
     def counts(self) -> Dict[Reason, int]:
         """Number of entries per reason, in declaration order.
 
@@ -93,6 +124,10 @@ class ScanReport:
             f"  {REASON_LABELS[reason]}: {count}"
             for reason, count in self.counts().items()
         )
+        lines.extend(
+            f"  {DIAGNOSTIC_LABELS[code]}: {count}"
+            for code, count in self.diagnostic_counts().items()
+        )
         return lines
 
     def to_dict(self) -> dict:
@@ -102,6 +137,9 @@ class ScanReport:
         the sentence for a human. ``described``, ``linked`` and ``referenced``
         are the three ways into the document and sum with ``undescribed`` to
         ``total``; ``by_reason`` accounts for the ``undescribed`` alone.
+
+        ``by_diagnostic`` is orthogonal to all of them, and a file's
+        ``diagnostics`` key appears only when it has one.
         """
         return {
             "total": self.total,
@@ -110,6 +148,7 @@ class ScanReport:
             "referenced": len(self.referenced),
             "undescribed": len(self.undescribed),
             "by_reason": {r.value: n for r, n in self.counts().items()},
+            "by_diagnostic": {c.value: n for c, n in self.diagnostic_counts().items()},
             "files": [
                 {
                     "path": str(e.path),
@@ -122,6 +161,11 @@ class ScanReport:
                         else {}
                     ),
                     **({"part_of": str(e.part_of.path)} if e.part_of else {}),
+                    **(
+                        {"diagnostics": [_diagnostic_dict(d) for d in e.diagnostics]}
+                        if e.diagnostics
+                        else {}
+                    ),
                 }
                 for e in self.entries
             ],

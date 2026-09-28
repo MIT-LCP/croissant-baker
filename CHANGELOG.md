@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.1](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.0...croissant-baker-v0.6.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* refuse unknown RAI config keys and correct the social impact key in the template ([#134](https://github.com/MIT-LCP/croissant-baker/issues/134)) ([8663e02](https://github.com/MIT-LCP/croissant-baker/commit/8663e02c3414e89bb6034b042c78f2eba7a86312))
+
+
+### Build System
+
+* keep the uv.lock version in step with releases ([#147](https://github.com/MIT-LCP/croissant-baker/issues/147)) ([789a008](https://github.com/MIT-LCP/croissant-baker/commit/789a008c3f70b05f29d36d0839bb459a59283b1e))
+
+## [0.6.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.5.0...croissant-baker-v0.6.0) (2026-09-14)
+
+
+### Features
+
+* add discovery and access fields with a Bioschemas profile ([#128](https://github.com/MIT-LCP/croissant-baker/issues/128)) ([be54d87](https://github.com/MIT-LCP/croissant-baker/commit/be54d87dbe0f71a6cf321b1e3d72997a3c75df0d))
+* spreadsheet handler for .xlsx, .xlsm and .xls (depends on [#117](https://github.com/MIT-LCP/croissant-baker/issues/117)) ([#121](https://github.com/MIT-LCP/croissant-baker/issues/121)) ([7709d24](https://github.com/MIT-LCP/croissant-baker/commit/7709d241e0f6fb48b631582e622fa351472d88d3))
+
 ## [0.5.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.4.0...croissant-baker-v0.5.0) (2026-09-10)
 
 

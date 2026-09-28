@@ -4,6 +4,7 @@
 |--------|-----------|-------------|-----------------|
 | CSV | `.csv` | `.gz`, `.bz2`, `.xz` | Column names, inferred types, optional row count |
 | TSV | `.tsv` | `.gz`, `.bz2`, `.xz` | Column names, inferred types, optional row count |
+| Spreadsheet | `.xls`, `.xlsm`, `.xlsx` | `.gz`, `.bz2`, `.xz` | Per sheet: column names, inferred types, row count |
 | FHIR | `.ndjson`, `.json` | `.gz`, `.bz2`, `.xz` | Resource types, field names and types per resource |
 | JSON / JSONL | `.json`, `.jsonl` | `.gz`, `.bz2`, `.xz` | Schema inferred from a sample of records |
 | WFDB | `.hea` | — | Signal names, sampling frequency, duration, number of signals |

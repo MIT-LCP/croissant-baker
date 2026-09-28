@@ -14,13 +14,25 @@ import inspect
 import mlcroissant as mlc
 
 
-# Fields the Croissant 1.1 spec defines that mlcroissant 1.1.0 does NOT expose
-# as Python parameters. Each is post-hoc-injected by MetadataGenerator.
+# Fields MetadataGenerator post-hoc-injects because mlcroissant 1.1.0 exposes
+# no Python parameter for them. Two kinds sit in one set: fields the Croissant
+# 1.1 spec itself defines (``alternate_name``, ``is_live_dataset``,
+# ``temporal_coverage``, ``usage_info``) and plain schema.org properties the
+# document reaches through the @vocab in its @context (``identifier``,
+# ``conditions_of_access``, ``is_accessible_for_free``,
+# ``included_in_data_catalog``). One set rather than two because the action
+# when the assertion fires is the same for both: switch that field to the
+# native parameter and delete its inject. The kinds differ only in how likely
+# mlcroissant is to close the gap.
 _METADATA_GAPS_AS_OF_MLC_1_1_0 = {
     "alternate_name",
     "is_live_dataset",
     "temporal_coverage",
     "usage_info",
+    "identifier",
+    "conditions_of_access",
+    "is_accessible_for_free",
+    "included_in_data_catalog",
 }
 
 
@@ -70,6 +82,29 @@ def test_sd_version_native_param_still_emits_prefixed_key() -> None:
         "Drop the post-hoc inject in MetadataGenerator.generate_metadata."
     )
     assert "cr:sdVersion" in out
+
+
+def test_metadata_id_param_still_emits_no_top_level_id() -> None:
+    """``id`` is a native Metadata param, but ``to_json()`` writes no ``@id``
+    for the Dataset itself, so the document has no subject to name it by.
+    Profiles that require one (Bioschemas Dataset lists @id among its minimum
+    fields) need the key, so we post-hoc inject the dataset URL. When
+    mlcroissant starts emitting it, this test fails: drop the inject in
+    MetadataGenerator.generate_metadata.
+    """
+    md = mlc.Metadata(
+        id="https://example.com/dataset",
+        name="t",
+        description="d",
+        url="https://example.com/dataset",
+        license="mit",
+        conforms_to="http://mlcommons.org/croissant/1.1",
+    )
+    out = md.to_json()
+    assert "@id" not in out, (
+        "mlcroissant now emits a top-level @id. "
+        "Drop the post-hoc inject in MetadataGenerator.generate_metadata."
+    )
 
 
 def test_rai_conforms_to_not_auto_appended_when_rai_fields_set() -> None:

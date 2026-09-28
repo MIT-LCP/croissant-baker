@@ -1608,3 +1608,79 @@ def test_hdf5_demo_generation(
     assert _discovery_independent(
         json.loads(output_file.read_text())
     ) == _discovery_independent(json.loads(golden.read_text()))
+
+
+# ---------------------------------------------------------------------------
+# Spreadsheets
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def spreadsheets_path() -> Path:
+    """Two committed workbooks; see the directory's README.
+
+    A hard failure rather than a skip, for the reason the GEO fixtures give:
+    committed files can only go missing by accident.
+    """
+    dataset_path = Path(__file__).parent / "data" / "input" / "spreadsheets"
+    assert dataset_path.is_dir(), f"tracked workbook fixtures missing at {dataset_path}"
+    return dataset_path
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_spreadsheets_bake_to_the_committed_document(
+    spreadsheets_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
+    """A golden that is read rather than overwritten: baked to a temporary path
+    and compared against the committed answer.
+
+    The fixture's sheets are one of each outcome the handler distinguishes — a
+    table under a preamble, a table at A1, two tables side by side, and an
+    empty sheet — so the answer pins which of them reach the document, which do
+    not, and what the ones that do not leave behind in the manifest. Validation
+    is left on, which is where mlcroissant gets a say. The fixture README
+    carries the command that regenerates the workbooks.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output_file = tmp_path / "spreadsheets_croissant.jsonld"
+    golden = Path(__file__).parent / "data" / "output" / "spreadsheets_croissant.jsonld"
+    assert golden.is_file(), f"tracked workbook golden missing at {golden}"
+
+    result = runner.invoke(
+        app,
+        [
+            "-i",
+            str(spreadsheets_path),
+            "-o",
+            str(output_file),
+            "--name",
+            "Spreadsheet fixtures",
+            "--description",
+            "Two workbooks covering every sheet shape the handler distinguishes",
+            "--license",
+            "https://creativecommons.org/licenses/by/4.0/",
+            "--creator",
+            "Croissant Baker tests",
+            "--date-published",
+            "2026-09-06",
+        ],
+    )
+
+    assert result.exit_code == 0, f"CLI failed:\n{result.output}"
+    document = json.loads(output_file.read_text())
+    assert sorted(record_set["name"] for record_set in document["recordSet"]) == [
+        "manifest",
+        "platforms",
+        "samples",
+    ]
+    assert _discovery_independent(document) == _discovery_independent(
+        json.loads(golden.read_text())
+    )
