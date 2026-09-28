@@ -251,11 +251,10 @@ def test_files_without_a_modality_are_counted_last() -> None:
         {"dicom_properties": {"modality": "CT"}},
     ]
 
-    assert list(collect_dicom_summary(metas)["modality_counts"]) == [
-        "CT",
-        "xa",
-        None,
-    ]
+    summary = collect_dicom_summary(metas)
+
+    assert list(summary["modality_counts"]) == ["CT", "xa", None]
+    assert sum(summary["modality_counts"].values()) == summary["num_files"]
 
 
 @pytest.mark.parametrize("reverse", [False, True])
@@ -274,12 +273,30 @@ def test_a_modality_spelled_unknown_is_kept_apart_from_missing_ones(
     if reverse:
         metas, ids = metas[::-1], ids[::-1]
 
-    counts = collect_dicom_summary(metas)["modality_counts"]
+    summary = collect_dicom_summary(metas)
+    counts = summary["modality_counts"]
     built = handler.build_croissant(metas, ids)
 
     assert list(counts.items()) == [("CT", 1), ("unknown", 1), (None, 1)]
+    assert sum(counts.values()) == summary["num_files"]
     assert built.file_sets[0].description == (
-        "3 DICOM file(s) (CT (1), unknown (1), unknown (1))"
+        "3 DICOM file(s) (CT (1), unknown (1), no modality (1))"
+    )
+
+
+def test_missing_modalities_are_labelled_apart_from_an_uppercase_unknown(
+    handler: DICOMHandler,
+) -> None:
+    """An uppercase "UNKNOWN" is valid CS, so both labels would read the same."""
+    metas = [
+        _dicom_meta("a.dcm", modality="UNKNOWN"),
+        {"file_name": "b.dcm", "dicom_properties": {"rows": 512, "columns": 512}},
+    ]
+
+    built = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    assert built.file_sets[0].description == (
+        "2 DICOM file(s) (UNKNOWN (1), no modality (1))"
     )
 
 

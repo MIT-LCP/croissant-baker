@@ -170,9 +170,14 @@ class DICOMHandler(FileTypeHandler):
 
         num_files = summary.get("num_files", len(file_metas))
         modality_counts = summary.get("modality_counts", {})
+        # A file may itself say "unknown"; then name the missing ones apart.
+        clash = any(
+            isinstance(m, str) and m.lower() == "unknown" for m in modality_counts
+        )
+        missing = "no modality" if clash else "unknown"
         modalities_str = (
             ", ".join(
-                f"{'unknown' if m is None else m} ({c})"
+                f"{missing if m is None else m} ({c})"
                 for m, c in modality_counts.items()
             )
             if modality_counts
@@ -322,15 +327,14 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
         else:
             # Tag (0008,0060) is type 1 in many SOP classes but optional in
             # others; PhysioNet test files include real DICOMs with no
-            # modality. Surface them as "unknown" so the per-modality counts
-            # add up to num_files.
+            # modality. Count them apart (under None below) so the
+            # per-modality counts add up to num_files.
             unknown_modality += 1
     # Sorted by modality, as image formats are: insertion order is rglob
     # order, which differs between filesystems. Files with none come last.
     modalities = dict(sorted(modalities.items()))
     # Missing ones go under None, which no read value can equal, so a
-    # file whose Modality reads "unknown" keeps its own count. Rendered
-    # as "unknown", as before.
+    # file whose Modality reads "unknown" keeps its own count.
     if unknown_modality:
         modalities[None] = unknown_modality
 
