@@ -254,8 +254,33 @@ def test_files_without_a_modality_are_counted_last() -> None:
     assert list(collect_dicom_summary(metas)["modality_counts"]) == [
         "CT",
         "xa",
-        "unknown",
+        None,
     ]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_a_modality_spelled_unknown_is_kept_apart_from_missing_ones(
+    handler: DICOMHandler, reverse: bool
+) -> None:
+    """Lowercase "unknown" is not a valid CS value, but the handler reads
+    what is there. Its count must not replace the count of files with no
+    Modality, and together they must add up to num_files."""
+    metas = [
+        _dicom_meta("a.dcm", modality="unknown"),
+        {"file_name": "b.dcm", "dicom_properties": {"rows": 512, "columns": 512}},
+        _dicom_meta("c.dcm", modality="CT"),
+    ]
+    ids = ["file_0", "file_1", "file_2"]
+    if reverse:
+        metas, ids = metas[::-1], ids[::-1]
+
+    counts = collect_dicom_summary(metas)["modality_counts"]
+    built = handler.build_croissant(metas, ids)
+
+    assert list(counts.items()) == [("CT", 1), ("unknown", 1), (None, 1)]
+    assert built.file_sets[0].description == (
+        "3 DICOM file(s) (CT (1), unknown (1), unknown (1))"
+    )
 
 
 @pytest.mark.parametrize("reverse_discovery", [False, True])

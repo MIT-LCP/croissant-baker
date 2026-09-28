@@ -171,7 +171,10 @@ class DICOMHandler(FileTypeHandler):
         num_files = summary.get("num_files", len(file_metas))
         modality_counts = summary.get("modality_counts", {})
         modalities_str = (
-            ", ".join(f"{m} ({c})" for m, c in modality_counts.items())
+            ", ".join(
+                f"{'unknown' if m is None else m} ({c})"
+                for m, c in modality_counts.items()
+            )
             if modality_counts
             else "unknown modality"
         )
@@ -297,7 +300,7 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     rows_list: List[int] = []
     cols_list: List[int] = []
     frames_list: List[int] = []
-    modalities: Dict[str, int] = {}
+    modalities: Dict[Optional[str], int] = {}
     bits_set: set = set()
     unknown_modality = 0
 
@@ -325,8 +328,11 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     # Sorted by modality, as image formats are: insertion order is rglob
     # order, which differs between filesystems. Files with none come last.
     modalities = dict(sorted(modalities.items()))
+    # Missing ones go under None, which no read value can equal, so a
+    # file whose Modality reads "unknown" keeps its own count. Rendered
+    # as "unknown", as before.
     if unknown_modality:
-        modalities["unknown"] = unknown_modality
+        modalities[None] = unknown_modality
 
     summary: Dict = {"num_files": len(dicom_metadata_list)}
 
