@@ -378,10 +378,9 @@ class VCFHandler(FileTypeHandler):
     def _read_header(self, source: FileSource) -> _Header:
         """Every line up to the first that is not a header line.
 
-        Taken a chunk at a time rather than a line at a time: a stream iterated
-        by line hands back the whole file as one line when the file holds no
-        line ending, and reading the whole file is the one thing this handler
-        exists not to do.
+        Taken a chunk at a time, because a stream iterated by line hands back
+        the whole file as one line when the file holds no line ending, and
+        reading the whole file is the one thing this handler exists to avoid.
 
         Decoded permissively: a header is ASCII by specification, and a stray
         byte in a description is not a reason to refuse a file whose structure
