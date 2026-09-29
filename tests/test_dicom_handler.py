@@ -235,16 +235,17 @@ def test_the_modality_breakdown_does_not_follow_discovery_order(
 
     for built in (forward, backward):
         assert built.file_sets[0].description == (
-            "4 DICOM file(s) (CT (2), MR (1), unknown (1))"
+            "4 DICOM file(s) (CT (2), MR (1), no modality (1))"
         )
         assert built.record_sets[0].description == (
-            "4 DICOM files (512x512): CT (2), MR (1), unknown (1)"
+            "4 DICOM files (512x512): CT (2), MR (1), no modality (1)"
         )
 
 
 def test_files_without_a_modality_are_counted_last() -> None:
-    """A writer's own lowercase code sorts after "unknown", which must still
-    close the list whatever the codes spell."""
+    """A writer's own lowercase code sorts after the uppercase ones, and the
+    files with no Modality must still close the list whatever the codes
+    spell."""
     metas = [
         {"dicom_properties": {}},
         {"dicom_properties": {"modality": "xa"}},
@@ -281,22 +282,6 @@ def test_a_modality_spelled_unknown_is_kept_apart_from_missing_ones(
     assert sum(counts.values()) == summary["num_files"]
     assert built.file_sets[0].description == (
         "3 DICOM file(s) (CT (1), unknown (1), no modality (1))"
-    )
-
-
-def test_missing_modalities_are_labelled_apart_from_an_uppercase_unknown(
-    handler: DICOMHandler,
-) -> None:
-    """An uppercase "UNKNOWN" is valid CS, so both labels would read the same."""
-    metas = [
-        _dicom_meta("a.dcm", modality="UNKNOWN"),
-        {"file_name": "b.dcm", "dicom_properties": {"rows": 512, "columns": 512}},
-    ]
-
-    built = handler.build_croissant(metas, ["file_0", "file_1"])
-
-    assert built.file_sets[0].description == (
-        "2 DICOM file(s) (UNKNOWN (1), no modality (1))"
     )
 
 

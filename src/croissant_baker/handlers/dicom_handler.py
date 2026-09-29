@@ -170,14 +170,11 @@ class DICOMHandler(FileTypeHandler):
 
         num_files = summary.get("num_files", len(file_metas))
         modality_counts = summary.get("modality_counts", {})
-        # A file may itself say "unknown"; then name the missing ones apart.
-        clash = any(
-            isinstance(m, str) and m.lower() == "unknown" for m in modality_counts
-        )
-        missing = "no modality" if clash else "unknown"
+        # Files with no Modality are counted under None. One fixed label, so
+        # it reads the same whatever the other files say.
         modalities_str = (
             ", ".join(
-                f"{missing if m is None else m} ({c})"
+                f"{'no modality' if m is None else m} ({c})"
                 for m, c in modality_counts.items()
             )
             if modality_counts
