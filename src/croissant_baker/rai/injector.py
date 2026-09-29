@@ -6,6 +6,13 @@ from croissant_baker.rai.schema import Activity, RAIConfig
 
 _PROV_NS = "http://www.w3.org/ns/prov#"
 
+# Terms croissant-baker writes that RAI 1.0 does not define: hasSyntheticData,
+# usedBy and usedPlatform. They get a prefix of their own so that rai: carries
+# only the terms in https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl
+# and the RAI 1.0 conformsTo claim is not read as covering them.
+_CB_PREFIX = "cb"
+_CB_NS = "https://github.com/MIT-LCP/croissant-baker#"
+
 _ACTIVITY_LABELS = {
     "data_collection": "Data Collection",
     "data_annotation": "Data Annotation",
@@ -46,20 +53,23 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     Inject RAI and PROV-O attributes into a Croissant metadata dict.
 
     Mutates and returns the dict. Fields that are None/empty are skipped.
-    The prov: namespace is added to @context automatically when needed.
+    The prov: and cb: namespaces are added to @context when a term uses them.
 
     Structure:
     - AI Safety and Fairness fields are direct rai: properties on the dataset.
     - Source datasets → prov:wasDerivedFrom.
-    - Models that used this dataset → rai:usedBy.
+    - Whether the data holds synthetic content → cb:hasSyntheticData.
+    - Models that used this dataset → cb:usedBy.
     - Activities → prov:wasGeneratedBy (list of prov:Activity), each with
-      optional prov:wasAssociatedWith (agents) and rai:usedPlatform (platforms).
+      optional prov:wasAssociatedWith (agents) and cb:usedPlatform (platforms).
+    - cb: terms are croissant-baker extensions, not part of RAI 1.0.
     - Collection types → rai:dataCollectionType on the dataset node, unioned
       across the activities and written with the terms RAI 1.0 recommends.
       RAI 1.0 declares the property on sc:Dataset, so it does not go on the
       prov:Activity that carries the types in the config.
     """
     _ensure_prov_context(metadata, config)
+    _ensure_cb_context(metadata, config)
 
     # AI Safety and Fairness
     af = config.ai_fairness
@@ -74,7 +84,7 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     if af.data_social_impact:
         metadata["rai:dataSocialImpact"] = af.data_social_impact
     if af.has_synthetic_data is not None:
-        metadata["rai:hasSyntheticData"] = af.has_synthetic_data
+        metadata["cb:hasSyntheticData"] = af.has_synthetic_data
 
     # rai:dataCollectionType is declared on sc:Dataset, so the types every
     # activity declares are unioned onto the dataset rather than left on it.
@@ -99,7 +109,7 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
 
     # Lineage — models that used this dataset
     if config.lineage.models:
-        metadata["rai:usedBy"] = [
+        metadata["cb:usedBy"] = [
             {
                 k: v
                 for k, v in {
@@ -176,7 +186,7 @@ def _build_activity(act: Activity) -> dict:
             if p.description:
                 plat["prov:description"] = p.description
             platform_nodes.append(plat)
-        node["rai:usedPlatform"] = _one_or_many(platform_nodes)
+        node["cb:usedPlatform"] = _one_or_many(platform_nodes)
 
     return node
 
@@ -189,3 +199,17 @@ def _ensure_prov_context(metadata: dict, config: RAIConfig) -> None:
     ctx = metadata.get("@context")
     if isinstance(ctx, dict) and "prov" not in ctx:
         ctx["prov"] = _PROV_NS
+
+
+def _ensure_cb_context(metadata: dict, config: RAIConfig) -> None:
+    """Add the cb: namespace to @context if any cb: term will be injected."""
+    needs_cb = (
+        config.ai_fairness.has_synthetic_data is not None
+        or bool(config.lineage.models)
+        or any(act.platforms for act in config.activities)
+    )
+    if not needs_cb:
+        return
+    ctx = metadata.get("@context")
+    if isinstance(ctx, dict) and _CB_PREFIX not in ctx:
+        ctx[_CB_PREFIX] = _CB_NS
