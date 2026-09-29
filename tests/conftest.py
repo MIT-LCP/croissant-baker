@@ -37,7 +37,7 @@ def dataset(tmp_path: Path) -> Path:
     return target
 
 
-@pytest.fixture(params=[False, True])
+@pytest.fixture(params=[False, True], ids=["as-walked", "reversed"])
 def reverse_discovery(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 ) -> bool:
