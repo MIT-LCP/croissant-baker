@@ -5,6 +5,7 @@ import logging
 import re
 from pathlib import Path
 
+import mlcroissant as mlc
 import pytest
 from click.testing import Result
 from typer.testing import CliRunner
@@ -613,8 +614,8 @@ activities:
 """.strip()
 
 
-def test_a_bake_with_the_extension_terms_passes_mlcroissant(tmp_path: Path) -> None:
-    """mlcroissant reads the whole document back, the cb: terms included."""
+def _bake_with_extensions(tmp_path: Path) -> Path:
+    """Bake a one-file dataset with every cb: term, validated by mlcroissant."""
     dataset = tmp_path / "dataset"
     dataset.mkdir()
     (dataset / "data.csv").write_text("id,name\n1,Ada\n", encoding="utf-8")
@@ -629,8 +630,35 @@ def test_a_bake_with_the_extension_terms_passes_mlcroissant(tmp_path: Path) -> N
     )
 
     assert result.exit_code == 0, result.output
-    document = json.loads(output.read_text())
+    return output
+
+
+def test_a_bake_with_the_extension_terms_passes_mlcroissant(tmp_path: Path) -> None:
+    """mlcroissant reads the whole document back, the cb: terms included."""
+    document = json.loads(_bake_with_extensions(tmp_path).read_text())
+
     assert {"cb:hasSyntheticData", "cb:usedBy"} <= set(document)
+    assert "cb:usedPlatform" in document["prov:wasGeneratedBy"]
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_the_extension_terms_survive_a_round_trip_through_mlcroissant(
+    tmp_path: Path,
+) -> None:
+    """A tool that loads the file with mlcroissant and writes it out keeps them."""
+    document = mlc.Dataset(_bake_with_extensions(tmp_path)).metadata.to_json()
+
+    assert document["@context"]["cb"] == CB_NAMESPACE
+    assert document["cb:hasSyntheticData"] is True
+    # JSON-LD writes a one-item list as the item, so either shape is the same.
+    assert document["cb:usedBy"] in (
+        {"url": "https://example.org/model", "name": "A model"},
+        [{"url": "https://example.org/model", "name": "A model"}],
+    )
+    assert document["prov:wasGeneratedBy"]["cb:usedPlatform"] == {
+        "name": "A platform",
+        "url": "https://example.org",
+    }
 
 
 _EXTENSIONS_ONLY_YAML = """
