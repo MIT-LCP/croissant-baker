@@ -2,10 +2,11 @@
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 import pydicom
 from pydicom.dataset import Dataset, FileDataset
-from pydicom.uid import generate_uid, ExplicitVRLittleEndian
+from pydicom.uid import generate_uid, ExplicitVRLittleEndian, RLELossless
 
 from croissant_baker.handlers.dicom_handler import (
     DICOMHandler,
@@ -13,7 +14,7 @@ from croissant_baker.handlers.dicom_handler import (
 )
 from croissant_baker.sources import make_source
 
-from tests.helpers import bake
+from tests.helpers import bake, bake_validated, record_sets, write_wrapped
 
 
 def _make_dicom(
@@ -230,3 +231,86 @@ def test_a_bake_says_how_many_dcm_files_lacked_the_preamble(
     assert (
         "skipped 2 DICOM file(s) without the DICM preamble" in capsys.readouterr().out
     )
+
+
+#: Every header field the DICOM record set declares: Croissant type and the
+#: tag its description names. A consumer reads the value with a DICOM reader.
+DICOM_HEADER_FIELDS = {
+    "dicom/modality": ("sc:Text", "DICOM Modality (0008,0060)"),
+    "dicom/rows": ("sc:Integer", "DICOM Rows (0028,0010)"),
+    "dicom/columns": ("sc:Integer", "DICOM Columns (0028,0011)"),
+    "dicom/num_frames": ("sc:Integer", "DICOM NumberOfFrames (0028,0008)"),
+    "dicom/bits_allocated": ("sc:Integer", "DICOM BitsAllocated (0028,0100)"),
+    "dicom/patient_id": ("sc:Text", "DICOM PatientID (0010,0020)"),
+    "dicom/study_instance_uid": ("sc:Text", "DICOM StudyInstanceUID (0020,000D)"),
+    "dicom/series_instance_uid": (
+        "sc:Text",
+        "DICOM SeriesInstanceUID (0020,000E)",
+    ),
+}
+
+
+def _make_rle_dicom(path: Path) -> Path:
+    """Write a DICOM whose pixel data is RLE Lossless encapsulated."""
+    file_meta = Dataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    ds = FileDataset(str(path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
+    ds.Modality = "CT"
+    ds.Rows = 4
+    ds.Columns = 6
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.SOPInstanceUID = generate_uid()
+    ds.compress(RLELossless, np.zeros((4, 6), dtype=np.uint16))
+    ds.save_as(str(path), enforce_file_format=True)
+    return path
+
+
+def test_build_croissant_header_fields_name_the_file_set_without_an_extract(
+    handler: DICOMHandler,
+) -> None:
+    """A content extract would hand a consumer the whole file for a field that
+    describes one tag, so each header field names only the FileSet."""
+    _, record_sets_ = handler.build_croissant([_dicom_meta("a.dcm")], ["file_0"])
+
+    sources = {f.id: f.source.to_json() for f in record_sets_[0].fields}
+
+    assert sources == {
+        field_id: {"fileSet": {"@id": "dicom-files"}}
+        for field_id in DICOM_HEADER_FIELDS
+    }
+
+
+def test_compressed_dicom_header_fields_keep_their_schema_without_an_extract(
+    tmp_path: Path,
+) -> None:
+    """RLE pixel data and a gzip wrapper change nothing about the header
+    fields. The files carry no PatientID or instance UIDs, and those fields
+    are declared all the same."""
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    _make_rle_dicom(dataset / "rle.dcm")
+    plain = _make_dicom(tmp_path / "plain.dcm")
+    write_wrapped(dataset, "wrapped.dcm", plain.read_bytes(), ".gz")
+
+    doc = bake_validated(dataset)
+
+    (dicom,) = record_sets(doc)
+    fields = {f["@id"]: f for f in dicom["field"]}
+    assert set(fields) == set(DICOM_HEADER_FIELDS)
+    for field_id, (data_type, description) in DICOM_HEADER_FIELDS.items():
+        field = fields[field_id]
+        assert field["source"] == {"fileSet": {"@id": "dicom-files"}}, field_id
+        assert field["dataType"] == data_type, field_id
+        assert field["description"].startswith(description), field_id
+        assert field["name"] == field_id.split("/", 1)[1]
+        assert "isArray" not in field, field_id
+    assert dicom["description"] == "2 DICOM files (4-512x6-512): CT (2)"

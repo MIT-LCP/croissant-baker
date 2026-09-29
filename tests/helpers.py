@@ -6,12 +6,14 @@ import base64
 import bz2
 import gzip
 import io
+import json
 import lzma
 import struct
 import zlib
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
+import mlcroissant as mlc
 import numpy as np
 import openpyxl
 import pyarrow as pa
@@ -622,6 +624,25 @@ def bake_with(handlers: Iterable[FileTypeHandler], directory: Path, **kwargs):
     )
 
 
+def bake_validated(directory: Path) -> dict:
+    """Save a validated manifest for ``directory`` and return the document.
+
+    mlcroissant reads the file back and must report no errors or warnings.
+    """
+    output = directory / "croissant.jsonld"
+    MetadataGenerator(
+        str(directory),
+        name="test",
+        description="Validated regression fixture",
+        creators=[{"name": "Tester"}],
+        date_published="2024-01-01",
+    ).save_metadata(str(output), validate=True)
+    issues = mlc.Dataset(str(output)).metadata.ctx.issues
+    assert not issues.errors, issues.errors
+    assert not issues.warnings, issues.warnings
+    return json.loads(output.read_text())
+
+
 runner = CliRunner()
 
 
@@ -711,6 +732,7 @@ __all__ = [
     "VCF_HEADER_TEXT",
     "WRAPPER_SUFFIXES",
     "bake",
+    "bake_validated",
     "bake_with",
     "bake_with_report",
     "bcf_payload",
