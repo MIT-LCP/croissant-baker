@@ -132,7 +132,7 @@ A complete working example is at [`tests/data/input/mimiciv_demo/physionet.org/m
 
 ### Terms that are not part of RAI 1.0
 
-Three fields in the config have no term in the [RAI 1.0 vocabulary](https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl). They are croissant-baker extensions, and the output writes them under a prefix of their own, `cb:`, so that `rai:` only carries RAI 1.0 terms.
+Three fields in the config have no term in the [RAI 1.0 vocabulary](https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl). They are croissant-baker extensions, and the output writes them under a prefix of their own, `cb:`, so that `rai:` only carries RAI 1.0 terms. The one exception comes from `mlcroissant`, which writes two of the native flags with its own spelling: `--rai-data-collection-timeframe` becomes `rai:dataCollectionTimeFrame` and `--rai-data-manipulation-protocol` becomes `rai:dataDataManipulationProtocol`, where RAI 1.0 has `dataCollectionTimeframe` and `dataManipulationProtocol`. Both still count as RAI 1.0 terms for the `conformsTo` claim.
 
 | Config field | Output property |
 |--------------|-----------------|

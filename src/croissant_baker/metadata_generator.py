@@ -55,8 +55,9 @@ _CARRIED_BY_ANOTHER = (Outcome.UNCLAIMED, Outcome.FAILED)
 CROISSANT_CONFORMS_TO = "http://mlcommons.org/croissant/1.1"
 RAI_CONFORMS_TO = "http://mlcommons.org/croissant/RAI/1.0"
 
-# Every term RAI 1.0 defines, as listed in croissant_rai.ttl. Only these belong
-# under rai:, and only these earn the RAI_CONFORMS_TO claim.
+# Every term RAI 1.0 defines, as listed in croissant_rai.ttl. The injector
+# writes only these under rai:. mlcroissant, which writes the native --rai-*
+# flags, spells two of them its own way (see RAI_CONFORMANCE_KEYS below).
 # https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl
 RAI_1_0_TERMS = frozenset(
     f"rai:{term}"
