@@ -125,6 +125,55 @@ def read_prefix_chunks(
         yield data
 
 
+def bounded_lines(
+    stream: BinaryIO,
+    max_line_bytes: int,
+    max_header_bytes: int,
+    name: Union[str, Path],
+    format_name: str,
+) -> Iterator[bytes]:
+    """The lines of a text header, refused once a line or the header runs long.
+
+    Shared by the text formats that state no header length, so the only thing
+    bounding the read is the caller stopping at the first line that is not a
+    header line. Two caps rather than one: a header of a million references is
+    legitimately tens of megabytes, and a single line of that size is not a
+    header line. Both are the caller's, because how long a header line can be
+    differs between formats.
+
+    Lazy, so the read ends where the caller stops asking. The unfinished tail
+    is kept as parts and joined once, when its line ends: joining it on every
+    chunk would copy a long line once per chunk it spans.
+    """
+    pending: List[bytes] = []
+    pending_bytes = 0
+    read = 0
+    for chunk in read_prefix_chunks(stream, max_header_bytes + 1):
+        read += len(chunk)
+        *complete, tail = chunk.split(b"\n")
+        for piece in complete:
+            pending.append(piece)
+            yield b"".join(pending)
+            pending, pending_bytes = [], 0
+        pending.append(tail)
+        pending_bytes += len(tail)
+        if pending_bytes > max_line_bytes:
+            raise ValueError(
+                f"Not a {format_name} file: {name} runs to {pending_bytes} bytes "
+                f"with no line ending, past the {max_line_bytes} a header line can be"
+            )
+        if read > max_header_bytes:
+            raise ValueError(
+                f"Not a {format_name} file: the header of {name} runs past "
+                f"{max_header_bytes} bytes without reaching a line that is not "
+                "a header line"
+            )
+    # End of file inside the header: what is left of it is the last line,
+    # written without an ending.
+    if pending_bytes:
+        yield b"".join(pending)
+
+
 def decompress_prefix(head: bytes, count: int) -> bytes:
     """The first ``count`` bytes inside a compressed prefix.
 

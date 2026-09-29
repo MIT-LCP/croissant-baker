@@ -1,9 +1,15 @@
 """Tests for handler utilities."""
 
+import io
+
+import pytest
+
 from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
+    PREFIX_CHUNK_BYTES,
     _disambiguate_ids,
     allocate_record_set_ids,
+    bounded_lines,
     make_field_id,
     make_record_set_ids,
     normalize_array_shape,
@@ -199,3 +205,56 @@ def test_numeric_identifier_collisions_start_at_two() -> None:
         "data__2",
         "data__3",
     ]
+
+
+#: Caps far above anything the line tests below feed in.
+ROOMY = 1024 * 1024
+
+
+def header_lines(data: bytes, max_line: int = ROOMY, max_header: int = ROOMY):
+    return list(bounded_lines(io.BytesIO(data), max_line, max_header, "f.x", "X"))
+
+
+def test_bounded_lines_splits_on_line_endings() -> None:
+    assert header_lines(b"a\nb\n") == [b"a", b"b"]
+
+
+def test_bounded_lines_keeps_a_last_line_written_without_an_ending() -> None:
+    assert header_lines(b"a\nb") == [b"a", b"b"]
+
+
+def test_bounded_lines_joins_a_line_spanning_many_chunks() -> None:
+    long_line = b"x" * (3 * PREFIX_CHUNK_BYTES)
+
+    assert header_lines(long_line + b"\nend") == [long_line, b"end"]
+
+
+def test_bounded_lines_refuses_a_line_past_the_line_cap() -> None:
+    with pytest.raises(ValueError) as caught:
+        header_lines(b"x" * (2 * PREFIX_CHUNK_BYTES), max_line=PREFIX_CHUNK_BYTES)
+
+    assert str(caught.value) == (
+        f"Not a X file: f.x runs to {2 * PREFIX_CHUNK_BYTES} bytes with no line "
+        f"ending, past the {PREFIX_CHUNK_BYTES} a header line can be"
+    )
+
+
+def test_bounded_lines_refuses_a_header_past_the_header_cap() -> None:
+    cap = 2 * PREFIX_CHUNK_BYTES
+
+    with pytest.raises(ValueError) as caught:
+        header_lines(b"ab\n" * cap, max_header=cap)
+
+    assert str(caught.value) == (
+        f"Not a X file: the header of f.x runs past {cap} bytes without "
+        "reaching a line that is not a header line"
+    )
+
+
+def test_bounded_lines_reads_no_further_than_the_caller_asks() -> None:
+    stream = io.BytesIO(b"first\n" + b"x" * (4 * PREFIX_CHUNK_BYTES))
+
+    lines = bounded_lines(stream, ROOMY, ROOMY, "f.x", "X")
+
+    assert next(lines) == b"first"
+    assert stream.tell() == PREFIX_CHUNK_BYTES
