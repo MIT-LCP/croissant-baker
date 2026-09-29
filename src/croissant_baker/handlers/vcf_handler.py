@@ -137,12 +137,19 @@ def reference_name(declared: str) -> str:
     credential. A build name such as ``GRCh38`` holds no separator and comes
     back as declared.
     """
-    parts = urlsplit(declared)
-    scheme = parts.scheme.lower()
-    if scheme in PUBLIC_SCHEMES and parts.hostname:
-        host = parts.hostname + (f":{parts.port}" if parts.port else "")
+    try:
+        parts = urlsplit(declared)
+    except ValueError:
+        # An unclosed IPv6 bracket, say. Still a header the producer wrote,
+        # so it is read as the path it would otherwise be.
+        parts = None
+    scheme = parts.scheme.lower() if parts else ""
+    # The host as written: the parsed hostname and port are validated on
+    # access, and a port out of range is no reason to refuse the file.
+    host = parts.netloc.rpartition("@")[2] if parts else ""
+    if scheme in PUBLIC_SCHEMES and host:
         return urlunsplit((parts.scheme, host, parts.path, "", ""))
-    path = unquote(parts.path) if scheme == "file" else declared
+    path = unquote(parts.path) if parts and scheme == "file" else declared
     components = [c for c in path.replace("\\", "/").split("/") if c]
     return components[-1] if components else declared
 

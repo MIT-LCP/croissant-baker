@@ -158,6 +158,42 @@ def test_a_reference_url_loses_its_credentials(dataset: Path) -> None:
     assert reference_of(dataset, declared) == "https://example.org/refs/GRCh38.fa"
 
 
+@pytest.mark.parametrize(
+    ("declared", "kept"),
+    [
+        ("https://h.org:99999/x.fa", "https://h.org:99999/x.fa"),
+        ("https://h.org:abc/x.fa", "https://h.org:abc/x.fa"),
+        ("http://[::1]:80/r.fa", "http://[::1]:80/r.fa"),
+        ("https://[bad/x.fa", "x.fa"),
+    ],
+)
+def test_a_malformed_reference_url_is_stated_without_raising(
+    declared: str, kept: str
+) -> None:
+    """A port out of range, a port that is no number or an unclosed IPv6
+    bracket is still a header the producer wrote. The host is kept as written,
+    and an address the URL parser refuses is read as a path."""
+    assert vcf_handler.reference_name(declared) == kept
+
+
+def test_a_callset_with_a_malformed_reference_url_is_still_described(
+    dataset: Path,
+) -> None:
+    write(
+        dataset,
+        "odd.vcf",
+        b"##fileformat=VCFv4.2\n##reference=https://h.org:99999/x.fa\n"
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    document, report = bake_with_report(dataset)
+
+    assert [o["name"] for o in file_objects(document)] == ["odd.vcf"]
+    assert report.undescribed == []
+    (record_set,) = record_sets(document)
+    assert "reference https://h.org:99999/x.fa" in record_set["description"]
+
+
 def test_contigs_are_counted_not_listed(dataset: Path) -> None:
     meta = extract(sample_vcf(dataset))
 
