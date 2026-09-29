@@ -105,21 +105,11 @@ def test_csv_build_croissant_multiple_files() -> None:
     assert {rs.name for rs in record_sets} == {"a", "b"}
 
 
-@pytest.mark.parametrize("reverse_discovery", [False, True])
 def test_colliding_record_set_ids_do_not_follow_discovery_order(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reverse_discovery: bool
+    tmp_path: Path, reverse_discovery: bool
 ) -> None:
     """Both names sanitize to ``lab_results``, and which file took the
     ``__2`` used to depend on rglob order."""
-    if reverse_discovery:
-        from croissant_baker import scan
-
-        discover = scan.discover_files
-        monkeypatch.setattr(
-            scan,
-            "discover_files",
-            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
-        )
     (tmp_path / "lab results.csv").write_text("id\n1\n")
     (tmp_path / "lab@results.csv").write_text("id\n2\n")
 

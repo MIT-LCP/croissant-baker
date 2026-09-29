@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from croissant_baker import compression
+from croissant_baker import compression, scan
 from croissant_baker.handlers import base_handler
 from croissant_baker.handlers import registry as registry_module
 
@@ -35,3 +35,22 @@ def dataset(tmp_path: Path) -> Path:
     target = tmp_path / "dataset"
     target.mkdir()
     return target
+
+
+@pytest.fixture(params=[False, True])
+def reverse_discovery(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> bool:
+    """Run the test twice: files as the walk found them, then reversed.
+
+    Walk order is rglob order, which differs between filesystems, so a bake
+    that depends on it describes one directory two ways.
+    """
+    if request.param:
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    return request.param

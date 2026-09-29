@@ -285,20 +285,10 @@ def test_a_modality_spelled_unknown_is_kept_apart_from_missing_ones(
     )
 
 
-@pytest.mark.parametrize("reverse_discovery", [False, True])
 def test_a_mixed_modality_bake_describes_itself_one_way(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reverse_discovery: bool
+    tmp_path: Path, reverse_discovery: bool
 ) -> None:
     """The same directory, reached in either order, bakes to one description."""
-    if reverse_discovery:
-        from croissant_baker import scan
-
-        discover = scan.discover_files
-        monkeypatch.setattr(
-            scan,
-            "discover_files",
-            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
-        )
     _make_dicom(tmp_path / "a.dcm", modality="MR")
     _make_dicom(tmp_path / "b.dcm", modality="CT")
     _make_dicom(tmp_path / "c.dcm", modality="CT")
