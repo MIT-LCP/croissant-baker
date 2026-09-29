@@ -10,10 +10,9 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from croissant_baker.__main__ import app
+from croissant_baker.__main__ import _ensure_rai_conforms_to, app
 from croissant_baker.rai import inject_rai
 from croissant_baker.rai.injector import _COLLECTION_TYPE_TERMS
-from croissant_baker.__main__ import _ensure_rai_conforms_to
 from croissant_baker.metadata_generator import (
     CROISSANT_CONFORMS_TO,
     RAI_1_0_TERMS,
@@ -734,11 +733,35 @@ def test_rai_apply_with_a_rai_term_claims_rai_conformance(tmp_path: Path) -> Non
     assert json.loads(document.read_text())["conformsTo"] == [RAI_CONFORMS_TO]
 
 
+#: The twenty terms of croissant_rai.ttl, written out again on purpose so the
+#: list in src cannot change without this copy changing with it:
+#: https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl
+_TTL_TERMS = {
+    "rai:annotationsPerItem",
+    "rai:annotatorDemographics",
+    "rai:dataAnnotationAnalysis",
+    "rai:dataAnnotationPlatform",
+    "rai:dataAnnotationProtocol",
+    "rai:dataBiases",
+    "rai:dataCollection",
+    "rai:dataCollectionMissingData",
+    "rai:dataCollectionRawData",
+    "rai:dataCollectionTimeframe",
+    "rai:dataCollectionType",
+    "rai:dataImputationProtocol",
+    "rai:dataLimitations",
+    "rai:dataManipulationProtocol",
+    "rai:dataPreprocessingProtocol",
+    "rai:dataReleaseMaintenancePlan",
+    "rai:dataSocialImpact",
+    "rai:dataUseCases",
+    "rai:machineAnnotationTools",
+    "rai:personalSensitiveInformation",
+}
+
+
 def test_the_rai_term_list_holds_the_twenty_terms_of_the_ttl() -> None:
-    """Checked by hand against croissant_rai.ttl, which lists twenty terms."""
-    assert len(RAI_1_0_TERMS) == 20
-    assert all(term.startswith("rai:") for term in RAI_1_0_TERMS)
-    assert "rai:hasSyntheticData" not in RAI_1_0_TERMS
+    assert RAI_1_0_TERMS == _TTL_TERMS
 
 
 @pytest.mark.parametrize(
