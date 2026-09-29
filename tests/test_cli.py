@@ -604,6 +604,8 @@ def test_yaml_rai_workflow_declares_rai_conformance(
     rai_yaml = tmp_path / "rai.yaml"
     rai_yaml.write_text(
         """
+ai_fairness:
+  data_biases: Single-site cohort
 lineage:
   source_datasets:
     - url: https://example.org/source
@@ -634,6 +636,28 @@ lineage:
         CROISSANT_CONFORMS_TO,
         RAI_CONFORMS_TO,
     ]
+
+
+def test_yaml_rai_workflow_with_lineage_alone_does_not_claim_rai(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """prov:wasDerivedFrom is PROV-O, not a RAI 1.0 term, so RAI is not claimed."""
+    output = tmp_path / "output.jsonld"
+    rai_yaml = tmp_path / "rai.yaml"
+    rai_yaml.write_text(
+        """
+lineage:
+  source_datasets:
+    - url: https://example.org/source
+      name: Example source
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = cli(csv_dataset, output, "--rai-config", str(rai_yaml))
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == CROISSANT_CONFORMS_TO
 
 
 def test_optional_1_1_flags_round_trip(csv_dataset: Path, tmp_path: Path) -> None:

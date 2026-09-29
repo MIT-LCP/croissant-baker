@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 from croissant_baker.__main__ import app
 from croissant_baker.rai import inject_rai
 from croissant_baker.rai.injector import _COLLECTION_TYPE_TERMS
+from croissant_baker.metadata_generator import CROISSANT_CONFORMS_TO, RAI_CONFORMS_TO
 from croissant_baker.rai.schema import (
     Activity,
     AIFairnessConfig,
@@ -616,3 +617,76 @@ def test_a_bake_with_the_extension_terms_passes_mlcroissant(tmp_path: Path) -> N
     assert result.exit_code == 0, result.output
     document = json.loads(output.read_text())
     assert {"cb:hasSyntheticData", "cb:usedBy"} <= set(document)
+
+
+_EXTENSIONS_ONLY_YAML = """
+ai_fairness:
+  has_synthetic_data: false
+lineage:
+  models:
+    - url: https://example.org/model
+""".strip()
+
+
+def test_extension_terms_alone_do_not_claim_rai_conformance(tmp_path: Path) -> None:
+    """RAI 1.0 is claimed for the rai: terms, and none of these is one."""
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n", encoding="utf-8")
+    output = tmp_path / "out.jsonld"
+
+    result = cli(
+        dataset,
+        output,
+        "--rai-config",
+        str(_write_config(tmp_path, _EXTENSIONS_ONLY_YAML)),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == CROISSANT_CONFORMS_TO
+
+
+def test_rai_apply_with_extension_terms_alone_does_not_claim_rai_conformance(
+    tmp_path: Path,
+) -> None:
+    document = tmp_path / "croissant.jsonld"
+    document.write_text(
+        json.dumps(
+            {"@context": {}, "name": "test", "conformsTo": ["http://example.org/x"]}
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(document),
+            "--rai-config",
+            str(_write_config(tmp_path, _EXTENSIONS_ONLY_YAML)),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(document.read_text())["conformsTo"] == ["http://example.org/x"]
+
+
+def test_rai_apply_with_a_rai_term_claims_rai_conformance(tmp_path: Path) -> None:
+    document = tmp_path / "croissant.jsonld"
+    document.write_text(json.dumps({"@context": {}, "name": "test"}), encoding="utf-8")
+    config = "ai_fairness:\n  data_biases: Adults only.\n"
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(document),
+            "--rai-config",
+            str(_write_config(tmp_path, config)),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(document.read_text())["conformsTo"] == [RAI_CONFORMS_TO]

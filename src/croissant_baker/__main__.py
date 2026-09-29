@@ -467,9 +467,13 @@ def _build_native_rai_fields(
     return {key: value for key, value in rai_fields.items() if value is not None}
 
 
-def _ensure_rai_conforms_to(metadata_dict: dict, force: bool = False) -> None:
-    """Declare the RAI spec when RAI metadata is present or explicitly requested."""
-    if not force and not any(key.startswith("rai:") for key in metadata_dict):
+def _ensure_rai_conforms_to(metadata_dict: dict) -> None:
+    """Declare the RAI spec when the document carries a rai: term.
+
+    The claim follows the terms, not the command: a RAI config can yield only
+    prov: lineage or cb: extension terms, and neither is RAI 1.0 vocabulary.
+    """
+    if not any(key.startswith("rai:") for key in metadata_dict):
         return
 
     conforms_to = metadata_dict.get("conformsTo")
@@ -1052,9 +1056,7 @@ def main(
 
             metadata_dict = inject_rai(metadata_dict, rai)
 
-        _ensure_rai_conforms_to(
-            metadata_dict, force=bool(rai_config or native_rai_fields)
-        )
+        _ensure_rai_conforms_to(metadata_dict)
 
         # Save and optionally validate
         with Progress(
@@ -1146,7 +1148,7 @@ def rai_apply(
 
         rai = load_rai_config(rai_config)
         metadata_dict = inject_rai(metadata_dict, rai)
-        _ensure_rai_conforms_to(metadata_dict, force=True)
+        _ensure_rai_conforms_to(metadata_dict)
 
         dest = str(Path(output) if output else input_path)
         _save_dict(metadata_dict, dest, validate=validate)
