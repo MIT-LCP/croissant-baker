@@ -194,6 +194,72 @@ def test_a_callset_with_a_malformed_reference_url_is_still_described(
     assert "reference https://h.org:99999/x.fa" in record_set["description"]
 
 
+@pytest.mark.parametrize(
+    ("declared", "kept"),
+    [
+        ("<GRCh38>", "GRCh38"),
+        ("<file:///gpfs/x/GRCh38.fa>", "GRCh38.fa"),
+        ("<ID=GRCh38,URL=file:///gpfs/x/GRCh38.fa>", "ID=GRCh38 URL=GRCh38.fa"),
+        ("<ID=GRCh38,Path=/gpfs/x/GRCh38.fa>", "ID=GRCh38 Path=GRCh38.fa"),
+        (
+            "<ID=GRCh38,URL=https://h.org/GRCh38.fa?sig=1>",
+            "ID=GRCh38 URL=https://h.org/GRCh38.fa",
+        ),
+    ],
+)
+def test_an_enclosed_reference_is_read_inside_its_brackets(
+    declared: str, kept: str
+) -> None:
+    """Some writers enclose the reference in ``<...>``, some spell it as a
+    structured ``<ID=...,URL=...>`` declaration. The brackets go, the id is
+    kept, and the location is stated as a bare one would be."""
+    assert vcf_handler.reference_name(declared) == kept
+
+
+@pytest.mark.parametrize(
+    ("declared", "kept"),
+    [
+        ("GRCh38/hg38", "GRCh38/hg38"),
+        ("GRCh38.p14", "GRCh38.p14"),
+        ("~/refs/hg19.fa", "hg19.fa"),
+        ("./refs/hg19.fa", "hg19.fa"),
+        ("\\\\server\\share\\hg19.fa", "hg19.fa"),
+    ],
+)
+def test_only_a_value_shaped_like_a_path_is_cut_to_its_file_name(
+    declared: str, kept: str
+) -> None:
+    """A slash inside a build name is not a directory: ``GRCh38/hg38`` names
+    two builds and is kept whole."""
+    assert vcf_handler.reference_name(declared) == kept
+
+
+@pytest.mark.parametrize(
+    "declared", ["gs://bkt/", "s3://bkt", "/refs/GRCh38/", "file:///refs/"]
+)
+def test_a_reference_naming_a_directory_is_withheld(declared: str) -> None:
+    """A directory holds no file name to keep, and every component of its path
+    is the producer's layout, so nothing of it is stated."""
+    assert vcf_handler.reference_name(declared) is None
+
+
+def test_a_structured_reference_keeps_its_id_when_its_location_is_withheld() -> None:
+    assert vcf_handler.reference_name("<ID=GRCh38,URL=gs://bkt/>") == "ID=GRCh38"
+
+
+def test_a_callset_whose_reference_is_a_directory_omits_the_key(
+    dataset: Path,
+) -> None:
+    path = write(
+        dataset,
+        "dir.vcf",
+        b"##fileformat=VCFv4.2\n##reference=gs://bkt/refs/\n"
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    assert "reference" not in extract(path)
+
+
 def test_contigs_are_counted_not_listed(dataset: Path) -> None:
     meta = extract(sample_vcf(dataset))
 

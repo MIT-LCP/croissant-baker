@@ -6,6 +6,7 @@ with a type and a cardinality. That is a RecordSet schema written down by the
 producer, so this handler reads the header and stops at the first record.
 """
 
+import re
 from pathlib import Path
 from typing import BinaryIO, Dict, Iterable, Iterator, List, Optional
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -120,25 +121,62 @@ def is_repeated(number: str) -> bool:
     return number not in SINGULAR_NUMBERS
 
 
-#: The schemes of a reference anyone can fetch. Kept whole: the address is
-#: where the reference lives, and it describes no machine of the producer's.
+#: The schemes of a reference address meant to be fetched over a network.
+#: Kept whole, on the assumption that such an address is where the reference
+#: is published; an internal host is still a host name, and it describes no
+#: directory of the producer's machine.
 PUBLIC_SCHEMES = frozenset({"http", "https", "ftp"})
 
+#: The keys of a structured ``<ID=...,URL=...>`` reference that hold a location.
+LOCATION_KEYS = frozenset({"url", "path"})
 
-def reference_name(declared: str) -> str:
+#: A URI scheme, as ``s3://`` or ``file://`` opens one.
+SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
+
+#: A Windows drive letter, as ``C:\refs`` opens one.
+DRIVE = re.compile(r"^[A-Za-z]:[\\/]")
+
+
+def reference_name(declared: str) -> Optional[str]:
     """What ``##reference`` names, without the producer's filesystem layout.
 
     Callers routinely write the path the reference sat at on their machine,
     ``file:///gpfs/.../GRCh38.fa``, and the directories in it describe that
-    machine. Only the file name says which reference it was, so a path, a
-    ``file://`` URI or a bucket URI keeps its last component. A web or FTP
-    address is kept, minus any login in front of the host and any query or
-    fragment after the path, where a signed download link carries its
-    credential. A build name such as ``GRCh38`` holds no separator and comes
-    back as declared.
+    machine. One enclosing ``<...>`` is taken off first; a structured
+    ``<ID=...,URL=...>`` declaration keeps its id, and its ``URL`` and
+    ``Path`` values are read as a bare reference would be. ``None`` when
+    nothing is left to state.
+    """
+    value = declared.strip()
+    if value.startswith("<") and value.endswith(">"):
+        pairs = parse_declaration(value)
+        if pairs:
+            kept = []
+            for key, item in pairs.items():
+                if key.lower() in LOCATION_KEYS:
+                    item = _reference_location(item)
+                    if item is None:
+                        continue
+                kept.append(f"{key}={item}")
+            return " ".join(kept) or None
+        value = value[1:-1].strip()
+    return _reference_location(value)
+
+
+def _reference_location(value: str) -> Optional[str]:
+    """One reference location, cut to what may be published of it.
+
+    A web or FTP address is kept, minus any login in front of the host and any
+    query or fragment after the path, where a signed download link carries its
+    credential. A value shaped like a path keeps its file name: one with a
+    scheme, one opening with ``/``, ``~``, ``.``, a backslash or a drive
+    letter, or one whose last component has a ``.`` in it. A path ending in a
+    directory has no file name, and every component of it is layout, so it
+    comes back as ``None``. Anything else, a build name such as ``GRCh38`` or
+    ``GRCh38/hg38``, comes back as declared.
     """
     try:
-        parts = urlsplit(declared)
+        parts = urlsplit(value)
     except ValueError:
         # An unclosed IPv6 bracket, say. Still a header the producer wrote,
         # so it is read as the path it would otherwise be.
@@ -149,9 +187,26 @@ def reference_name(declared: str) -> str:
     host = parts.netloc.rpartition("@")[2] if parts else ""
     if scheme in PUBLIC_SCHEMES and host:
         return urlunsplit((parts.scheme, host, parts.path, "", ""))
-    path = unquote(parts.path) if parts and scheme == "file" else declared
-    components = [c for c in path.replace("\\", "/").split("/") if c]
-    return components[-1] if components else declared
+
+    has_scheme = SCHEME.match(value) is not None
+    if parts and scheme == "file":
+        path = unquote(parts.path)
+    elif has_scheme:
+        # A bucket or host comes first, and it is layout like a directory.
+        path = "/" + value.split("://", 1)[1].partition("/")[2]
+    else:
+        path = value
+    path = path.replace("\\", "/")
+    last = path.rsplit("/", 1)[-1]
+    shaped_like_a_path = (
+        has_scheme
+        or path.startswith(("/", "~", "."))
+        or DRIVE.match(value) is not None
+        or "." in last
+    )
+    if not shaped_like_a_path:
+        return value
+    return last or None
 
 
 def split_declaration(body: str) -> List[str]:

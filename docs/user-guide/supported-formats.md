@@ -460,12 +460,17 @@ are recorded, and the description says so.
 
 `##reference` is often written as the path the reference sat at on the
 producer's machine, such as `file:///gpfs/.../GRCh38.fa`, and the directories
-in it describe that machine. A path, a `file://` URI or a bucket URI such as
-`s3://` is therefore stated by its file name alone (`GRCh38.fa`). An `http`,
-`https` or `ftp` address is where anyone can fetch the reference, so it is kept
-whole, less any login in front of the host and any query or fragment, where a
-signed download link carries its credential. A build name such as `GRCh38` is
-stated as declared. A BCF header is read the same way.
+in it describe that machine. A value shaped like a path, a `file://` URI or a
+bucket URI such as `s3://` is therefore stated by its file name alone
+(`GRCh38.fa`); one ending in a directory has no file name, and the reference is
+left out. An `http`, `https` or `ftp` address is taken to be where the
+reference is published, so it is kept whole, less any login in front of the
+host and any query or fragment, where a signed download link carries its
+credential. An internal web host is kept as well, so rewrite such a header
+before baking if its host name should stay private. A build name such as
+`GRCh38` or `GRCh38/hg38` is stated as declared. One enclosing `<...>` is taken
+off, and a structured `<ID=GRCh38,URL=...>` keeps its id while its `URL` or
+`Path` is read as above. A BCF header is read the same way.
 
 Fields carry `source: {fileObject: …}` and **no `extract`**, for the reason
 given under GEO SOFT: `mlcroissant` does not read VCF, so a column reference
