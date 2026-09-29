@@ -200,11 +200,11 @@ def test_a_callset_with_a_malformed_reference_url_is_still_described(
     [
         ("<GRCh38>", "GRCh38"),
         ("<file:///gpfs/x/GRCh38.fa>", "GRCh38.fa"),
-        ("<ID=GRCh38,URL=file:///gpfs/x/GRCh38.fa>", "ID=GRCh38 URL=GRCh38.fa"),
-        ("<ID=GRCh38,Path=/gpfs/x/GRCh38.fa>", "ID=GRCh38 Path=GRCh38.fa"),
+        ("<ID=GRCh38,URL=file:///gpfs/x/GRCh38.fa>", "GRCh38 (GRCh38.fa)"),
+        ("<ID=GRCh38,Path=/gpfs/x/GRCh38.fa>", "GRCh38 (GRCh38.fa)"),
         (
             "<ID=GRCh38,URL=https://h.org/GRCh38.fa?sig=1>",
-            "ID=GRCh38 URL=https://h.org/GRCh38.fa",
+            "GRCh38 (https://h.org/GRCh38.fa)",
         ),
     ],
 )
@@ -248,12 +248,45 @@ def test_a_reference_naming_a_directory_is_withheld(declared: str) -> None:
 
 
 def test_a_structured_reference_keeps_its_id_when_its_location_is_withheld() -> None:
-    assert vcf_handler.reference_name("<ID=GRCh38,URL=gs://bkt/>") == "ID=GRCh38"
+    assert vcf_handler.reference_name("<ID=GRCh38,URL=gs://bkt/>") == "GRCh38"
 
 
 @pytest.mark.parametrize("declared", ["", "<>", "<ID=,URL=>", " < > "])
 def test_an_empty_reference_states_nothing(declared: str) -> None:
     assert vcf_handler.reference_name(declared) is None
+
+
+@pytest.mark.parametrize(
+    ("declared", "kept"),
+    [
+        ("<ID=GRCh38>", "GRCh38"),
+        ("<URL=https://h.org/GRCh38.fa>", "https://h.org/GRCh38.fa"),
+        (
+            "<ID=GRCh38,URL=https://h.org/GRCh38.fa>junk",
+            "GRCh38 (https://h.org/GRCh38.fa)",
+        ),
+    ],
+)
+def test_a_structured_reference_states_its_id_then_its_location(
+    declared: str, kept: str
+) -> None:
+    assert vcf_handler.reference_name(declared) == kept
+
+
+def test_a_structured_reference_reads_as_prose_in_the_description(
+    dataset: Path,
+) -> None:
+    path = write(
+        dataset,
+        "structured.vcf",
+        b"##fileformat=VCFv4.2\n"
+        b"##reference=<ID=GRCh38,URL=https://h.org/GRCh38.fa>\n"
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    (record_set,) = build(path)
+
+    assert "reference GRCh38 (https://h.org/GRCh38.fa)," in record_set.description
 
 
 def test_a_structured_reference_keeps_only_its_id_and_location() -> None:

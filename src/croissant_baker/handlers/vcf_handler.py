@@ -146,26 +146,34 @@ def reference_name(declared: str) -> Optional[str]:
 
     Callers routinely write the path the reference sat at on their machine,
     ``file:///gpfs/.../GRCh38.fa``, and the directories in it describe that
-    machine. One enclosing ``<...>`` is taken off first; a structured
-    ``<ID=...,URL=...>`` declaration keeps its id and its ``URL`` and ``Path``
-    values, read as a bare reference would be, and drops every other key.
-    ``None`` when nothing is left to state.
+    machine. One enclosing ``<...>`` is taken off first. A structured
+    ``<ID=...,URL=...>`` declaration is stated as its id followed by its
+    location in parentheses, ``GRCh38 (GRCh38.fa)``, or as whichever of the
+    two it has; the location is the first ``URL`` or ``Path`` value, read as a
+    bare reference would be, and every other key is dropped. ``None`` when
+    nothing is left to state.
     """
     value = declared.strip()
-    if value.startswith("<") and value.endswith(">"):
+    if value.startswith("<") and ">" in value:
+        # Whatever trails the closing bracket is no part of the declaration.
+        value = value[: value.rindex(">") + 1]
         pairs = parse_declaration(value)
         if pairs:
-            kept = []
+            build = None
+            locations = []
             for key, item in pairs.items():
-                if key.lower() in LOCATION_KEYS:
-                    item = _reference_location(item)
-                elif key.lower() != ID_KEY:
-                    # Free text the producer wrote, which can hold the same
-                    # layout the location is cut to hide.
-                    continue
-                if item:
-                    kept.append(f"{key}={item}")
-            return " ".join(kept) or None
+                if key.lower() == ID_KEY:
+                    build = item or None
+                elif key.lower() in LOCATION_KEYS:
+                    location = _reference_location(item)
+                    if location:
+                        locations.append(location)
+                # Any other key is free text the producer wrote, which can
+                # hold the same layout the location is cut to hide.
+            location = locations[0] if locations else None
+            if build and location:
+                return f"{build} ({location})"
+            return build or location
         value = value[1:-1].strip()
     return _reference_location(value)
 
