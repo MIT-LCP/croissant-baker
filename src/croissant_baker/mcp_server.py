@@ -19,9 +19,10 @@ to be told separately how to use them.
 
 from __future__ import annotations
 
+import functools
 import importlib.resources
 from collections import Counter
-from typing import Any, List, Optional
+from typing import Any, Callable, List, Optional
 
 from croissant_baker.__main__ import _dry_run_entries, _parse_creators, _save_dict
 from croissant_baker.metadata_generator import MetadataGenerator
@@ -122,8 +123,8 @@ def bake(
         document carries rather than what a dry run predicted.
 
     Raises:
-        ValueError: If the document fails ``mlcroissant`` validation, in which
-            case nothing is written.
+        ValueError: If a creator has a blank name part, or the document fails
+            ``mlcroissant`` validation; in either case nothing is written.
     """
     generator = MetadataGenerator(
         dataset_path=input_dir,
@@ -160,6 +161,26 @@ def validate(path: str) -> dict:
     return {"valid": True}
 
 
+def _reported_to_client(tool: Callable[..., Any], error: type) -> Callable[..., Any]:
+    """Wrap ``tool`` so a refusal it raises reaches the client as ``error``.
+
+    The SDK treats any other exception from a tool as a crash and hides its
+    text, so the client would learn only that the tool failed. A ``ValueError``
+    here is a refusal of the caller's input, such as a creator with no name,
+    and an ``OSError`` is a path the caller named that cannot be read or
+    written; either message says what to fix.
+    """
+
+    @functools.wraps(tool)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return tool(*args, **kwargs)
+        except (ValueError, OSError) as exc:
+            raise error(str(exc)) from exc
+
+    return wrapper
+
+
 def build_server() -> Any:
     """Build the MCP server with the three tools and the skill resource.
 
@@ -171,10 +192,11 @@ def build_server() -> Any:
         ImportError: If the optional ``mcp`` dependency group is not installed.
     """
     from mcp.server.mcpserver import MCPServer
+    from mcp.server.mcpserver.exceptions import ToolError
 
     server = MCPServer(SERVER_NAME)
     for tool in (dry_run, bake, validate):
-        server.add_tool(tool)
+        server.add_tool(_reported_to_client(tool, ToolError))
     server.resource(
         SKILL_URI,
         name="croissant-baker-skill",

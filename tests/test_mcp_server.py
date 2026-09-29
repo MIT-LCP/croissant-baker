@@ -90,6 +90,33 @@ def test_bake_writes_a_file_validate_accepts(dataset: Path, tmp_path: Path) -> N
     assert document["creator"]["email"] == "jane@example.com"
 
 
+def test_bake_refuses_a_nameless_creator_with_a_clear_error(
+    dataset: Path, tmp_path: Path
+) -> None:
+    """A creator with no name reaches the client as the refusal, and nothing is written.
+
+    Any exception other than the SDK's ``ToolError`` is reported as a bare
+    "Error executing tool bake", which tells the caller nothing to fix.
+    """
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    output = tmp_path / "out.jsonld"
+    arguments = {
+        "input_dir": str(dataset),
+        "output": str(output),
+        "name": "gharchive-demo",
+        "description": "A committed subset of the GH Archive.",
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "creators": [",jane@example.com"],
+    }
+
+    with pytest.raises(ToolError, match="has no name") as refusal:
+        asyncio.run(mcp_server.build_server().call_tool("bake", arguments))
+
+    assert "Example: --creator" in str(refusal.value)
+    assert not output.exists()
+
+
 def test_validate_reports_the_error_on_broken_jsonld(tmp_path: Path) -> None:
     """A document mlcroissant cannot construct comes back with the error text."""
     broken = tmp_path / "broken.jsonld"
@@ -129,3 +156,15 @@ def test_reading_the_skill_resource_returns_the_packaged_skill() -> None:
     )
 
     assert "".join(chunk.content for chunk in contents) == packaged
+
+
+def test_dry_run_on_a_missing_directory_names_it_to_the_client(tmp_path: Path) -> None:
+    """A missing input directory reaches the client with its path, as in bake."""
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    missing = tmp_path / "no-such-dir"
+
+    with pytest.raises(ToolError, match="no-such-dir"):
+        asyncio.run(
+            mcp_server.build_server().call_tool("dry_run", {"input_dir": str(missing)})
+        )
