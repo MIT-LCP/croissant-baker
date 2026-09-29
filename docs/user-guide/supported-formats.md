@@ -491,7 +491,7 @@ header line, and a header above 64 MiB, the cap every other genomic header is
 read under, is not a header. Either file is reported with that reason after a
 read of the cap plus at most one 32 KiB chunk. The line cap is larger than the
 SAM one because the `#CHROM` line names every sample, and for a biobank cohort
-that one line runs to several to tens of MiB.
+that one line runs to megabytes to tens of megabytes.
 
 ### Sample identifiers
 
