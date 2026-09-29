@@ -128,7 +128,11 @@ def is_repeated(number: str) -> bool:
 PUBLIC_SCHEMES = frozenset({"http", "https", "ftp"})
 
 #: The keys of a structured ``<ID=...,URL=...>`` reference that hold a location.
+#: With the id, the only keys of one that are stated.
 LOCATION_KEYS = frozenset({"url", "path"})
+
+#: The key of a structured reference naming the build.
+ID_KEY = "id"
 
 #: A URI scheme, as ``s3://`` or ``file://`` opens one.
 SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
@@ -143,9 +147,9 @@ def reference_name(declared: str) -> Optional[str]:
     Callers routinely write the path the reference sat at on their machine,
     ``file:///gpfs/.../GRCh38.fa``, and the directories in it describe that
     machine. One enclosing ``<...>`` is taken off first; a structured
-    ``<ID=...,URL=...>`` declaration keeps its id, and its ``URL`` and
-    ``Path`` values are read as a bare reference would be. ``None`` when
-    nothing is left to state.
+    ``<ID=...,URL=...>`` declaration keeps its id and its ``URL`` and ``Path``
+    values, read as a bare reference would be, and drops every other key.
+    ``None`` when nothing is left to state.
     """
     value = declared.strip()
     if value.startswith("<") and value.endswith(">"):
@@ -155,9 +159,12 @@ def reference_name(declared: str) -> Optional[str]:
             for key, item in pairs.items():
                 if key.lower() in LOCATION_KEYS:
                     item = _reference_location(item)
-                    if item is None:
-                        continue
-                kept.append(f"{key}={item}")
+                elif key.lower() != ID_KEY:
+                    # Free text the producer wrote, which can hold the same
+                    # layout the location is cut to hide.
+                    continue
+                if item is not None:
+                    kept.append(f"{key}={item}")
             return " ".join(kept) or None
         value = value[1:-1].strip()
     return _reference_location(value)

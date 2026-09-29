@@ -469,8 +469,9 @@ host and any query or fragment, where a signed download link carries its
 credential. An internal web host is kept as well, so rewrite such a header
 before baking if its host name should stay private. A build name such as
 `GRCh38` or `GRCh38/hg38` is stated as declared. One enclosing `<...>` is taken
-off, and a structured `<ID=GRCh38,URL=...>` keeps its id while its `URL` or
-`Path` is read as above. A BCF header is read the same way.
+off. Of a structured `<ID=GRCh38,URL=...>`, only the id and the `URL` or
+`Path`, read as above, are kept; any other key, such as a `Description` or a
+`Source`, is left out, since it is free text that can hold a path. A BCF header is read the same way.
 
 Fields carry `source: {fileObject: …}` and **no `extract`**, for the reason
 given under GEO SOFT: `mlcroissant` does not read VCF, so a column reference

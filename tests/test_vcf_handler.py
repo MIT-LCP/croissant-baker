@@ -248,6 +248,23 @@ def test_a_structured_reference_keeps_its_id_when_its_location_is_withheld() -> 
     assert vcf_handler.reference_name("<ID=GRCh38,URL=gs://bkt/>") == "ID=GRCh38"
 
 
+def test_a_structured_reference_keeps_only_its_id_and_location() -> None:
+    """Any other key is free text the producer wrote, and a description or a
+    source path can hold the same layout the location was cut to hide."""
+    declared = (
+        '<ID=hg19,Description="built at /gpfs/jdoe/refs",'
+        "Source=/gpfs/jdoe/hg19.fa,File=file:///home/jdoe/x.fa,"
+        "URL=https://h.org/hg19.fa>"
+    )
+
+    kept = vcf_handler.reference_name(declared)
+
+    assert "jdoe" not in kept
+    assert "gpfs" not in kept
+    assert "hg19" in kept
+    assert "https://h.org/hg19.fa" in kept
+
+
 def test_a_callset_whose_reference_is_a_directory_omits_the_key(
     dataset: Path,
 ) -> None:
