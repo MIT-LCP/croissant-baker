@@ -11,6 +11,7 @@
   <a href="https://github.com/MIT-LCP/croissant-baker/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://pypi.org/project/croissant-baker/"><img src="https://img.shields.io/pypi/v/croissant-baker?logo=pypi" alt="PyPI"></a>
   <a href="https://arxiv.org/abs/2605.15079"><img src="https://img.shields.io/badge/arXiv-2605.15079-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://neurips.cc/Conferences/2026"><img src="https://img.shields.io/badge/NeurIPS-2026-8A2BE2.svg" alt="NeurIPS 2026"></a>
   <a href="https://github.com/MIT-LCP/croissant-baker/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
 </p>
 
@@ -104,7 +105,7 @@ See [CONTRIBUTING.md](https://raw.githubusercontent.com/MIT-LCP/croissant-baker/
 
 ## Citation
 
-If you use Croissant Baker in your research, please cite our [arXiv preprint](https://arxiv.org/abs/2605.15079):
+Croissant Baker was accepted at NeurIPS 2026 (Evaluations & Datasets track). The camera-ready version is coming soon. Until then, please cite our [arXiv preprint](https://arxiv.org/abs/2605.15079):
 
 ```bibtex
 @misc{attrach2026croissantbakermetadatageneration,
