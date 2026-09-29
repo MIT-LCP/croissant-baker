@@ -547,6 +547,23 @@ def test_a_batch_without_a_slide_gains_no_whole_slide_fields(
     }
 
 
+#: Every header field the DICOM record set declares: Croissant type and the
+#: tag its description names. A consumer reads the value with a DICOM reader.
+DICOM_HEADER_FIELDS = {
+    "dicom/modality": ("sc:Text", "DICOM Modality (0008,0060)"),
+    "dicom/rows": ("sc:Integer", "DICOM Rows (0028,0010)"),
+    "dicom/columns": ("sc:Integer", "DICOM Columns (0028,0011)"),
+    "dicom/num_frames": ("sc:Integer", "DICOM NumberOfFrames (0028,0008)"),
+    "dicom/bits_allocated": ("sc:Integer", "DICOM BitsAllocated (0028,0100)"),
+    "dicom/patient_id": ("sc:Text", "DICOM PatientID (0010,0020)"),
+    "dicom/study_instance_uid": ("sc:Text", "DICOM StudyInstanceUID (0020,000D)"),
+    "dicom/series_instance_uid": (
+        "sc:Text",
+        "DICOM SeriesInstanceUID (0020,000E)",
+    ),
+}
+
+
 #: The fields a batch gains once it holds a slide. Each describes one header
 #: attribute, which a consumer reads with a DICOM reader.
 WSI_HEADER_FIELDS = (
@@ -559,21 +576,19 @@ WSI_HEADER_FIELDS = (
 )
 
 
-def test_the_whole_slide_fields_name_the_file_set_without_an_extract(
+def test_every_field_of_a_slide_batch_names_the_file_set_without_an_extract(
     handler: DICOMHandler,
 ) -> None:
     """A content extract would hand a consumer the whole file for a field that
-    describes one attribute, so each slide field names only the FileSet."""
+    describes one attribute, so each of the fourteen fields of a slide batch,
+    base and slide alike, names only the FileSet."""
     _, record_sets_ = handler.build_croissant([_wsi_meta("volume.dcm")], ["file_0"])
 
-    sources = {
-        f.id: f.source.to_json()
-        for f in record_sets_[0].fields
-        if f.id in WSI_HEADER_FIELDS
-    }
+    sources = {f.id: f.source.to_json() for f in record_sets_[0].fields}
 
     assert sources == {
-        field_id: {"fileSet": {"@id": "dicom-files"}} for field_id in WSI_HEADER_FIELDS
+        field_id: {"fileSet": {"@id": "dicom-files"}}
+        for field_id in (*DICOM_HEADER_FIELDS, *WSI_HEADER_FIELDS)
     }
 
 
@@ -596,23 +611,6 @@ def test_a_bake_of_a_slide_directory_describes_the_slides(tmp_path: Path) -> Non
         "imaged_volume_height",
         "container_identifier",
     } <= field_names
-
-
-#: Every header field the DICOM record set declares: Croissant type and the
-#: tag its description names. A consumer reads the value with a DICOM reader.
-DICOM_HEADER_FIELDS = {
-    "dicom/modality": ("sc:Text", "DICOM Modality (0008,0060)"),
-    "dicom/rows": ("sc:Integer", "DICOM Rows (0028,0010)"),
-    "dicom/columns": ("sc:Integer", "DICOM Columns (0028,0011)"),
-    "dicom/num_frames": ("sc:Integer", "DICOM NumberOfFrames (0028,0008)"),
-    "dicom/bits_allocated": ("sc:Integer", "DICOM BitsAllocated (0028,0100)"),
-    "dicom/patient_id": ("sc:Text", "DICOM PatientID (0010,0020)"),
-    "dicom/study_instance_uid": ("sc:Text", "DICOM StudyInstanceUID (0020,000D)"),
-    "dicom/series_instance_uid": (
-        "sc:Text",
-        "DICOM SeriesInstanceUID (0020,000E)",
-    ),
-}
 
 
 def _make_rle_dicom(path: Path) -> Path:

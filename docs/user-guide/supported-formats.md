@@ -299,7 +299,7 @@ A digital pathology scanner writes DICOM too, under the VL Whole Slide Microscop
 
 The fields are added only when the batch holds a slide, so a batch of cross sections is described exactly as it was before slides were recognised. The record set's description names the slide count and the flavors present, alongside the modality counts; the flavors are listed in the standard's own order, `VOLUME`, `LABEL`, `OVERVIEW`, `THUMBNAIL`, rather than in discovery order, so one directory describes itself the same way on any filesystem. `LABEL` and `OVERVIEW` instances routinely omit the imaged volume and the container id, so each of these values is reported as unstated rather than dropped, keeping the shape of a slide the same across the flavors of one study.
 
-These six fields have `source: {fileSet: {"@id": "dicom-files"}}` and no `extract`. Reading a value for one file takes a DICOM reader such as `pydicom`, pointed at the attribute in the field's description.
+These six fields take the same shape: `source: {fileSet: {"@id": "dicom-files"}}` and no `extract`.
 
 ## NIfTI
 
