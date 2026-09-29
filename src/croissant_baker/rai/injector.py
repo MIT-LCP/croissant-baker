@@ -17,6 +17,10 @@ _PROV_NS = "http://www.w3.org/ns/prov#"
 _CB_PREFIX = "cb"
 _CB_NS = "https://github.com/MIT-LCP/croissant-baker#"
 
+# Where a document baked before the move holds each of the three terms.
+_DATASET_OLD_TERMS = ("hasSyntheticData", "usedBy")
+_ACTIVITY_OLD_TERMS = ("usedPlatform",)
+
 _ACTIVITY_LABELS = {
     "data_collection": "Data Collection",
     "data_annotation": "Data Annotation",
@@ -66,13 +70,16 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     - Models that used this dataset → cb:usedBy.
     - Activities → prov:wasGeneratedBy (list of prov:Activity), each with
       optional prov:wasAssociatedWith (agents) and cb:usedPlatform (platforms).
-    - cb: terms are croissant-baker extensions, not part of RAI 1.0.
+    - cb: terms are croissant-baker extensions, not part of RAI 1.0. A
+      document written before they moved holds them under rai:; those keys
+      are moved to cb:, where a value the config sets replaces them.
     - Collection types → rai:dataCollectionType on the dataset node, unioned
       across the activities and written with the terms RAI 1.0 recommends.
       RAI 1.0 declares the property on sc:Dataset, so it does not go on the
       prov:Activity that carries the types in the config.
     """
     _ensure_prov_context(metadata, config)
+    _move_old_terms(metadata)
 
     # AI Safety and Fairness
     af = config.ai_fairness
@@ -203,6 +210,21 @@ def _ensure_prov_context(metadata: dict, config: RAIConfig) -> None:
     ctx = metadata.get("@context")
     if isinstance(ctx, dict) and "prov" not in ctx:
         ctx["prov"] = _PROV_NS
+
+
+def _move_old_terms(metadata: dict) -> None:
+    """Move rai:hasSyntheticData, rai:usedBy and rai:usedPlatform to cb:.
+
+    Runs before the config is written, so a value the config sets replaces the
+    old one and a value it leaves empty is kept under cb:. A cb: value already
+    in the document is newer than the rai: one, so it is kept.
+    """
+    moves = [(metadata, _DATASET_OLD_TERMS)]
+    moves += [(act, _ACTIVITY_OLD_TERMS) for act in _activity_nodes(metadata)]
+    for node, terms in moves:
+        for term in terms:
+            if f"rai:{term}" in node:
+                node.setdefault(f"cb:{term}", node.pop(f"rai:{term}"))
 
 
 def _activity_nodes(metadata: dict) -> list[dict]:

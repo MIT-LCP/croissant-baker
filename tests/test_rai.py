@@ -742,3 +742,122 @@ def test_the_mlcroissant_spelling_of_a_rai_term_claims_rai_conformance(
     _ensure_rai_conforms_to(document)
 
     assert document["conformsTo"] == [CROISSANT_CONFORMS_TO, RAI_CONFORMS_TO]
+
+
+def _old_document() -> dict:
+    """A document baked before the three terms moved from rai: to cb:."""
+    return {
+        "@context": {"prov": "http://www.w3.org/ns/prov#"},
+        "name": "test",
+        "conformsTo": CROISSANT_CONFORMS_TO,
+        "rai:hasSyntheticData": False,
+        "rai:usedBy": [{"url": "https://example.org/old-model"}],
+        "prov:wasGeneratedBy": {
+            "@type": "prov:Activity",
+            "@id": "ACT-001",
+            "rai:usedPlatform": {"name": "Old platform"},
+        },
+    }
+
+
+def test_an_old_document_keeps_no_rai_extension_key() -> None:
+    document = inject_rai(_old_document(), RAIConfig())
+
+    assert _rai_keys(document) == set()
+
+
+def test_an_old_value_is_carried_to_cb_when_the_config_leaves_it_empty() -> None:
+    document = inject_rai(_old_document(), RAIConfig())
+
+    assert document["cb:hasSyntheticData"] is False
+    assert document["cb:usedBy"] == [{"url": "https://example.org/old-model"}]
+    assert document["prov:wasGeneratedBy"]["cb:usedPlatform"] == {
+        "name": "Old platform"
+    }
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_the_config_value_wins_over_an_old_value() -> None:
+    config = RAIConfig(
+        ai_fairness=AIFairnessConfig(has_synthetic_data=True),
+        lineage=LineageConfig(models=[ModelRef(url="https://example.org/model")]),
+    )
+
+    document = inject_rai(_old_document(), config)
+
+    assert document["cb:hasSyntheticData"] is True
+    assert document["cb:usedBy"] == [{"url": "https://example.org/model"}]
+
+
+def test_an_existing_cb_value_wins_over_an_old_rai_value() -> None:
+    """A document that holds both was already updated once; cb: is the newer."""
+    old = _old_document()
+    old["cb:hasSyntheticData"] = True
+
+    document = inject_rai(old, RAIConfig())
+
+    assert document["cb:hasSyntheticData"] is True
+    assert "rai:hasSyntheticData" not in document
+
+
+def test_a_platform_in_an_activity_list_is_carried_to_cb() -> None:
+    old = _old_document()
+    old["prov:wasGeneratedBy"] = [old["prov:wasGeneratedBy"]]
+
+    document = inject_rai(old, RAIConfig())
+
+    assert document["prov:wasGeneratedBy"][0]["cb:usedPlatform"] == {
+        "name": "Old platform"
+    }
+
+
+def _rai_apply(document: dict, config: str, tmp_path: Path) -> dict:
+    path = tmp_path / "croissant.jsonld"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(path),
+            "--rai-config",
+            str(_write_config(tmp_path, config)),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    return json.loads(path.read_text())
+
+
+def test_rai_apply_moves_the_old_keys_when_the_config_sets_them(
+    tmp_path: Path,
+) -> None:
+    config = "ai_fairness:\n  has_synthetic_data: true\n"
+
+    document = _rai_apply(_old_document(), config, tmp_path)
+
+    assert document["cb:hasSyntheticData"] is True
+    assert document["cb:usedBy"] == [{"url": "https://example.org/old-model"}]
+    assert _rai_keys(document) == set()
+
+
+def test_rai_apply_carries_the_old_keys_when_the_config_is_empty(
+    tmp_path: Path,
+) -> None:
+    config = "ai_fairness:\n  data_limitations:\n"
+
+    document = _rai_apply(_old_document(), config, tmp_path)
+
+    assert document["cb:hasSyntheticData"] is False
+    assert _rai_keys(document) == set()
+
+
+def test_rai_apply_makes_no_rai_claim_from_the_old_keys_alone(
+    tmp_path: Path,
+) -> None:
+    config = "ai_fairness:\n  has_synthetic_data: true\n"
+
+    document = _rai_apply(_old_document(), config, tmp_path)
+
+    assert document["conformsTo"] == CROISSANT_CONFORMS_TO
