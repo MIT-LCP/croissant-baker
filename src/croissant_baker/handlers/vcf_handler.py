@@ -150,9 +150,9 @@ def reference_name(declared: str) -> Optional[str]:
     machine. One enclosing ``<...>`` is taken off first. A structured
     ``<ID=...,URL=...>`` declaration is stated as its id followed by its
     location in parentheses, ``GRCh38 (GRCh38.fa)``, or as whichever of the
-    two it has; the location is the first ``URL`` or ``Path`` value, read as a
-    bare reference would be, and every other key is dropped. ``None`` when
-    nothing is left to state.
+    two it has; the location is the ``URL``, else the ``Path``, and the id and
+    location are each read as a bare reference would be; every other key is
+    dropped. ``None`` when nothing is left to state.
     """
     value = declared.strip()
     if value.startswith("<") and ">" in value:
@@ -161,17 +161,19 @@ def reference_name(declared: str) -> Optional[str]:
         pairs = parse_declaration(value)
         if pairs:
             build = None
-            locations = []
+            locations = {}
             for key, item in pairs.items():
                 if key.lower() == ID_KEY:
-                    build = item or None
+                    # An id written as a path carries the same layout.
+                    build = _reference_location(item)
                 elif key.lower() in LOCATION_KEYS:
                     location = _reference_location(item)
                     if location:
-                        locations.append(location)
+                        locations.setdefault(key.lower(), location)
                 # Any other key is free text the producer wrote, which can
                 # hold the same layout the location is cut to hide.
-            location = locations[0] if locations else None
+            # A published URL tells a reader more than a bare file name.
+            location = locations.get("url") or locations.get("path")
             if build and location:
                 return f"{build} ({location})"
             return build or location

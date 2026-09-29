@@ -923,3 +923,30 @@ def test_the_flag_reaches_a_bake_from_the_command_line(
 
     assert result.exit_code == 0, result.output
     assert "NA00001" in samples_description(json.loads(output.read_text()))
+
+
+@pytest.mark.parametrize(
+    ("declared", "expected"),
+    [
+        ("<ID=/gpfs/jdoe/hg19.fa>", "hg19.fa"),
+        (
+            "<ID=file:///home/jdoe/hg19.fa,URL=https://x/a.fa>",
+            "hg19.fa (https://x/a.fa)",
+        ),
+        ("<ID=GRCh38.p14,URL=https://x/a.fa>", "GRCh38.p14 (https://x/a.fa)"),
+        ("<ID=T2T-CHM13v2.0>", "T2T-CHM13v2.0"),
+        ("<ID=/gpfs/jdoe/,URL=https://h.org/a.fa>", "https://h.org/a.fa"),
+    ],
+)
+def test_a_structured_reference_id_is_cut_like_a_location(
+    declared: str, expected: str
+) -> None:
+    """An id written as a path would carry the same layout as a location."""
+    assert vcf_handler.reference_name(declared) == expected
+
+
+def test_a_structured_reference_prefers_its_url_to_its_path() -> None:
+    """A published address tells a reader more than a bare file name."""
+    declared = "<ID=GRCh38,Path=/gpfs/jdoe/GRCh38.fa,URL=https://h.org/GRCh38.fa>"
+
+    assert vcf_handler.reference_name(declared) == "GRCh38 (https://h.org/GRCh38.fa)"
