@@ -4,6 +4,8 @@ BAM, CRAM and SAM itself all open with the same text: ``@HD`` for the sort
 order, ``@SQ`` per reference sequence, ``@RG`` per read group and ``@PG`` per
 program that touched the file. Reading it is the same job whichever container
 it sits in, so it is done here, once, and each handler only has to find it.
+The metadata and description each alignment handler returns are built here
+too, from that header, so the three containers describe a file the same way.
 """
 
 from typing import Dict, List, Optional
@@ -132,6 +134,28 @@ def parse_sam_header(text: str) -> SamHeader:
     return header
 
 
+#: Every key :func:`alignment_metadata` writes itself, and so the keys a
+#: container's ``extra`` may not carry.
+ALIGNMENT_KEYS = frozenset(
+    {
+        "file_name",
+        "file_size",
+        "sha256",
+        "encoding_format",
+        "sam_version",
+        "sort_order",
+        "sq_count",
+        "read_group_count",
+        "platforms",
+        "centres",
+        "programs",
+        "assembly",
+        "sample_ids",
+        "description",
+    }
+)
+
+
 def alignment_metadata(
     source: FileSource,
     encoding_format: str,
@@ -144,9 +168,17 @@ def alignment_metadata(
     """What an alignment handler returns for one file, whichever container.
 
     ``extra`` holds the keys only one container states, such as a BAM's own
-    reference count or a CRAM's version. ``described_as`` is how the
+    reference count or a CRAM's version. They go right after
+    ``encoding_format``, and one that would overwrite a key this function
+    writes is refused rather than lost. ``described_as`` is how the
     description names the format.
     """
+    clashing = sorted(ALIGNMENT_KEYS.intersection(extra or {}))
+    if clashing:
+        raise ValueError(
+            "alignment_metadata: extra repeats keys it writes itself: "
+            + ", ".join(clashing)
+        )
     metadata = {
         "file_name": source.name,
         "file_size": source.size,

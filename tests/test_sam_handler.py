@@ -470,3 +470,21 @@ def test_alignment_metadata_withholds_the_samples_from_the_description_too(
 
     assert "sample_ids" not in meta
     assert "NA00001" not in meta["description"]
+
+
+def test_alignment_metadata_refuses_an_extra_key_it_writes_itself(
+    dataset: Path,
+) -> None:
+    """A container key named like a header key would silently replace it."""
+    with pytest.raises(ValueError) as caught:
+        alignment_metadata(
+            source_for(sample_sam(dataset)),
+            encoding_format="text/x-sam",
+            described_as="SAM",
+            header=parse_sam_header(BAM_HEADER_TEXT),
+            reference_count=2,
+            genomic_sample_ids=False,
+            extra={"sq_count": 99, "assembly": "hg19"},
+        )
+
+    assert "assembly, sq_count" in str(caught.value)
