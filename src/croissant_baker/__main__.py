@@ -21,6 +21,7 @@ from rich.progress import (
 from croissant_baker.metadata_generator import (
     MetadataGenerator,
     PROFILE_CONFORMS_TO,
+    RAI_CONFORMANCE_KEYS,
     RAI_CONFORMS_TO,
     normalize_profiles,
     serialize_datetime,
@@ -467,9 +468,15 @@ def _build_native_rai_fields(
     return {key: value for key, value in rai_fields.items() if value is not None}
 
 
-def _ensure_rai_conforms_to(metadata_dict: dict, force: bool = False) -> None:
-    """Declare the RAI spec when RAI metadata is present or explicitly requested."""
-    if not force and not any(key.startswith("rai:") for key in metadata_dict):
+def _ensure_rai_conforms_to(metadata_dict: dict) -> None:
+    """Declare the RAI spec when the document carries a RAI 1.0 term.
+
+    The claim follows the terms, not the command: a RAI config can yield only
+    prov: lineage or cb: extension terms, and neither is RAI 1.0 vocabulary.
+    A rai: key outside RAI 1.0, such as rai:hasSyntheticData in a document
+    written before those terms moved to cb:, does not count either.
+    """
+    if not any(key in RAI_CONFORMANCE_KEYS for key in metadata_dict):
         return
 
     conforms_to = metadata_dict.get("conformsTo")
@@ -1052,9 +1059,7 @@ def main(
 
             metadata_dict = inject_rai(metadata_dict, rai)
 
-        _ensure_rai_conforms_to(
-            metadata_dict, force=bool(rai_config or native_rai_fields)
-        )
+        _ensure_rai_conforms_to(metadata_dict)
 
         # Save and optionally validate
         with Progress(
@@ -1134,6 +1139,7 @@ def rai_apply(
 ) -> None:
     """Apply RAI attributes from a config YAML to an existing Croissant file."""
     from croissant_baker.rai import inject_rai, load_rai_config
+    from croissant_baker.rai.injector import cb_prefix_conflict
 
     input_path = Path(file_path)
     if not input_path.is_file():
@@ -1146,7 +1152,13 @@ def rai_apply(
 
         rai = load_rai_config(rai_config)
         metadata_dict = inject_rai(metadata_dict, rai)
-        _ensure_rai_conforms_to(metadata_dict, force=True)
+        _ensure_rai_conforms_to(metadata_dict)
+        # The injector logs this too, for callers who configure logging; a
+        # terminal user has none, since the package ships a NullHandler. A
+        # fresh bake cannot hit it, as nothing but the injector writes cb.
+        conflict = cb_prefix_conflict(metadata_dict)
+        if conflict:
+            typer.echo(f"Warning: {conflict}", err=True)
 
         dest = str(Path(output) if output else input_path)
         _save_dict(metadata_dict, dest, validate=validate)
