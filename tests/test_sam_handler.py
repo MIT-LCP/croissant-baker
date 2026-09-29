@@ -14,6 +14,7 @@ import mlcroissant as mlc
 import pytest
 
 from croissant_baker.entries import Reason
+from croissant_baker.handlers import sam_handler
 from croissant_baker.handlers.sam_handler import SAMHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -352,3 +353,81 @@ def test_the_flag_reaches_a_bake_from_the_command_line(
     assert result.exit_code == 0, result.output
     document = json.loads(output.read_text())
     assert "NA00001" in file_objects(document)[0]["description"]
+
+
+def test_a_last_header_line_without_an_ending_is_read(dataset: Path) -> None:
+    """A header-only SAM whose writer left off the final line ending still
+    declares the reference on that line."""
+    path = write(dataset, "open.sam", b"@HD\tVN:1.6\n@SQ\tSN:chr1\tLN:100")
+
+    assert extract(path)["sq_count"] == 1
+
+
+def test_the_line_cap_refusal_states_the_cap(dataset: Path) -> None:
+    body = b"@HD\tVN:1.6\t" + b"x" * NO_NEWLINE_BYTES
+    path = write(dataset, "unbroken.sam", body)
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    message = str(caught.value)
+    assert message.startswith("Not a SAM file: unbroken.sam runs to ")
+    assert message.endswith(
+        " bytes with no line ending, past the "
+        f"{sam_handler.MAX_LINE_BYTES} a header line can be"
+    )
+
+
+#: The header cap the bound test shrinks the handler's to, so a file under a
+#: megabyte exercises it.
+SMALL_HEADER_CAP = 256 * 1024
+
+
+def test_a_header_running_past_the_cap_is_refused_after_a_bounded_read(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Short lines are no way around the line cap: a header that never reaches
+    an alignment record stops at the cap on the header as a whole."""
+    monkeypatch.setattr(sam_handler, "MAX_HEADER_BYTES", SMALL_HEADER_CAP)
+    references = b"".join(b"@SQ\tSN:chr%d\tLN:100000\n" % i for i in range(60000))
+    path = write(dataset, "endless.sam", b"@HD\tVN:1.6\n" + references)
+    assert path.stat().st_size > 4 * SMALL_HEADER_CAP
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert str(caught.value) == (
+        f"Not a SAM file: the header of endless.sam runs past {SMALL_HEADER_CAP} "
+        "bytes without reaching a line that is not a header line"
+    )
+    assert sum(stream.read_bytes for stream in opened) < 2 * SMALL_HEADER_CAP
+
+
+def test_the_metadata_carries_the_header_and_nothing_else(dataset: Path) -> None:
+    meta = extract(sample_sam(dataset), genomic_sample_ids=True)
+
+    assert set(meta) == {
+        "file_name",
+        "file_size",
+        "sha256",
+        "encoding_format",
+        "sam_version",
+        "sort_order",
+        "sq_count",
+        "read_group_count",
+        "platforms",
+        "centres",
+        "programs",
+        "assembly",
+        "sample_ids",
+        "description",
+    }
+    assert meta["encoding_format"] == "text/x-sam"
+    assert meta["description"] == (
+        "SAM alignment file sample.sam (coordinate-sorted; 2 "
+        "reference sequences (GRCh38); 1 read group; platform: "
+        "ILLUMINA; centre: STJUDE; aligned with bwa 0.7.17, samtools "
+        "1.19). Described from its header; no alignment record was "
+        "read. Sample identifiers: NA00001."
+    )
