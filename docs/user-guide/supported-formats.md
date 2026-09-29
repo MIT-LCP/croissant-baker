@@ -460,7 +460,9 @@ are recorded, and the description says so.
 
 `##reference` is often written as the path the reference sat at on the
 producer's machine, such as `file:///gpfs/.../GRCh38.fa`, and the directories
-in it describe that machine. A value shaped like a path, a `file://` URI or a
+in it describe that machine. A value shaped like a path (one opening with `/`,
+`~` or `.`, one with three or more `/`-separated parts, an scp target such as
+`host:/gpfs/...`, or one whose last part has a `.`), a `file://` URI or a
 bucket URI such as `s3://` is therefore stated by its file name alone
 (`GRCh38.fa`); one ending in a directory has no file name, and the reference is
 left out. An `http`, `https` or `ftp` address is taken to be where the

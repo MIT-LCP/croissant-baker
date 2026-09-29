@@ -163,7 +163,7 @@ def reference_name(declared: str) -> Optional[str]:
                     # Free text the producer wrote, which can hold the same
                     # layout the location is cut to hide.
                     continue
-                if item is not None:
+                if item:
                     kept.append(f"{key}={item}")
             return " ".join(kept) or None
         value = value[1:-1].strip()
@@ -176,11 +176,13 @@ def _reference_location(value: str) -> Optional[str]:
     A web or FTP address is kept, minus any login in front of the host and any
     query or fragment after the path, where a signed download link carries its
     credential. A value shaped like a path keeps its file name: one with a
-    scheme, one opening with ``/``, ``~``, ``.``, a backslash or a drive
-    letter, or one whose last component has a ``.`` in it. A path ending in a
-    directory has no file name, and every component of it is layout, so it
-    comes back as ``None``. Anything else, a build name such as ``GRCh38`` or
-    ``GRCh38/hg38``, comes back as declared.
+    scheme or a ``:/``, as an scp target has, one opening with ``/``, ``~``,
+    ``.``, a backslash or a drive letter, one of three or more
+    slash-separated parts, or one whose last component has a ``.`` in it. A
+    path ending in a directory has no file name, and every component of it is
+    layout, so it comes back as ``None``, as an empty value does. Anything
+    else, a build name such as ``GRCh38`` or ``GRCh38/hg38``, comes back as
+    declared.
     """
     try:
         parts = urlsplit(value)
@@ -207,12 +209,14 @@ def _reference_location(value: str) -> Optional[str]:
     last = path.rsplit("/", 1)[-1]
     shaped_like_a_path = (
         has_scheme
+        or ":/" in value
         or path.startswith(("/", "~", "."))
         or DRIVE.match(value) is not None
+        or path.count("/") >= 2
         or "." in last
     )
     if not shaped_like_a_path:
-        return value
+        return value or None
     return last or None
 
 

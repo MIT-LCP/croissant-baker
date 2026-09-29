@@ -225,6 +225,9 @@ def test_an_enclosed_reference_is_read_inside_its_brackets(
         ("~/refs/hg19.fa", "hg19.fa"),
         ("./refs/hg19.fa", "hg19.fa"),
         ("\\\\server\\share\\hg19.fa", "hg19.fa"),
+        ("jdoe/refs/hg38", "hg38"),
+        ("data/refs/GRCh38", "GRCh38"),
+        ("host:/gpfs/refs/hg38", "hg38"),
     ],
 )
 def test_only_a_value_shaped_like_a_path_is_cut_to_its_file_name(
@@ -246,6 +249,11 @@ def test_a_reference_naming_a_directory_is_withheld(declared: str) -> None:
 
 def test_a_structured_reference_keeps_its_id_when_its_location_is_withheld() -> None:
     assert vcf_handler.reference_name("<ID=GRCh38,URL=gs://bkt/>") == "ID=GRCh38"
+
+
+@pytest.mark.parametrize("declared", ["", "<>", "<ID=,URL=>", " < > "])
+def test_an_empty_reference_states_nothing(declared: str) -> None:
+    assert vcf_handler.reference_name(declared) is None
 
 
 def test_a_structured_reference_keeps_only_its_id_and_location() -> None:
