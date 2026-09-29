@@ -10,7 +10,6 @@ handler produces is a described FileObject, through the ``description`` key the
 generator honours.
 """
 
-import gzip
 import logging
 import struct
 from typing import BinaryIO
@@ -19,7 +18,8 @@ from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.sam_header import describe_alignment, parse_sam_header
 from croissant_baker.handlers.utils import (
     MAX_HEADER_BYTES,
-    decompress_prefix,
+    bgzf_payload_starts_with,
+    open_bgzf,
     read_exactly,
 )
 from croissant_baker.sources import UNREADABLE, FileSource
@@ -29,17 +29,9 @@ logger = logging.getLogger(__name__)
 #: The four bytes a BAM's decompressed payload opens with.
 MAGIC = b"BAM\x01"
 
-#: The two bytes every member of a gzip stream opens with. BAM is BGZF, which
-#: is gzip with an extra field Python's gzip module ignores.
-COMPRESSED_MAGIC = b"\x1f\x8b"
-
 #: BAM has no IANA registration. The ``x-`` form follows ``application/x-nifti``
 #: and ``text/x-geo-soft``, already in the tree.
 ENCODING_FORMAT = "application/x-bam"
-
-#: Enough of the head to decide a claim: one BGZF block is at most 64 KiB, and
-#: the magic is the first four bytes of the first block's payload.
-CLAIM_BYTES = 4096
 
 #: ``l_text`` and ``n_ref`` are both little-endian signed 32-bit integers.
 INT32 = "<i"
@@ -83,27 +75,11 @@ class BAMHandler(FileTypeHandler):
     def claims(self, source: FileSource) -> bool:
         """Claim a stream whose payload opens with the BAM magic.
 
-        Two spellings, because the pipeline can hand over either. A ``.bam`` on
-        disk is compressed and reaches this handler as it is stored, so the
-        magic is inside the wrapper. A ``.bam`` that arrived under a second
-        wrapper has had one layer taken off already, and the magic is the first
-        thing in the stream.
-
-        A file that cannot be read peeks as ``b""`` and is therefore not
-        claimed; that is
-        :meth:`~croissant_baker.sources.FileSource.peek`'s contract. The
-        prefix this handler decompresses itself is its own to guard, and the
-        types are the ones a refused or corrupt member raises.
+        Inside its BGZF wrapper as a ``.bam`` is stored, or already unwrapped
+        when it arrived under a second wrapper; see
+        :func:`~croissant_baker.handlers.utils.bgzf_payload_starts_with`.
         """
-        head = source.peek(CLAIM_BYTES)
-        if head.startswith(MAGIC):
-            return True
-        if not head.startswith(COMPRESSED_MAGIC):
-            return False
-        try:
-            return decompress_prefix(head, len(MAGIC)) == MAGIC
-        except UNREADABLE:
-            return False
+        return bgzf_payload_starts_with(source, MAGIC)
 
     def extract(
         self, source: FileSource, genomic_sample_ids: bool = False, **kwargs
@@ -155,12 +131,8 @@ class BAMHandler(FileTypeHandler):
     def _read_header(self, source: FileSource, name: str):
         """The SAM header and the reference count, and nothing after them."""
         try:
-            compressed = source.peek(len(COMPRESSED_MAGIC)) == COMPRESSED_MAGIC
-            with source.open() as stored:
-                if not compressed:
-                    return self._read_payload(stored, name)
-                with gzip.GzipFile(fileobj=stored, mode="rb") as payload:
-                    return self._read_payload(payload, name)
+            with open_bgzf(source) as payload:
+                return self._read_payload(payload, name)
         except (*UNREADABLE, struct.error) as exc:
             raise ValueError(f"Failed to read BAM file {name}: {exc}") from exc
 

@@ -1,6 +1,8 @@
 """Tests for handler utilities."""
 
+import gzip
 import io
+from pathlib import Path
 
 import pytest
 
@@ -9,12 +11,15 @@ from croissant_baker.handlers.utils import (
     PREFIX_CHUNK_BYTES,
     _disambiguate_ids,
     allocate_record_set_ids,
+    bgzf_payload_starts_with,
     bounded_lines,
     make_field_id,
     make_record_set_ids,
     normalize_array_shape,
+    open_bgzf,
     shard_template,
 )
+from croissant_baker.sources import make_source
 
 
 def metas(*paths: str) -> list:
@@ -258,3 +263,41 @@ def test_bounded_lines_reads_no_further_than_the_caller_asks() -> None:
 
     assert next(lines) == b"first"
     assert stream.tell() == PREFIX_CHUNK_BYTES
+
+
+def stored(tmp_path: Path, data: bytes):
+    path = tmp_path / "stored.bin"
+    path.write_bytes(data)
+    return make_source(path, Path(path.name))
+
+
+@pytest.mark.parametrize(
+    "data",
+    [b"MAGIC and more", gzip.compress(b"MAGIC and more")],
+    ids=["plain", "wrapped"],
+)
+def test_a_payload_opening_with_the_magic_is_recognised(
+    tmp_path: Path, data: bytes
+) -> None:
+    assert bgzf_payload_starts_with(stored(tmp_path, data), b"MAGIC")
+
+
+@pytest.mark.parametrize(
+    "data",
+    [b"other bytes", gzip.compress(b"other bytes"), b"\x1f\x8b" + b"\xff" * 64],
+    ids=["plain", "wrapped", "corrupt"],
+)
+def test_a_payload_not_opening_with_the_magic_is_not(
+    tmp_path: Path, data: bytes
+) -> None:
+    assert not bgzf_payload_starts_with(stored(tmp_path, data), b"MAGIC")
+
+
+@pytest.mark.parametrize(
+    "data",
+    [b"the payload", gzip.compress(b"the payload")],
+    ids=["plain", "wrapped"],
+)
+def test_open_bgzf_reads_the_payload_either_way(tmp_path: Path, data: bytes) -> None:
+    with open_bgzf(stored(tmp_path, data)) as payload:
+        assert payload.read() == b"the payload"

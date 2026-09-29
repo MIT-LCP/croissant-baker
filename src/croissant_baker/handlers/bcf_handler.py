@@ -7,13 +7,13 @@ this handler finds the text and hands it to the VCF header reader, and nothing
 below it is ever decoded.
 """
 
-import gzip
 import struct
 from typing import BinaryIO
 
 from croissant_baker.handlers.utils import (
     MAX_HEADER_BYTES,
-    decompress_prefix,
+    bgzf_payload_starts_with,
+    open_bgzf,
     read_exactly,
 )
 from croissant_baker.handlers.vcf_handler import (
@@ -37,17 +37,9 @@ BCF2_MAGIC = MAGIC_PREFIX + b"\x02"
 #: Magic and minor version together.
 MAGIC_BYTES = len(BCF2_MAGIC) + 1
 
-#: The two bytes every member of a gzip stream opens with. BCF is BGZF, which
-#: is gzip with an extra field Python's gzip module ignores.
-COMPRESSED_MAGIC = b"\x1f\x8b"
-
 #: BCF has no IANA registration. The ``x-`` form follows ``application/x-bam``,
 #: already in the tree.
 ENCODING_FORMAT = "application/x-bcf"
-
-#: Enough of the head to decide a claim: one BGZF block is at most 64 KiB, and
-#: the magic is the first five bytes of the first block's payload.
-CLAIM_BYTES = 4096
 
 #: ``l_text`` is a little-endian unsigned 32-bit integer.
 UINT32 = "<I"
@@ -88,32 +80,16 @@ class BCFHandler(VCFHandler):
     def claims(self, source: FileSource) -> bool:
         """Claim a stream whose payload opens with the BCF magic.
 
-        Two spellings, because the pipeline can hand over either. A ``.bcf`` on
-        disk is compressed and reaches this handler as it is stored, so the
-        magic is inside the wrapper. A ``.bcf`` that arrived under a second
-        wrapper has had one layer taken off already, and the magic is the first
-        thing in the stream.
+        Inside its BGZF wrapper as a ``.bcf`` is stored, or already unwrapped
+        when it arrived under a second wrapper; see
+        :func:`~croissant_baker.handlers.utils.bgzf_payload_starts_with`.
 
         On the three bytes every generation shares, not on the generation this
         handler reads: a BCF1 claimed here is reported as a BCF whose header
         cannot be read, and one left unclaimed is reported as a file nothing
         recognised, which says less about it than is known.
-
-        A file that cannot be read peeks as ``b""`` and is therefore not
-        claimed; that is
-        :meth:`~croissant_baker.sources.FileSource.peek`'s contract. The prefix
-        this handler decompresses itself is its own to guard, and the types are
-        the ones a refused or corrupt member raises.
         """
-        head = source.peek(CLAIM_BYTES)
-        if head.startswith(MAGIC_PREFIX):
-            return True
-        if not head.startswith(COMPRESSED_MAGIC):
-            return False
-        try:
-            return decompress_prefix(head, len(MAGIC_PREFIX)) == MAGIC_PREFIX
-        except UNREADABLE:
-            return False
+        return bgzf_payload_starts_with(source, MAGIC_PREFIX)
 
     def _read_header(self, source: FileSource) -> _Header:
         """The header text the container declares, and nothing after it.
@@ -124,12 +100,8 @@ class BCFHandler(VCFHandler):
         """
         name = str(source.relative_path)
         try:
-            compressed = source.peek(len(COMPRESSED_MAGIC)) == COMPRESSED_MAGIC
-            with source.open() as stored:
-                if not compressed:
-                    return self._read_payload(stored, name)
-                with gzip.GzipFile(fileobj=stored, mode="rb") as payload:
-                    return self._read_payload(payload, name)
+            with open_bgzf(source) as payload:
+                return self._read_payload(payload, name)
         # A corrupt member raises its decompression library's own type, which
         # is not an OSError, and a file is owed a reason either way.
         except UNREADABLE as exc:
