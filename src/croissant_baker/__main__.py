@@ -255,6 +255,26 @@ def _normalize_optional_text_list(values: Optional[List[str]]) -> Optional[List[
 _FIELD_MAPPING_KEYS = {"equivalent_property", "data_types"}
 
 
+def _describe_yaml_error(path: Path, error: Exception) -> str:
+    """Say in one line where a YAML file failed to parse and why.
+
+    PyYAML's own text runs over several lines and quotes the source back.
+    Keep its context and problem, joined the way PyYAML joins them, and the
+    line and column of the problem (or of the context when the problem has
+    none), which is what the author needs.
+    """
+    mark = getattr(error, "problem_mark", None) or getattr(error, "context_mark", None)
+    parts = (getattr(error, "context", None), getattr(error, "problem", None))
+    text = ", ".join(part for part in parts if part)
+    if mark is not None:
+        where = (
+            f"{path}: invalid YAML at line {mark.line + 1}, column {mark.column + 1}"
+        )
+        return f"{where}: {text}" if text else where
+    lines = str(error).strip().splitlines()
+    return f"{path}: invalid YAML: {lines[0]}" if lines else f"{path}: invalid YAML"
+
+
 def _load_field_mappings(path: Optional[Path]) -> Optional[dict]:
     """Load a YAML sidecar mapping column names to vocab URI overrides.
 
@@ -275,7 +295,16 @@ def _load_field_mappings(path: Optional[Path]) -> Optional[dict]:
         return None
     import yaml
 
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as e:
+        raise typer.BadParameter(
+            f"{path}: invalid UTF-8 at byte offset {e.start}"
+        ) from e
+    try:
+        raw = yaml.safe_load(text) or {}
+    except yaml.YAMLError as e:
+        raise typer.BadParameter(_describe_yaml_error(path, e)) from e
     if not isinstance(raw, dict):
         raise typer.BadParameter(f"{path} must contain a YAML mapping at the top level")
     fields = raw.get("fields")
@@ -827,6 +856,51 @@ def main(
         )
         raise typer.Exit(code=1)
 
+    # The RAI inputs are read before anything looks at the dataset: they are
+    # inputs like any other flag, so a conflict or a typo in the config is
+    # reported now, including under --dry-run, and not after a discarded bake.
+    try:
+        native_rai_fields = _build_native_rai_fields(
+            rai_data_collection=rai_data_collection,
+            rai_data_collection_type=rai_data_collection_type,
+            rai_data_collection_missing_data=rai_data_collection_missing_data,
+            rai_data_collection_raw_data=rai_data_collection_raw_data,
+            rai_data_collection_timeframe=rai_data_collection_timeframe,
+            rai_data_imputation_protocol=rai_data_imputation_protocol,
+            rai_data_preprocessing_protocol=rai_data_preprocessing_protocol,
+            rai_data_manipulation_protocol=rai_data_manipulation_protocol,
+            rai_data_annotation_protocol=rai_data_annotation_protocol,
+            rai_data_annotation_platform=rai_data_annotation_platform,
+            rai_data_annotation_analysis=rai_data_annotation_analysis,
+            rai_annotations_per_item=rai_annotations_per_item,
+            rai_annotator_demographics=rai_annotator_demographics,
+            rai_machine_annotation_tools=rai_machine_annotation_tools,
+            rai_data_biases=rai_data_biases,
+            rai_data_use_cases=rai_data_use_cases,
+            rai_data_limitations=rai_data_limitations,
+            rai_data_social_impact=rai_data_social_impact,
+            rai_personal_sensitive_information=rai_personal_sensitive_information,
+            rai_data_release_maintenance_plan=rai_data_release_maintenance_plan,
+        )
+
+        if rai_config and native_rai_fields:
+            typer.echo(
+                "Error: native --rai-* flags cannot be combined with --rai-config. "
+                "Use direct flags for native mlcroissant RAI fields, or --rai-config "
+                "for the richer YAML-based workflow.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        rai = None
+        if rai_config:
+            from croissant_baker.rai import load_rai_config
+
+            rai = load_rai_config(rai_config)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
     # Listing every file is the point of this mode, so the fixed-size rule
     # governing the default bake summary does not apply here.
     if dry_run:
@@ -871,44 +945,12 @@ def main(
 
     generator: Optional[MetadataGenerator] = None
     try:
-        native_rai_fields = _build_native_rai_fields(
-            rai_data_collection=rai_data_collection,
-            rai_data_collection_type=rai_data_collection_type,
-            rai_data_collection_missing_data=rai_data_collection_missing_data,
-            rai_data_collection_raw_data=rai_data_collection_raw_data,
-            rai_data_collection_timeframe=rai_data_collection_timeframe,
-            rai_data_imputation_protocol=rai_data_imputation_protocol,
-            rai_data_preprocessing_protocol=rai_data_preprocessing_protocol,
-            rai_data_manipulation_protocol=rai_data_manipulation_protocol,
-            rai_data_annotation_protocol=rai_data_annotation_protocol,
-            rai_data_annotation_platform=rai_data_annotation_platform,
-            rai_data_annotation_analysis=rai_data_annotation_analysis,
-            rai_annotations_per_item=rai_annotations_per_item,
-            rai_annotator_demographics=rai_annotator_demographics,
-            rai_machine_annotation_tools=rai_machine_annotation_tools,
-            rai_data_biases=rai_data_biases,
-            rai_data_use_cases=rai_data_use_cases,
-            rai_data_limitations=rai_data_limitations,
-            rai_data_social_impact=rai_data_social_impact,
-            rai_personal_sensitive_information=rai_personal_sensitive_information,
-            rai_data_release_maintenance_plan=rai_data_release_maintenance_plan,
-        )
-
-        if rai_config and native_rai_fields:
-            typer.echo(
-                "Error: native --rai-* flags cannot be combined with --rai-config. "
-                "Use direct flags for native mlcroissant RAI fields, or --rai-config "
-                "for the richer YAML-based workflow.",
-                err=True,
-            )
-            raise typer.Exit(code=1)
-
         # Parse creators following mlcroissant specification
         # Allows flexible Person/Organization objects with optional properties
         parsed_creators = []
         if creator:
-            for creator_info in creator:
-                creator_info = creator_info.strip()
+            for raw_creator in creator:
+                creator_info = raw_creator.strip()
 
                 # Preferred: semicolon
                 if ";" in creator_info:
@@ -919,8 +961,14 @@ def main(
                     creator_parts = next(csv.reader([creator_info]))
                     creator_parts = [p.strip() for p in creator_parts]
 
+                # Skipping it would drop a creator the user asked for, or
+                # leave the placeholder, without a word; refuse it instead.
                 if not creator_parts or not creator_parts[0]:
-                    continue
+                    raise ValueError(
+                        f"--creator {raw_creator!r} has no name.\n"
+                        "Example: --creator 'John Doe,john@example.com' "
+                        "or --creator 'Jane Smith'"
+                    )
 
                 creator_obj = {"name": creator_parts[0]}
 
@@ -1034,10 +1082,9 @@ def main(
             )
 
         # Inject RAI attributes when a config file is provided
-        if rai_config:
-            from croissant_baker.rai import inject_rai, load_rai_config
+        if rai is not None:
+            from croissant_baker.rai import inject_rai
 
-            rai = load_rai_config(rai_config)
             metadata_dict = inject_rai(metadata_dict, rai)
 
         _ensure_rai_conforms_to(
@@ -1086,10 +1133,18 @@ def main(
             date_published=date_published,
         )
 
+    except typer.Exit:
+        # Already reported by whoever raised it; do not relabel it below.
+        raise
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         # A bake that described nothing is when coverage matters most.
         _echo_scan_coverage(generator, report, verbose)
+        raise typer.Exit(code=1)
+    except typer.BadParameter as e:
+        # A bad --field-mapping or --field-mappings is a user input error. It is
+        # raised before the bake starts, so there is no coverage to print.
+        typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
     except Exception as e:
         typer.echo(f"Unexpected error: {e}", err=True)

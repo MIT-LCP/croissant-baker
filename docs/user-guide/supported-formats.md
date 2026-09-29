@@ -291,13 +291,15 @@ Files with no extension are also accepted if they carry the DICOM magic bytes (`
 
 All DICOM files in a dataset are grouped into one `cr:FileSet` with a summary `cr:RecordSet` covering modality counts and dimension ranges.
 
+**Header fields are descriptive.** Each field (`modality`, `rows`, `columns`, `num_frames`, `bits_allocated`, `patient_id`, `study_instance_uid`, `series_instance_uid`) names the DICOM tag it describes and has `source: {fileSet: {"@id": "dicom-files"}}` with no `extract`. A `fileProperty: content` extract would select the whole file, and nothing in it identifies a tag. Reading a value for one file takes a DICOM reader such as `pydicom`, pointed at the tag in the field's description. No `Field.value` is emitted. This is the shape OME-TIFF header fields use. `mlcroissant` 1.1.0 cannot read records from this RecordSet, so `records("dicom")` fails even when the metadata validates.
+
 ### Whole-slide microscopy
 
 A digital pathology scanner writes DICOM too, under the VL Whole Slide Microscopy Image SOP class (`1.2.840.10008.5.1.4.1.1.77.1.6`). An instance of that class is a slide rather than a cross section, and six further fields are added for it: `wsi_flavor` (the ImageType value 3, one of `VOLUME`, `LABEL`, `OVERVIEW` or `THUMBNAIL`), `total_pixel_matrix_columns` and `total_pixel_matrix_rows` (the size of the whole slide across all tiles), `imaged_volume_width` and `imaged_volume_height` (the imaged tissue in millimetres on the glass), and `container_identifier` (the slide barcode, shared by every instance imaged from one glass slide). The pixel spacing reaches the existing `pixel_spacing` reading: a slide is multi-frame, so its spacing comes from the shared functional groups when the instance states none at the top level.
 
 The fields are added only when the batch holds a slide, so a batch of cross sections is described exactly as it was before slides were recognised. The record set's description names the slide count and the flavors present, alongside the modality counts; the flavors are listed in the standard's own order, `VOLUME`, `LABEL`, `OVERVIEW`, `THUMBNAIL`, rather than in discovery order, so one directory describes itself the same way on any filesystem. `LABEL` and `OVERVIEW` instances routinely omit the imaged volume and the container id, so each of these values is reported as unstated rather than dropped, keeping the shape of a slide the same across the flavors of one study.
 
-These six fields have `source: {fileSet: {"@id": "dicom-files"}}` and no `extract`. A DICOM reader such as `pydicom` reads a value from the attribute each description names.
+These six fields have `source: {fileSet: {"@id": "dicom-files"}}` and no `extract`. Reading a value for one file takes a DICOM reader such as `pydicom`, pointed at the attribute in the field's description.
 
 ## NIfTI
 
@@ -306,6 +308,8 @@ NIfTI (`.nii`) is the standard format for neuroimaging data (structural MRI, fMR
 Extracted metadata: spatial dimensions (x, y, z), number of timepoints for 4D volumes, voxel spacing in mm, stored data type, NIfTI version (1 or 2), and repetition time (TR) for fMRI data.
 
 All NIfTI files in a dataset are grouped into one `cr:FileSet` with a summary `cr:RecordSet`. The `tr_seconds` field is only added when at least one 4D volume is present.
+
+**Header fields are descriptive.** Each field names the header slot it describes (`dim_x` is `dim[1]`, `voxel_spacing` is `pixdim[1:4]`, `tr_seconds` is `pixdim[4]`) and has `source: {fileSet: {"@id": "nifti-files"}}` with no `extract`. A `fileProperty: content` extract would select the whole volume, and nothing in it identifies a header slot. Reading a value for one file takes a NIfTI reader such as `nibabel`. This holds for `.nii.gz` too. No `Field.value` is emitted. `mlcroissant` 1.1.0 cannot read records from this RecordSet, so `records("nifti")` fails even when the metadata validates.
 
 ## GEO SOFT
 
