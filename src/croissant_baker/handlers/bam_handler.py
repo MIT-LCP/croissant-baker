@@ -37,13 +37,6 @@ ENCODING_FORMAT = "application/x-bam"
 INT32 = "<i"
 INT32_BYTES = 4
 
-#: The largest SAM text header this handler will read. ``l_text`` is a signed
-#: 32-bit integer the file chooses, so trusting it turns a header read into a
-#: read of the whole file, which is the one thing this handler exists not to
-#: do. The cap is the shared one, because every container in this family states
-#: its own header length and none of them may be believed about it.
-MAX_TEXT_BYTES = MAX_HEADER_BYTES
-
 
 def _read_exactly(stream: BinaryIO, count: int, what: str, name: str) -> bytes:
     """``count`` bytes, or a refusal naming the file and what was missing."""
@@ -144,11 +137,12 @@ class BAMHandler(FileTypeHandler):
                 "start of its payload"
             )
         text_length = _int32(payload, "l_text", name)
-        # Checked before the read, not after: the point is not to read it.
-        if not 0 <= text_length <= MAX_TEXT_BYTES:
+        # A length the file chooses, so checked against the shared cap before
+        # the read, not after: the point is not to read it.
+        if not 0 <= text_length <= MAX_HEADER_BYTES:
             raise ValueError(
                 f"Not a BAM file: {name} declares a SAM header of "
-                f"{text_length} bytes, outside the 0 to {MAX_TEXT_BYTES} a "
+                f"{text_length} bytes, outside the 0 to {MAX_HEADER_BYTES} a "
                 "header can be"
             )
         text = _read_exactly(payload, text_length, "the SAM header", name)
