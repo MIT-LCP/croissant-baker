@@ -889,3 +889,67 @@ def test_rai_apply_makes_no_rai_claim_from_the_old_keys_alone(
     document = _rai_apply(_old_document(), config, tmp_path)
 
     assert document["conformsTo"] == CROISSANT_CONFORMS_TO
+
+
+_OTHER_CB = "https://example.org/other#"
+
+
+def _old_document_with_another_cb() -> dict:
+    old = _old_document()
+    old["@context"]["cb"] = _OTHER_CB
+    return old
+
+
+def test_old_keys_stay_put_when_cb_is_bound_elsewhere() -> None:
+    """Moving them would file croissant-baker terms under someone else's IRI."""
+    document = inject_rai(_old_document_with_another_cb(), RAIConfig())
+
+    assert document["rai:hasSyntheticData"] is False
+    assert document["rai:usedBy"] == [{"url": "https://example.org/old-model"}]
+    assert "rai:usedPlatform" in document["prov:wasGeneratedBy"]
+    assert not any(key.startswith("cb:") for key in _keys(document))
+    assert document["@context"]["cb"] == _OTHER_CB
+
+
+def test_rai_apply_prints_a_warning_when_cb_is_bound_elsewhere(
+    tmp_path: Path,
+) -> None:
+    """The package logs to a NullHandler, so the CLI has to say it itself."""
+    path = tmp_path / "croissant.jsonld"
+    path.write_text(json.dumps(_old_document_with_another_cb()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(path),
+            "--rai-config",
+            str(_write_config(tmp_path, "ai_fairness:\n  data_biases: x\n")),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Warning" in result.stderr
+    assert _OTHER_CB in result.stderr
+    assert CB_NAMESPACE in result.stderr
+    assert "rai:hasSyntheticData" in result.stderr
+
+
+def test_rai_apply_prints_no_cb_warning_for_our_own_binding(tmp_path: Path) -> None:
+    path = tmp_path / "croissant.jsonld"
+    path.write_text(json.dumps(_old_document()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(path),
+            "--rai-config",
+            str(_write_config(tmp_path, "ai_fairness:\n  data_biases: x\n")),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Warning" not in result.stderr

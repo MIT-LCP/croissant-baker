@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from croissant_baker.rai.schema import Activity, RAIConfig
 
@@ -72,14 +73,16 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
       optional prov:wasAssociatedWith (agents) and cb:usedPlatform (platforms).
     - cb: terms are croissant-baker extensions, not part of RAI 1.0. A
       document written before they moved holds them under rai:; those keys
-      are moved to cb:, where a value the config sets replaces them.
+      are moved to cb:, where a value the config sets replaces them, unless
+      @context binds cb to another IRI; then they are left where they are.
     - Collection types → rai:dataCollectionType on the dataset node, unioned
       across the activities and written with the terms RAI 1.0 recommends.
       RAI 1.0 declares the property on sc:Dataset, so it does not go on the
       prov:Activity that carries the types in the config.
     """
     _ensure_prov_context(metadata, config)
-    _move_old_terms(metadata)
+    if _foreign_cb_binding(metadata) is None:
+        _move_old_terms(metadata)
 
     # AI Safety and Fairness
     af = config.ai_fairness
@@ -237,25 +240,52 @@ def _activity_nodes(metadata: dict) -> list[dict]:
     return []
 
 
+def _foreign_cb_binding(metadata: dict) -> Optional[str]:
+    """The IRI @context binds cb to, when that is not ours."""
+    ctx = metadata.get("@context")
+    bound = ctx.get(_CB_PREFIX) if isinstance(ctx, dict) else None
+    return bound if bound not in (None, _CB_NS) else None
+
+
+def cb_prefix_conflict(metadata: dict) -> Optional[str]:
+    """Say so when cb is bound to another IRI and the output cares, else None.
+
+    It cares when it carries a cb: term, which then means something under the
+    other IRI, or an old rai: extension key, which was left unmoved. The
+    injector logs this for callers who configure logging; the CLI prints it,
+    since the package only ships a NullHandler.
+    """
+    bound = _foreign_cb_binding(metadata)
+    if bound is None:
+        return None
+    old_keys = {f"rai:{t}" for t in _DATASET_OLD_TERMS + _ACTIVITY_OLD_TERMS}
+    nodes = [metadata, *_activity_nodes(metadata)]
+    keys = [key for node in nodes for key in node]
+    if not any(key.startswith("cb:") or key in old_keys for key in keys):
+        return None
+    return (
+        f"@context already binds {_CB_PREFIX!r} to {bound!r}, not {_CB_NS!r}. "
+        "It was left as it is, so any cb: term written here reads under that "
+        "IRI, and rai:hasSyntheticData, rai:usedBy and rai:usedPlatform were "
+        "not moved to cb:."
+    )
+
+
 def _ensure_cb_context(metadata: dict) -> None:
     """Add the cb: namespace to @context if the output carries a cb: term.
 
     The output is read rather than the config, so the check cannot drift from
     what was written, and a cb: term that was already in the document counts.
-    A cb prefix the document already binds elsewhere is left as it is.
+    A cb prefix the document already binds elsewhere is left as it is, and
+    a warning says so.
     """
+    conflict = cb_prefix_conflict(metadata)
+    if conflict:
+        logger.warning(conflict)
+        return
     nodes = [metadata, *_activity_nodes(metadata)]
     if not any(key.startswith("cb:") for node in nodes for key in node):
         return
     ctx = metadata.get("@context")
-    if not isinstance(ctx, dict):
-        return
-    bound = ctx.setdefault(_CB_PREFIX, _CB_NS)
-    if bound != _CB_NS:
-        logger.warning(
-            "@context already binds %r to %r, so the cb: terms are left under "
-            "that IRI rather than %r",
-            _CB_PREFIX,
-            bound,
-            _CB_NS,
-        )
+    if isinstance(ctx, dict):
+        ctx.setdefault(_CB_PREFIX, _CB_NS)

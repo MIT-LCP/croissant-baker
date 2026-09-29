@@ -140,7 +140,7 @@ Three fields in the config have no term in the [RAI 1.0 vocabulary](https://gith
 | `lineage.models` | `cb:usedBy` on the dataset node |
 | `activities[].platforms` | `cb:usedPlatform` on each `prov:Activity` |
 
-The prefix stands for `https://github.com/MIT-LCP/croissant-baker#` and is added to `@context` only when the output carries one of these properties. If `@context` already binds `cb` to another IRI, that binding is kept and a warning names both. `mlcroissant` accepts the properties but does not read them.
+The prefix stands for `https://github.com/MIT-LCP/croissant-baker#` and is added to `@context` only when the output carries one of these properties. If `@context` already binds `cb` to another IRI, that binding is kept, the old `rai:` keys described under [Apply RAI to an existing file](#apply-rai-to-an-existing-file) are not moved, and `rai-apply` prints a warning that names both IRIs. `mlcroissant` accepts the properties but does not read them.
 
 The output claims RAI 1.0 in `conformsTo` only when it carries at least one term from the RAI 1.0 vocabulary. A `rai:` key that is not in the vocabulary does not count. A config that fills in only these three fields, or only source datasets and activities without `collection_types` (which are written as `prov:` terms), adds no claim.
 
@@ -168,4 +168,4 @@ croissant-baker rai-apply dataset-croissant.jsonld \
 
 Omit `--output` to overwrite the input file in place.
 
-A file written by an older release may hold the three extension terms under `rai:`: `rai:hasSyntheticData` and `rai:usedBy` on the dataset, `rai:usedPlatform` on an activity. `rai-apply` moves each of them to its `cb:` name. When the config sets the same field, the config value replaces the old one. When the config leaves it empty, the old value is kept under the `cb:` name. If the file already has the `cb:` name as well, that value is kept and the `rai:` one is dropped. Activities work as a whole: when the config lists any, they replace the file's activities, old platforms included. The old keys alone do not make the file claim RAI 1.0.
+A file written by an older release may hold the three extension terms under `rai:`: `rai:hasSyntheticData` and `rai:usedBy` on the dataset, `rai:usedPlatform` on an activity. `rai-apply` moves each of them to its `cb:` name. When the config sets the same field, the config value replaces the old one. When the config leaves it empty, the old value is kept under the `cb:` name. If the file already has the `cb:` name as well, that value is kept and the `rai:` one is dropped. If the file binds `cb` to an IRI other than croissant-baker's, the old keys are left where they are, so nothing is moved into another namespace, and a warning says so. Activities work as a whole: when the config lists any, they replace the file's activities, old platforms included. The old keys alone do not make the file claim RAI 1.0.

@@ -1139,6 +1139,7 @@ def rai_apply(
 ) -> None:
     """Apply RAI attributes from a config YAML to an existing Croissant file."""
     from croissant_baker.rai import inject_rai, load_rai_config
+    from croissant_baker.rai.injector import cb_prefix_conflict
 
     input_path = Path(file_path)
     if not input_path.is_file():
@@ -1152,6 +1153,12 @@ def rai_apply(
         rai = load_rai_config(rai_config)
         metadata_dict = inject_rai(metadata_dict, rai)
         _ensure_rai_conforms_to(metadata_dict)
+        # The injector logs this too, for callers who configure logging; a
+        # terminal user has none, since the package ships a NullHandler. A
+        # fresh bake cannot hit it, as nothing but the injector writes cb.
+        conflict = cb_prefix_conflict(metadata_dict)
+        if conflict:
+            typer.echo(f"Warning: {conflict}", err=True)
 
         dest = str(Path(output) if output else input_path)
         _save_dict(metadata_dict, dest, validate=validate)
