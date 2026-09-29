@@ -1,6 +1,7 @@
 """Integration test for the RAI metadata extension."""
 
 import json
+import logging
 import re
 from pathlib import Path
 
@@ -530,6 +531,42 @@ def test_the_croissant_baker_prefix_is_declared_when_a_term_uses_it() -> None:
     document = inject_rai({"@context": {}}, _extensions_only_config())
 
     assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_the_croissant_baker_prefix_is_declared_for_a_platform_alone() -> None:
+    """cb:usedPlatform sits on an activity node, not on the dataset node."""
+    config = RAIConfig(
+        activities=[
+            Activity(id="ACT-001", type="data_collection", platforms=[Platform("P")])
+        ]
+    )
+
+    document = inject_rai({"@context": {}}, config)
+
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_the_croissant_baker_prefix_follows_the_output_not_the_config() -> None:
+    """A cb: term already in the document needs the prefix as much as a new one."""
+    document = inject_rai({"@context": {}, "cb:hasSyntheticData": True}, RAIConfig())
+
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_a_cb_prefix_bound_elsewhere_is_left_alone_with_a_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Rebinding a prefix the author chose would change what their terms mean."""
+    other = "https://example.org/other#"
+
+    with caplog.at_level(logging.WARNING, logger="croissant_baker.rai.injector"):
+        document = inject_rai({"@context": {"cb": other}}, _extensions_only_config())
+
+    assert document["@context"]["cb"] == other
+    assert any(
+        other in record.getMessage() and CB_NAMESPACE in record.getMessage()
+        for record in caplog.records
+    )
 
 
 def test_the_croissant_baker_prefix_is_not_declared_when_no_term_uses_it() -> None:

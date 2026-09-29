@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from croissant_baker.rai.schema import Activity, RAIConfig
+
+logger = logging.getLogger(__name__)
 
 _PROV_NS = "http://www.w3.org/ns/prov#"
 
@@ -69,7 +73,6 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
       prov:Activity that carries the types in the config.
     """
     _ensure_prov_context(metadata, config)
-    _ensure_cb_context(metadata, config)
 
     # AI Safety and Fairness
     af = config.ai_fairness
@@ -127,6 +130,7 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     if activities:
         metadata["prov:wasGeneratedBy"] = _one_or_many(activities)
 
+    _ensure_cb_context(metadata)
     return metadata
 
 
@@ -201,15 +205,35 @@ def _ensure_prov_context(metadata: dict, config: RAIConfig) -> None:
         ctx["prov"] = _PROV_NS
 
 
-def _ensure_cb_context(metadata: dict, config: RAIConfig) -> None:
-    """Add the cb: namespace to @context if any cb: term will be injected."""
-    needs_cb = (
-        config.ai_fairness.has_synthetic_data is not None
-        or bool(config.lineage.models)
-        or any(act.platforms for act in config.activities)
-    )
-    if not needs_cb:
+def _activity_nodes(metadata: dict) -> list[dict]:
+    """The prov:Activity nodes on the dataset, whether one or a list."""
+    activities = metadata.get("prov:wasGeneratedBy")
+    if isinstance(activities, dict):
+        return [activities]
+    if isinstance(activities, list):
+        return [act for act in activities if isinstance(act, dict)]
+    return []
+
+
+def _ensure_cb_context(metadata: dict) -> None:
+    """Add the cb: namespace to @context if the output carries a cb: term.
+
+    The output is read rather than the config, so the check cannot drift from
+    what was written, and a cb: term that was already in the document counts.
+    A cb prefix the document already binds elsewhere is left as it is.
+    """
+    nodes = [metadata, *_activity_nodes(metadata)]
+    if not any(key.startswith("cb:") for node in nodes for key in node):
         return
     ctx = metadata.get("@context")
-    if isinstance(ctx, dict) and _CB_PREFIX not in ctx:
-        ctx[_CB_PREFIX] = _CB_NS
+    if not isinstance(ctx, dict):
+        return
+    bound = ctx.setdefault(_CB_PREFIX, _CB_NS)
+    if bound != _CB_NS:
+        logger.warning(
+            "@context already binds %r to %r, so the cb: terms are left under "
+            "that IRI rather than %r",
+            _CB_PREFIX,
+            bound,
+            _CB_NS,
+        )
