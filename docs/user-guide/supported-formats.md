@@ -490,6 +490,13 @@ the record set states how many samples the file carries, not what they are
 called. `--genomic-sample-ids` emits them, mirroring the opt-in shape of
 `--count-csv-rows`.
 
+The flag covers what a header says, and nothing else. File names are emitted
+either way: every FileObject carries the file's path in `name` and
+`contentUrl`, record set ids and descriptions are built from it, and sequencing
+deliveries often name files by sample (`SJ001234_D1.bam`). If the file names identify samples, rename the files or
+leave them out with `--exclude` before baking; withholding the header
+identifiers does not hide them.
+
 ## BCF
 
 BCF (`.bcf`) is the binary form of a VCF: the same header text, followed by
