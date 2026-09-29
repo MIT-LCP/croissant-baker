@@ -466,6 +466,14 @@ compression media type added by the input layer.
 A header with no `#CHROM` line declares no columns, and the file is reported
 with that reason rather than described.
 
+Nothing in front of a VCF header says how long it is, so the header is taken a
+chunk at a time and the read is capped: a single line above 32 MiB is not a
+header line, and a header above 64 MiB, the cap every other genomic header is
+read under, is not a header. Either file is reported with that reason after a
+read of the cap and no more. The line cap is larger than the SAM one because
+the `#CHROM` line names every sample, and for a biobank cohort that one line
+runs to tens of megabytes.
+
 ### Sample identifiers
 
 Sample column names are a manifest of the cohort. They are withheld by default:

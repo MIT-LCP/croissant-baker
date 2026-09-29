@@ -13,6 +13,7 @@ import mlcroissant as mlc
 import pytest
 
 from croissant_baker.entries import Reason
+from croissant_baker.handlers import vcf_handler
 from croissant_baker.handlers.vcf_handler import VCFHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import make_source
@@ -27,6 +28,7 @@ from tests.helpers import (
     record_sets,
     write_wrapped,
 )
+from tests.test_sam_handler import counting_source
 
 HANDLER = VCFHandler()
 
@@ -501,6 +503,89 @@ def test_no_record_is_read(dataset: Path) -> None:
     )
 
     assert extract(path)["sample_count"] == 0
+
+
+#: The opening a VCF claim is made on, followed by nothing that ends a line.
+UNBROKEN_OPENING = b"##fileformat=VCFv4.2"
+
+#: The caps the bound tests shrink the handler's to, so a file a few megabytes
+#: long exercises them; the read a bounded handler may spend past a cap is the
+#: chunk the cap was reached in.
+SMALL_LINE_CAP = 1024 * 1024
+SMALL_HEADER_CAP = 256 * 1024
+
+
+def test_a_file_holding_no_line_ending_is_refused_after_a_bounded_read(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stream iterated by line hands back the whole file as one line when the
+    file holds no line ending. A VCF opening that way is refused once the line
+    passes the cap, with the file named, and the rest of it is never read."""
+    monkeypatch.setattr(vcf_handler, "MAX_LINE_BYTES", SMALL_LINE_CAP)
+    path = write(
+        dataset, "unbroken.vcf", UNBROKEN_OPENING + b"x" * (4 * SMALL_LINE_CAP)
+    )
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "unbroken.vcf" in str(caught.value)
+    assert "line ending" in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < 2 * SMALL_LINE_CAP
+
+
+def test_a_header_running_past_the_cap_is_refused_after_a_bounded_read(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Short lines are no way around it: a header that never reaches its
+    ``#CHROM`` line stops at the cap on the header as a whole."""
+    monkeypatch.setattr(vcf_handler, "MAX_HEADER_BYTES", SMALL_HEADER_CAP)
+    contigs = b"".join(b"##contig=<ID=chr%d,length=100000>\n" % i for i in range(40000))
+    path = write(dataset, "endless.vcf", b"##fileformat=VCFv4.2\n" + contigs)
+    assert path.stat().st_size > 4 * SMALL_HEADER_CAP
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert "endless.vcf" in str(caught.value)
+    assert str(SMALL_HEADER_CAP) in str(caught.value)
+    assert sum(stream.read_bytes for stream in opened) < 2 * SMALL_HEADER_CAP
+
+
+def test_a_column_line_naming_a_biobank_cohort_is_read_whole(dataset: Path) -> None:
+    """Bounded is not truncated. The ``#CHROM`` line names every sample, so a
+    cohort of a few hundred thousand runs to megabytes on one line: longer than
+    any SAM header line, and still a header this handler reads."""
+    samples = 200000
+    columns = "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT"
+    line = columns + "".join(f"\tSAMPLE{i:07d}" for i in range(samples)) + "\n"
+    path = write(dataset, "cohort.vcf", b"##fileformat=VCFv4.2\n" + line.encode())
+    assert len(line) > 2 * 1024 * 1024
+
+    assert extract(path)["sample_count"] == samples
+
+
+def test_a_header_spanning_many_chunks_is_read_whole(dataset: Path) -> None:
+    """A contig per scaffold of a fragmented assembly runs to hundreds of
+    kilobytes of ``##contig`` lines, and every one of them is counted."""
+    contigs = b"".join(
+        b"##contig=<ID=scaffold%d,length=1000>\n" % i for i in range(20000)
+    )
+    path = write(
+        dataset,
+        "scaffolds.vcf",
+        b"##fileformat=VCFv4.2\n"
+        + contigs
+        + b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+    )
+    assert path.stat().st_size > 256 * 1024
+
+    meta = extract(path)
+
+    assert meta["contig_count"] == 20000
+    assert meta["columns"] == list(vcf_handler.MANDATORY_COLUMNS)
 
 
 def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(

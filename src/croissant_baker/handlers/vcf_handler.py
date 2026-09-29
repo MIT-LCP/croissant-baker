@@ -6,17 +6,20 @@ with a type and a cardinality. That is a RecordSet schema written down by the
 producer, so this handler reads the header and stops at the first record.
 """
 
-from typing import Dict, Iterable, List, Optional
+from pathlib import Path
+from typing import BinaryIO, Dict, Iterable, Iterator, List, Optional
 
 import mlcroissant as mlc
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
+    MAX_HEADER_BYTES,
     allocate_record_set_ids,
     display_name,
     make_field_id,
     plural,
+    read_prefix_chunks,
 )
 from croissant_baker.sources import UNREADABLE, FileSource
 
@@ -91,6 +94,15 @@ GVCF_ALT_ID = "NON_REF"
 
 #: The block declaration GATK writes into a gVCF header.
 GVCF_BLOCK_PREFIX = "##GVCFBlock"
+
+#: The longest single header line this handler will accumulate. Nothing in
+#: front of a VCF header says how long it is, so a file holding no line ending
+#: would otherwise be read whole as its first line. Larger than the SAM line
+#: cap because the ``#CHROM`` line names every sample: a biobank cohort of a
+#: million samples with names of twenty characters runs to about 21 MiB on that
+#: one line. The header as a whole is capped at ``MAX_HEADER_BYTES``, the cap
+#: every other genomic header is read under.
+MAX_LINE_BYTES = 32 * 1024 * 1024
 
 
 def map_vcf_type(declared: str) -> str:
@@ -228,7 +240,9 @@ def read_header_lines(lines: Iterable[str]) -> _Header:
     a callset of a hundred million records costs the same read as one of ten.
     There is deliberately no cap on the number of header lines, because a
     cohort VCF legitimately declares thousands of contigs and keys, and every
-    one of them is a field this handler emits.
+    one of them is a field this handler emits. The cap is on bytes, and it is
+    the caller's: a VCF is read through :meth:`VCFHandler._bounded_lines`, and
+    a BCF states its header length and is refused above ``MAX_HEADER_BYTES``.
     """
     header = _Header()
     for line in lines:
@@ -336,6 +350,11 @@ class VCFHandler(FileTypeHandler):
     def _read_header(self, source: FileSource) -> _Header:
         """Every line up to the first that is not a header line.
 
+        Taken a chunk at a time rather than a line at a time: a stream iterated
+        by line hands back the whole file as one line when the file holds no
+        line ending, and reading the whole file is the one thing this handler
+        exists not to do.
+
         Decoded permissively: a header is ASCII by specification, and a stray
         byte in a description is not a reason to refuse a file whose structure
         is otherwise readable.
@@ -343,12 +362,53 @@ class VCFHandler(FileTypeHandler):
         try:
             with source.open() as stream:
                 return read_header_lines(
-                    raw.decode("utf-8", "replace") for raw in stream
+                    raw.decode("utf-8", "replace")
+                    for raw in self._bounded_lines(stream, source.relative_path)
                 )
         except UNREADABLE as exc:
             raise ValueError(
                 f"Failed to read {self.FORMAT_NAME} file {source.relative_path}: {exc}"
             ) from exc
+
+    def _bounded_lines(self, stream: BinaryIO, name: Path) -> Iterator[bytes]:
+        """The lines of ``stream``, refused once a line or the header runs long.
+
+        Lazy, so the read ends where :func:`read_header_lines` stops asking. The
+        unfinished tail is kept as parts and joined once, when its line ends:
+        joining it on every chunk would copy a long ``#CHROM`` line once per
+        chunk it spans.
+        """
+        pending: List[bytes] = []
+        pending_bytes = 0
+        read = 0
+        for chunk in read_prefix_chunks(stream, MAX_HEADER_BYTES + 1):
+            read += len(chunk)
+            *complete, tail = chunk.split(b"\n")
+            for piece in complete:
+                pending.append(piece)
+                yield b"".join(pending)
+                pending, pending_bytes = [], 0
+            pending.append(tail)
+            pending_bytes += len(tail)
+            self._still_a_header(pending_bytes, read, name)
+        # End of file inside the header: what is left of it is the last line,
+        # written without an ending.
+        if pending_bytes:
+            yield b"".join(pending)
+
+    def _still_a_header(self, line_bytes: int, header_bytes: int, name: Path) -> None:
+        """Refuse a read that has gone past what a header can be, saying which."""
+        if line_bytes > MAX_LINE_BYTES:
+            raise ValueError(
+                f"Not a {self.FORMAT_NAME} file: {name} runs to {line_bytes} bytes "
+                f"with no line ending, past the {MAX_LINE_BYTES} a header line can be"
+            )
+        if header_bytes > MAX_HEADER_BYTES:
+            raise ValueError(
+                f"Not a {self.FORMAT_NAME} file: the header of {name} runs past "
+                f"{MAX_HEADER_BYTES} bytes without reaching a line that is not "
+                "a header line"
+            )
 
     def build_croissant(self, file_metas: list, file_ids: list) -> tuple:
         """One record set per callset: its columns, as the header declares them."""
