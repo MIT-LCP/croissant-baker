@@ -204,8 +204,8 @@ def allocate_record_set_ids(
     is what a local implementation forgets:
 
     1. A base per file, from ``Path(file_name).stem`` plus parent components
-       through :func:`_disambiguate_ids`, so two files with the same basename
-       in different directories stay apart.
+       through :func:`disambiguate_in_path_order`, so two files with the same
+       basename in different directories stay apart.
     2. **Every base is reserved**, so a real file named ``x_samples.csv`` keeps
        the bare ``x_samples`` and a record set derived from ``x.soft`` does not
        displace it.
@@ -242,20 +242,15 @@ def allocate_record_set_ids(
         for meta, path in zip(file_metas, paths)
     ]
 
-    # Allocated in path order, not batch order. Batch order is rglob order, and
-    # where parents cannot separate two stems — ``a b`` and ``a@b`` sanitize
-    # alike — a numeric suffix settles it, so without this which file takes the
-    # suffix would depend on which was discovered first.
-    order = sorted(range(len(items)), key=lambda i: paths[i])
-    bases = [""] * len(items)
-    for base, i in zip(_disambiguate_ids([items[i] for i in order]), order):
-        bases[i] = base
+    bases = disambiguate_in_path_order(items, paths)
 
     taken = set(bases)
     allocated: List[Dict[str, str]] = [
         {BASE: base} if include_base else {} for base in bases
     ]
-    for i in order:
+    # Derived ids go in path order too, so which one takes a ``__2`` does not
+    # depend on which file was discovered first.
+    for i in sorted(range(len(bases)), key=lambda i: paths[i]):
         for suffix in suffixes:
             candidate = f"{bases[i]}_{sanitize_id(suffix)}"
             if candidate in taken:
