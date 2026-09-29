@@ -11,7 +11,12 @@ from typer.testing import CliRunner
 from croissant_baker.__main__ import app
 from croissant_baker.rai import inject_rai
 from croissant_baker.rai.injector import _COLLECTION_TYPE_TERMS
-from croissant_baker.metadata_generator import CROISSANT_CONFORMS_TO, RAI_CONFORMS_TO
+from croissant_baker.__main__ import _ensure_rai_conforms_to
+from croissant_baker.metadata_generator import (
+    CROISSANT_CONFORMS_TO,
+    RAI_1_0_TERMS,
+    RAI_CONFORMS_TO,
+)
 from croissant_baker.rai.schema import (
     Activity,
     AIFairnessConfig,
@@ -441,34 +446,6 @@ def test_a_dry_run_checks_the_rai_config_too(tmp_path: Path) -> None:
     assert "would be processed" not in result.output
 
 
-#: Every term RAI 1.0 defines, as listed in croissant_rai.ttl:
-#: https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl
-RAI_1_0_TERMS = frozenset(
-    f"rai:{term}"
-    for term in (
-        "annotationsPerItem",
-        "annotatorDemographics",
-        "dataAnnotationAnalysis",
-        "dataAnnotationPlatform",
-        "dataAnnotationProtocol",
-        "dataBiases",
-        "dataCollection",
-        "dataCollectionMissingData",
-        "dataCollectionRawData",
-        "dataCollectionTimeframe",
-        "dataCollectionType",
-        "dataImputationProtocol",
-        "dataLimitations",
-        "dataManipulationProtocol",
-        "dataPreprocessingProtocol",
-        "dataReleaseMaintenancePlan",
-        "dataSocialImpact",
-        "dataUseCases",
-        "machineAnnotationTools",
-        "personalSensitiveInformation",
-    )
-)
-
 CB_NAMESPACE = "https://github.com/MIT-LCP/croissant-baker#"
 
 
@@ -690,3 +667,41 @@ def test_rai_apply_with_a_rai_term_claims_rai_conformance(tmp_path: Path) -> Non
 
     assert result.exit_code == 0, result.output
     assert json.loads(document.read_text())["conformsTo"] == [RAI_CONFORMS_TO]
+
+
+def test_the_rai_term_list_holds_the_twenty_terms_of_the_ttl() -> None:
+    """Checked by hand against croissant_rai.ttl, which lists twenty terms."""
+    assert len(RAI_1_0_TERMS) == 20
+    assert all(term.startswith("rai:") for term in RAI_1_0_TERMS)
+    assert "rai:hasSyntheticData" not in RAI_1_0_TERMS
+
+
+@pytest.mark.parametrize(
+    "key", ["rai:hasSyntheticData", "rai:usedBy", "rai:somethingElse"]
+)
+def test_a_rai_key_outside_rai_1_0_does_not_claim_rai_conformance(key: str) -> None:
+    """A document written before the cb: move still carries the old keys."""
+    document = {"conformsTo": CROISSANT_CONFORMS_TO, key: False}
+
+    _ensure_rai_conforms_to(document)
+
+    assert document["conformsTo"] == CROISSANT_CONFORMS_TO
+
+
+@pytest.mark.parametrize(
+    "key", ["rai:dataCollectionTimeFrame", "rai:dataDataManipulationProtocol"]
+)
+def test_the_mlcroissant_spelling_of_a_rai_term_claims_rai_conformance(
+    key: str,
+) -> None:
+    """mlcroissant writes these two RAI 1.0 terms with its own spelling.
+
+    The ttl has dataCollectionTimeframe and dataManipulationProtocol, but a
+    native --rai-* flag reaches the output through mlcroissant, so the claim
+    has to follow what mlcroissant writes.
+    """
+    document = {"conformsTo": CROISSANT_CONFORMS_TO, key: "x"}
+
+    _ensure_rai_conforms_to(document)
+
+    assert document["conformsTo"] == [CROISSANT_CONFORMS_TO, RAI_CONFORMS_TO]

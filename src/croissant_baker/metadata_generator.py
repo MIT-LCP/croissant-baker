@@ -54,6 +54,43 @@ _CARRIED_BY_ANOTHER = (Outcome.UNCLAIMED, Outcome.FAILED)
 # https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html
 CROISSANT_CONFORMS_TO = "http://mlcommons.org/croissant/1.1"
 RAI_CONFORMS_TO = "http://mlcommons.org/croissant/RAI/1.0"
+
+# Every term RAI 1.0 defines, as listed in croissant_rai.ttl. Only these belong
+# under rai:, and only these earn the RAI_CONFORMS_TO claim.
+# https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl
+RAI_1_0_TERMS = frozenset(
+    f"rai:{term}"
+    for term in (
+        "annotationsPerItem",
+        "annotatorDemographics",
+        "dataAnnotationAnalysis",
+        "dataAnnotationPlatform",
+        "dataAnnotationProtocol",
+        "dataBiases",
+        "dataCollection",
+        "dataCollectionMissingData",
+        "dataCollectionRawData",
+        "dataCollectionTimeframe",
+        "dataCollectionType",
+        "dataImputationProtocol",
+        "dataLimitations",
+        "dataManipulationProtocol",
+        "dataPreprocessingProtocol",
+        "dataReleaseMaintenancePlan",
+        "dataSocialImpact",
+        "dataUseCases",
+        "machineAnnotationTools",
+        "personalSensitiveInformation",
+    )
+)
+
+# mlcroissant 1.1 writes two of those terms with a spelling of its own:
+# dataCollectionTimeFrame and dataDataManipulationProtocol. The native --rai-*
+# flags reach the output through mlcroissant, so the claim accepts both.
+RAI_CONFORMANCE_KEYS = RAI_1_0_TERMS | {
+    "rai:dataCollectionTimeFrame",
+    "rai:dataDataManipulationProtocol",
+}
 BIOSCHEMAS_CONFORMS_TO = "https://bioschemas.org/profiles/Dataset/1.0-RELEASE"
 
 # Profiles a document can additionally declare, by the name --profile takes.

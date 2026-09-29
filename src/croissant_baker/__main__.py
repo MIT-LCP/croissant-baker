@@ -21,6 +21,7 @@ from rich.progress import (
 from croissant_baker.metadata_generator import (
     MetadataGenerator,
     PROFILE_CONFORMS_TO,
+    RAI_CONFORMANCE_KEYS,
     RAI_CONFORMS_TO,
     normalize_profiles,
     serialize_datetime,
@@ -468,12 +469,14 @@ def _build_native_rai_fields(
 
 
 def _ensure_rai_conforms_to(metadata_dict: dict) -> None:
-    """Declare the RAI spec when the document carries a rai: term.
+    """Declare the RAI spec when the document carries a RAI 1.0 term.
 
     The claim follows the terms, not the command: a RAI config can yield only
     prov: lineage or cb: extension terms, and neither is RAI 1.0 vocabulary.
+    A rai: key outside RAI 1.0, such as rai:hasSyntheticData in a document
+    written before those terms moved to cb:, does not count either.
     """
-    if not any(key.startswith("rai:") for key in metadata_dict):
+    if not any(key in RAI_CONFORMANCE_KEYS for key in metadata_dict):
         return
 
     conforms_to = metadata_dict.get("conformsTo")
