@@ -484,9 +484,9 @@ Nothing in front of a VCF header says how long it is, so the header is taken a
 chunk at a time and the read is capped: a single line above 32 MiB is not a
 header line, and a header above 64 MiB, the cap every other genomic header is
 read under, is not a header. Either file is reported with that reason after a
-read of the cap and no more. The line cap is larger than the SAM one because
-the `#CHROM` line names every sample, and for a biobank cohort that one line
-runs to tens of megabytes.
+read of the cap plus at most one 32 KiB chunk. The line cap is larger than the
+SAM one because the `#CHROM` line names every sample, and for a biobank cohort
+that one line runs to several to tens of MiB.
 
 ### Sample identifiers
 
@@ -495,12 +495,13 @@ the record set states how many samples the file carries, not what they are
 called. `--genomic-sample-ids` emits them, mirroring the opt-in shape of
 `--count-csv-rows`.
 
-The flag covers what a header says, and nothing else. File names are emitted
-either way: every FileObject carries the file's path in `name` and
-`contentUrl`, record set ids and descriptions are built from it, and sequencing
-deliveries often name files by sample (`SJ001234_D1.bam`). If the file names identify samples, rename the files or
-leave them out with `--exclude` before baking; withholding the header
-identifiers does not hide them.
+The flag covers what a header says, and nothing else. File and directory
+names are emitted either way: every FileObject carries the file's base name in
+`name` and its path in `contentUrl`, record set ids and descriptions are built
+from them, and sequencing deliveries often name files and directories by sample
+(`SJ001234_D1.bam`). If those names identify samples, rename them or leave the
+files out with `--exclude` before baking; withholding the header identifiers
+does not hide them.
 
 ## BCF
 

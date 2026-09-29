@@ -100,9 +100,9 @@ GVCF_BLOCK_PREFIX = "##GVCFBlock"
 #: The longest single header line this handler will accumulate. Nothing in
 #: front of a VCF header says how long it is, so a file holding no line ending
 #: would otherwise be read whole as its first line. Larger than the SAM line
-#: cap because the ``#CHROM`` line names every sample: a biobank cohort of a
-#: million samples with names of twenty characters runs to about 21 MiB on that
-#: one line. The header as a whole is capped at ``MAX_HEADER_BYTES``, the cap
+#: cap because the ``#CHROM`` line names every sample, and for a biobank cohort
+#: that one line runs to several to tens of MiB: 500,000 names of ten
+#: characters come to about 5 MiB, a million of twenty to about 20 MiB. The header as a whole is capped at ``MAX_HEADER_BYTES``, the cap
 #: every other genomic header is read under.
 MAX_LINE_BYTES = 32 * 1024 * 1024
 

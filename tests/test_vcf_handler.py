@@ -136,8 +136,8 @@ def test_a_reference_build_name_is_kept_as_declared(dataset: Path) -> None:
 
 
 def test_a_public_reference_url_is_kept_whole(dataset: Path) -> None:
-    """A web or FTP address is where anyone can fetch the reference from, so
-    the whole of it is kept, and it discloses no local layout."""
+    """A web or FTP address is taken to be where the reference is published,
+    so the whole of it is kept: it names a host and no local directory."""
     url = (
         "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/"
         "phase2_reference_assembly_sequence/hs37d5.fa.gz"

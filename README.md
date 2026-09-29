@@ -100,7 +100,7 @@ describes are reported with a reason rather than skipped in silence.
 
 - **Automatic type inference** for all supported formats
 - **RAI metadata** via `--rai-*` CLI flags or `--rai-config rai.yaml`
-- **Genomic sample identifiers withheld by default**: VCF and BCF report a sample count and BAM, CRAM and SAM a read-group count; the identifiers themselves are listed only with `--genomic-sample-ids`. File names are emitted either way, so files named by sample (`SJ001234_D1.bam`) still show their sample in every `contentUrl`
+- **Genomic sample identifiers withheld by default**: VCF and BCF report a sample count and BAM, CRAM and SAM a read-group count; the identifiers themselves are listed only with `--genomic-sample-ids`. File and directory names are emitted either way, so files or directories named by sample (`SJ001234_D1.bam`) still show their sample in every `contentUrl`
 - **Validation** against the Croissant spec via `mlcroissant`
 - **Dry-run mode**, include/exclude glob filters, multiple creators
 
