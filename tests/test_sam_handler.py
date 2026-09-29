@@ -16,6 +16,7 @@ import pytest
 from croissant_baker.entries import Reason
 from croissant_baker.handlers import sam_handler
 from croissant_baker.handlers.sam_handler import SAMHandler
+from croissant_baker.handlers.sam_header import alignment_metadata, parse_sam_header
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
 
@@ -431,3 +432,41 @@ def test_the_metadata_carries_the_header_and_nothing_else(dataset: Path) -> None
         "1.19). Described from its header; no alignment record was "
         "read. Sample identifiers: NA00001."
     )
+
+
+def test_alignment_metadata_puts_the_container_keys_beside_the_header(
+    dataset: Path,
+) -> None:
+    source = source_for(sample_sam(dataset))
+
+    meta = alignment_metadata(
+        source,
+        encoding_format="application/x-test",
+        described_as="TEST 1.0",
+        header=parse_sam_header(BAM_HEADER_TEXT),
+        reference_count=7,
+        genomic_sample_ids=False,
+        extra={"test_version": "1.0"},
+    )
+
+    assert meta["encoding_format"] == "application/x-test"
+    assert meta["test_version"] == "1.0"
+    assert meta["description"].startswith(
+        "TEST 1.0 alignment file sample.sam (coordinate-sorted; 7 reference "
+    )
+
+
+def test_alignment_metadata_withholds_the_samples_from_the_description_too(
+    dataset: Path,
+) -> None:
+    meta = alignment_metadata(
+        source_for(sample_sam(dataset)),
+        encoding_format="text/x-sam",
+        described_as="SAM",
+        header=parse_sam_header(BAM_HEADER_TEXT),
+        reference_count=2,
+        genomic_sample_ids=False,
+    )
+
+    assert "sample_ids" not in meta
+    assert "NA00001" not in meta["description"]

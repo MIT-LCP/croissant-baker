@@ -15,7 +15,7 @@ import struct
 from typing import BinaryIO
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.sam_header import describe_alignment, parse_sam_header
+from croissant_baker.handlers.sam_header import alignment_metadata, parse_sam_header
 from croissant_baker.handlers.utils import (
     MAX_HEADER_BYTES,
     bgzf_payload_starts_with,
@@ -92,34 +92,15 @@ class BAMHandler(FileTypeHandler):
         name = str(source.relative_path)
         header, reference_count = self._read_header(source, name)
 
-        metadata = {
-            "file_name": source.name,
-            "file_size": source.size,
-            "sha256": source.sha256,
-            "encoding_format": ENCODING_FORMAT,
-            "sam_version": header.sam_version,
-            "sort_order": header.sort_order,
-            "sq_count": header.sq_count,
-            "reference_count": reference_count,
-            "read_group_count": header.read_group_count,
-            "platforms": header.platforms,
-            "centres": header.centres,
-            "programs": header.programs,
-        }
-        if header.assembly:
-            metadata["assembly"] = header.assembly
-        # Withheld before anything is written, so the description cannot leak
-        # what the metadata withholds.
-        sample_ids = header.sample_ids if genomic_sample_ids else []
-        if sample_ids:
-            metadata["sample_ids"] = sample_ids
-        # The one thing this handler emits. Built here rather than in
-        # build_croissant, which runs after the FileObject is staged, and from
-        # the logical name, which is the only one extraction is given.
-        metadata["description"] = describe_alignment(
-            self.FORMAT_NAME, header, reference_count, source.name, sample_ids
+        return alignment_metadata(
+            source,
+            encoding_format=ENCODING_FORMAT,
+            described_as=self.FORMAT_NAME,
+            header=header,
+            reference_count=reference_count,
+            genomic_sample_ids=genomic_sample_ids,
+            extra={"reference_count": reference_count},
         )
-        return metadata
 
     def _read_header(self, source: FileSource, name: str):
         """The SAM header and the reference count, and nothing after them."""
