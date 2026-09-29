@@ -70,3 +70,7 @@ filterwarnings = ["ignore::DeprecationWarning:rdflib.*"]
 
 [tool.ruff]
 src = ["src"]
+
+[tool.uv]
+# uv 0.7 rewrites uv.lock to an older revision; refuse to run with it.
+required-version = ">=0.8"
