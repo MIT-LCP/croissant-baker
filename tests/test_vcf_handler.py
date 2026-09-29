@@ -97,7 +97,65 @@ def test_the_declared_format_and_reference_are_read(dataset: Path) -> None:
     meta = extract(sample_vcf(dataset))
 
     assert meta["fileformat"] == "VCFv4.2"
-    assert meta["reference"] == "file:///ref/GRCh38.fa"
+    assert meta["reference"] == "GRCh38.fa"
+
+
+def reference_of(dataset: Path, declared: bytes) -> str:
+    path = write(
+        dataset,
+        "ref.vcf",
+        b"##fileformat=VCFv4.2\n##reference="
+        + declared
+        + b"\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+    return extract(path)["reference"]
+
+
+@pytest.mark.parametrize(
+    ("declared", "kept"),
+    [
+        (b"file:///gpfs/x/GRCh38.fa", "GRCh38.fa"),
+        (b"file:///gpfs/lab%20refs/GRCh38.fa", "GRCh38.fa"),
+        (b"/abs/path/hg19.fasta", "hg19.fasta"),
+        (b"refs/hs37d5.fa.gz", "hs37d5.fa.gz"),
+        (b"C:\\refs\\hg19.fa", "hg19.fa"),
+        (b"s3://private-bucket/refs/GRCh38.fa", "GRCh38.fa"),
+    ],
+)
+def test_a_reference_path_keeps_only_its_file_name(
+    dataset: Path, declared: bytes, kept: str
+) -> None:
+    """Callers write the path the reference sat at on their own machine, and
+    the directories in it are the producer's filesystem layout. The file name
+    is what says which reference it was."""
+    assert reference_of(dataset, declared) == kept
+
+
+def test_a_reference_build_name_is_kept_as_declared(dataset: Path) -> None:
+    assert reference_of(dataset, b"GRCh38") == "GRCh38"
+
+
+def test_a_public_reference_url_is_kept_whole(dataset: Path) -> None:
+    """A web or FTP address is where anyone can fetch the reference from, so
+    the whole of it is kept, and it discloses no local layout."""
+    url = (
+        "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/"
+        "phase2_reference_assembly_sequence/hs37d5.fa.gz"
+    )
+
+    assert reference_of(dataset, url.encode()) == url
+    assert (
+        reference_of(dataset, b"https://example.org/refs/GRCh38.fa")
+        == "https://example.org/refs/GRCh38.fa"
+    )
+
+
+def test_a_reference_url_loses_its_credentials(dataset: Path) -> None:
+    """A signed download link carries its credential in the query, and a URL
+    may carry a login in front of the host: both are dropped."""
+    declared = b"https://user:secret@example.org/refs/GRCh38.fa?X-Amz-Signature=abc#top"
+
+    assert reference_of(dataset, declared) == "https://example.org/refs/GRCh38.fa"
 
 
 def test_contigs_are_counted_not_listed(dataset: Path) -> None:
@@ -428,7 +486,8 @@ def test_the_header_properties_are_stated_in_the_description(
     (record_set,) = build(sample_vcf(dataset))
 
     assert "VCFv4.2" in record_set.description
-    assert "file:///ref/GRCh38.fa" in record_set.description
+    assert "reference GRCh38.fa" in record_set.description
+    assert "file:///ref" not in record_set.description
     assert "2 contigs" in record_set.description
     assert "calls.vcf" in record_set.description
 

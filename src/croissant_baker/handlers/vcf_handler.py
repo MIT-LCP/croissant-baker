@@ -8,6 +8,7 @@ producer, so this handler reads the header and stops at the first record.
 
 from pathlib import Path
 from typing import BinaryIO, Dict, Iterable, Iterator, List, Optional
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import mlcroissant as mlc
 
@@ -119,6 +120,33 @@ def is_repeated(number: str) -> bool:
     return number not in SINGULAR_NUMBERS
 
 
+#: The schemes of a reference anyone can fetch. Kept whole: the address is
+#: where the reference lives, and it describes no machine of the producer's.
+PUBLIC_SCHEMES = frozenset({"http", "https", "ftp"})
+
+
+def reference_name(declared: str) -> str:
+    """What ``##reference`` names, without the producer's filesystem layout.
+
+    Callers routinely write the path the reference sat at on their machine,
+    ``file:///gpfs/.../GRCh38.fa``, and the directories in it describe that
+    machine. Only the file name says which reference it was, so a path, a
+    ``file://`` URI or a bucket URI keeps its last component. A web or FTP
+    address is kept, minus any login in front of the host and any query or
+    fragment after the path, where a signed download link carries its
+    credential. A build name such as ``GRCh38`` holds no separator and comes
+    back as declared.
+    """
+    parts = urlsplit(declared)
+    scheme = parts.scheme.lower()
+    if scheme in PUBLIC_SCHEMES and parts.hostname:
+        host = parts.hostname + (f":{parts.port}" if parts.port else "")
+        return urlunsplit((parts.scheme, host, parts.path, "", ""))
+    path = unquote(parts.path) if scheme == "file" else declared
+    components = [c for c in path.replace("\\", "/").split("/") if c]
+    return components[-1] if components else declared
+
+
 def split_declaration(body: str) -> List[str]:
     """Split a ``<key=value,...>`` list on its separating commas only.
 
@@ -205,7 +233,7 @@ class _Header:
         if line.startswith("##fileformat="):
             self.fileformat = line[len("##fileformat=") :].strip()
         elif line.startswith("##reference="):
-            self.reference = line[len("##reference=") :].strip()
+            self.reference = reference_name(line[len("##reference=") :].strip())
         elif line.startswith("##contig="):
             self.contig_count += 1
         elif line.startswith("##INFO="):
