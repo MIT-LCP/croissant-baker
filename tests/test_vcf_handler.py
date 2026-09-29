@@ -14,6 +14,7 @@ import pytest
 
 from croissant_baker.entries import Reason
 from croissant_baker.handlers import vcf_handler
+from croissant_baker.handlers.utils import PREFIX_CHUNK_BYTES
 from croissant_baker.handlers.vcf_handler import VCFHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import make_source
@@ -747,6 +748,38 @@ def test_a_header_spanning_many_chunks_is_read_whole(dataset: Path) -> None:
 
     assert meta["contig_count"] == 20000
     assert meta["columns"] == list(vcf_handler.MANDATORY_COLUMNS)
+
+
+def test_a_crlf_header_reads_as_the_lf_one(dataset: Path) -> None:
+    """A header written on Windows ends its lines in CRLF; the carriage return
+    is no part of any value."""
+    _, payload = SAMPLES["VCFHandler"]()[0]
+    lf = extract(write(dataset, "calls.vcf", payload))
+    crlf = extract(write(dataset, "crlf.vcf", payload.replace(b"\n", b"\r\n")))
+
+    assert crlf["columns"] == lf["columns"]
+    assert crlf["info"] == lf["info"]
+    assert crlf["sample_count"] == lf["sample_count"]
+    assert crlf["reference"] == lf["reference"]
+
+
+def test_a_character_split_across_two_chunks_is_decoded_whole(
+    dataset: Path,
+) -> None:
+    """The header is read in chunks, and a multibyte character can straddle
+    two of them. Lines are decoded once whole, so it survives."""
+    opening = b"##fileformat=VCFv4.2\n"
+    declaration = b'##INFO=<ID=DP,Number=1,Type=Integer,Description="'
+    euro = "\u20ac".encode()
+    padding = PREFIX_CHUNK_BYTES - 1 - len(opening) - len(declaration)
+    line = declaration + b"x" * padding + euro + b' depth">\n'
+    payload = opening + line + b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+    # The first byte of the three is the last of the first chunk.
+    assert payload.index(euro) == PREFIX_CHUNK_BYTES - 1
+
+    (key,) = extract(write(dataset, "euro.vcf", payload))["info"]
+
+    assert key["description"].endswith("x\u20ac depth")
 
 
 def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
