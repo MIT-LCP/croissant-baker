@@ -313,5 +313,4 @@ def test_compressed_dicom_header_fields_keep_their_schema_without_an_extract(
         assert field["description"].startswith(description), field_id
         assert field["name"] == field_id.split("/", 1)[1]
         assert "isArray" not in field, field_id
-    # One modality across the batch: the counts follow discovery order.
     assert dicom["description"] == "2 DICOM files (4-512x6-512): CT (2)"

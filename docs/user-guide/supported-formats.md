@@ -251,7 +251,7 @@ Files with no extension are also accepted if they carry the DICOM magic bytes (`
 
 All DICOM files in a dataset are grouped into one `cr:FileSet` with a summary `cr:RecordSet` covering modality counts and dimension ranges.
 
-**Header fields are descriptive.** Each field (`modality`, `rows`, `columns`, `num_frames`, `bits_allocated`, `patient_id`, `study_instance_uid`, `series_instance_uid`) names the DICOM tag it describes and has `source: {fileSet: {"@id": "dicom-files"}}` with no `extract`. A `fileProperty: content` extract would select the whole file, and nothing in it identifies a tag. Reading a value for one file takes a DICOM reader such as `pydicom`, pointed at the tag in the field's description. No `Field.value` is emitted. This is the shape OME-TIFF header fields use. `mlcroissant` 1.1.0 cannot read records from this RecordSet, so `records("dicom")` gives no per file values even when the metadata validates.
+**Header fields are descriptive.** Each field (`modality`, `rows`, `columns`, `num_frames`, `bits_allocated`, `patient_id`, `study_instance_uid`, `series_instance_uid`) names the DICOM tag it describes and has `source: {fileSet: {"@id": "dicom-files"}}` with no `extract`. A `fileProperty: content` extract would select the whole file, and nothing in it identifies a tag. Reading a value for one file takes a DICOM reader such as `pydicom`, pointed at the tag in the field's description. No `Field.value` is emitted. This is the shape OME-TIFF header fields use. `mlcroissant` 1.1.0 cannot read records from this RecordSet, so `records("dicom")` fails even when the metadata validates.
 
 ## NIfTI
 
@@ -261,7 +261,7 @@ Extracted metadata: spatial dimensions (x, y, z), number of timepoints for 4D vo
 
 All NIfTI files in a dataset are grouped into one `cr:FileSet` with a summary `cr:RecordSet`. The `tr_seconds` field is only added when at least one 4D volume is present.
 
-**Header fields are descriptive.** Each field names the header slot it describes (`dim_x` is `dim[1]`, `voxel_spacing` is `pixdim[1:4]`, `tr_seconds` is `pixdim[4]`) and has `source: {fileSet: {"@id": "nifti-files"}}` with no `extract`. A `fileProperty: content` extract would select the whole volume, and nothing in it identifies a header slot. Reading a value for one file takes a NIfTI reader such as `nibabel`. This holds for `.nii.gz` too. No `Field.value` is emitted. `mlcroissant` 1.1.0 cannot read records from this RecordSet, so `records("nifti")` gives no per file values even when the metadata validates.
+**Header fields are descriptive.** Each field names the header slot it describes (`dim_x` is `dim[1]`, `voxel_spacing` is `pixdim[1:4]`, `tr_seconds` is `pixdim[4]`) and has `source: {fileSet: {"@id": "nifti-files"}}` with no `extract`. A `fileProperty: content` extract would select the whole volume, and nothing in it identifies a header slot. Reading a value for one file takes a NIfTI reader such as `nibabel`. This holds for `.nii.gz` too. No `Field.value` is emitted. `mlcroissant` 1.1.0 cannot read records from this RecordSet, so `records("nifti")` fails even when the metadata validates.
 
 ## GEO SOFT
 

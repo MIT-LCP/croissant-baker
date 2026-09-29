@@ -289,7 +289,6 @@ def test_compressed_nifti_header_fields_keep_their_schema_without_an_extract(
     """A gzipped 4D volume beside a plain 3D one: every header field, the
     optional TR included, keeps its type and description, and the manifest
     validates without a content extract."""
-    # Both float32: dtype counts follow discovery order.
     _make_nifti(tmp_path / "T1.nii", dtype=np.float32)
     _make_nifti_4d(tmp_path / "bold.nii.gz", shape=(8, 8, 4, 5))
 
