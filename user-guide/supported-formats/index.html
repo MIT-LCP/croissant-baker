@@ -764,6 +764,100 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#vcf-and-gvcf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VCF and gVCF
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="VCF and gVCF">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sample-identifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sample identifiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bcf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BCF
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bam" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BAM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRAM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sam" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SAM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fastq" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FASTQ
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fasta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FASTA
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hidden-files-and-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1320,6 +1414,100 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#vcf-and-gvcf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VCF and gVCF
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="VCF and gVCF">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sample-identifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sample identifiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bcf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BCF
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bam" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BAM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRAM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sam" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SAM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fastq" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FASTQ
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fasta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FASTA
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hidden-files-and-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1477,6 +1665,48 @@ or <code>would_process</code> (<code>--dry-run</code> only). <code>reason</code>
 <td><code>.h5</code>, <code>.h5ad</code>, <code>.hdf5</code></td>
 <td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
 <td>Dataset paths, dtypes and shapes; AnnData and 10x table columns where the layout is recognised</td>
+</tr>
+<tr>
+<td>VCF</td>
+<td><code>.vcf</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>Reference, contig count, typed INFO and FORMAT keys, sample count</td>
+</tr>
+<tr>
+<td>BCF</td>
+<td><code>.bcf</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>Reference, contig count, typed INFO and FORMAT keys, sample count</td>
+</tr>
+<tr>
+<td>BAM</td>
+<td><code>.bam</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>Sort order, reference count and assembly, read groups, program chain</td>
+</tr>
+<tr>
+<td>CRAM</td>
+<td><code>.cram</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>CRAM version, sort order, reference count and assembly, read groups, program chain</td>
+</tr>
+<tr>
+<td>SAM</td>
+<td><code>.sam</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>Sort order, reference count and assembly, read groups, program chain</td>
+</tr>
+<tr>
+<td>FASTQ</td>
+<td><code>.fastq</code>, <code>.fq</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>Read length of the first record; no read name or record count</td>
+</tr>
+<tr>
+<td>FASTA</td>
+<td><code>.fa</code>, <code>.fasta</code>, <code>.fna</code></td>
+<td><code>.gz</code>, <code>.bz2</code>, <code>.xz</code></td>
+<td>Format and encoding; record names and sequences are not read</td>
 </tr>
 </tbody>
 </table>
@@ -1840,6 +2070,245 @@ accepted.</p>
 <h3 id="what-a-wrapper-costs">What a wrapper costs</h3>
 <p><code>.h5.gz</code> is described identically to <code>.h5</code>, but not as cheaply. h5py seeks backwards through the file, and a non-seekable codec pays for that by decompressing and discarding everything it skips.</p>
 <p>Measured on a 120 MB <code>.h5ad</code> holding incompressible data, reading its structure took 2 ms uncompressed, 0.7 s gzipped, 6 s xz-wrapped and 7 s bz2-wrapped. That cost tracks the file's size rather than its structure — uncompressed does not — so a 5 GB <code>.h5ad.gz</code> is of the order of half a minute, and the same file bz2-wrapped is several minutes. Uncompressed is worth it for this format, and gzip is worth it over the other two.</p>
+<h2 id="vcf-and-gvcf">VCF and gVCF</h2>
+<p>VCF (<code>.vcf</code>) is the variant call format. The handler reads the header and stops
+at the first record: nothing below the <code>#CHROM</code> line is ever parsed.</p>
+<p>A VCF is claimed on its opening <code>##fileformat=VCF</code> declaration rather than on
+its extension, because <code>.vcf</code> is also the vCard extension. A vCard is therefore
+reported as a file no handler claimed, and a callset saved under another name is
+still described.</p>
+<p>Each file produces one record set whose fields are the columns the <code>#CHROM</code> line
+declares, in that order: <code>CHROM</code> (<code>sc:Text</code>), <code>POS</code> (<code>cr:Int64</code>), <code>ID</code>
+(<code>sc:Text</code>), <code>REF</code> (<code>sc:Text</code>), <code>ALT</code> (<code>sc:Text</code>, repeated), <code>QUAL</code>
+(<code>cr:Float64</code>), <code>FILTER</code> (<code>sc:Text</code>, repeated) and <code>INFO</code>. A file carrying
+genotypes adds <code>FORMAT</code> and a single repeated <code>samples</code> field standing for the
+genotype columns.</p>
+<p><code>INFO</code> and <code>FORMAT</code> are per-record key-value bags rather than columns of their
+own, so each declared key becomes a sub-field of the column that carries it.
+The declared <code>Type</code> gives the Croissant type (<code>Integer</code> to <code>cr:Int64</code>, <code>Float</code>
+to <code>cr:Float64</code>, <code>Flag</code> to <code>sc:Boolean</code>, <code>String</code> and <code>Character</code> to <code>sc:Text</code>),
+and any <code>Number</code> other than <code>0</code> or <code>1</code> marks the sub-field repeated, which
+covers <code>A</code>, <code>R</code>, <code>G</code>, <code>.</code> and literal counts above one. The declared
+<code>Description</code> becomes the sub-field description; it is a header byte, so
+traceability holds.</p>
+<p>The declared <code>##fileformat</code>, <code>##reference</code>, the number of <code>##contig</code>
+declarations and the sample count are stated in the record set description
+rather than in JSON-LD keys no Croissant vocabulary defines. A gVCF is the same
+handler and the same shape: <code>##GVCFBlock</code> lines or a <code>NON_REF</code> alternate allele
+are recorded, and the description says so.</p>
+<p><code>##reference</code> is often written as the path the reference sat at on the
+producer's machine, such as <code>file:///gpfs/.../GRCh38.fa</code>, and the directories
+in it describe that machine. A value shaped like a path (one opening with <code>/</code>,
+<code>~</code> or <code>.</code>, one with three or more <code>/</code>-separated parts, an scp target such as
+<code>host:/gpfs/...</code>, or one whose last part has a <code>.</code>), a <code>file://</code> URI or a
+bucket URI such as <code>s3://</code> is therefore stated by its file name alone
+(<code>GRCh38.fa</code>); one ending in a directory has no file name, and the reference is
+left out. An <code>http</code>, <code>https</code> or <code>ftp</code> address is taken to be where the
+reference is published, so it is kept whole, less any login in front of the
+host and any query or fragment, where a signed download link carries its
+credential. An internal web host is kept as well, so rewrite such a header
+before baking if its host name should stay private. A build name such as
+<code>GRCh38</code> or <code>GRCh38/hg38</code> is stated as declared. One enclosing <code>&lt;...&gt;</code> is taken
+off, along with anything trailing it. Of a structured <code>&lt;ID=GRCh38,URL=...&gt;</code>,
+only the id and the <code>URL</code> (else the <code>Path</code>), each read as above, are kept,
+and they are stated as <code>GRCh38 (https://.../GRCh38.fa)</code>; any other key, such
+as a <code>Description</code> or a <code>Source</code>, is left out, since it is free text that can
+hold a path. A BCF header is read the same way.</p>
+<p>Fields carry <code>source: {fileObject: …}</code> and <strong>no <code>extract</code></strong>, for the reason
+given under GEO SOFT: <code>mlcroissant</code> does not read VCF, so a column reference
+would be a promise nothing can keep. <code>encodingFormat</code> is <code>text/x-vcf</code>, with the
+compression media type added by the input layer.</p>
+<p>A header with no <code>#CHROM</code> line declares no columns, and the file is reported
+with that reason rather than described.</p>
+<p>Nothing in front of a VCF header says how long it is, so the header is taken a
+chunk at a time and the read is capped: a single line above 32 MiB is not a
+header line, and a header above 64 MiB, the cap every other genomic header is
+read under, is not a header. Either file is reported with that reason after a
+read of the cap plus at most one 32 KiB chunk. The line cap is larger than the
+SAM one because the <code>#CHROM</code> line names every sample, and for a biobank cohort
+that one line runs to megabytes to tens of megabytes.</p>
+<h3 id="sample-identifiers">Sample identifiers</h3>
+<p>Sample column names are a manifest of the cohort. They are withheld by default:
+the record set states how many samples the file carries, not what they are
+called. <code>--genomic-sample-ids</code> emits them, mirroring the opt-in shape of
+<code>--count-csv-rows</code>.</p>
+<p>The flag covers what a header says, and nothing else. File and directory
+names are emitted either way: every FileObject carries the file's base name in
+<code>name</code> and its path in <code>contentUrl</code>, record set ids and descriptions are built
+from them, and sequencing deliveries often name files and directories by sample
+(<code>SJ001234_D1.bam</code>). If those names identify samples, rename them or leave the
+files out with <code>--exclude</code> before baking; withholding the header identifiers
+does not hide them.</p>
+<h2 id="bcf">BCF</h2>
+<p>BCF (<code>.bcf</code>) is the binary form of a VCF: the same header text, followed by
+records packed into a binary encoding. A <code>.bcf</code> is already a compressed
+container, and the input layer does not treat it as one: it is a format, not a
+transport wrapper, so the handler decompresses it itself, exactly as the BAM
+handler does. It reads the magic, the declared header length and the header
+text, then stops. No record is decoded.</p>
+<p>A BCF is claimed on the <code>BCF</code> every generation of the format opens with, in
+either of the two forms the pipeline can hand over: a stream whose payload
+starts with it, or one that already starts with it because a second wrapper was
+taken off on the way in. Both minor versions of BCF 2 are read, because they
+differ in how records are encoded and not in the header. BCF1, samtools' own
+first-generation encoding, declares no VCF header text at all: it is claimed so
+that it can be reported as the BCF it is, with that as its reason, rather than
+left to be reported as a file nothing recognised.</p>
+<p>The header is then the VCF handler's, so a callset describes the same way in
+either container: one record set per file, whose fields are the columns the
+<code>#CHROM</code> line declares, with <code>INFO</code> and <code>FORMAT</code> carrying one sub-field per
+declared key, and the <code>##fileformat</code>, <code>##reference</code>, contig count and sample
+count stated in the record set description. <code>encodingFormat</code> is
+<code>application/x-bcf</code>, with the compression media type added by the input layer
+when the file arrives under a further wrapper.</p>
+<p>Sample column names are withheld under the same <code>--genomic-sample-ids</code> opt-in
+that governs a plain VCF. Index files (<code>.csi</code>) are reported as unsupported;
+nothing claims them.</p>
+<h2 id="bam">BAM</h2>
+<p>BAM (<code>.bam</code>) is the compressed binary form of a SAM alignment file. A <code>.bam</code> is
+already a compressed container, and the input layer does not treat it as one: it
+is a format, not a transport wrapper, so the handler decompresses it itself. It
+reads the magic, the SAM text header and the reference count, then stops. No
+alignment record is read.</p>
+<p>A BAM is claimed on that magic, in either of the two forms the pipeline can hand
+over: a stream whose payload starts with <code>BAM\1</code>, or one that already starts with
+it because a second wrapper was taken off on the way in.</p>
+<p>From the text header: <code>@HD</code> gives the SAM version and sort order, <code>@SQ</code> the
+number of reference sequences and, from the first, the assembly name; <code>@RG</code> the
+number of read groups with their sequencing platforms and centres; <code>@PG</code> the
+program chain in declaration order. The binary <code>n_ref</code> that follows the text is
+recorded alongside the <code>@SQ</code> count.</p>
+<p><strong>No record set is emitted.</strong> Aligned reads are records of a genome, not of a
+dataset schema, so a BAM is described as a file: the properties above are stated
+in the <code>description</code> of its <code>cr:FileObject</code>. That description is the one thing
+this handler produces; <code>encodingFormat</code> is <code>application/x-bam</code>, with the
+compression media type added by the input layer when the file arrives under one.</p>
+<p><code>@RG SM</code> names the sample a read group came from, and the tags together are a
+cohort manifest, so they are withheld under the same <code>--genomic-sample-ids</code>
+opt-in as the VCF sample columns. Index files (<code>.bai</code>, <code>.csi</code>, <code>.tbi</code>) are
+reported as unsupported; nothing claims them.</p>
+<h2 id="cram">CRAM</h2>
+<p>CRAM (<code>.cram</code>) stores the same alignment a BAM does, encoded against the
+reference the reads were placed on rather than storing their bases. That
+reference is not needed to describe the file: the SAM text header sits in the
+first block of the first container, and the header is all that is read, so a
+CRAM whose reference is a URL nobody can reach is still described in full.</p>
+<p>A CRAM is claimed on its magic, the four bytes <code>CRAM</code> a file definition opens
+with. Reaching the header block after it means walking the first container
+header field by field: those fields are written in CRAM's two variable-width
+integer encodings, ITF8 and LTF8, so the block behind them cannot be seeked to.
+The block is then decoded from raw, gzip, bzip2 or LZMA, whichever it declares;
+a gzip block may also be written as a bare zlib stream, and both spellings are
+read, as htslib reads them. The decode is bounded by the raw size the block
+itself declares: one byte past it is enough to see that the block holds more
+than it says, and a block holding anything other than what it declares is
+refused rather than expanded. The text it holds is read exactly as a BAM's is:
+<code>@HD</code> for the SAM version and
+sort order, <code>@SQ</code> for the reference sequences and, from the first, the assembly
+name, <code>@RG</code> for the read groups with their platforms and centres, and <code>@PG</code> for
+the program chain in declaration order. The CRAM version itself is recorded
+alongside them.</p>
+<p>Four things are refused with a reason rather than guessed at. Major versions
+other than 2 and 3: CRAM 1 is obsolete and CRAM 4 changes the integer encodings
+a container header is written in, so neither can be walked with this layout. A
+file header block coded with rANS, CRAM's own entropy coder, which has no
+decoder in the standard library. A block or header text whose declared size is
+larger than any real header, which is refused before a byte behind it is read.
+And a block whose stream ends early, or that decodes to anything other than the
+raw size it declares. CRC32 values are read past rather than checked: what is
+described is the header text, and a mismatch is a decoder's corruption report,
+not metadata.</p>
+<p><strong>No record set is emitted</strong>, for the reason a BAM emits none: aligned reads are
+records of a genome, not of a dataset schema. The properties above are stated in
+the <code>description</code> of the file's <code>cr:FileObject</code>, and <code>encodingFormat</code> is
+<code>application/x-cram</code>, with the compression media type added by the input layer
+when the file arrives under one. <code>@RG SM</code> sample tags are withheld under the
+same <code>--genomic-sample-ids</code> opt-in as the BAM tags and the VCF sample columns.
+Index files (<code>.crai</code>) are reported as unsupported; nothing claims them.</p>
+<h2 id="sam">SAM</h2>
+<p>SAM (<code>.sam</code>) is the text form of the same alignment file, and it opens with the
+same header. <code>@HD</code> gives the SAM version and sort order, <code>@SQ</code> the number of
+reference sequences and, from the first, the assembly name; <code>@RG</code> the number of
+read groups with their sequencing platforms and centres; <code>@PG</code> the program chain
+in declaration order. Nothing in front of the header says how long it is, so the
+read is bounded by the stop at the first line that does not start with <code>@</code>: no
+alignment record is read, whatever the size of the file. The header is taken a
+chunk at a time, and a file that never reaches a line that is not a header line
+is reported: a single line above 1 MiB is not a header line, and a header above
+64 MiB, the cap the binary containers state their own header length against, is
+not a header.</p>
+<p>A SAM is claimed on its extension <strong>and</strong> its first header line, and needs both.
+A FASTQ opens with <code>@</code> as well, so the leading character alone would describe one
+as an alignment it is not; and the header shape alone is not what makes a file a
+SAM. A <code>.sam</code> carrying only alignment records is therefore reported as unclaimed,
+which is the honest outcome: with no header it declares no sort order, no
+assembly and no read group.</p>
+<p><strong>No record set is emitted</strong>, for the reason BAM emits none: the properties above
+are stated in the <code>description</code> of the file's <code>cr:FileObject</code>. <code>encodingFormat</code>
+is <code>text/x-sam</code>, with the compression media type added by the input layer when
+the file arrives under one. <code>@RG SM</code> is withheld under the same
+<code>--genomic-sample-ids</code> opt-in.</p>
+<h2 id="fastq">FASTQ</h2>
+<p>FASTQ (<code>.fastq</code>, <code>.fq</code>) is the same four lines repeated until the run is
+exhausted: a read name, the bases, a <code>+</code> separator, and one quality character
+per base. The handler reads the first record and stops. Nothing behind it is
+opened, so a run of a hundred million reads costs the same read as a run of
+one. The record is taken from a bounded prefix of 1 MiB, which holds the
+longest read any instrument writes twice over, once as bases and once as
+quality scores; a first record that does not end inside it is reported rather
+than read for.</p>
+<p>The claim needs both the extension and the structure, because neither holds on
+its own. <code>@</code> opens a record's name line, but it also opens every line of a SAM
+header, so the first byte cannot decide; the extension cannot decide either,
+because it would claim any text a user happened to name <code>.fq</code>. Together they
+are the record's own shape: a name line, a sequence, and a separator on the
+third line. A <code>.fastq</code> whose third line is not <code>+</code> is left to the other
+handlers and reported with a reason.</p>
+<p>What is extracted is the length of the first read. A record whose quality line
+does not match its sequence in length, or that has no <code>+</code> on its third line, is
+a record this handler cannot describe truthfully, and the file is reported with
+that reason rather than described. Multi-line FASTQ, where a read is wrapped
+across several lines, is deliberately unsupported for the same reason.</p>
+<p><strong>Read names are never reported.</strong> An Illumina read name spells out the
+instrument, run, flowcell and lane the read came from, and none of that is
+structure. It reaches neither the metadata nor the description, and there is no
+flag to turn it on. Records are not counted either: counting them means reading
+the whole file, which is the one thing this handler exists not to do.</p>
+<p><strong>No record set is emitted.</strong> Sequencing reads are records of a run, not of a
+dataset schema, so a FASTQ is described as a file: the read length is stated in
+the <code>description</code> of its <code>cr:FileObject</code>. <code>encodingFormat</code> is <code>text/x-fastq</code>,
+with the compression media type added by the input layer when the file arrives
+under one, so <code>reads.fastq.gz</code> is described exactly as <code>reads.fastq</code> is.</p>
+<h2 id="fasta">FASTA</h2>
+<p>FASTA (<code>.fa</code>, <code>.fasta</code>, <code>.fna</code>) is a description line followed by sequence,
+repeated. The handler reads the first description line and stops there. No
+sequence line is ever read: a reference genome is gigabytes of bases and none of
+them is metadata.</p>
+<p>A FASTA is claimed on its extension <strong>and</strong> on its first byte, and neither half
+would do alone. <code>&gt;</code> is a single character that a quoted email, a shell
+transcript and a diff all begin with, so it is too little to own a file on. The
+extension alone would claim any text a user happened to name <code>.fa</code>, and past
+that first byte the format has no other marker to fall back on: a FASTA is
+letters, which is what an unrelated text file is too. A <code>.fa</code> that does not open
+with <code>&gt;</code> is therefore reported as a file no handler claimed, and an empty file
+or a bare <code>&gt;</code> line is reported with that as its reason rather than described.</p>
+<p>What is reported is the format and the encoding. Deliberately not reported:</p>
+<ul>
+<li><strong>Record names.</strong> A description line names the record, and for a per-sample
+  assembly that name is the sample, so it is withheld the way <code>@RG SM</code> and the
+  VCF sample columns are. Unlike those, it has no opt-in: one line is read, and
+  which record it names is not a structural fact about the dataset.</li>
+<li><strong>The comment text</strong> following the name on the same line, for the same reason.</li>
+<li><strong>The number of records</strong>, and the sequence lengths. Counting either means
+  reading the whole file, which is what header-only reading exists to avoid.</li>
+</ul>
+<p><strong>No record set is emitted.</strong> Bases are records of a genome, not of a dataset
+schema, so a FASTA is described as a file: the statement above is carried in the
+<code>description</code> of its <code>cr:FileObject</code>. <code>encodingFormat</code> is <code>text/x-fasta</code>, with
+the compression media type added by the input layer when the file arrives under
+one. FASTA has no IANA registration, so the <code>x-</code> form follows <code>text/x-vcf</code>.</p>
+<p>Index and dictionary files (<code>.fai</code>, <code>.dict</code>, <code>.gzi</code>) are reported as unsupported;
+nothing claims them.</p>
 <h2 id="hidden-files-and-directories">Hidden files and directories</h2>
 <p>Files inside hidden directories (any path component starting with <code>.</code>) are always skipped, and do not appear in the coverage report. Use <code>--include</code> and <code>--exclude</code> glob patterns to further control which files are processed.</p>
 
