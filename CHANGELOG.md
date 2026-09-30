@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.2...croissant-baker-v0.7.0) (2026-09-30)
+
+
+### Features
+
+* add header-only handlers for VCF/gVCF, BCF, BAM, CRAM, SAM, FASTQ and FASTA ([#127](https://github.com/MIT-LCP/croissant-baker/issues/127)) ([a57f2db](https://github.com/MIT-LCP/croissant-baker/commit/a57f2db876f0d4e3aef165a1e971c3ebbc8bb48a))
+
+
+### Bug Fixes
+
+* list batch summaries, file set paths and record set ids in a stable order ([#154](https://github.com/MIT-LCP/croissant-baker/issues/154)) ([f5b67d9](https://github.com/MIT-LCP/croissant-baker/commit/f5b67d9dfa19b42bd3d598d45d2b03d4d191f0e5))
+
 ## [0.6.2](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.1...croissant-baker-v0.6.2) (2026-09-29)
 
 
