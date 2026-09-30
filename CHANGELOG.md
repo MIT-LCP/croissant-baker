@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.2](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.1...croissant-baker-v0.6.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* drop source.extract from dicom and nifti header fields ([#152](https://github.com/MIT-LCP/croissant-baker/issues/152)) ([8b07009](https://github.com/MIT-LCP/croissant-baker/commit/8b0700964065cb7eea6381df8d5a9bf4a2ea4ac0))
+* report a nameless creator, bad field mappings and broken yaml as plain errors ([#150](https://github.com/MIT-LCP/croissant-baker/issues/150)) ([652a299](https://github.com/MIT-LCP/croissant-baker/commit/652a29907c2a39d0dc3728aa2edd743552b9f880))
+
+
+### Documentation
+
+* note NeurIPS 2026 acceptance in the README ([#161](https://github.com/MIT-LCP/croissant-baker/issues/161)) ([b184dee](https://github.com/MIT-LCP/croissant-baker/commit/b184dee39959960a065b5cfefc92606190a77773))
+
 ## [0.6.1](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.0...croissant-baker-v0.6.1) (2026-09-28)
 
 
