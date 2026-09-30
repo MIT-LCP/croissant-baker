@@ -4,11 +4,14 @@ BAM, CRAM and SAM itself all open with the same text: ``@HD`` for the sort
 order, ``@SQ`` per reference sequence, ``@RG`` per read group and ``@PG`` per
 program that touched the file. Reading it is the same job whichever container
 it sits in, so it is done here, once, and each handler only has to find it.
+The metadata and description each alignment handler returns are built here
+too, from that header, so the three containers describe a file the same way.
 """
 
 from typing import Dict, List, Optional
 
 from croissant_baker.handlers.utils import plural
+from croissant_baker.sources import FileSource
 
 
 class SamHeader:
@@ -129,3 +132,78 @@ def parse_sam_header(text: str) -> SamHeader:
     header = SamHeader()
     header.read(text)
     return header
+
+
+#: Every key :func:`alignment_metadata` writes itself, and so the keys a
+#: container's ``extra`` may not carry.
+ALIGNMENT_KEYS = frozenset(
+    {
+        "file_name",
+        "file_size",
+        "sha256",
+        "encoding_format",
+        "sam_version",
+        "sort_order",
+        "sq_count",
+        "read_group_count",
+        "platforms",
+        "centres",
+        "programs",
+        "assembly",
+        "sample_ids",
+        "description",
+    }
+)
+
+
+def alignment_metadata(
+    source: FileSource,
+    encoding_format: str,
+    described_as: str,
+    header: SamHeader,
+    reference_count: int,
+    genomic_sample_ids: bool,
+    extra: Optional[Dict[str, object]] = None,
+) -> dict:
+    """What an alignment handler returns for one file, whichever container.
+
+    ``extra`` holds the keys only one container states, such as a BAM's own
+    reference count or a CRAM's version. They go right after
+    ``encoding_format``, and one that would overwrite a key this function
+    writes is refused rather than lost. ``described_as`` is how the
+    description names the format.
+    """
+    clashing = sorted(ALIGNMENT_KEYS.intersection(extra or {}))
+    if clashing:
+        raise ValueError(
+            "alignment_metadata: extra repeats keys it writes itself: "
+            + ", ".join(clashing)
+        )
+    metadata = {
+        "file_name": source.name,
+        "file_size": source.size,
+        "sha256": source.sha256,
+        "encoding_format": encoding_format,
+        **(extra or {}),
+        "sam_version": header.sam_version,
+        "sort_order": header.sort_order,
+        "sq_count": header.sq_count,
+        "read_group_count": header.read_group_count,
+        "platforms": header.platforms,
+        "centres": header.centres,
+        "programs": header.programs,
+    }
+    if header.assembly:
+        metadata["assembly"] = header.assembly
+    # Withheld before anything is written, so the description cannot leak
+    # what the metadata withholds.
+    sample_ids = header.sample_ids if genomic_sample_ids else []
+    if sample_ids:
+        metadata["sample_ids"] = sample_ids
+    # The one thing an alignment handler emits. Built during extraction rather
+    # than in build_croissant, which runs after the FileObject is staged, and
+    # from the logical name, which is the only one extraction is given.
+    metadata["description"] = describe_alignment(
+        described_as, header, reference_count, source.name, sample_ids
+    )
+    return metadata
