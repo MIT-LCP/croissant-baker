@@ -1659,3 +1659,101 @@ def test_all_discovery_fields_construct_under_mlcroissant(
         CROISSANT_CONFORMS_TO,
         BIOSCHEMAS_CONFORMS_TO,
     ]
+
+
+@pytest.mark.parametrize(
+    "text, message",
+    [
+        ("- age\n", "must contain a YAML mapping at the top level"),
+        ("columns:\n  age: {}\n", "missing top-level 'fields:' key"),
+        ("fields:\n  - age\n", "'fields' must be a mapping of column names"),
+        ("fields:\n  age: 'wdt:P3629'\n", "column 'age' must map to an object"),
+    ],
+)
+def test_field_mappings_yaml_rejects_a_malformed_file(
+    csv_dataset: Path, tmp_path: Path, text: str, message: str
+) -> None:
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text(text, encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code != 0
+    assert message in result.stderr
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("flag", ["age", "=wdt:P3629", "age= "])
+def test_field_mapping_flag_needs_a_column_and_a_uri(
+    csv_dataset: Path, tmp_path: Path, flag: str
+) -> None:
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mapping", flag)
+
+    assert result.exit_code != 0
+    assert "--field-mapping must be 'COLUMN=URI'" in result.stderr
+    assert not output.exists()
+
+
+def test_count_csv_rows_warns_when_there_is_no_csv(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "records.jsonl").write_text('{"id": 1}\n{"id": 2}\n')
+    output = tmp_path / "output.jsonld"
+
+    result = cli(dataset, output, "--count-csv-rows")
+
+    assert result.exit_code == 0, result.output
+    assert "--count-csv-rows has no effect" in result.stderr
+
+
+def test_count_csv_rows_is_silent_when_there_is_a_csv(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    result = cli(csv_dataset, tmp_path / "output.jsonld", "--count-csv-rows")
+
+    assert result.exit_code == 0, result.output
+    assert "--count-csv-rows has no effect" not in result.stderr
+
+
+def test_dry_run_reports_a_report_path_it_cannot_write(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    result = runner.invoke(
+        app, ["--input", str(csv_dataset), "--dry-run", "--report", str(tmp_path)]
+    )
+
+    assert result.exit_code == 1
+    assert "data.csv" in result.stdout
+    assert result.stderr.startswith("Error:")
+    assert str(tmp_path) in result.stderr
+
+
+def test_validate_command_rejects_an_invalid_file(tmp_path: Path) -> None:
+    broken = tmp_path / "broken.jsonld"
+    broken.write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["validate", str(broken)])
+
+    assert result.exit_code == 1
+    assert "Validation failed" in result.stderr
+
+
+def test_bake_refuses_to_write_a_document_that_fails_validation(
+    csv_dataset: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import mlcroissant as mlc
+
+    def refuse(path):
+        raise mlc.ValidationError("synthetic refusal")
+
+    monkeypatch.setattr(mlc, "Dataset", refuse)
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, validate=True)
+
+    assert result.exit_code == 1
+    assert "Validation failed: synthetic refusal" in result.stderr
+    assert not output.exists()
