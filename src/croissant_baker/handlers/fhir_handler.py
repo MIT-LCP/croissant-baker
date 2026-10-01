@@ -47,7 +47,8 @@ def merge_fhir_column_types(all_schemas: list) -> dict:
 
     Priority when the same field appears with different representations across
     files: struct > primitive-array > primitive. FHIR R4 cardinality is fixed
-    by the spec, so richer structure always wins.
+    by the spec, so richer structure always wins. Primitive types that differ
+    across files are joined by ``_widen_types``.
 
     Args:
         all_schemas: List of column schema dicts from individual files.
@@ -74,16 +75,30 @@ def merge_fhir_column_types(all_schemas: list) -> dict:
             )
             merged[key] = {"fields": sub, "is_array": is_array}
         elif prim_arrays:
-            votes: dict = {}
-            for t in prim_arrays:
-                votes[t["type"]] = votes.get(t["type"], 0) + 1
-            merged[key] = {"type": max(votes, key=votes.get), "is_array": True}
+            merged[key] = {
+                "type": _widen_types({t["type"] for t in prim_arrays}),
+                "is_array": True,
+            }
         else:
-            votes = {}
-            for t in primitives:
-                votes[t] = votes.get(t, 0) + 1
-            merged[key] = max(votes, key=votes.get) if votes else "sc:Text"
+            merged[key] = _widen_types(set(primitives))
     return merged
+
+
+def _widen_types(types: set[str]) -> str:
+    """The narrowest type that holds every value of the observed types.
+
+    Depends only on which types were seen, so file order and counts do not
+    matter. Like csv_handler, integers widen to floats and other conflicts
+    fall back to text. Date with DateTime widens to DateTime, since a FHIR
+    dateTime may carry a date only.
+    """
+    if len(types) == 1:
+        return next(iter(types))
+    if types == {"cr:Int64", "cr:Float64"}:
+        return "cr:Float64"
+    if types == {"sc:Date", "sc:DateTime"}:
+        return "sc:DateTime"
+    return "sc:Text"
 
 
 def _is_bulk_chunk(file_name: str, resource_type: str) -> bool:
