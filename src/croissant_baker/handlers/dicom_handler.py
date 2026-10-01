@@ -170,8 +170,13 @@ class DICOMHandler(FileTypeHandler):
 
         num_files = summary.get("num_files", len(file_metas))
         modality_counts = summary.get("modality_counts", {})
+        # Files with no Modality are counted under None. One fixed label, so
+        # it reads the same whatever the other files say.
         modalities_str = (
-            ", ".join(f"{m} ({c})" for m, c in modality_counts.items())
+            ", ".join(
+                f"{'no modality' if m is None else m} ({c})"
+                for m, c in modality_counts.items()
+            )
             if modality_counts
             else "unknown modality"
         )
@@ -197,86 +202,66 @@ class DICOMHandler(FileTypeHandler):
             includes=["**/*.dcm", "**/*.dicom"],
         )
 
+        # Header fields are descriptive: each names the FileSet and no
+        # extract. A content extract would select the whole file, which
+        # says nothing about the tag a field describes, so reading a
+        # value takes a DICOM reader. The OME fields follow the same shape.
         fields = [
             mlc.Field(
                 id="dicom/modality",
                 name="modality",
                 description="DICOM Modality (0008,0060)",
                 data_types=["sc:Text"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="dicom/rows",
                 name="rows",
                 description="DICOM Rows (0028,0010)",
                 data_types=["sc:Integer"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="dicom/columns",
                 name="columns",
                 description="DICOM Columns (0028,0011)",
                 data_types=["sc:Integer"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="dicom/num_frames",
                 name="num_frames",
                 description="DICOM NumberOfFrames (0028,0008); >1 for multi-frame / cine DICOM",
                 data_types=["sc:Integer"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="dicom/bits_allocated",
                 name="bits_allocated",
                 description="DICOM BitsAllocated (0028,0100); bits per pixel sample",
                 data_types=["sc:Integer"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="dicom/patient_id",
                 name="patient_id",
                 description="DICOM PatientID (0010,0020); root of the patient/study/series/instance hierarchy",
                 data_types=["sc:Text"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="dicom/study_instance_uid",
                 name="study_instance_uid",
                 description="DICOM StudyInstanceUID (0020,000D); UID grouping all series from one patient visit",
                 data_types=["sc:Text"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="dicom/series_instance_uid",
                 name="series_instance_uid",
                 description="DICOM SeriesInstanceUID (0020,000E); UID grouping slices from one acquisition",
                 data_types=["sc:Text"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
         ]
 
@@ -297,7 +282,7 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     rows_list: List[int] = []
     cols_list: List[int] = []
     frames_list: List[int] = []
-    modalities: Dict[str, int] = {}
+    modalities: Dict[Optional[str], int] = {}
     bits_set: set = set()
     unknown_modality = 0
 
@@ -319,11 +304,16 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
         else:
             # Tag (0008,0060) is type 1 in many SOP classes but optional in
             # others; PhysioNet test files include real DICOMs with no
-            # modality. Surface them as "unknown" so the per-modality counts
-            # add up to num_files.
+            # modality. Count them apart (under None below) so the
+            # per-modality counts add up to num_files.
             unknown_modality += 1
+    # Sorted by modality, as image formats are: insertion order is rglob
+    # order, which differs between filesystems. Files with none come last.
+    modalities = dict(sorted(modalities.items()))
+    # Missing ones go under None, which no read value can equal, so a
+    # file whose Modality reads "unknown" keeps its own count.
     if unknown_modality:
-        modalities["unknown"] = unknown_modality
+        modalities[None] = unknown_modality
 
     summary: Dict = {"num_files": len(dicom_metadata_list)}
 

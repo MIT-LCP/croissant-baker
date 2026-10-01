@@ -389,9 +389,11 @@ class FHIRHandler(FileTypeHandler):
                         name=f"{resource_type} NDJSON files",
                         description=f"{len(chunks)} NDJSON chunk files for FHIR {resource_type}",
                         encoding_formats=[first_meta["encoding_format"]],
-                        includes=[
+                        # Sorted by path, as the image and OME FileSets are:
+                        # batch order is rglob order.
+                        includes=sorted(
                             m.get("relative_path", m["file_name"]) for _, m in chunks
-                        ],
+                        ),
                     )
                 )
                 merged = merge_fhir_column_types(
@@ -429,9 +431,11 @@ class FHIRHandler(FileTypeHandler):
                     encoding_formats=sorted(
                         set(fm["encoding_format"] for fm in bundle_metas)
                     ),
-                    includes=[
+                    # Sorted by path, as the image and OME FileSets are: batch
+                    # order is rglob order.
+                    includes=sorted(
                         fm.get("relative_path", fm["file_name"]) for fm in bundle_metas
-                    ],
+                    ),
                 )
             )
             for rt in sorted(by_type_col_types.keys()):

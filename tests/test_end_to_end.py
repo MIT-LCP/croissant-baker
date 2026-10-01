@@ -1360,9 +1360,8 @@ def _discovery_independent(document: dict) -> dict:
     return normalized
 
 
-@pytest.mark.parametrize("reverse_discovery", [False, True])
 def test_geo_soft_generation(
-    geo_soft_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+    geo_soft_path: Path, tmp_path: Path, reverse_discovery: bool
 ) -> None:
     """The whole CLI over three real deposits, compared against the committed
     document rather than overwriting it.
@@ -1371,15 +1370,6 @@ def test_geo_soft_generation(
     gzip wrappers, and one classic series whose tables carry three column
     signatures. The fixture README says how to regenerate the golden.
     """
-    if reverse_discovery:
-        from croissant_baker import scan
-
-        discover = scan.discover_files
-        monkeypatch.setattr(
-            scan,
-            "discover_files",
-            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
-        )
     output_file = tmp_path / "geo_soft_croissant.jsonld"
     golden = Path(__file__).parent / "data" / "output" / "geo_soft_croissant.jsonld"
     assert golden.is_file(), f"tracked GEO SOFT golden missing at {golden}"
@@ -1555,9 +1545,8 @@ def hdf5_demo_path() -> Path:
     return dataset_path
 
 
-@pytest.mark.parametrize("reverse_discovery", [False, True])
 def test_hdf5_demo_generation(
-    hdf5_demo_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+    hdf5_demo_path: Path, tmp_path: Path, reverse_discovery: bool
 ) -> None:
     """The whole CLI over HDF5, compared against the committed document.
 
@@ -1570,15 +1559,6 @@ def test_hdf5_demo_generation(
     orders, because ``rglob`` order is the filesystem's rather than sorted:
     comparing the text directly passed on macOS and failed on Linux.
     """
-    if reverse_discovery:
-        from croissant_baker import scan
-
-        discover = scan.discover_files
-        monkeypatch.setattr(
-            scan,
-            "discover_files",
-            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
-        )
     output_file = tmp_path / "hdf5_demo_croissant.jsonld"
     golden = Path(__file__).parent / "data" / "output" / "hdf5_demo_croissant.jsonld"
     assert golden.is_file(), f"tracked HDF5 golden missing at {golden}"
@@ -1631,9 +1611,8 @@ def spreadsheets_path() -> Path:
     return dataset_path
 
 
-@pytest.mark.parametrize("reverse_discovery", [False, True])
 def test_spreadsheets_bake_to_the_committed_document(
-    spreadsheets_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+    spreadsheets_path: Path, tmp_path: Path, reverse_discovery: bool
 ) -> None:
     """A golden that is read rather than overwritten: baked to a temporary path
     and compared against the committed answer.
@@ -1645,15 +1624,6 @@ def test_spreadsheets_bake_to_the_committed_document(
     is left on, which is where mlcroissant gets a say. The fixture README
     carries the command that regenerates the workbooks.
     """
-    if reverse_discovery:
-        from croissant_baker import scan
-
-        discover = scan.discover_files
-        monkeypatch.setattr(
-            scan,
-            "discover_files",
-            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
-        )
     output_file = tmp_path / "spreadsheets_croissant.jsonld"
     golden = Path(__file__).parent / "data" / "output" / "spreadsheets_croissant.jsonld"
     assert golden.is_file(), f"tracked workbook golden missing at {golden}"
