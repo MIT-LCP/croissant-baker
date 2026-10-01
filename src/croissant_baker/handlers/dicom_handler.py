@@ -264,8 +264,13 @@ class DICOMHandler(FileTypeHandler):
 
         num_files = summary.get("num_files", len(file_metas))
         modality_counts = summary.get("modality_counts", {})
+        # Files with no Modality are counted under None. One fixed label, so
+        # it reads the same whatever the other files say.
         modalities_str = (
-            ", ".join(f"{m} ({c})" for m, c in modality_counts.items())
+            ", ".join(
+                f"{'no modality' if m is None else m} ({c})"
+                for m, c in modality_counts.items()
+            )
             if modality_counts
             else "unknown modality"
         )
@@ -451,7 +456,7 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
     rows_list: List[int] = []
     cols_list: List[int] = []
     frames_list: List[int] = []
-    modalities: Dict[str, int] = {}
+    modalities: Dict[Optional[str], int] = {}
     bits_set: set = set()
     unknown_modality = 0
     wsi_count = 0
@@ -481,11 +486,16 @@ def collect_dicom_summary(dicom_metadata_list: List[Dict]) -> Dict:
         else:
             # Tag (0008,0060) is type 1 in many SOP classes but optional in
             # others; PhysioNet test files include real DICOMs with no
-            # modality. Surface them as "unknown" so the per-modality counts
-            # add up to num_files.
+            # modality. Count them apart (under None below) so the
+            # per-modality counts add up to num_files.
             unknown_modality += 1
+    # Sorted by modality, as image formats are: insertion order is rglob
+    # order, which differs between filesystems. Files with none come last.
+    modalities = dict(sorted(modalities.items()))
+    # Missing ones go under None, which no read value can equal, so a
+    # file whose Modality reads "unknown" keeps its own count.
     if unknown_modality:
-        modalities["unknown"] = unknown_modality
+        modalities[None] = unknown_modality
 
     summary: Dict = {"num_files": len(dicom_metadata_list)}
 
