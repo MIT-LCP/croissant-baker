@@ -11,6 +11,26 @@ uv sync --group dev
 uv run pre-commit install
 ```
 
+You need uv 0.8 or newer; `pyproject.toml` sets `required-version`, so an older uv stops with an error. Upgrade with `uv self update`, or `brew upgrade uv` if you installed it with Homebrew.
+
+## Dependencies and `uv.lock`
+
+`uv.lock` pins every dependency and is committed.
+
+- `uv add <pkg>` and `uv remove <pkg>` edit `pyproject.toml` and relock in one step. If you edit `pyproject.toml` by hand, run `uv lock` after. To bump one package, run `uv lock --upgrade-package <pkg>`. Commit `pyproject.toml` and `uv.lock` together.
+- Do not edit the lock by hand. To resolve a `uv.lock` merge conflict, settle any `pyproject.toml` conflict first, then take main's lock from the remote that points at MIT-LCP and relock. That remote is `origin` if you cloned MIT-LCP as in Setup, or `upstream` if you work from a fork:
+
+  ```bash
+  git fetch <remote>
+  git checkout <remote>/main -- uv.lock
+  uv lock
+  git add uv.lock
+  ```
+
+  This keeps main's pins, so redo any `uv lock --upgrade-package` bump your branch made.
+- CI runs `uv sync --locked`, which fails if `uv.lock` is out of date with `pyproject.toml`. Run `uv lock --check` to catch this before pushing.
+- release-please bumps the `croissant-baker` version in `uv.lock` along with `pyproject.toml` (see `extra-files` in `release-please-config.json`), so release PRs need no manual relock.
+
 ## Running
 
 After `uv sync`, you can either activate the virtualenv or prefix commands with `uv run`:
