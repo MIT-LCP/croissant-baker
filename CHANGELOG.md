@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.7.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.2...croissant-baker-v0.7.0) (2026-09-30)
+
+
+### Features
+
+* add header-only handlers for VCF/gVCF, BCF, BAM, CRAM, SAM, FASTQ and FASTA ([#127](https://github.com/MIT-LCP/croissant-baker/issues/127)) ([a57f2db](https://github.com/MIT-LCP/croissant-baker/commit/a57f2db876f0d4e3aef165a1e971c3ebbc8bb48a))
+
+
+### Bug Fixes
+
+* list batch summaries, file set paths and record set ids in a stable order ([#154](https://github.com/MIT-LCP/croissant-baker/issues/154)) ([f5b67d9](https://github.com/MIT-LCP/croissant-baker/commit/f5b67d9dfa19b42bd3d598d45d2b03d4d191f0e5))
+
+## [0.6.2](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.1...croissant-baker-v0.6.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* drop source.extract from dicom and nifti header fields ([#152](https://github.com/MIT-LCP/croissant-baker/issues/152)) ([8b07009](https://github.com/MIT-LCP/croissant-baker/commit/8b0700964065cb7eea6381df8d5a9bf4a2ea4ac0))
+* report a nameless creator, bad field mappings and broken yaml as plain errors ([#150](https://github.com/MIT-LCP/croissant-baker/issues/150)) ([652a299](https://github.com/MIT-LCP/croissant-baker/commit/652a29907c2a39d0dc3728aa2edd743552b9f880))
+
+
+### Documentation
+
+* note NeurIPS 2026 acceptance in the README ([#161](https://github.com/MIT-LCP/croissant-baker/issues/161)) ([b184dee](https://github.com/MIT-LCP/croissant-baker/commit/b184dee39959960a065b5cfefc92606190a77773))
+
+## [0.6.1](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.0...croissant-baker-v0.6.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* refuse unknown RAI config keys and correct the social impact key in the template ([#134](https://github.com/MIT-LCP/croissant-baker/issues/134)) ([8663e02](https://github.com/MIT-LCP/croissant-baker/commit/8663e02c3414e89bb6034b042c78f2eba7a86312))
+
+
+### Build System
+
+* keep the uv.lock version in step with releases ([#147](https://github.com/MIT-LCP/croissant-baker/issues/147)) ([789a008](https://github.com/MIT-LCP/croissant-baker/commit/789a008c3f70b05f29d36d0839bb459a59283b1e))
+
 ## [0.6.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.5.0...croissant-baker-v0.6.0) (2026-09-14)
 
 

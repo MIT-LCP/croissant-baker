@@ -12,8 +12,8 @@ from croissant_baker.handlers.base_handler import (
 )
 from croissant_baker.sources import FileSource, PathSource
 from croissant_baker.handlers.utils import (
-    _disambiguate_ids,
     compute_file_hash,
+    disambiguate_in_path_order,
     make_field_id,
     sanitize_id,
 )
@@ -134,20 +134,21 @@ class WFDBHandler(FileTypeHandler):
         # parent path components of each record's relative location when
         # available. Tests may pass minimal metas without path info, in
         # which case the bare record name is sufficient.
-        rs_id_items = [
-            (
-                sanitize_id(meta["record_name"]),
-                list(
-                    Path(
-                        meta.get("relative_path")
-                        or meta.get("file_name")
-                        or meta["record_name"]
-                    ).parts[:-1]
-                ),
+        paths = [
+            str(
+                Path(
+                    meta.get("relative_path")
+                    or meta.get("file_name")
+                    or meta["record_name"]
+                )
             )
             for meta in file_metas
         ]
-        rs_ids = _disambiguate_ids(rs_id_items)
+        rs_id_items = [
+            (sanitize_id(meta["record_name"]), list(Path(path).parts[:-1]))
+            for meta, path in zip(file_metas, paths)
+        ]
+        rs_ids = disambiguate_in_path_order(rs_id_items, paths)
         for file_id, file_meta, rs_id in zip(file_ids, file_metas, rs_ids):
             used_field_ids: set = set()
             fields = []

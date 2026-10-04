@@ -6,11 +6,13 @@
 
 <p align="center">
   <a href="https://github.com/MIT-LCP/croissant-baker/actions/workflows/test.yaml"><img src="https://github.com/MIT-LCP/croissant-baker/actions/workflows/test.yaml/badge.svg" alt="CI"></a>
+  <a href="https://htmlpreview.github.io/?https://github.com/MIT-LCP/croissant-baker/blob/python-coverage-comment-action-data/htmlcov/index.html"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/MIT-LCP/croissant-baker/python-coverage-comment-action-data/endpoint.json" alt="Coverage"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
   <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv"></a>
   <a href="https://github.com/MIT-LCP/croissant-baker/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://pypi.org/project/croissant-baker/"><img src="https://img.shields.io/pypi/v/croissant-baker?logo=pypi" alt="PyPI"></a>
   <a href="https://arxiv.org/abs/2605.15079"><img src="https://img.shields.io/badge/arXiv-2605.15079-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://neurips.cc/Conferences/2026"><img src="https://img.shields.io/badge/NeurIPS-2026-8A2BE2.svg" alt="NeurIPS 2026"></a>
   <a href="https://github.com/MIT-LCP/croissant-baker/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
 </p>
 
@@ -75,12 +77,19 @@ croissant-baker validate mimic-iv-demo-croissant.jsonld
 | Spreadsheets | `.xlsx`, `.xlsm`, `.xls` | One record set per sheet, where the sheet is one table; sheets that are not are named |
 | FHIR | `.ndjson`, `.json` (Bundle) | NDJSON bulk export and JSON Bundle |
 | JSON / JSONL | `.json`, `.jsonl` | Arrays, single objects, and JSON Lines |
-| WFDB | `.hea` + `.dat` / `.atr` | PhysioNet waveform data |
-| Images | `.png`, `.jpg`, `.tiff`, `.btf`, `.bmp`, `.gif`, `.webp` | Dimensions and format; BigTIFF via tifffile; OME-XML header fields for OME-TIFF |
+| WFDB | `.hea` (with sibling `.dat` / `.atr` located by path) | PhysioNet waveform data |
+| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.ico`, `.tiff`, `.tif`, `.btf` | Dimensions and format; BigTIFF via tifffile; OME-XML header fields for OME-TIFF |
 | DICOM | `.dcm`, `.dicom` | Modality, geometry, study/series UIDs via pydicom (header only) |
 | NIfTI | `.nii` | Spatial dims, voxel spacing, TR for fMRI via nibabel (header only) |
 | GEO SOFT | `.soft` | NCBI GEO family exports: attribute names, sample characteristic keys, data table columns |
 | HDF5 | `.h5`, `.h5ad`, `.hdf5` | Dataset paths, dtypes and shapes via h5py (structure only); AnnData and 10x table columns where the layout is recognised |
+| VCF / gVCF | `.vcf` | Variant callsets: reference, contigs, typed INFO and FORMAT keys, sample count (header only) |
+| BCF | `.bcf` | Binary VCF 2.x: the container is unwrapped in-handler and the VCF header inside it yields the same record set as VCF |
+| BAM | `.bam` | Sort order, reference sequences and assembly, read groups, program chain (header only) |
+| CRAM | `.cram` | As BAM, plus the CRAM version; versions 2.x and 3.x, no reference needed (header only) |
+| SAM | `.sam` | As BAM, from the text header |
+| FASTQ | `.fastq`, `.fq` | Sequencing reads: read length of the first record; read names are not reported |
+| FASTA | `.fa`, `.fasta`, `.fna` | Sequences and references: format only; record names and sequences are not read |
 
 Any of these may arrive wrapped in `.gz`, `.bz2` or `.xz` — compression is
 resolved before the format is read, so `cells.parquet.gz` is described exactly
@@ -93,6 +102,7 @@ describes are reported with a reason rather than skipped in silence.
 
 - **Automatic type inference** for all supported formats
 - **RAI metadata** via `--rai-*` CLI flags or `--rai-config rai.yaml`
+- **Genomic sample identifiers withheld by default**: VCF and BCF report a sample count and BAM, CRAM and SAM a read-group count; the identifiers themselves are listed only with `--genomic-sample-ids`. File and directory names are emitted either way, so files or directories named by sample (`SJ001234_D1.bam`) still show their sample in every `contentUrl`
 - **Validation** against the Croissant spec via `mlcroissant`
 - **Dry-run mode**, include/exclude glob filters, multiple creators
 
@@ -104,7 +114,7 @@ See [CONTRIBUTING.md](https://raw.githubusercontent.com/MIT-LCP/croissant-baker/
 
 ## Citation
 
-If you use Croissant Baker in your research, please cite our [arXiv preprint](https://arxiv.org/abs/2605.15079):
+Croissant Baker was accepted at NeurIPS 2026 (Evaluations & Datasets track). The camera-ready version is coming soon. Until then, please cite our [arXiv preprint](https://arxiv.org/abs/2605.15079):
 
 ```bibtex
 @misc{attrach2026croissantbakermetadatageneration,
