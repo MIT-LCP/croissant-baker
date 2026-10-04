@@ -1,6 +1,6 @@
 ---
 name: croissant-baker
-description: Generate and validate Croissant 1.1 JSON-LD dataset metadata with the croissant-baker CLI, which walks a directory and infers FileObjects and RecordSets from CSV, TSV, Parquet, FHIR, JSON, JSONL, WFDB, DICOM, NIfTI, image and GEO SOFT files, and refuses to guess the semantic fields. Use this skill whenever the user wants dataset metadata, an mlcroissant or Croissant file, a NeurIPS Datasets and Benchmarks submission, a PhysioNet or other controlled-access clinical or biomedical release, RAI (Responsible AI) dataset documentation, or an answer about FileObject, RecordSet, distribution or conformsTo entries. Use it also when they only say "describe this data directory", "document these files", "make my dataset machine-readable" or "generate a data card", and when they invoke the croissant-baker MCP tools dry_run, bake or validate, even if nobody says the word Croissant. Not for documenting source code or APIs; only for dataset directories.
+description: Generate and validate Croissant 1.1 JSON-LD dataset metadata with the croissant-baker CLI, which walks a directory and infers FileObjects and RecordSets from CSV, TSV, spreadsheet, Parquet, FHIR, JSON, JSONL, WFDB, DICOM, NIfTI, image, GEO SOFT, HDF5, VCF, BCF, BAM, CRAM, SAM, FASTQ and FASTA files, and refuses to guess the semantic fields. Use this skill whenever the user wants dataset metadata, an mlcroissant or Croissant file, a NeurIPS Datasets and Benchmarks submission, a PhysioNet or other controlled-access clinical or biomedical release, RAI (Responsible AI) dataset documentation, or an answer about FileObject, RecordSet, distribution or conformsTo entries. Use it also when they only say "describe this data directory", "document these files", "make my dataset machine-readable" or "generate a data card", and when they invoke the croissant-baker MCP tools dry_run, bake or validate, even if nobody says the word Croissant. Not for documenting source code or APIs; only for dataset directories.
 license: MIT
 compatibility: Requires Python 3.10 or newer with croissant-baker installed (`pip install croissant-baker`, or `uv add croissant-baker`). Everything runs locally against files on disk; the tool makes no network request and uploads nothing. The MCP tools need the optional `mcp` dependency group (`uv sync --group mcp`).
 metadata:
@@ -63,7 +63,7 @@ Each unclaimed file carries one of a fixed set of reasons. Decide, do not skip:
 
 | Reason | What it means | What to do |
 |--------|---------------|------------|
-| `no handler` | Nothing recognised the format | Expected for README, LICENSE, checksums, HTML. If it is real data, say so plainly: the format is not supported. |
+| `no handler` | Nothing recognised the format | Expected for README, LICENSE, checksums, HTML and genomic indexes (`.bai`, `.crai`, `.csi`, `.fai`). If it is real data, say so plainly: the format is not supported. |
 | `archive, not opened` | A `.zip`, `.tar` or `.tgz` | Ask the user to extract it, then re-run on the extracted tree. |
 | `handler needs an uncompressed file on disk` | A path-only handler (WFDB) was offered a compressed file | Decompress that file, or accept it as a reported-only FileObject. |
 | `unreadable while selecting a handler` | Usually a corrupt compression wrapper | Check the file; it is probably truncated. |
@@ -212,6 +212,10 @@ flags, RAI config, reports) needs the CLI.
 - **`--count-csv-rows` costs a full pass over every CSV.** Row counts are
   omitted by default for that reason. Do not turn it on for a large dataset
   unless the user asked for exact counts.
+- **Genomic sample identifiers are withheld by default.** VCF and BCF sample
+  columns and BAM, CRAM and SAM read-group `SM` tags are counted, not listed.
+  `--genomic-sample-ids` emits them, and for a controlled release they are a
+  manifest of the cohort, so pass it only when the user asks for it.
 - **`datePublished` and `url` warnings are expected when you omit them.** The
   run still succeeds and the file is still valid. The closing warning that they
   "are required by the Croissant spec but were not provided" is a prompt to go
