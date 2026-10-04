@@ -184,7 +184,10 @@ def _resolve_patterns(
                 compression.expand_globs([pattern], _wrappers_among(matched))
             )
         else:
-            matched = [p for p in stored_paths.get(pattern, ()) if p not in excluded]
+            # Sorted by path: stored forms are recorded in rglob order.
+            matched = sorted(
+                p for p in stored_paths.get(pattern, ()) if p not in excluded
+            )
             resolved.extend(glob.escape(p) for p in matched)
         members.extend(matched)
     return resolved, members
@@ -198,10 +201,14 @@ def _dependants_of(members: List[str], entries: list) -> list:
     duplicates is by definition not the name it is stored under.
     """
     covered = set(members)
-    return [
-        entry
-        for entry in entries
-        if entry.duplicate_of is not None
-        and str(entry.duplicate_of.path) in covered
-        and str(entry.path) not in covered
-    ]
+    # Sorted by path: entries arrive in rglob order.
+    return sorted(
+        (
+            entry
+            for entry in entries
+            if entry.duplicate_of is not None
+            and str(entry.duplicate_of.path) in covered
+            and str(entry.path) not in covered
+        ),
+        key=lambda entry: str(entry.path),
+    )

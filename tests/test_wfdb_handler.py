@@ -88,3 +88,19 @@ def test_wfdb_build_croissant() -> None:
     assert len(record_sets) == 1
     assert record_sets[0].name == "100"
     assert {f.name for f in record_sets[0].fields} == {"MLII", "V5"}
+
+
+def test_colliding_record_ids_do_not_follow_batch_order() -> None:
+    """``a b`` and ``a@b`` sanitize alike and share a parent, and which record
+    took the ``__2`` used to depend on rglob order."""
+    metas = [
+        {"record_name": name, "relative_path": f"{name}.hea", "signal_types": {}}
+        for name in ("a@b", "a b")
+    ]
+    ids = ["file_0", "file_1"]
+
+    forward = WFDBHandler().build_croissant(metas, ids).record_sets
+    backward = WFDBHandler().build_croissant(metas[::-1], ids[::-1]).record_sets
+
+    for record_sets in (forward, backward):
+        assert {rs.name: rs.id for rs in record_sets} == {"a b": "a_b", "a@b": "a_b__2"}

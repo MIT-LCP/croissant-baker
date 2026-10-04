@@ -10,6 +10,7 @@
   <a href="https://pypi.org/project/croissant-baker/"><img src="https://img.shields.io/pypi/v/croissant-baker?logo=pypi&logoColor=white" alt="PyPI"></a>&nbsp;&nbsp;
   <a href="https://github.com/MIT-LCP/croissant-baker"><img src="https://img.shields.io/badge/GitHub-Source_Code-blue?logo=github" alt="GitHub"></a>&nbsp;&nbsp;
   <a href="https://arxiv.org/abs/2605.15079"><img src="https://img.shields.io/badge/arXiv-2605.15079-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://neurips.cc/Conferences/2026"><img src="https://img.shields.io/badge/NeurIPS-2026-8A2BE2.svg" alt="NeurIPS 2026"></a>
 </p>
 
 ## Installation
@@ -53,7 +54,7 @@ See the [Getting Started](getting-started.md) guide for a full walkthrough.
 
 ## Citation
 
-If you use Croissant Baker in your research, please cite our [arXiv preprint](https://arxiv.org/abs/2605.15079):
+Croissant Baker was accepted at NeurIPS 2026 (Evaluations & Datasets track). The camera-ready version is coming soon. Until then, please cite our [arXiv preprint](https://arxiv.org/abs/2605.15079):
 
 ```bibtex
 @misc{attrach2026croissantbakermetadatageneration,
