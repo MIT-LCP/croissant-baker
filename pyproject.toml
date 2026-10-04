@@ -58,7 +58,7 @@ croissant-baker = "croissant_baker.__main__:app"
 # The suite covers every handler, so it needs the optional extra as well. Named
 # here rather than as a bare gemmi pin, so the version the tests run against is
 # the one the extra ships.
-test = ["pytest>=7.0", "croissant-baker[structural-biology]"]
+test = ["pytest>=7.0", "pytest-cov>=5", "croissant-baker[structural-biology]"]
 dev = [
     "ruff>=0.1.0",
     "pre-commit>=4.5.1",
@@ -81,6 +81,16 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 # Suppress rdflib warning from mlcroissant (external dependency)
 filterwarnings = ["ignore::DeprecationWarning:rdflib.*"]
+
+[tool.coverage.run]
+source = ["croissant_baker"]
+branch = true
+# python-coverage-comment-action reads the .coverage file from a checkout whose
+# paths differ from the runner's, so record repository-relative paths.
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.ruff]
 src = ["src"]
