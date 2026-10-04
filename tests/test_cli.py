@@ -1757,3 +1757,88 @@ def test_bake_refuses_to_write_a_document_that_fails_validation(
     assert result.exit_code == 1
     assert "Validation failed: synthetic refusal" in result.stderr
     assert not output.exists()
+
+
+def test_shell_completion_is_not_stopped_by_values_it_would_refuse() -> None:
+    """Completion parses a half-typed command line, so a free-text
+    --usage-info and an unknown --profile must not end it with an error."""
+    words = "croissant-baker --usage-info notauri --profile nope --dry"
+
+    result = runner.invoke(
+        app,
+        [],
+        prog_name="croissant-baker",
+        env={
+            "_CROISSANT_BAKER_COMPLETE": "complete_bash",
+            "COMP_WORDS": words,
+            "COMP_CWORD": "5",
+        },
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "--dry-run" in result.stdout
+
+
+def test_version_from_an_uninstalled_checkout_says_so(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib.metadata
+
+    def not_installed(name: str) -> str:
+        raise importlib.metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(importlib.metadata, "version", not_installed)
+
+    result = runner.invoke(app, ["--version"])
+
+    assert result.exit_code == 0
+    assert "not installed as package" in result.stdout
+
+
+def test_an_empty_directory_is_refused_without_a_coverage_summary(
+    tmp_path: Path,
+) -> None:
+    """With no file found there is nothing to break down, so no summary."""
+    dataset = tmp_path / "empty"
+    dataset.mkdir()
+    output = tmp_path / "output.jsonld"
+
+    result = cli(dataset, output)
+
+    assert result.exit_code == 1
+    assert result.stderr.startswith("Error:")
+    assert "Scanned" not in result.stdout
+    assert not output.exists()
+
+
+def test_an_output_it_cannot_write_is_reported_without_a_traceback(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """An output path under a regular file fails cleanly, and the coverage
+    summary still says what was scanned."""
+    blocker = tmp_path / "not_a_directory"
+    blocker.write_text("", encoding="utf-8")
+
+    result = cli(csv_dataset, blocker / "output.jsonld")
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert str(blocker) in result.stderr
+    assert "Scanned 1 file(s)" in result.stdout
+
+
+def test_a_field_mappings_file_holding_a_control_character_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The YAML reader refuses control characters with no line and column, so
+    the message falls back to the reader's own first line."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text("fields:\n  age: \x07\n", encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert f"Error: {mappings}: invalid YAML: unacceptable character" in (result.stderr)
+    assert len(result.stderr.strip().splitlines()) == 1
+    assert not output.exists()

@@ -612,6 +612,45 @@ def test_rai_apply_reports_a_malformed_config(tmp_path: Path) -> None:
     assert baked.read_text() == before
 
 
+def test_rai_apply_twice_declares_rai_conformance_once(tmp_path: Path) -> None:
+    baked = _baked(tmp_path)
+    apply = ["rai-apply", str(baked), "--rai-config", str(_rai_yaml(tmp_path))]
+
+    first = runner.invoke(app, [*apply, "--no-validate"])
+    second = runner.invoke(app, [*apply, "--no-validate"])
+
+    assert first.exit_code == 0, first.output
+    assert second.exit_code == 0, second.output
+    conforms_to = json.loads(baked.read_text())["conformsTo"]
+    assert conforms_to.count(RAI_CONFORMS_TO) == 1
+
+
+def test_rai_apply_reports_an_output_it_cannot_write(tmp_path: Path) -> None:
+    """An output path under a regular file fails cleanly, input untouched."""
+    baked = _baked(tmp_path)
+    before = baked.read_text()
+    blocker = tmp_path / "not_a_directory"
+    blocker.write_text("", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(baked),
+            "--rai-config",
+            str(_rai_yaml(tmp_path)),
+            "--no-validate",
+            "-o",
+            str(blocker / "out.jsonld"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert str(blocker) in result.stderr
+    assert baked.read_text() == before
+
+
 def test_inject_rai_leaves_the_context_alone_without_provenance() -> None:
     config = RAIConfig(ai_fairness=AIFairnessConfig(data_biases="Adults only"))
     metadata = {"@context": {"cr": "http://mlcommons.org/croissant/"}}
