@@ -15,11 +15,14 @@ import sys
 from pathlib import Path
 
 import yaml
-from coverage import CoverageData
+from coverage import Coverage, CoverageData
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 ACTION = "py-cov-action/python-coverage-comment-action"
+# The bar issue #146 set: the total, lines and branches together, may not drop
+# below it.
+COVERAGE_BAR = 95
 # The action's default, and the branch the README badge URLs point at.
 DEFAULT_DATA_BRANCH = "python-coverage-comment-action-data"
 
@@ -180,3 +183,25 @@ def test_comment_runs_from_different_forks_never_share_a_concurrency_group() -> 
     group = _workflow("coverage-comment.yaml")["concurrency"]["group"]
     if "workflow_run.head_branch" in group:
         assert "workflow_run.head_repository.full_name" in group, group
+
+
+def test_coverage_fails_a_run_below_the_bar() -> None:
+    # Read through coverage itself, so the test sees what pytest-cov enforces.
+    config = Coverage(config_file=str(REPO_ROOT / "pyproject.toml")).config
+    assert config.fail_under == COVERAGE_BAR
+    # With the default precision of 0 the total is rounded before the check,
+    # so anything above 94.5% would pass a bar of 95. Two decimals make the
+    # bar exact.
+    assert config.precision == 2
+
+
+def test_the_test_workflow_enforces_the_bar_from_pyproject() -> None:
+    # pytest-cov applies fail_under only when --cov is on, and a command line
+    # --cov-fail-under would quietly replace the bar in pyproject.toml.
+    runs = [
+        s["run"] for s in _steps(_workflow("test.yaml")) if "pytest" in s.get("run", "")
+    ]
+    assert runs, "no pytest step in test.yaml"
+    for run in runs:
+        assert "--cov" in run.split(), run
+        assert "--cov-fail-under" not in run, run
