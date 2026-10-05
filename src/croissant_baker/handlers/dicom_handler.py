@@ -7,6 +7,7 @@ import mlcroissant as mlc
 import pydicom
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.handlers.utils import plural
 from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
@@ -197,7 +198,7 @@ class DICOMHandler(FileTypeHandler):
         dicom_fileset = mlc.FileSet(
             id=fileset_id,
             name="DICOM files",
-            description=f"{num_files} DICOM file(s) ({modalities_str})",
+            description=f"{plural(num_files, 'DICOM file')} ({modalities_str})",
             encoding_formats=[MIME_TYPE],
             includes=["**/*.dcm", "**/*.dicom"],
         )
@@ -268,7 +269,7 @@ class DICOMHandler(FileTypeHandler):
         dicom_record_set = mlc.RecordSet(
             id="dicom",
             name="dicom",
-            description=f"{num_files} DICOM files ({dims_note}): {modalities_str}",
+            description=f"{plural(num_files, 'DICOM file')} ({dims_note}): {modalities_str}",
             fields=fields,
         )
 
