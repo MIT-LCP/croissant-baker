@@ -221,6 +221,40 @@ def test_the_dtype_list_does_not_follow_discovery_order(
         )
 
 
+@pytest.mark.parametrize(
+    ("count", "file_set", "record_set"),
+    [
+        (1, "1 NIfTI file (64x64x30)", "1 NIfTI file (64x64x30): int16"),
+        (2, "2 NIfTI files (64x64x30)", "2 NIfTI files (64x64x30): int16"),
+    ],
+    ids=["one file", "two files"],
+)
+def test_the_file_count_agrees_with_its_noun(
+    handler: NIfTIHandler, count: int, file_set: str, record_set: str
+) -> None:
+    metas = [_nifti_meta(f"{i}.nii.gz") for i in range(count)]
+
+    built = handler.build_croissant(metas, [f"file_{i}" for i in range(count)])
+
+    assert built.file_sets[0].description == file_set
+    assert built.record_sets[0].description == record_set
+
+
+@pytest.mark.parametrize(
+    ("volumes", "note"),
+    [(1, "64x64x30, 1 volume"), (2, "64x64x30, 2 volumes")],
+    ids=["one volume", "two volumes"],
+)
+def test_the_volume_count_agrees_with_its_noun(
+    handler: NIfTIHandler, volumes: int, note: str
+) -> None:
+    metas = [_nifti_meta("bold.nii.gz", ndim=4, dim_t=volumes)]
+
+    built = handler.build_croissant(metas, ["file_0"])
+
+    assert built.record_sets[0].description == f"1 NIfTI file ({note}): int16"
+
+
 def test_a_mixed_dtype_bake_describes_itself_one_way(
     tmp_path: Path, reverse_discovery: bool
 ) -> None:

@@ -7,6 +7,7 @@ import mlcroissant as mlc
 import nibabel as nib
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.handlers.utils import plural
 from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
@@ -157,7 +158,7 @@ class NIfTIHandler(FileTypeHandler):
         ndim_max = summary.get("ndim_max", 3)
         if ndim_max >= 4 and t_range:
             if t_range[0] == t_range[1]:
-                dims_note += f", {t_range[0]} volumes"
+                dims_note += f", {plural(t_range[0], 'volume')}"
             else:
                 dims_note += f", {t_range[0]}-{t_range[1]} volumes"
 
@@ -171,7 +172,7 @@ class NIfTIHandler(FileTypeHandler):
         nifti_fileset = mlc.FileSet(
             id=fileset_id,
             name="NIfTI files",
-            description=f"{num_files} NIfTI file(s) ({dims_note})",
+            description=f"{plural(num_files, 'NIfTI file')} ({dims_note})",
             encoding_formats=sorted(mime_types),
             includes=includes,
         )
@@ -240,7 +241,7 @@ class NIfTIHandler(FileTypeHandler):
         nifti_record_set = mlc.RecordSet(
             id="nifti",
             name="nifti",
-            description=f"{num_files} NIfTI files ({dims_note}): {dtypes_str}",
+            description=f"{plural(num_files, 'NIfTI file')} ({dims_note}): {dtypes_str}",
             fields=fields,
         )
 

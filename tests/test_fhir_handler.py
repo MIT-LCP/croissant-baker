@@ -427,6 +427,56 @@ def test_file_set_includes_do_not_follow_discovery_order(metas: list) -> None:
         assert file_set.includes == sorted(m["relative_path"] for m in metas)
 
 
+@pytest.mark.parametrize(
+    ("count", "file_set", "record_set"),
+    [
+        (1, "1 FHIR Bundle file", "FHIR Patient from 1 Bundle file (1 resource)"),
+        (2, "2 FHIR Bundle files", "FHIR Patient from 2 Bundle files (2 resources)"),
+    ],
+    ids=["one bundle", "two bundles"],
+)
+def test_the_bundle_count_agrees_with_its_noun(
+    count: int, file_set: str, record_set: str
+) -> None:
+    metas = [_bundle_meta(f"{i}.json") for i in range(count)]
+
+    built = FHIRHandler().build_croissant(metas, [f"file_{i}" for i in range(count)])
+
+    assert built.file_sets[0].description == file_set
+    assert built.record_sets[0].description == record_set
+
+
+@pytest.mark.parametrize(
+    ("rows", "phrase"), [(1, "(1 row)"), (2, "(2 rows)")], ids=["one", "two"]
+)
+def test_the_row_count_of_a_chunked_table_agrees_with_its_noun(
+    rows: int, phrase: str
+) -> None:
+    metas = [_chunk_meta(0, {"id": "sc:Text"}), _chunk_meta(1, {"id": "sc:Text"})]
+    metas[0]["num_rows"], metas[1]["num_rows"] = rows - 1, 1
+
+    built = FHIRHandler().build_croissant(metas, ["file_0", "file_1"])
+
+    assert built.file_sets[0].description == (
+        "2 NDJSON chunk files for FHIR Observation"
+    )
+    assert built.record_sets[0].description == (
+        f"FHIR Observation from 2 NDJSON chunk files {phrase}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("rows", "phrase"), [(1, "(1 row)"), (2, "(2 rows)")], ids=["one", "two"]
+)
+def test_the_row_count_of_one_file_agrees_with_its_noun(rows: int, phrase: str) -> None:
+    meta = _chunk_meta(0, {"id": "sc:Text"})
+    meta["num_rows"] = rows
+
+    built = FHIRHandler().build_croissant([meta], ["file_0"])
+
+    assert built.record_sets[0].description.endswith(phrase)
+
+
 def test_build_croissant_all_skipped_returns_empty(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

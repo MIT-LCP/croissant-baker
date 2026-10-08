@@ -25,6 +25,7 @@ from croissant_baker.handlers.utils import (
     display_name,
     infer_json_schema,
     make_record_set_ids,
+    plural,
     sanitize_id,
 )
 
@@ -366,7 +367,9 @@ class FHIRHandler(FileTypeHandler):
             standalone_rs_ids = make_record_set_ids(standalone_metas)
             for (fid, meta), rs_id in zip(standalone, standalone_rs_ids):
                 num_rows = meta.get("num_rows")
-                row_desc = f" ({num_rows} rows)" if num_rows is not None else ""
+                row_desc = (
+                    f" ({plural(num_rows, 'row')})" if num_rows is not None else ""
+                )
                 record_sets.append(
                     mlc.RecordSet(
                         id=rs_id,
@@ -387,7 +390,7 @@ class FHIRHandler(FileTypeHandler):
                     mlc.FileSet(
                         id=fileset_id,
                         name=f"{resource_type} NDJSON files",
-                        description=f"{len(chunks)} NDJSON chunk files for FHIR {resource_type}",
+                        description=f"{plural(len(chunks), 'NDJSON chunk file')} for FHIR {resource_type}",
                         encoding_formats=[first_meta["encoding_format"]],
                         # Sorted by path, as the image and OME FileSets are:
                         # batch order is rglob order.
@@ -405,7 +408,7 @@ class FHIRHandler(FileTypeHandler):
                     mlc.RecordSet(
                         id=rs_id,
                         name=resource_type,
-                        description=f"FHIR {resource_type} from {len(chunks)} NDJSON chunk files ({total_rows} rows)",
+                        description=f"FHIR {resource_type} from {plural(len(chunks), 'NDJSON chunk file')} ({plural(total_rows, 'row')})",
                         fields=self._build_fields(
                             merged,
                             rs_id,
@@ -427,7 +430,7 @@ class FHIRHandler(FileTypeHandler):
                 mlc.FileSet(
                     id=bundle_fileset_id,
                     name="FHIR Bundle files",
-                    description=f"{len(bundle_metas)} FHIR Bundle files",
+                    description=plural(len(bundle_metas), "FHIR Bundle file"),
                     encoding_formats=sorted(
                         set(fm["encoding_format"] for fm in bundle_metas)
                     ),
@@ -448,7 +451,7 @@ class FHIRHandler(FileTypeHandler):
                     mlc.RecordSet(
                         id=rs_id,
                         name=rt,
-                        description=f"FHIR {rt} from {len(bundle_metas)} Bundle files ({total_rows} resources)",
+                        description=f"FHIR {rt} from {plural(len(bundle_metas), 'Bundle file')} ({plural(total_rows, 'resource')})",
                         fields=self._build_fields(
                             merged,
                             rs_id,
