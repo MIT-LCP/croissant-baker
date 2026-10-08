@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.7.0...croissant-baker-v0.7.1) (2026-10-08)
+
+
+### Build System
+
+* **deps:** bump py-cov-action/python-coverage-comment-action from 4.3 to 4.5 ([#168](https://github.com/MIT-LCP/croissant-baker/issues/168)) ([e938255](https://github.com/MIT-LCP/croissant-baker/commit/e9382555d192b0281448abd4fc41a965517901af))
+
 ## [0.7.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.2...croissant-baker-v0.7.0) (2026-09-30)
 
 
