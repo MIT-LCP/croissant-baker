@@ -1243,10 +1243,10 @@ def mcp_command() -> None:
         import mcp  # noqa: F401
     except ImportError:
         typer.echo(
-            "Error: the MCP server needs the optional 'mcp' dependency group",
+            "Error: the MCP server needs the optional 'mcp' extra",
             err=True,
         )
-        typer.echo("Fix: uv sync --group mcp", err=True)
+        typer.echo("Fix: pip install 'croissant-baker[mcp]'", err=True)
         raise typer.Exit(code=1)
 
     from croissant_baker import mcp_server

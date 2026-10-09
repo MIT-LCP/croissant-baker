@@ -4,7 +4,7 @@ The three tools below are plain functions with typed signatures, independent of
 any transport, so they can be called directly by tests and by other Python
 code. :func:`build_server` is the only place that knows about the MCP SDK, and
 it is imported lazily so the package stays installable without the optional
-``mcp`` dependency group.
+``mcp`` extra.
 
 The surface is deliberately narrow. ``bake`` accepts the semantic fields a
 human would type and nothing else: an agent can supply only what a person
@@ -189,7 +189,7 @@ def build_server() -> Any:
         dependency stays optional.
 
     Raises:
-        ImportError: If the optional ``mcp`` dependency group is not installed.
+        ImportError: If the optional ``mcp`` extra is not installed.
     """
     from mcp.server.mcpserver import MCPServer
     from mcp.server.mcpserver.exceptions import ToolError

@@ -2,7 +2,7 @@
 name: croissant-baker
 description: Generate and validate Croissant 1.1 JSON-LD dataset metadata with the croissant-baker CLI, which walks a directory and infers FileObjects and RecordSets from CSV, TSV, spreadsheet, Parquet, FHIR, JSON, JSONL, WFDB, DICOM, NIfTI, image, GEO SOFT, HDF5, VCF, BCF, BAM, CRAM, SAM, FASTQ and FASTA files, and refuses to guess the semantic fields. Use this skill whenever the user wants dataset metadata, an mlcroissant or Croissant file, a NeurIPS Datasets and Benchmarks submission, a PhysioNet or other controlled-access clinical or biomedical release, RAI (Responsible AI) dataset documentation, or an answer about FileObject, RecordSet, distribution or conformsTo entries. Use it also when they only say "describe this data directory", "document these files", "make my dataset machine-readable" or "generate a data card", and when they invoke the croissant-baker MCP tools dry_run, bake or validate, even if nobody says the word Croissant. Not for documenting source code or APIs; only for dataset directories.
 license: MIT
-compatibility: Requires Python 3.10 or newer with croissant-baker installed (`pip install croissant-baker`, or `uv add croissant-baker`). Everything runs locally against files on disk; the tool makes no network request and uploads nothing. The MCP tools need the optional `mcp` dependency group (`uv sync --group mcp`).
+compatibility: Requires Python 3.10 or newer with croissant-baker installed (`pip install croissant-baker`, or `uv add croissant-baker`). Everything runs locally against files on disk; the tool makes no network request and uploads nothing. The MCP tools need the optional `mcp` extra (`pip install 'croissant-baker[mcp]'`).
 metadata:
   author: MIT-LCP
   version: "1.0"

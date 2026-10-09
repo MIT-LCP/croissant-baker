@@ -33,10 +33,10 @@ uv run croissant-baker --input ./my-dataset --creator "Jane Doe"
 validate and write the metadata) and `validate` (construct an existing file
 under `mlcroissant`). stdio is the only transport; there is no HTTP listener and
 no outbound request, so the no-upload guarantee is unchanged. The SDK is an
-optional dependency group:
+optional extra:
 
 ```bash
-uv sync --group mcp
+uv sync --extra mcp
 uv run croissant-baker mcp
 ```
 

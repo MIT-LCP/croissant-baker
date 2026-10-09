@@ -3,11 +3,10 @@
 The skill is prose, so these tests guard the parts a reader cannot check by
 eye: that the frontmatter satisfies the Agent Skills specification
 (https://agentskills.io/specification), that every supporting file the body
-points at is really there, that the discovery symlinks still resolve, and that
-the copy installed with the wheel is the copy in the repository.
+points at is really there, and that the discovery symlinks still resolve. What
+the wheel ships is checked in ``tests/test_packaging.py``.
 """
 
-import importlib.resources
 import re
 from pathlib import Path
 from typing import Tuple
@@ -97,14 +96,3 @@ def test_the_discovery_symlink_resolves_to_the_packaged_skill() -> None:
     assert link.is_symlink(), ".agents/skills/croissant-baker should be a symlink"
     assert not Path(link.readlink()).is_absolute(), "the link must be relative"
     assert link.resolve() == SKILL_DIR.resolve()
-
-
-def test_the_installed_package_carries_the_skill() -> None:
-    """A pip user gets the skill, not just a repository checkout."""
-    packaged = (
-        importlib.resources.files("croissant_baker")
-        .joinpath("skills", "croissant-baker", "SKILL.md")
-        .read_text(encoding="utf-8")
-    )
-
-    assert packaged == SKILL_FILE.read_text(encoding="utf-8")
