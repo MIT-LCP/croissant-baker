@@ -29,6 +29,7 @@ from typing import Any, Callable, List, Optional
 from croissant_baker.metadata_generator import MetadataGenerator
 from croissant_baker.pipeline import (
     dry_run_entries,
+    get_version,
     parse_creators,
     save_dict,
     write_scan_report,
@@ -237,10 +238,21 @@ def build_server() -> Any:
     """
     from mcp.server.mcpserver import MCPServer
     from mcp.server.mcpserver.exceptions import ToolError
+    from mcp.types import ToolAnnotations
 
-    server = MCPServer(SERVER_NAME)
-    for tool in (dry_run, bake, validate):
-        server.add_tool(_reported_to_client(tool, ToolError))
+    # The hints let a client approve the two tools that only read on its own
+    # and ask before bake, which writes the output, the report and any
+    # missing parent directories, replacing files already there.
+    read_only = ToolAnnotations(read_only_hint=True)
+    writes = ToolAnnotations(read_only_hint=False, destructive_hint=True)
+
+    server = MCPServer(SERVER_NAME, version=get_version())
+    for tool, hints in (
+        (dry_run, read_only),
+        (bake, writes),
+        (validate, read_only),
+    ):
+        server.add_tool(_reported_to_client(tool, ToolError), annotations=hints)
     server.resource(
         SKILL_URI,
         name="croissant-baker-skill",

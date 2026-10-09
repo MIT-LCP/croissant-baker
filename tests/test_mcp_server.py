@@ -300,6 +300,30 @@ def test_build_server_registers_exactly_the_three_tools() -> None:
     assert sorted(tool.name for tool in tools) == ["bake", "dry_run", "validate"]
 
 
+def test_tools_tell_the_client_which_are_read_only() -> None:
+    """A client can auto approve the two read-only tools and ask about bake.
+
+    Without the hints a client must treat all three alike, and bake writes the
+    output, the report and any missing parent directories.
+    """
+    tools = {
+        tool.name: tool.annotations
+        for tool in asyncio.run(mcp_server.build_server().list_tools())
+    }
+
+    assert tools["dry_run"].read_only_hint is True
+    assert tools["validate"].read_only_hint is True
+    assert tools["bake"].read_only_hint is False
+    assert tools["bake"].destructive_hint is True
+
+
+def test_the_server_reports_the_package_version() -> None:
+    """The client sees which croissant-baker it is talking to."""
+    from croissant_baker.pipeline import get_version
+
+    assert mcp_server.build_server().version == get_version() != ""
+
+
 def test_the_server_publishes_the_skill_as_its_only_resource() -> None:
     """An agent that connects can read the skill without a filesystem path."""
     resources = asyncio.run(mcp_server.build_server().list_resources())
