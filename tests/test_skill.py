@@ -127,6 +127,32 @@ def test_the_description_names_every_registered_format(frontmatter: dict) -> Non
     assert missing == [], f"add these formats to the skill description: {missing}"
 
 
+#: Registered extensions that are a format of their own to the people who use
+#: them, though a broader handler claims them, and the words the description
+#: must use for each. A ``.btf`` user asks about BigTIFF, not images.
+SUB_FORMATS = {
+    ".btf": ["BigTIFF", "OME-TIFF"],
+    ".h5ad": ["AnnData", ".h5ad"],
+    ".xlsx": [".xlsx"],
+    ".xls": [".xls"],
+}
+
+
+def test_the_description_names_the_sub_formats(frontmatter: dict) -> None:
+    """A handler's name alone can hide a format, as Images hides BigTIFF."""
+    description = frontmatter["description"]
+    registered = {ext for h in builtin_handlers() for ext in h.EXTENSIONS}
+
+    assert set(SUB_FORMATS) <= registered, "SUB_FORMATS names a dropped extension"
+    missing = sorted(
+        word
+        for words in SUB_FORMATS.values()
+        for word in words
+        if not re.search(rf"(?<![\w.]){re.escape(word)}(?![\w-])", description)
+    )
+    assert missing == [], f"add these to the skill description: {missing}"
+
+
 def test_every_reason_has_a_row_with_its_key_and_label(body: str) -> None:
     """The terminal prints the label; report.json and by_reason carry the key.
 
