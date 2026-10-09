@@ -14,6 +14,7 @@ import pytest
 from croissant_baker.handlers.fhir_handler import (
     FHIRHandler,
     _is_bulk_chunk,
+    merge_fhir_column_types,
 )
 from croissant_baker.handlers.utils import infer_croissant_type as _infer_croissant_type
 from croissant_baker.handlers.utils import infer_field_type as _infer_field_type
@@ -520,3 +521,122 @@ def test_mimiciv_fhir_observation_labevents(mimiciv_fhir_path: Path) -> None:
     assert meta["fhir_resource_type"] == "Observation"
     assert meta["num_rows"] > 100_000
     assert "effectiveDateTime" in meta["column_types"]
+
+
+def test_json_array_is_not_claimed(tmp_path: Path) -> None:
+    """A top-level JSON array is never a FHIR resource, whatever it holds."""
+    p = tmp_path / "list.json"
+    p.write_text(json.dumps([{"resourceType": "Patient"}]))
+    assert FHIRHandler().claims(make_source(p)) is False
+
+
+def test_large_fhir_json_is_claimed_from_its_head(tmp_path: Path) -> None:
+    """A Bundle bigger than the sniffed prefix is still recognised by its resourceType."""
+    p = tmp_path / "bundle.json"
+    entries = [{"resource": dict(r)} for r in _PATIENTS * 40]
+    p.write_text(json.dumps({"resourceType": "Bundle", "entry": entries}))
+    assert p.stat().st_size > 4096
+    assert FHIRHandler().claims(make_source(p)) is True
+
+
+def test_undecodable_json_is_not_claimed(tmp_path: Path) -> None:
+    p = tmp_path / "latin1.json"
+    p.write_bytes(b'{"resourceType": "Patient", "name": "\xff\xfe"}')
+    assert FHIRHandler().claims(make_source(p)) is False
+
+
+def test_extract_ndjson_skips_rows_it_cannot_use(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Blank, malformed, non-FHIR and off-type rows are left out of the count."""
+    p = tmp_path / "Patient.ndjson"
+    p.write_text(
+        "\n".join(
+            [
+                json.dumps(_PATIENTS[0]),
+                "",
+                "{not json",
+                json.dumps({"id": "no-resource-type"}),
+                json.dumps({"resourceType": "OperationOutcome", "issue": []}),
+                json.dumps(_PATIENTS[1]),
+            ]
+        )
+        + "\n"
+    )
+
+    with caplog.at_level("WARNING", logger="croissant_baker.handlers.fhir_handler"):
+        meta = FHIRHandler().extract(make_source(p))
+
+    assert meta["fhir_resource_type"] == "Patient"
+    assert meta["num_rows"] == 2
+    assert "issue" not in meta["column_types"]
+    assert any("malformed JSON line" in m for m in caplog.messages)
+
+
+def test_extract_ndjson_without_resources_raises(tmp_path: Path) -> None:
+    p = tmp_path / "Patient.ndjson"
+    p.write_text(json.dumps({"id": "a"}) + "\n")
+    with pytest.raises(ValueError, match="No valid FHIR resources"):
+        FHIRHandler().extract(make_source(p))
+
+
+@pytest.mark.parametrize(
+    "content, message",
+    [
+        ('{"resourceType": "Bundle", ', "Cannot parse"),
+        (json.dumps({"id": "a"}), "No FHIR resourceType"),
+        (
+            json.dumps({"resourceType": "Bundle", "entry": [{"resource": {}}]}),
+            "No FHIR resources found in Bundle",
+        ),
+    ],
+)
+def test_extract_json_refuses_what_is_not_fhir(
+    tmp_path: Path, content: str, message: str
+) -> None:
+    p = tmp_path / "bundle.json"
+    p.write_text(content)
+    with pytest.raises(ValueError, match=message):
+        FHIRHandler().extract(make_source(p))
+
+
+def test_build_croissant_treats_a_lone_chunk_as_a_table() -> None:
+    """One bulk chunk has nothing to merge with, so it gets no FileSet."""
+    meta = {
+        "file_name": "Observation.000.ndjson",
+        "relative_path": "Observation.000.ndjson",
+        "fhir_resource_type": "Observation",
+        "column_types": {"id": "sc:Text"},
+        "encoding_format": "application/fhir+ndjson",
+        "num_rows": 4,
+    }
+    filesets, record_sets = FHIRHandler().build_croissant([meta], ["file_0"])
+
+    assert filesets == []
+    assert len(record_sets) == 1
+    assert record_sets[0].name == "Observation"
+
+
+def test_merge_prefers_structure_over_primitives() -> None:
+    merged = merge_fhir_column_types(
+        [
+            {"code": "sc:Text", "tags": "sc:Text", "id": "sc:Text"},
+            {
+                "code": {"fields": {"text": "sc:Text"}, "is_array": False},
+                "tags": {"type": "sc:Text", "is_array": True},
+                "id": "sc:Text",
+            },
+            {
+                "code": {"fields": {"system": "sc:URL"}, "is_array": True},
+                "tags": {"type": "cr:Int64", "is_array": True},
+            },
+            {"tags": {"type": "sc:Text", "is_array": True}},
+        ]
+    )
+
+    assert merged["code"] == {
+        "fields": {"system": "sc:URL", "text": "sc:Text"},
+        "is_array": True,
+    }
+    assert merged["tags"] == {"type": "sc:Text", "is_array": True}
+    assert merged["id"] == "sc:Text"

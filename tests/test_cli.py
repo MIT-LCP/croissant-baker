@@ -1659,3 +1659,186 @@ def test_all_discovery_fields_construct_under_mlcroissant(
         CROISSANT_CONFORMS_TO,
         BIOSCHEMAS_CONFORMS_TO,
     ]
+
+
+@pytest.mark.parametrize(
+    "text, message",
+    [
+        ("- age\n", "must contain a YAML mapping at the top level"),
+        ("columns:\n  age: {}\n", "missing top-level 'fields:' key"),
+        ("fields:\n  - age\n", "'fields' must be a mapping of column names"),
+        ("fields:\n  age: 'wdt:P3629'\n", "column 'age' must map to an object"),
+    ],
+)
+def test_field_mappings_yaml_rejects_a_malformed_file(
+    csv_dataset: Path, tmp_path: Path, text: str, message: str
+) -> None:
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text(text, encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code != 0
+    assert message in result.stderr
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("flag", ["age", "=wdt:P3629", "age= "])
+def test_field_mapping_flag_needs_a_column_and_a_uri(
+    csv_dataset: Path, tmp_path: Path, flag: str
+) -> None:
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mapping", flag)
+
+    assert result.exit_code != 0
+    assert "--field-mapping must be 'COLUMN=URI'" in result.stderr
+    assert not output.exists()
+
+
+def test_count_csv_rows_warns_when_there_is_no_csv(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "records.jsonl").write_text('{"id": 1}\n{"id": 2}\n')
+    output = tmp_path / "output.jsonld"
+
+    result = cli(dataset, output, "--count-csv-rows")
+
+    assert result.exit_code == 0, result.output
+    assert "--count-csv-rows has no effect" in result.stderr
+
+
+def test_count_csv_rows_is_silent_when_there_is_a_csv(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    result = cli(csv_dataset, tmp_path / "output.jsonld", "--count-csv-rows")
+
+    assert result.exit_code == 0, result.output
+    assert "--count-csv-rows has no effect" not in result.stderr
+
+
+def test_dry_run_reports_a_report_path_it_cannot_write(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    result = runner.invoke(
+        app, ["--input", str(csv_dataset), "--dry-run", "--report", str(tmp_path)]
+    )
+
+    assert result.exit_code == 1
+    assert "data.csv" in result.stdout
+    assert result.stderr.startswith("Error:")
+    assert str(tmp_path) in result.stderr
+
+
+def test_validate_command_rejects_an_invalid_file(tmp_path: Path) -> None:
+    broken = tmp_path / "broken.jsonld"
+    broken.write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["validate", str(broken)])
+
+    assert result.exit_code == 1
+    assert "Validation failed" in result.stderr
+
+
+def test_bake_refuses_to_write_a_document_that_fails_validation(
+    csv_dataset: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import mlcroissant as mlc
+
+    def refuse(path):
+        raise mlc.ValidationError("synthetic refusal")
+
+    monkeypatch.setattr(mlc, "Dataset", refuse)
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, validate=True)
+
+    assert result.exit_code == 1
+    assert "Validation failed: synthetic refusal" in result.stderr
+    assert not output.exists()
+
+
+def test_shell_completion_is_not_stopped_by_values_it_would_refuse() -> None:
+    """Completion parses a half-typed command line, so a free-text
+    --usage-info and an unknown --profile must not end it with an error."""
+    words = "croissant-baker --usage-info notauri --profile nope --dry"
+
+    result = runner.invoke(
+        app,
+        [],
+        prog_name="croissant-baker",
+        env={
+            "_CROISSANT_BAKER_COMPLETE": "complete_bash",
+            "COMP_WORDS": words,
+            "COMP_CWORD": "5",
+        },
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "--dry-run" in result.stdout
+
+
+def test_version_from_an_uninstalled_checkout_says_so(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib.metadata
+
+    def not_installed(name: str) -> str:
+        raise importlib.metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(importlib.metadata, "version", not_installed)
+
+    result = runner.invoke(app, ["--version"])
+
+    assert result.exit_code == 0
+    assert "not installed as package" in result.stdout
+
+
+def test_an_empty_directory_is_refused_without_a_coverage_summary(
+    tmp_path: Path,
+) -> None:
+    """With no file found there is nothing to break down, so no summary."""
+    dataset = tmp_path / "empty"
+    dataset.mkdir()
+    output = tmp_path / "output.jsonld"
+
+    result = cli(dataset, output)
+
+    assert result.exit_code == 1
+    assert result.stderr.startswith("Error:")
+    assert "Scanned" not in result.stdout
+    assert not output.exists()
+
+
+def test_an_output_it_cannot_write_is_reported_without_a_traceback(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """An output path under a regular file fails cleanly, and the coverage
+    summary still says what was scanned."""
+    blocker = tmp_path / "not_a_directory"
+    blocker.write_text("", encoding="utf-8")
+
+    result = cli(csv_dataset, blocker / "output.jsonld")
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert str(blocker) in result.stderr
+    assert "Scanned 1 file(s)" in result.stdout
+
+
+def test_a_field_mappings_file_holding_a_control_character_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The YAML reader refuses control characters with no line and column, so
+    the message falls back to the reader's own first line."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text("fields:\n  age: \x07\n", encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert f"Error: {mappings}: invalid YAML: unacceptable character" in (result.stderr)
+    assert len(result.stderr.strip().splitlines()) == 1
+    assert not output.exists()
