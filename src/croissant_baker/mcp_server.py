@@ -24,8 +24,8 @@ import importlib.resources
 from collections import Counter
 from typing import Any, Callable, List, Optional
 
-from croissant_baker.__main__ import _dry_run_entries, _parse_creators, _save_dict
 from croissant_baker.metadata_generator import MetadataGenerator
+from croissant_baker.pipeline import dry_run_entries, parse_creators, save_dict
 from croissant_baker.report import ScanReport
 from croissant_baker.scan import Outcome, Reason
 
@@ -74,7 +74,7 @@ def dry_run(
         accounting for the unclaimed alone, and ``files``: the per-file outcome
         with the reason and a human-readable detail for every refusal.
     """
-    entries = _dry_run_entries(input_dir, include, exclude)
+    entries = dry_run_entries(input_dir, include, exclude)
     claimed = [e for e in entries if e.outcome is Outcome.WOULD_PROCESS]
     unclaimed = [e for e in entries if e.outcome is Outcome.UNCLAIMED]
     tally = Counter(e.reason for e in unclaimed if e.reason is not None)
@@ -133,13 +133,13 @@ def bake(
         url=url,
         license=license,
         citation=citation,
-        creators=_parse_creators(creators) or None,
+        creators=parse_creators(creators) or None,
         detect_references=detect_references,
         includes=include,
         excludes=exclude,
     )
     metadata_dict = generator.generate_metadata()
-    _save_dict(metadata_dict, output, validate=True)
+    save_dict(metadata_dict, output, validate=True)
     return {"output": output, "report": generator.scan_report.to_dict()}
 
 

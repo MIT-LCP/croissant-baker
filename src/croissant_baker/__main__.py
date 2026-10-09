@@ -1,11 +1,8 @@
 """Command-line interface for Croissant Baker."""
 
-import csv
 from datetime import datetime
 import json
 import re
-import tempfile
-import importlib.metadata
 from pathlib import Path
 from typing import List, Optional
 
@@ -23,14 +20,17 @@ from croissant_baker.metadata_generator import (
     PROFILE_CONFORMS_TO,
     RAI_CONFORMS_TO,
     normalize_profiles,
-    serialize_datetime,
     url_has_whitespace,
 )
 from croissant_baker import compression
 from croissant_baker.files import discover_files
-from croissant_baker.handlers.registry import select_handler
-from croissant_baker.scan import Outcome, Reason, ScanEntry, ScanReport, scan_directory
-import mlcroissant as mlc
+from croissant_baker.pipeline import (
+    dry_run_entries,
+    get_version,
+    parse_creators,
+    save_dict,
+)
+from croissant_baker.scan import Outcome, ScanReport
 
 # Create the Typer application instance
 app = typer.Typer(
@@ -39,73 +39,6 @@ app = typer.Typer(
     add_completion=False,
     rich_markup_mode="markdown",
 )
-
-
-def _save_dict(metadata_dict: dict, output_path: str, validate: bool) -> None:
-    """
-    Save a pre-computed metadata dict to a JSON-LD file, with optional validation.
-
-    This function exists because MetadataGenerator.save_metadata() always calls
-    generate_metadata() internally, regenerating the dict from scratch. That makes
-    it unusable once the dict has already been built and modified — for example,
-    after RAI attributes have been injected via inject_rai(). This function takes
-    the already-computed dict and handles the save + validation step directly,
-    keeping MetadataGenerator unchanged.
-
-    It is used in two places:
-      - The main generate command, when --rai-config is provided (or not, to keep
-        a single consistent save path after generate_metadata() is called once).
-      - The rai-apply command, which loads an existing .jsonld, injects RAI, and
-        saves it back without invoking MetadataGenerator at all.
-
-    Args:
-        metadata_dict: Already-computed Croissant metadata dict (may include RAI).
-        output_path:   Path where the JSON-LD file should be written.
-        validate:      When True, validates via mlcroissant before writing.
-
-    Raises:
-        ValueError: If mlcroissant validation fails.
-    """
-    output_file = Path(output_path)
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-
-    if validate:
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".jsonld", delete=False
-        ) as tmp:
-            json.dump(
-                metadata_dict,
-                tmp,
-                indent=2,
-                ensure_ascii=False,
-                default=serialize_datetime,
-            )
-            tmp_path = tmp.name
-        try:
-            mlc.Dataset(tmp_path)
-            _write_jsonld(metadata_dict, output_file)
-        except Exception as e:
-            raise ValueError(f"Validation failed: {e}")
-        finally:
-            Path(tmp_path).unlink(missing_ok=True)
-    else:
-        _write_jsonld(metadata_dict, output_file)
-
-
-def _write_jsonld(metadata_dict: dict, output_file: Path) -> None:
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(
-            metadata_dict, f, indent=2, ensure_ascii=False, default=serialize_datetime
-        )
-        f.write("\n")
-
-
-def _get_version() -> str:
-    """Get version from package metadata."""
-    try:
-        return importlib.metadata.version("croissant-baker")
-    except importlib.metadata.PackageNotFoundError:
-        return "unknown (not installed as package)"
 
 
 def _get_default_output_name(input_path: str) -> str:
@@ -516,74 +449,6 @@ def _ensure_rai_conforms_to(metadata_dict: dict, force: bool = False) -> None:
         conforms_to.append(RAI_CONFORMS_TO)
 
 
-def _parse_creators(creator: Optional[List[str]]) -> List[dict]:
-    """Parse ``Name,email,url`` creator strings into mlcroissant Person dicts.
-
-    Semicolons take precedence as the separator so a name containing a comma
-    needs no quoting; otherwise the string is read as one CSV row, which
-    handles quoting properly.
-
-    Raises:
-        ValueError: If an entry has a blank name part.
-    """
-    parsed_creators: List[dict] = []
-    for raw_creator in creator or []:
-        creator_info = raw_creator.strip()
-
-        # Preferred: semicolon
-        if ";" in creator_info:
-            creator_parts = [p.strip() for p in creator_info.split(";")]
-
-        else:
-            # Use CSV parsing for comma cases (handles quotes properly)
-            creator_parts = next(csv.reader([creator_info]))
-            creator_parts = [p.strip() for p in creator_parts]
-
-        # Skipping it would drop a creator the user asked for, or
-        # leave the placeholder, without a word; refuse it instead.
-        if not creator_parts or not creator_parts[0]:
-            raise ValueError(
-                f"--creator {raw_creator!r} has no name.\n"
-                "Example: --creator 'John Doe,john@example.com' "
-                "or --creator 'Jane Smith'"
-            )
-
-        creator_obj = {"name": creator_parts[0]}
-
-        if len(creator_parts) > 1 and creator_parts[1]:
-            creator_obj["email"] = creator_parts[1]
-
-        if len(creator_parts) > 2 and creator_parts[2]:
-            creator_obj["url"] = creator_parts[2]
-
-        parsed_creators.append(creator_obj)
-
-    return parsed_creators
-
-
-def _dry_run_entries(
-    input_dir: str,
-    include: Optional[List[str]] = None,
-    exclude: Optional[List[str]] = None,
-) -> List[ScanEntry]:
-    """Resolve every discovered file to a handler without reading any of it.
-
-    Each entry comes back either ``WOULD_PROCESS`` or ``UNCLAIMED`` with the
-    registry's own reason: an archive and a path-only handler differ, so the
-    reason is asked for rather than assumed.
-    """
-    entries = scan_directory(
-        input_dir, include_patterns=include, exclude_patterns=exclude
-    )
-    for entry in entries:
-        selection = select_handler(Path(input_dir) / entry.path, entry.path)
-        if selection.handler is None:
-            entry.unclaimed(selection.reason or Reason.NO_HANDLER, selection.refusal)
-        else:
-            entry.would_process(selection.handler)
-    return entries
-
-
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -887,7 +752,7 @@ def main(
     """🥐 **Croissant Baker** - Generate rich metadata for your datasets"""
 
     if version:
-        typer.echo(f"🥐 croissant-baker {_get_version()}")
+        typer.echo(f"🥐 croissant-baker {get_version()}")
         return
 
     if ctx.invoked_subcommand is not None:
@@ -978,7 +843,7 @@ def main(
     # governing the default bake summary does not apply here.
     if dry_run:
         try:
-            entries = _dry_run_entries(input, include, exclude)
+            entries = dry_run_entries(input, include, exclude)
             claimed = [e for e in entries if e.outcome is Outcome.WOULD_PROCESS]
             unclaimed = [e for e in entries if e.outcome is Outcome.UNCLAIMED]
 
@@ -1006,7 +871,7 @@ def main(
     try:
         # Parse creators following mlcroissant specification
         # Allows flexible Person/Organization objects with optional properties
-        parsed_creators = _parse_creators(creator)
+        parsed_creators = parse_creators(creator)
 
         # Warn early if --count-csv-rows is set but dataset has no CSV files.
         # Asked of the logical name, so the CLI does not become a second
@@ -1127,11 +992,11 @@ def main(
         ) as progress:
             if validate:
                 save_task = progress.add_task("Validating and saving...", total=None)
-                _save_dict(metadata_dict, output, validate=True)
+                save_dict(metadata_dict, output, validate=True)
                 progress.update(save_task, description="Validation completed!")
             else:
                 save_task = progress.add_task("Saving metadata...", total=None)
-                _save_dict(metadata_dict, output, validate=False)
+                save_dict(metadata_dict, output, validate=False)
                 progress.update(save_task, description="Save completed!")
 
         # Show results
@@ -1218,7 +1083,7 @@ def rai_apply(
         _ensure_rai_conforms_to(metadata_dict, force=True)
 
         dest = str(Path(output) if output else input_path)
-        _save_dict(metadata_dict, dest, validate=validate)
+        save_dict(metadata_dict, dest, validate=validate)
 
         typer.echo(f"RAI attributes applied and saved to: {dest}")
         if not validate:
