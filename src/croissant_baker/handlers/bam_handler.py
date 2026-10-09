@@ -10,16 +10,16 @@ handler produces is a described FileObject, through the ``description`` key the
 generator honours.
 """
 
-import gzip
 import logging
 import struct
 from typing import BinaryIO
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
-from croissant_baker.handlers.sam_header import describe_alignment, parse_sam_header
+from croissant_baker.handlers.sam_header import alignment_metadata, parse_sam_header
 from croissant_baker.handlers.utils import (
     MAX_HEADER_BYTES,
-    decompress_prefix,
+    bgzf_payload_starts_with,
+    open_bgzf,
     read_exactly,
 )
 from croissant_baker.sources import UNREADABLE, FileSource
@@ -29,28 +29,13 @@ logger = logging.getLogger(__name__)
 #: The four bytes a BAM's decompressed payload opens with.
 MAGIC = b"BAM\x01"
 
-#: The two bytes every member of a gzip stream opens with. BAM is BGZF, which
-#: is gzip with an extra field Python's gzip module ignores.
-COMPRESSED_MAGIC = b"\x1f\x8b"
-
 #: BAM has no IANA registration. The ``x-`` form follows ``application/x-nifti``
 #: and ``text/x-geo-soft``, already in the tree.
 ENCODING_FORMAT = "application/x-bam"
 
-#: Enough of the head to decide a claim: one BGZF block is at most 64 KiB, and
-#: the magic is the first four bytes of the first block's payload.
-CLAIM_BYTES = 4096
-
 #: ``l_text`` and ``n_ref`` are both little-endian signed 32-bit integers.
 INT32 = "<i"
 INT32_BYTES = 4
-
-#: The largest SAM text header this handler will read. ``l_text`` is a signed
-#: 32-bit integer the file chooses, so trusting it turns a header read into a
-#: read of the whole file, which is the one thing this handler exists not to
-#: do. The cap is the shared one, because every container in this family states
-#: its own header length and none of them may be believed about it.
-MAX_TEXT_BYTES = MAX_HEADER_BYTES
 
 
 def _read_exactly(stream: BinaryIO, count: int, what: str, name: str) -> bytes:
@@ -83,27 +68,11 @@ class BAMHandler(FileTypeHandler):
     def claims(self, source: FileSource) -> bool:
         """Claim a stream whose payload opens with the BAM magic.
 
-        Two spellings, because the pipeline can hand over either. A ``.bam`` on
-        disk is compressed and reaches this handler as it is stored, so the
-        magic is inside the wrapper. A ``.bam`` that arrived under a second
-        wrapper has had one layer taken off already, and the magic is the first
-        thing in the stream.
-
-        A file that cannot be read peeks as ``b""`` and is therefore not
-        claimed; that is
-        :meth:`~croissant_baker.sources.FileSource.peek`'s contract. The
-        prefix this handler decompresses itself is its own to guard, and the
-        types are the ones a refused or corrupt member raises.
+        Inside its BGZF wrapper as a ``.bam`` is stored, or already unwrapped
+        when it arrived under a second wrapper; see
+        :func:`~croissant_baker.handlers.utils.bgzf_payload_starts_with`.
         """
-        head = source.peek(CLAIM_BYTES)
-        if head.startswith(MAGIC):
-            return True
-        if not head.startswith(COMPRESSED_MAGIC):
-            return False
-        try:
-            return decompress_prefix(head, len(MAGIC)) == MAGIC
-        except UNREADABLE:
-            return False
+        return bgzf_payload_starts_with(source, MAGIC)
 
     def extract(
         self, source: FileSource, genomic_sample_ids: bool = False, **kwargs
@@ -123,44 +92,21 @@ class BAMHandler(FileTypeHandler):
         name = str(source.relative_path)
         header, reference_count = self._read_header(source, name)
 
-        metadata = {
-            "file_name": source.name,
-            "file_size": source.size,
-            "sha256": source.sha256,
-            "encoding_format": ENCODING_FORMAT,
-            "sam_version": header.sam_version,
-            "sort_order": header.sort_order,
-            "sq_count": header.sq_count,
-            "reference_count": reference_count,
-            "read_group_count": header.read_group_count,
-            "platforms": header.platforms,
-            "centres": header.centres,
-            "programs": header.programs,
-        }
-        if header.assembly:
-            metadata["assembly"] = header.assembly
-        # Withheld before anything is written, so the description cannot leak
-        # what the metadata withholds.
-        sample_ids = header.sample_ids if genomic_sample_ids else []
-        if sample_ids:
-            metadata["sample_ids"] = sample_ids
-        # The one thing this handler emits. Built here rather than in
-        # build_croissant, which runs after the FileObject is staged, and from
-        # the logical name, which is the only one extraction is given.
-        metadata["description"] = describe_alignment(
-            self.FORMAT_NAME, header, reference_count, source.name, sample_ids
+        return alignment_metadata(
+            source,
+            encoding_format=ENCODING_FORMAT,
+            described_as=self.FORMAT_NAME,
+            header=header,
+            reference_count=reference_count,
+            genomic_sample_ids=genomic_sample_ids,
+            extra={"reference_count": reference_count},
         )
-        return metadata
 
     def _read_header(self, source: FileSource, name: str):
         """The SAM header and the reference count, and nothing after them."""
         try:
-            compressed = source.peek(len(COMPRESSED_MAGIC)) == COMPRESSED_MAGIC
-            with source.open() as stored:
-                if not compressed:
-                    return self._read_payload(stored, name)
-                with gzip.GzipFile(fileobj=stored, mode="rb") as payload:
-                    return self._read_payload(payload, name)
+            with open_bgzf(source) as payload:
+                return self._read_payload(payload, name)
         except (*UNREADABLE, struct.error) as exc:
             raise ValueError(f"Failed to read BAM file {name}: {exc}") from exc
 
@@ -172,11 +118,12 @@ class BAMHandler(FileTypeHandler):
                 "start of its payload"
             )
         text_length = _int32(payload, "l_text", name)
-        # Checked before the read, not after: the point is not to read it.
-        if not 0 <= text_length <= MAX_TEXT_BYTES:
+        # A length the file chooses, so checked against the shared cap before
+        # the read, not after: the point is not to read it.
+        if not 0 <= text_length <= MAX_HEADER_BYTES:
             raise ValueError(
                 f"Not a BAM file: {name} declares a SAM header of "
-                f"{text_length} bytes, outside the 0 to {MAX_TEXT_BYTES} a "
+                f"{text_length} bytes, outside the 0 to {MAX_HEADER_BYTES} a "
                 "header can be"
             )
         text = _read_exactly(payload, text_length, "the SAM header", name)

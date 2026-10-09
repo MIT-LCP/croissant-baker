@@ -1,14 +1,25 @@
 """Tests for handler utilities."""
 
+import gzip
+import io
+from pathlib import Path
+
+import pytest
+
 from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
+    PREFIX_CHUNK_BYTES,
     _disambiguate_ids,
     allocate_record_set_ids,
+    bgzf_payload_starts_with,
+    bounded_lines,
     make_field_id,
     make_record_set_ids,
     normalize_array_shape,
+    open_bgzf,
     shard_template,
 )
+from croissant_baker.sources import make_source
 
 
 def metas(*paths: str) -> list:
@@ -199,3 +210,94 @@ def test_numeric_identifier_collisions_start_at_two() -> None:
         "data__2",
         "data__3",
     ]
+
+
+#: Caps far above anything the line tests below feed in.
+ROOMY = 1024 * 1024
+
+
+def header_lines(data: bytes, max_line: int = ROOMY, max_header: int = ROOMY):
+    return list(bounded_lines(io.BytesIO(data), max_line, max_header, "f.x", "X"))
+
+
+def test_bounded_lines_splits_on_line_endings() -> None:
+    assert header_lines(b"a\nb\n") == [b"a", b"b"]
+
+
+def test_bounded_lines_keeps_a_last_line_written_without_an_ending() -> None:
+    assert header_lines(b"a\nb") == [b"a", b"b"]
+
+
+def test_bounded_lines_joins_a_line_spanning_many_chunks() -> None:
+    long_line = b"x" * (3 * PREFIX_CHUNK_BYTES)
+
+    assert header_lines(long_line + b"\nend") == [long_line, b"end"]
+
+
+def test_bounded_lines_refuses_a_line_past_the_line_cap() -> None:
+    with pytest.raises(ValueError) as caught:
+        header_lines(b"x" * (2 * PREFIX_CHUNK_BYTES), max_line=PREFIX_CHUNK_BYTES)
+
+    assert str(caught.value) == (
+        f"Not a X file: f.x runs to {2 * PREFIX_CHUNK_BYTES} bytes with no line "
+        f"ending, past the {PREFIX_CHUNK_BYTES} a header line can be"
+    )
+
+
+def test_bounded_lines_refuses_a_header_past_the_header_cap() -> None:
+    cap = 2 * PREFIX_CHUNK_BYTES
+
+    with pytest.raises(ValueError) as caught:
+        header_lines(b"ab\n" * cap, max_header=cap)
+
+    assert str(caught.value) == (
+        f"Not a X file: the header of f.x runs past {cap} bytes without "
+        "reaching a line that is not a header line"
+    )
+
+
+def test_bounded_lines_reads_no_further_than_the_caller_asks() -> None:
+    stream = io.BytesIO(b"first\n" + b"x" * (4 * PREFIX_CHUNK_BYTES))
+
+    lines = bounded_lines(stream, ROOMY, ROOMY, "f.x", "X")
+
+    assert next(lines) == b"first"
+    assert stream.tell() == PREFIX_CHUNK_BYTES
+
+
+def stored(tmp_path: Path, data: bytes):
+    path = tmp_path / "stored.bin"
+    path.write_bytes(data)
+    return make_source(path, Path(path.name))
+
+
+@pytest.mark.parametrize(
+    "data",
+    [b"MAGIC and more", gzip.compress(b"MAGIC and more")],
+    ids=["plain", "wrapped"],
+)
+def test_a_payload_opening_with_the_magic_is_recognised(
+    tmp_path: Path, data: bytes
+) -> None:
+    assert bgzf_payload_starts_with(stored(tmp_path, data), b"MAGIC")
+
+
+@pytest.mark.parametrize(
+    "data",
+    [b"other bytes", gzip.compress(b"other bytes"), b"\x1f\x8b" + b"\xff" * 64],
+    ids=["plain", "wrapped", "corrupt"],
+)
+def test_a_payload_not_opening_with_the_magic_is_not(
+    tmp_path: Path, data: bytes
+) -> None:
+    assert not bgzf_payload_starts_with(stored(tmp_path, data), b"MAGIC")
+
+
+@pytest.mark.parametrize(
+    "data",
+    [b"the payload", gzip.compress(b"the payload")],
+    ids=["plain", "wrapped"],
+)
+def test_open_bgzf_reads_the_payload_either_way(tmp_path: Path, data: bytes) -> None:
+    with open_bgzf(stored(tmp_path, data)) as payload:
+        assert payload.read() == b"the payload"
