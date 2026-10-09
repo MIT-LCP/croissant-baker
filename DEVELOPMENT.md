@@ -47,7 +47,9 @@ nothing on the action fails the run, so the number can drop and every check stay
 The badge is green from 90% (`MINIMUM_GREEN` in both workflows), orange from
 70% (the action's default `MINIMUM_ORANGE`), and red below that.
 
-End-to-end tests in `tests/test_end_to_end.py` run Croissant Baker on datasets under `tests/data/input/` and validate the generated Croissant metadata with `mlcroissant`. Covered datasets include MIMIC-IV, eICU, MIT-BIH, MEDS, OMOP, glaucoma fundus, satellite imagery, a synthetic partitioned-Parquet layout, and a committed subset of Open Targets (3 datasets, ~2 MB). JSON-LD outputs are written to `tests/data/output/`.
+End-to-end tests in `tests/test_end_to_end.py` run Croissant Baker on datasets under `tests/data/input/` and validate the generated Croissant metadata with `mlcroissant`. Covered datasets include MIMIC-IV, eICU, MIT-BIH, MEDS, OMOP, glaucoma fundus, satellite imagery, a synthetic partitioned-Parquet layout, a structural biology demo (PDB, mmCIF, CIF, STAR, MRC, MTZ, mdoc and SDF), and a committed subset of Open Targets (3 datasets, ~2 MB). JSON-LD outputs are written to `tests/data/output/`.
+
+`gemmi`, which parses PDB, mmCIF and STAR, is published as the optional `structural-biology` extra rather than a runtime dependency. The `test` group names that extra, so `uv sync --group dev` installs it and no extra flag is needed. Running the suite without it is worth doing before a release: `uv pip uninstall gemmi`, `uv run pytest -q`, then `uv sync --group dev` to put it back. Those cases skip rather than fail, and `tests/test_gemmi_optional.py` covers what a user without the extra sees.
 
 ### External evaluation
 
