@@ -120,6 +120,24 @@ def test_bake_returns_counters_and_leaves_the_file_list_on_disk(
     assert len(report["files"]) == result["total"]
 
 
+def test_bake_into_the_dataset_directory_can_run_again(dataset: Path) -> None:
+    """A second bake must not describe the first bake's own files.
+
+    The report is JSON, so the JSON handler would claim it on the next run and
+    mlcroissant would refuse the record set built from it.
+    """
+    output = dataset / "croissant.jsonld"
+
+    mcp_server.bake(input_dir=str(dataset), output=str(output), **REQUIRED)
+    first = output.read_bytes()
+    again = mcp_server.bake(input_dir=str(dataset), output=str(output), **REQUIRED)
+
+    report = json.loads(Path(again["report_path"]).read_text(encoding="utf-8"))
+    assert output.read_bytes() == first
+    paths = {f["path"] for f in report["files"]}
+    assert not paths & {"croissant.jsonld", "croissant.report.json"}
+
+
 def test_bake_returns_absolute_paths_for_a_relative_output(
     dataset: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

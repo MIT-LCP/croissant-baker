@@ -22,6 +22,7 @@ them, and could not open a file the skill names.
 from __future__ import annotations
 
 import functools
+import glob
 import importlib.resources
 from collections import Counter
 from pathlib import Path
@@ -153,13 +154,19 @@ def bake(
         ``report_path``, next to the output: ``out.jsonld`` gets
         ``out.report.json``. A relative ``output`` resolves against the
         server's working directory, which the caller may not know, so the
-        paths returned are the ones really written.
+        paths returned are the ones really written. When either file falls
+        inside ``input_dir`` it is left out of the scan, so the next bake
+        does not describe it.
 
     Raises:
         ValueError: If there is no creator, a creator has a blank name part,
             ``date_published`` is not an ISO date, or the document fails
             ``mlcroissant`` validation; in each case nothing is written.
     """
+    output_path = Path(output).resolve()
+    report_path = output_path.with_suffix(".report.json")
+    own_files = _own_files_under(input_dir, output_path, report_path)
+
     generator = MetadataGenerator(
         dataset_path=input_dir,
         name=name,
@@ -171,17 +178,31 @@ def bake(
         creators=parse_creators(creators),
         detect_references=detect_references,
         includes=include,
-        excludes=exclude,
+        excludes=[*(exclude or []), *own_files] or None,
     )
     metadata_dict = generator.generate_metadata()
-    output_path = Path(output).resolve()
     save_dict(metadata_dict, str(output_path), validate=True)
-
-    report_path = output_path.with_suffix(".report.json")
     write_scan_report(generator.scan_report, report_path)
     summary = generator.scan_report.to_dict()
     del summary["files"]
     return {"output": str(output_path), "report_path": str(report_path), **summary}
+
+
+def _own_files_under(input_dir: str, *paths: Path) -> List[str]:
+    """Exclude patterns for the files a bake writes inside its own input.
+
+    A bake written into the dataset directory would otherwise describe its
+    own output and report on the next run, and the report, being JSON, is
+    claimed and refused. Each pattern is the file's escaped relative path,
+    and a glob matches from the right, so a file of the same name deeper in
+    the tree is skipped too: that is another bake's output.
+    """
+    root = Path(input_dir).resolve()
+    return [
+        glob.escape(path.relative_to(root).as_posix())
+        for path in paths
+        if path.is_relative_to(root)
+    ]
 
 
 def validate(path: str) -> dict:
