@@ -94,8 +94,10 @@ def dry_run(
 
     Returns:
         ``total``, ``would_process`` and ``unclaimed`` counts, ``by_reason``
-        accounting for the unclaimed alone, and ``files``: the per-file outcome
-        with the reason and a human-readable detail for every refusal.
+        accounting for the unclaimed alone, and ``files``: each unclaimed
+        file with its reason and a human-readable detail. Claimed files are
+        counted and not listed, so a large tree does not flood the caller
+        with entries that need no decision.
     """
     entries = dry_run_entries(input_dir, include, exclude)
     claimed = [e for e in entries if e.outcome is Outcome.WOULD_PROCESS]
@@ -106,7 +108,7 @@ def dry_run(
         "would_process": len(claimed),
         "unclaimed": len(unclaimed),
         "by_reason": {r.value: tally[r] for r in Reason if tally[r]},
-        "files": ScanReport(entries).to_dict()["files"],
+        "files": ScanReport(unclaimed).to_dict()["files"],
     }
 
 

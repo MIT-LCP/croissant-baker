@@ -30,18 +30,18 @@ def dataset(tmp_path: Path) -> Path:
     return destination
 
 
-def test_dry_run_reports_claimed_and_refused_with_reasons() -> None:
-    """A directory with both describable and undescribable files reports both."""
+def test_dry_run_lists_only_the_refused_files_with_reasons() -> None:
+    """The counters cover every file; the list covers only what needs a decision.
+
+    Listing every claimed file too would flood the agent on a large tree at the
+    first step of the loop, and a claimed file needs nothing from it.
+    """
     report = mcp_server.dry_run(str(DATA / "spect_demo"))
 
-    outcomes = {f["path"]: f for f in report["files"]}
-    claimed = [f for f in outcomes.values() if f["outcome"] == "would_process"]
-    refused = [f for f in outcomes.values() if f["outcome"] == "unclaimed"]
-
-    assert claimed, "expected the DICOM and NIfTI files to be claimed"
-    assert refused, "expected README.md to go unclaimed"
-    assert all("reason" in f and "detail" in f for f in refused)
-    assert report["total"] == len(claimed) + len(refused)
+    assert [f["path"] for f in report["files"]] == ["README.md"]
+    assert all(f["outcome"] == "unclaimed" for f in report["files"])
+    assert all("reason" in f and "detail" in f for f in report["files"])
+    assert report["would_process"] == 6
 
 
 def test_dry_run_counters_match_the_per_file_outcomes() -> None:
