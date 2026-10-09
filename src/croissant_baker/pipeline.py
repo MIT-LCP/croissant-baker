@@ -17,7 +17,7 @@ import mlcroissant as mlc
 
 from croissant_baker.handlers.registry import select_handler
 from croissant_baker.metadata_generator import serialize_datetime
-from croissant_baker.scan import Reason, ScanEntry, scan_directory
+from croissant_baker.scan import Reason, ScanEntry, ScanReport, scan_directory
 
 
 def save_dict(metadata_dict: dict, output_path: str, validate: bool) -> None:
@@ -79,6 +79,15 @@ def write_jsonld(metadata_dict: dict, output_file: Path) -> None:
             metadata_dict, f, indent=2, ensure_ascii=False, default=serialize_datetime
         )
         f.write("\n")
+
+
+def write_scan_report(scan_report: ScanReport, path: Path) -> None:
+    """Write the machine-readable scan report as JSON."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(scan_report.to_dict(), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def get_version() -> str:

@@ -8,9 +8,10 @@ it is imported lazily so the package stays installable without the optional
 
 The surface is deliberately narrow. ``bake`` accepts the semantic fields a
 human would type and nothing else: an agent can supply only what a person
-could, the structural layer is untouched, and the ``ScanReport`` comes back
-verbatim so every refusal and its reason are visible. There is no fetch, search
-or upload tool, and no HTTP transport, so the local-first invariant holds.
+could, and the structural layer is untouched. The ``ScanReport`` counters come
+back with every refusal counted by reason, and the full per-file report is
+written next to the output. There is no fetch, search or upload tool, and no
+HTTP transport, so the local-first invariant holds.
 
 Alongside the tools the server publishes one read-only resource: the packaged
 Agent Skill. A client that has the tools but not the skill would otherwise have
@@ -26,7 +27,12 @@ from pathlib import Path
 from typing import Any, Callable, List, Optional
 
 from croissant_baker.metadata_generator import MetadataGenerator
-from croissant_baker.pipeline import dry_run_entries, parse_creators, save_dict
+from croissant_baker.pipeline import (
+    dry_run_entries,
+    parse_creators,
+    save_dict,
+    write_scan_report,
+)
 from croissant_baker.report import ScanReport
 from croissant_baker.scan import Outcome, Reason
 
@@ -97,6 +103,7 @@ def bake(
     creators: List[str],
     url: Optional[str] = None,
     citation: Optional[str] = None,
+    date_published: Optional[str] = None,
     detect_references: bool = False,
     include: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
@@ -114,14 +121,24 @@ def bake(
             accepts.
         url: Optional dataset homepage.
         citation: Optional citation text.
+        date_published: Optional publication date in ISO format, such as
+            ``2024-01-02``. The spec expects one, and the CLI's
+            ``--date-published`` is the same field.
         detect_references: Detect foreign keys between record sets.
         include: Optional glob patterns; only matching files are described.
         exclude: Optional glob patterns; matching files are skipped.
 
     Returns:
-        ``{"output": <path written>, "report": <scan report>}``. The report is
-        the completed bake's :meth:`ScanReport.to_dict`, so it counts what the
-        document carries rather than what a dry run predicted.
+        ``output`` and ``report_path``, both absolute, then the completed
+        bake's counters from :meth:`ScanReport.to_dict`: ``total``,
+        ``described``, ``linked``, ``referenced``, ``undescribed``,
+        ``by_reason`` and ``by_diagnostic``. The per-file list is left out,
+        since a large tree would flood the caller with one entry per file, as
+        the CLI's bounded summary avoids too. It is written instead to
+        ``report_path``, next to the output: ``out.jsonld`` gets
+        ``out.report.json``. A relative ``output`` resolves against the
+        server's working directory, which the caller may not know, so the
+        paths returned are the ones really written.
 
     Raises:
         ValueError: If a creator has a blank name part, or the document fails
@@ -134,14 +151,21 @@ def bake(
         url=url,
         license=license,
         citation=citation,
-        creators=parse_creators(creators) or None,
+        date_published=date_published,
+        creators=parse_creators(creators),
         detect_references=detect_references,
         includes=include,
         excludes=exclude,
     )
     metadata_dict = generator.generate_metadata()
-    save_dict(metadata_dict, output, validate=True)
-    return {"output": output, "report": generator.scan_report.to_dict()}
+    output_path = Path(output).resolve()
+    save_dict(metadata_dict, str(output_path), validate=True)
+
+    report_path = output_path.with_suffix(".report.json")
+    write_scan_report(generator.scan_report, report_path)
+    summary = generator.scan_report.to_dict()
+    del summary["files"]
+    return {"output": str(output_path), "report_path": str(report_path), **summary}
 
 
 def validate(path: str) -> dict:

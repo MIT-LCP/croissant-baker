@@ -80,15 +80,97 @@ def test_bake_writes_a_file_validate_accepts(dataset: Path, tmp_path: Path) -> N
         creators=["Jane Doe,jane@example.com,https://example.org/jane"],
     )
 
-    assert result["output"] == str(output)
+    assert result["output"] == str(output.resolve())
     assert output.is_file()
-    assert result["report"]["described"] >= 1
+    assert result["described"] >= 1
     assert mcp_server.validate(str(output)) == {"valid": True}
 
     document = json.loads(output.read_text(encoding="utf-8"))
     assert document["name"] == "gharchive-demo"
     assert document["creator"]["name"] == "Jane Doe"
     assert document["creator"]["email"] == "jane@example.com"
+
+
+REQUIRED = {
+    "name": "rel",
+    "description": "Two related tables.",
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "creators": ["Jane Doe"],
+}
+
+
+def test_bake_returns_counters_and_leaves_the_file_list_on_disk(
+    dataset: Path, tmp_path: Path
+) -> None:
+    """A large tree must not flood the agent with one entry per file.
+
+    The tool result carries the fixed-size counters, as the CLI's summary does,
+    and the full per-file report goes to a file next to the output.
+    """
+    output = tmp_path / "out.jsonld"
+
+    result = mcp_server.bake(input_dir=str(dataset), output=str(output), **REQUIRED)
+
+    assert "files" not in result
+    assert set(result) >= {"total", "described", "undescribed", "by_reason"}
+    report_path = Path(result["report_path"])
+    assert report_path == (tmp_path / "out.report.json").resolve()
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert len(report["files"]) == result["total"]
+
+
+def test_bake_returns_absolute_paths_for_a_relative_output(
+    dataset: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A relative output resolves against the server's working directory.
+
+    The agent cannot see that directory, so the result names the real path.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    result = mcp_server.bake(input_dir=str(dataset), output="out.jsonld", **REQUIRED)
+
+    assert result["output"] == str((tmp_path / "out.jsonld").resolve())
+    assert Path(result["output"]).is_file()
+    assert Path(result["report_path"]).is_absolute()
+
+
+def test_bake_passes_every_optional_argument_to_the_generator(
+    tmp_path: Path,
+) -> None:
+    """Each optional argument changes the document, so dropping one fails here."""
+    data = tmp_path / "relational"
+    data.mkdir()
+    (data / "studies.csv").write_text("study_id,title\n1,Alpha\n2,Beta\n")
+    (data / "samples.csv").write_text("sample_id,study_id,value\n10,1,0.5\n")
+    (data / "scratch.csv").write_text("a\n1\n")
+    (data / "notes.txt").write_text("not data\n")
+    output = tmp_path / "out.jsonld"
+
+    mcp_server.bake(
+        input_dir=str(data),
+        output=str(output),
+        url="https://example.org/rel",
+        citation="Doe J. Two related tables. 2024.",
+        date_published="2024-01-02",
+        detect_references=True,
+        include=["*.csv"],
+        exclude=["scratch.csv"],
+        **REQUIRED,
+    )
+
+    document = json.loads(output.read_text(encoding="utf-8"))
+    names = sorted(d["name"] for d in document["distribution"])
+    fields = {
+        rs["@id"]: {f["name"]: f for f in rs["field"]} for rs in document["recordSet"]
+    }
+    assert document["url"] == "https://example.org/rel"
+    assert document["citeAs"] == "Doe J. Two related tables. 2024."
+    assert document["datePublished"].startswith("2024-01-02")
+    assert names == ["samples.csv", "studies.csv"]
+    assert fields["samples"]["study_id"]["references"] == {
+        "field": {"@id": "studies/study_id"}
+    }
 
 
 def test_bake_refuses_a_nameless_creator_with_a_clear_error(

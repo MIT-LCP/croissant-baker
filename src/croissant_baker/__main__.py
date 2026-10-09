@@ -29,6 +29,7 @@ from croissant_baker.pipeline import (
     get_version,
     parse_creators,
     save_dict,
+    write_scan_report,
 )
 from croissant_baker.scan import Outcome, ScanReport
 
@@ -67,12 +68,8 @@ def _echo_file_counts(file_count: int, file_set_count: int) -> None:
 
 
 def _write_scan_report(scan_report: ScanReport, path: Path) -> None:
-    """Write the machine-readable scan report as JSON."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(scan_report.to_dict(), indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    """Write the machine-readable scan report as JSON, and say where."""
+    write_scan_report(scan_report, path)
     typer.echo(f"Scan report: {path}")
 
 
