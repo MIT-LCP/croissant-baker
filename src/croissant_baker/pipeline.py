@@ -10,6 +10,7 @@ import csv
 import importlib.metadata
 import json
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -160,6 +161,26 @@ def parse_creators(creator: Optional[List[str]], cli: bool = True) -> List[dict]
         parsed_creators.append(creator_obj)
 
     return parsed_creators
+
+
+def check_iso_dates(label: str, values: Optional[List[str]]) -> None:
+    """Refuse any value that is not an ISO 8601 date or datetime.
+
+    ``label`` names the input in the message: a flag such as
+    ``--rai-data-collection-timeframe`` on the CLI, an argument such as
+    ``date_published`` for the MCP server.
+    """
+    if not values:
+        return
+    for value in values:
+        try:
+            datetime.fromisoformat(value)
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid date format for {label}: '{value}'. "
+                "Expected ISO format like '2023-12-15' or '2023-12-15T10:30:00'. "
+                f"Error: {e}"
+            )
 
 
 def dry_run_entries(

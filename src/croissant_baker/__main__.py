@@ -1,6 +1,5 @@
 """Command-line interface for Croissant Baker."""
 
-from datetime import datetime
 import json
 import re
 from pathlib import Path
@@ -27,6 +26,7 @@ from croissant_baker.files import discover_files
 from croissant_baker.pipeline import (
     dry_run_entries,
     get_version,
+    check_iso_dates,
     parse_creators,
     save_dict,
     write_scan_report,
@@ -333,21 +333,6 @@ def _profile_option(
         raise typer.BadParameter(str(e), ctx=ctx, param=param) from e
 
 
-def _validate_iso_datetimes(option_name: str, values: Optional[List[str]]) -> None:
-    """Validate repeated date/datetime options and raise a CLI-friendly error."""
-    if not values:
-        return
-    for value in values:
-        try:
-            datetime.fromisoformat(value)
-        except ValueError as e:
-            raise ValueError(
-                f"Invalid date format for {option_name}: '{value}'. "
-                "Expected ISO format like '2023-12-15' or '2023-12-15T10:30:00'. "
-                f"Error: {e}"
-            )
-
-
 def _build_native_rai_fields(
     *,
     rai_data_collection: Optional[str],
@@ -420,7 +405,7 @@ def _build_native_rai_fields(
             rai_data_release_maintenance_plan
         ),
     }
-    _validate_iso_datetimes(
+    check_iso_dates(
         "--rai-data-collection-timeframe", rai_fields["data_collection_timeframe"]
     )
     return {key: value for key, value in rai_fields.items() if value is not None}

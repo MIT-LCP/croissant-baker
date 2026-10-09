@@ -24,12 +24,12 @@ from __future__ import annotations
 import functools
 import importlib.resources
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
 from croissant_baker.metadata_generator import MetadataGenerator
 from croissant_baker.pipeline import (
+    check_iso_dates,
     dry_run_entries,
     get_version,
     parse_creators,
@@ -170,7 +170,7 @@ def bake(
             ``date_published`` is not an ISO date, or the document fails
             ``mlcroissant`` validation; in each case nothing is written.
     """
-    _check_iso_date("date_published", date_published)
+    check_iso_dates("date_published", [date_published] if date_published else None)
     output_path, report_path = _bake_files(output)
 
     generator = MetadataGenerator(
@@ -193,23 +193,6 @@ def bake(
     summary = generator.scan_report.to_dict()
     del summary["files"]
     return {"output": str(output_path), "report_path": str(report_path), **summary}
-
-
-def _check_iso_date(argument: str, value: Optional[str]) -> None:
-    """Refuse a date that is not ISO 8601, naming the argument, not a flag.
-
-    The generator refuses it too, but words the error for the CLI's
-    ``--date-published``.
-    """
-    if not value:
-        return
-    try:
-        datetime.fromisoformat(value)
-    except ValueError as exc:
-        raise ValueError(
-            f"Invalid date format for {argument}: {value!r}. Expected ISO "
-            "format like '2023-12-15' or '2023-12-15T10:30:00'."
-        ) from exc
 
 
 def _bake_files(output: str) -> Tuple[Path, Path]:
