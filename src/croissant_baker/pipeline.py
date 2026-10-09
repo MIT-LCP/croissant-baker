@@ -158,7 +158,7 @@ def dry_run_entries(
     include: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
 ) -> List[ScanEntry]:
-    """Resolve every discovered file to a handler without reading any of it.
+    """Resolve every discovered file to a handler, reading at most a header.
 
     Each entry comes back either ``WOULD_PROCESS`` or ``UNCLAIMED`` with the
     registry's own reason: an archive and a path-only handler differ, so the

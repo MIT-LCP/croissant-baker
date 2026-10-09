@@ -278,6 +278,24 @@ def test_bake_refuses_an_empty_creator_list(dataset: Path, tmp_path: Path) -> No
     assert not output.exists()
 
 
+def test_bake_refuses_a_date_that_is_not_iso(dataset: Path, tmp_path: Path) -> None:
+    """A bad date reaches the client as the refusal, and nothing is written."""
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    output = tmp_path / "out.jsonld"
+    arguments = {
+        "input_dir": str(dataset),
+        "output": str(output),
+        "date_published": "last spring",
+        **REQUIRED,
+    }
+
+    with pytest.raises(ToolError, match="Invalid date format"):
+        asyncio.run(mcp_server.build_server().call_tool("bake", arguments))
+
+    assert not output.exists()
+
+
 def test_validate_reports_the_error_on_broken_jsonld(tmp_path: Path) -> None:
     """A document mlcroissant cannot construct comes back with the error text."""
     broken = tmp_path / "broken.jsonld"

@@ -77,11 +77,11 @@ def dry_run(
     include: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
 ) -> dict:
-    """Report what a bake of ``input_dir`` would describe, without reading files.
+    """Report what a bake of ``input_dir`` would describe, without baking it.
 
     The counters are the dry run's own, not :meth:`ScanReport.to_dict`'s. That
     summary is written for a completed bake, where a file is either in the
-    document or accounted for by a reason; a dry run reads nothing, so every
+    document or accounted for by a reason; a dry run describes nothing, so every
     file would land in ``undescribed`` and a directory that bakes cleanly would
     report as describing none of it. The counts here mirror what the CLI's
     ``--dry-run`` prints: claimed and unclaimed.
@@ -156,8 +156,9 @@ def bake(
         paths returned are the ones really written.
 
     Raises:
-        ValueError: If a creator has a blank name part, or the document fails
-            ``mlcroissant`` validation; in either case nothing is written.
+        ValueError: If there is no creator, a creator has a blank name part,
+            ``date_published`` is not an ISO date, or the document fails
+            ``mlcroissant`` validation; in each case nothing is written.
     """
     generator = MetadataGenerator(
         dataset_path=input_dir,
