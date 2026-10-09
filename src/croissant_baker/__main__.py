@@ -1095,8 +1095,10 @@ def mcp_command() -> None:
     Model Context Protocol, stdio transport only: no HTTP listener and no
     outbound requests, so a bake still never leaves the local environment.
     """
+    # The server module, not ``mcp`` alone: an mcp 1.x installed for another
+    # tool imports fine and lacks it.
     try:
-        import mcp  # noqa: F401
+        import mcp.server.mcpserver  # noqa: F401
     except ImportError:
         typer.echo(
             "Error: the MCP server needs the optional 'mcp' extra",
