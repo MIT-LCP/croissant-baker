@@ -14,6 +14,7 @@ import pytest
 from croissant_baker.handlers.fhir_handler import (
     FHIRHandler,
     _is_bulk_chunk,
+    merge_fhir_column_types,
 )
 from croissant_baker.handlers.utils import infer_croissant_type as _infer_croissant_type
 from croissant_baker.handlers.utils import infer_field_type as _infer_field_type
@@ -448,6 +449,123 @@ def test_build_croissant_all_skipped_returns_empty(
     assert filesets == []
     assert record_sets == []
     assert any("no RecordSets" in msg for msg in caplog.messages)
+
+
+@pytest.mark.parametrize(
+    "per_file,expected",
+    [
+        (["cr:Int64", "cr:Float64"], "cr:Float64"),
+        (["cr:Float64", "cr:Int64"], "cr:Float64"),
+        (["cr:Int64", "cr:Int64", "cr:Float64"], "cr:Float64"),
+        (["sc:Date", "sc:DateTime"], "sc:DateTime"),
+        (["sc:DateTime", "sc:Date", "sc:Date"], "sc:DateTime"),
+        (["cr:Int64", "sc:Text"], "sc:Text"),
+        (["sc:Boolean", "sc:Text"], "sc:Text"),
+        (["sc:Text", "sc:Boolean", "sc:Boolean"], "sc:Text"),
+        (["sc:URL", "sc:Text"], "sc:Text"),
+        (["cr:Int64"], "cr:Int64"),
+        (["sc:Date", "sc:Date"], "sc:Date"),
+    ],
+)
+def test_merge_widens_disagreeing_primitives(per_file: list, expected: str) -> None:
+    """Files that disagree on a column type merge to a type that holds every value."""
+    merged = merge_fhir_column_types([{"x": t} for t in per_file])
+    assert merged["x"] == expected
+
+
+def test_merge_widens_primitive_arrays() -> None:
+    """Arrays of primitives widen their item type the same way."""
+    merged = merge_fhir_column_types(
+        [
+            {"x": {"type": "cr:Int64", "is_array": True}},
+            {"x": {"type": "cr:Int64", "is_array": True}},
+            {"x": {"type": "cr:Float64", "is_array": True}},
+        ]
+    )
+    assert merged["x"] == {"type": "cr:Float64", "is_array": True}
+
+
+def test_merge_widens_nested_struct_fields() -> None:
+    """Sub-fields of a struct widen across files."""
+    merged = merge_fhir_column_types(
+        [
+            {"valueQuantity": {"fields": {"value": "cr:Int64"}, "is_array": False}},
+            {"valueQuantity": {"fields": {"value": "cr:Float64"}, "is_array": False}},
+        ]
+    )
+    assert merged["valueQuantity"]["fields"]["value"] == "cr:Float64"
+
+
+def test_merge_column_missing_in_some_files_keeps_type() -> None:
+    """A column absent from some files keeps the type of the files that have it."""
+    merged = merge_fhir_column_types(
+        [
+            {"id": "sc:Text", "birthDate": "sc:Date"},
+            {"id": "sc:Text"},
+            {"id": "sc:Text", "birthDate": "sc:Date"},
+        ]
+    )
+    assert merged == {"birthDate": "sc:Date", "id": "sc:Text"}
+
+
+def test_build_croissant_int_and_float_chunks_emit_float(tmp_path: Path) -> None:
+    """Chunks where a value is int in one file and float in another emit Float64."""
+    rows_int = [
+        {"resourceType": "Observation", "id": f"a{i}", "valueQuantity": {"value": i}}
+        for i in range(3)
+    ]
+    rows_float = [
+        {
+            "resourceType": "Observation",
+            "id": f"b{i}",
+            "valueQuantity": {"value": i + 0.5},
+        }
+        for i in range(3)
+    ]
+    _ndjson(tmp_path / "Observation.000.ndjson", rows_int)
+    _ndjson(tmp_path / "Observation.001.ndjson", rows_float)
+    handler = FHIRHandler()
+    metas = [
+        handler.extract(make_source(tmp_path / name))
+        for name in ("Observation.000.ndjson", "Observation.001.ndjson")
+    ]
+
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    quantity = next(f for f in record_sets[0].fields if f.name == "valueQuantity")
+    value = next(f for f in quantity.sub_fields if f.name == "value")
+    assert [str(t) for t in value.data_types] == ["cr:Float64"]
+
+
+def test_build_croissant_int_and_float_bundles_emit_float(tmp_path: Path) -> None:
+    """Bundles where a value is int in one file and float in another emit Float64."""
+
+    def bundle(values: list) -> dict:
+        return {
+            "resourceType": "Bundle",
+            "type": "collection",
+            "entry": [
+                {
+                    "resource": {
+                        "resourceType": "Observation",
+                        "id": f"o{i}",
+                        "valueQuantity": {"value": v},
+                    }
+                }
+                for i, v in enumerate(values)
+            ],
+        }
+
+    (tmp_path / "a.json").write_text(json.dumps(bundle([1, 2, 3])))
+    (tmp_path / "b.json").write_text(json.dumps(bundle([1.5, 2.5, 3.5])))
+    handler = FHIRHandler()
+    metas = [handler.extract(make_source(tmp_path / n)) for n in ("a.json", "b.json")]
+
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    quantity = next(f for f in record_sets[0].fields if f.name == "valueQuantity")
+    value = next(f for f in quantity.sub_fields if f.name == "value")
+    assert [str(t) for t in value.data_types] == ["cr:Float64"]
 
 
 @pytest.fixture
