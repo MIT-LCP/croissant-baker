@@ -11,8 +11,14 @@ import re
 from pathlib import Path
 from typing import Tuple
 
+import click
 import pytest
+import typer
 import yaml
+
+from croissant_baker.__main__ import app
+from croissant_baker.entries import REASON_LABELS, Reason
+from croissant_baker.handlers.registry import builtin_handlers
 
 ROOT = Path(__file__).parent.parent
 SKILL_DIR = ROOT / "src" / "croissant_baker" / "skills" / "croissant-baker"
@@ -96,3 +102,70 @@ def test_the_discovery_symlink_resolves_to_the_packaged_skill() -> None:
     assert link.is_symlink(), ".agents/skills/croissant-baker should be a symlink"
     assert not Path(link.readlink()).is_absolute(), "the link must be relative"
     assert link.resolve() == SKILL_DIR.resolve()
+
+
+# The checks below catch the skill drifting from the code it describes. Each
+# is the same idea as docs/generate.py building the formats table from the
+# handler registry: the code is the source, and the prose must agree with it.
+
+
+def test_the_description_names_every_registered_format(frontmatter: dict) -> None:
+    """The description decides whether the skill fires at all.
+
+    A format missing from it is a user whose file never triggers the skill, and
+    whose agent may then call the format unsupported. Each part of a handler's
+    ``FORMAT_NAME`` must appear as a word, ignoring case.
+    """
+    description = frontmatter["description"]
+
+    missing = sorted(
+        part
+        for handler in builtin_handlers()
+        for part in handler.FORMAT_NAME.split(" / ")
+        if not re.search(rf"\b{re.escape(part)}\b", description, re.IGNORECASE)
+    )
+    assert missing == [], f"add these formats to the skill description: {missing}"
+
+
+def test_every_reason_has_a_row_with_its_key_and_label(body: str) -> None:
+    """The terminal prints the label; report.json and by_reason carry the key.
+
+    An agent reading either one must be able to find the row that says what to
+    do, so each reason needs both on the same table row.
+    """
+    rows = [line for line in body.splitlines() if line.startswith("|")]
+
+    missing = [
+        reason.value
+        for reason in Reason
+        if not any(
+            f"`{reason.value}`" in row and REASON_LABELS[reason] in row for row in rows
+        )
+    ]
+    assert missing == []
+
+
+#: A long option as the skill writes it. A trailing ``-*`` marks a family of
+#: flags, such as ``--rai-*``, rather than one flag, and is skipped.
+FLAG_PATTERN = re.compile(r"(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w*-])")
+
+
+def _registered_options() -> set:
+    """Every long option the CLI accepts, on the main command or a subcommand."""
+    group = typer.main.get_command(app)
+    commands = [group, *group.commands.values()]
+    return {
+        opt
+        for command in commands
+        for param in command.get_params(click.Context(command))
+        for opt in (*param.opts, *param.secondary_opts)
+        if opt.startswith("--")
+    }
+
+
+def test_every_flag_the_skill_names_is_a_real_option() -> None:
+    """A renamed flag would leave the skill telling agents to pass a dead one."""
+    named = set(FLAG_PATTERN.findall(SKILL_FILE.read_text(encoding="utf-8")))
+
+    assert named, "expected the skill to name some flags"
+    assert sorted(named - _registered_options()) == []

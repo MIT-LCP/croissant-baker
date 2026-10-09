@@ -49,7 +49,8 @@ to drive the tool lives at
 a relative symlink to that one directory, the cross-client discovery
 convention, so agent clients find it in a checkout; edit the canonical copy,
 never the link. The MCP server publishes the same file as the resource
-`croissant-baker://skill`.
+`croissant-baker://skill`, and the RAI template as
+`croissant-baker://rai-template`.
 
 Validate it against the specification with the reference library:
 
@@ -58,8 +59,11 @@ uvx --from "git+https://github.com/agentskills/agentskills#subdirectory=skills-r
   skills-ref validate src/croissant_baker/skills/croissant-baker
 ```
 
-`tests/test_skill.py` checks the frontmatter, the body length, the symlink and
-that the installed package carries the file. Adding another symlink to the
+`tests/test_skill.py` checks the frontmatter, the body length and the symlink,
+and fails when the skill drifts from the code: a registered format missing
+from the description, a scan reason missing from the reason table, or a flag
+the CLI does not have. `tests/test_packaging.py` builds the wheel and checks it
+carries the skill. Adding another symlink to the
 skill needs a matching entry in `[tool.hatch.build] exclude` in
 `pyproject.toml`, or the build will ship the skill under the link's path
 instead of inside the package.

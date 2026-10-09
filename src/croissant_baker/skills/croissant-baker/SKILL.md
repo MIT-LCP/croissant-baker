@@ -1,6 +1,6 @@
 ---
 name: croissant-baker
-description: Generate and validate Croissant 1.1 JSON-LD dataset metadata with the croissant-baker CLI, which walks a directory and infers FileObjects and RecordSets from CSV, TSV, spreadsheet, Parquet, FHIR, JSON, JSONL, WFDB, DICOM, NIfTI, image, GEO SOFT, HDF5, VCF, BCF, BAM, CRAM, SAM, FASTQ and FASTA files, and refuses to guess the semantic fields. Use this skill whenever the user wants dataset metadata, an mlcroissant or Croissant file, a NeurIPS Datasets and Benchmarks submission, a PhysioNet or other controlled-access clinical or biomedical release, RAI (Responsible AI) dataset documentation, or an answer about FileObject, RecordSet, distribution or conformsTo entries. Use it also when they only say "describe this data directory", "document these files", "make my dataset machine-readable" or "generate a data card", and when they invoke the croissant-baker MCP tools dry_run, bake or validate, even if nobody says the word Croissant. Not for documenting source code or APIs; only for dataset directories.
+description: Generate and validate Croissant 1.1 JSON-LD dataset metadata with the croissant-baker CLI, which walks a directory and infers FileObjects and RecordSets from CSV, TSV, spreadsheet, Parquet, FHIR, JSON, JSONL, WFDB, DICOM, NIfTI, images (OME-TIFF, BigTIFF), GEO SOFT, HDF5 (AnnData .h5ad), VCF, BCF, BAM, CRAM, SAM, FASTQ and FASTA files, and refuses to guess the semantic fields. Use this skill whenever the user wants dataset metadata, an mlcroissant or Croissant file, a NeurIPS Datasets and Benchmarks submission, a PhysioNet or other controlled-access clinical or biomedical release, RAI (Responsible AI) dataset documentation, or an answer about FileObject, RecordSet, distribution or conformsTo entries. Use it also when they only say "describe this data directory", "document these files", "make my dataset machine-readable" or "generate a data card", or call the croissant-baker MCP tools, even if nobody says the word Croissant. Not for documenting source code or APIs; only for dataset directories.
 license: MIT
 compatibility: Requires Python 3.10 or newer with croissant-baker installed (`pip install croissant-baker`, or `uv add croissant-baker`). Everything runs locally against files on disk; the tool makes no network request and uploads nothing. The MCP tools need the optional `mcp` extra (`pip install 'croissant-baker[mcp]'`).
 metadata:
@@ -45,8 +45,9 @@ Treat this as a loop, not a single command.
 croissant-baker --input /path/to/dataset --dry-run
 ```
 
-This reads no file contents. It prints what would be described and, under a
-second heading, every file that would not be, each with a reason. Read both
+This reads at most a small header per file, enough to pick a handler. It
+prints what would be described and, under a second heading, every file that
+would not be, each with a reason. Read both
 lists before doing anything else. Add `--verbose` for the per-file reasons on a
 real bake, or `--report FILE` for the same thing as JSON.
 
@@ -59,17 +60,21 @@ croissant-baker --input ./data --dry-run --include '*.parquet' --exclude '*.tmp'
 
 ### 2. Resolve or accept every refusal
 
-Each unclaimed file carries one of a fixed set of reasons. Decide, do not skip:
+Each unclaimed file carries one of a fixed set of reasons. The terminal prints
+the label; `report.json` and the MCP `by_reason` map carry the key. Decide, do
+not skip:
 
-| Reason | What it means | What to do |
-|--------|---------------|------------|
-| `no handler` | Nothing recognised the format | Expected for README, LICENSE, checksums, HTML and genomic indexes (`.bai`, `.crai`, `.csi`, `.fai`). If it is real data, say so plainly: the format is not supported. |
-| `archive, not opened` | A `.zip`, `.tar` or `.tgz` | Ask the user to extract it, then re-run on the extracted tree. |
-| `handler needs an uncompressed file on disk` | A path-only handler (WFDB) was offered a compressed file | Decompress that file, or accept it as a reported-only FileObject. |
-| `unreadable while selecting a handler` | Usually a corrupt compression wrapper | Check the file; it is probably truncated. |
-| `extraction failed` / `could not be assembled` | The handler took it and then failed | Report the detail text to the user verbatim. This is a bug or a malformed file. |
-| `duplicate by naming convention` / `probable duplicate of another file` | A plain and compressed twin | Nothing to fix. The secondary is linked with `sameAs`. |
-| `partition schema conflict` | Parquet shards of one table disagree on schema | The source data is inconsistent. Surface it; do not paper over it. |
+| Key | Label | What it means | What to do |
+|-----|-------|---------------|------------|
+| `no_handler` | no handler | Nothing recognised the format | Expected for README, LICENSE, checksums, HTML and genomic indexes (`.bai`, `.crai`, `.csi`, `.fai`). If it is real data, say so plainly: the format is not supported. |
+| `archive` | archive, not opened | A `.zip`, `.tar` or `.tgz` | Ask the user to extract it, then re-run on the extracted tree. |
+| `unsupported_input` | handler needs an uncompressed file on disk | A path-only handler (WFDB) was offered a compressed file | Decompress that file, or accept it as a reported-only FileObject. |
+| `claim_failed` | unreadable while selecting a handler | Usually a corrupt compression wrapper | Check the file; it is probably truncated. |
+| `extract_failed` | extraction failed | The handler took it and failed to read it | Report the detail text to the user verbatim. This is a bug or a malformed file. |
+| `build_failed` | could not be assembled | The handler read it and failed to build its nodes | Report the detail text to the user verbatim. This is a bug or a malformed file. |
+| `duplicate_by_name` | duplicate by naming convention | A plain and compressed twin, matched by name | Nothing to fix. The secondary is linked with `sameAs`. |
+| `probable_duplicate` | probable duplicate of another file | Two files with the same decompressed start | Nothing to fix. The secondary is linked with `sameAs`. |
+| `partition_schema_conflict` | partition schema conflict | Parquet shards of one table disagree on schema | The source data is inconsistent. Surface it; do not paper over it. |
 
 Never close a gap by hand-writing metadata for a refused file. Reporting a file
 with a reason is the designed behaviour.
@@ -161,7 +166,8 @@ lineage or activities to record. When you need the YAML, read
 exact key names the loader accepts and comments saying what belongs in each.
 Over MCP, read the same file as the resource `croissant-baker://rai-template`.
 Delete the keys the user cannot answer rather than filling them with plausible
-text.
+text. Before baking, check for any remaining `REPLACE`: the loader accepts it
+as ordinary text, so a forgotten placeholder ships in the published file.
 
 To add RAI to a file that already exists:
 
@@ -188,19 +194,32 @@ shell; they run the same pipeline. The loop is unchanged.
 1. `dry_run(input_dir, include?, exclude?)` returns `total`, `would_process`,
    `unclaimed`, a `by_reason` map and a per-file `files` array. Read
    `by_reason` first: it is the fastest read on whether the directory is ready.
-   Note that `dry_run` reads nothing, so it reports `would_process`, never
-   `described`.
+   `dry_run` reads at most a small header per file and describes nothing, so
+   it reports `would_process`, never `described`.
 2. `bake(input_dir, output, name, description, license, creators, url?,
-   citation?, detect_references?, include?, exclude?)` writes the file and
-   returns `{"output": ..., "report": ...}`, where the report is the completed
-   bake's counters, so `described` is meaningful there.
-3. `validate(path)` returns `{"valid": true}` or `{"valid": false, "error":
-   ...}`.
+   citation?, date_published?, detect_references?, include?, exclude?)` writes
+   the file and returns `output` and `report_path`, both absolute, with the
+   completed bake's counters (`total`, `described`, `linked`, `referenced`,
+   `undescribed`, `by_reason`), so `described` is meaningful there. The
+   per-file list is not in the result; it is in the JSON file at
+   `report_path`, next to the output. Read it only when a count needs
+   explaining.
+3. `validate(path)` returns `{"valid": true}`, or `{"valid": false, "error":
+   ...}` when `mlcroissant` read the file and refused it. A path that is not a
+   readable local file, including any URL, is a tool error instead: fix the
+   path, not the document.
 
-The `creators` list uses the same `"Name,email,url"` strings as `--creator`.
-The server is stdio-only and local: no HTTP listener, no outbound request. Its
-surface is deliberately narrow, so anything beyond these three tools (extra
-flags, RAI config, reports) needs the CLI.
+Pass absolute paths. A relative one resolves against the directory the server
+was started in, which you may not know. `bake` replaces an existing output and
+report, so the client may ask before running it; `dry_run` and `validate` only
+read.
+
+The `creators` list uses the same `"Name,email,url"` strings as `--creator`,
+and must name at least one creator. The server is stdio-only and local: no HTTP
+listener, no outbound request. Its surface is deliberately narrow, so anything
+beyond these three tools (extra flags, RAI config) needs the CLI. Besides this
+skill as `croissant-baker://skill`, it serves the RAI template as
+`croissant-baker://rai-template`.
 
 ## Gotchas
 
