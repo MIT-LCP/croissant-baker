@@ -6,13 +6,13 @@ The editable install the test suite runs under resolves the package back to
 own build backend and read it the way pip would.
 """
 
+import os
 import zipfile
 from email.parser import Parser
 from pathlib import Path
 
 import pytest
-
-hatchling_wheel = pytest.importorskip("hatchling.builders.wheel")
+from hatchling.build import build_wheel
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILL_DIR = REPO_ROOT / "src" / "croissant_baker" / "skills" / "croissant-baker"
@@ -20,11 +20,19 @@ SKILL_DIR = REPO_ROOT / "src" / "croissant_baker" / "skills" / "croissant-baker"
 
 @pytest.fixture(scope="module")
 def wheel(tmp_path_factory: pytest.TempPathFactory) -> zipfile.ZipFile:
-    """A wheel built from the working tree, opened for reading."""
+    """A wheel built from the working tree, opened for reading.
+
+    Built through the PEP 517 hook pip itself calls, which reads the project
+    from the working directory.
+    """
     out = tmp_path_factory.mktemp("wheel")
-    builder = hatchling_wheel.WheelBuilder(str(REPO_ROOT))
-    (path,) = builder.build(directory=str(out), versions=["standard"])
-    with zipfile.ZipFile(path) as archive:
+    previous = Path.cwd()
+    os.chdir(REPO_ROOT)
+    try:
+        name = build_wheel(str(out))
+    finally:
+        os.chdir(previous)
+    with zipfile.ZipFile(out / name) as archive:
         yield archive
 
 

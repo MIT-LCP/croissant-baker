@@ -105,21 +105,30 @@ def test_shipped_template_loads(template: Path) -> None:
     load_rai_config(template)
 
 
-#: Keys whose template value is a real choice from a fixed vocabulary, not a
-#: placeholder: leaving one as written is a valid answer.
-CHOSEN_NOT_FILLED = {"id", "type", "collection_types"}
+#: Activity keys whose template value is a valid answer as written: an id the
+#: author may keep, and choices from a fixed vocabulary. Every other string,
+#: an id elsewhere included, is a placeholder.
+CHOSEN_NOT_FILLED = {
+    "activities.id",
+    "activities.type",
+    "activities.collection_types",
+}
 
 
-def _strings(node, key: str = ""):
-    """Yield ``(key, value)`` for every string in a parsed YAML tree."""
+def _strings(node, path: str = ""):
+    """Yield ``(path, value)`` for every string in a parsed YAML tree.
+
+    The path joins mapping keys with dots and skips list positions, so every
+    activity's id is ``activities.id``.
+    """
     if isinstance(node, dict):
         for k, v in node.items():
-            yield from _strings(v, k)
+            yield from _strings(v, f"{path}.{k}" if path else k)
     elif isinstance(node, list):
         for item in node:
-            yield from _strings(item, key)
+            yield from _strings(item, path)
     elif isinstance(node, str):
-        yield key, node
+        yield path, node
 
 
 def test_every_skill_template_placeholder_says_replace() -> None:
