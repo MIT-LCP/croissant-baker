@@ -173,6 +173,59 @@ def test_bake_passes_every_optional_argument_to_the_generator(
     }
 
 
+def test_bake_writes_the_same_bytes_as_the_cli(dataset: Path, tmp_path: Path) -> None:
+    """The server is a second front door to one pipeline, not a second pipeline.
+
+    Same fixture, same fields, both ways: the documents and the per-file
+    reports must match byte for byte.
+    """
+    from typer.testing import CliRunner
+
+    from croissant_baker.__main__ import app
+
+    fields = {
+        "name": "gharchive-demo",
+        "description": "A committed subset of the GH Archive.",
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "url": "https://example.org/gharchive",
+        "citation": "GH Archive.",
+        "date_published": "2024-01-02",
+    }
+    cli_output = tmp_path / "cli" / "out.jsonld"
+    cli_report = tmp_path / "cli" / "out.report.json"
+    mcp_output = tmp_path / "mcp" / "out.jsonld"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "--input",
+            str(dataset),
+            "--output",
+            str(cli_output),
+            "--report",
+            str(cli_report),
+            "--creator",
+            "Jane Doe,jane@example.com",
+            *(
+                arg
+                for key, value in fields.items()
+                for arg in (f"--{key.replace('_', '-')}", value)
+            ),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    baked = mcp_server.bake(
+        input_dir=str(dataset),
+        output=str(mcp_output),
+        creators=["Jane Doe,jane@example.com"],
+        **fields,
+    )
+
+    assert mcp_output.read_bytes() == cli_output.read_bytes()
+    assert Path(baked["report_path"]).read_bytes() == cli_report.read_bytes()
+
+
 def test_bake_refuses_a_nameless_creator_with_a_clear_error(
     dataset: Path, tmp_path: Path
 ) -> None:
