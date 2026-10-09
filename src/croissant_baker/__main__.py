@@ -1101,7 +1101,7 @@ def mcp_command() -> None:
         import mcp.server.mcpserver  # noqa: F401
     except ImportError:
         typer.echo(
-            "Error: the MCP server needs the optional 'mcp' extra",
+            "Error: the MCP server needs the optional 'mcp' extra (mcp>=2.2)",
             err=True,
         )
         typer.echo("Fix: pip install 'croissant-baker[mcp]'", err=True)

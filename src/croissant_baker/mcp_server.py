@@ -37,8 +37,7 @@ from croissant_baker.pipeline import (
     save_dict,
     write_scan_report,
 )
-from croissant_baker.report import ScanReport
-from croissant_baker.scan import Outcome, Reason
+from croissant_baker.scan import Outcome, Reason, ScanReport
 
 #: The name the server reports to a connecting client.
 SERVER_NAME = "croissant-baker"
@@ -248,16 +247,17 @@ def validate(path: str) -> dict:
     """
     import mlcroissant as mlc
 
-    if not Path(path).is_file():
+    local = Path(path).resolve()
+    if not local.is_file():
         raise FileNotFoundError(
             f"{path} is not a local file. validate reads files on this "
             "machine only, and never fetches a URL."
         )
-    with open(path, "rb"):
+    with open(local, "rb"):
         pass
 
     try:
-        mlc.Dataset(path)
+        mlc.Dataset(str(local))
     except Exception as exc:
         return {"valid": False, "error": str(exc)}
     return {"valid": True}

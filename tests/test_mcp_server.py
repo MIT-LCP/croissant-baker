@@ -390,6 +390,22 @@ def test_validate_never_fetches_a_url(
         _call_validate(path)
 
 
+def test_validate_hands_mlcroissant_the_resolved_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """mlcroissant gets the file that was checked, not the raw string again."""
+    import mlcroissant as mlc
+
+    document = tmp_path / "doc.jsonld"
+    document.write_text("{}", encoding="utf-8")
+    seen = []
+    monkeypatch.setattr(mlc, "Dataset", lambda path: seen.append(path))
+    monkeypatch.chdir(tmp_path)
+
+    assert mcp_server.validate("doc.jsonld") == {"valid": True}
+    assert seen == [str(document.resolve())]
+
+
 def test_build_server_registers_exactly_the_three_tools() -> None:
     """The surface is deliberately narrow: three tools, no more."""
     tools = asyncio.run(mcp_server.build_server().list_tools())

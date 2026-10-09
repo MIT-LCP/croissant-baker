@@ -379,6 +379,7 @@ def test_mcp_without_the_server_sdk_names_the_extra(
 
     assert result.exit_code == 1
     assert "croissant-baker[mcp]" in result.stderr
+    assert "mcp>=2.2" in result.stderr
 
 
 @pytest.fixture
