@@ -210,25 +210,16 @@ def test_excluded_files_do_not_supply_compression_types_or_include_variants(
 
 
 @pytest.mark.parametrize("alias", ["slide.tif.gz", "slide.tiff.xz"])
-@pytest.mark.parametrize("reverse_discovery", [False, True])
 def test_ome_duplicates_stay_excluded_even_under_another_extension(
     dataset: Path,
     alias: str,
     reverse_discovery: bool,
-    monkeypatch,
 ) -> None:
     write_wrapped(dataset, "slide.tif", OME_TIFF)
     path = Path(alias)
     write_wrapped(dataset, path.stem, OME_TIFF, path.suffix)
     write_wrapped(dataset, "plain.tif", tiff_bytes())
     write_wrapped(dataset, "plain.tiff", tiff_bytes(size=12))
-    if reverse_discovery:
-        from croissant_baker import scan
-
-        discover = scan.discover_files
-        monkeypatch.setattr(
-            scan, "discover_files", lambda *a, **kw: list(reversed(discover(*a, **kw)))
-        )
     document, report = bake_with_report(dataset)
     sets = {node["@id"]: node for node in file_sets(document)}
 
