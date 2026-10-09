@@ -26,7 +26,7 @@ def save_dict(metadata_dict: dict, output_path: str, validate: bool) -> None:
 
     This function exists because MetadataGenerator.save_metadata() always calls
     generate_metadata() internally, regenerating the dict from scratch. That makes
-    it unusable once the dict has already been built and modified — for example,
+    it unusable once the dict has already been built and modified, for example
     after RAI attributes have been injected via inject_rai(). This function takes
     the already-computed dict and handles the save + validation step directly,
     keeping MetadataGenerator unchanged.
