@@ -166,6 +166,7 @@ def dry_run_entries(
     input_dir: str,
     include: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
+    skip_paths: Optional[List[Path]] = None,
 ) -> List[ScanEntry]:
     """Resolve every discovered file to a handler, reading at most a header.
 
@@ -177,6 +178,7 @@ def dry_run_entries(
         input_dir,
         include_patterns=include,
         exclude_patterns=exclude,
+        skip_paths=skip_paths,
     )
     for entry in entries:
         selection = select_handler(Path(input_dir) / entry.path, entry.path)

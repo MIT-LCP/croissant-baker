@@ -76,6 +76,7 @@ def dry_run(
     input_dir: str,
     include: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
+    output: Optional[str] = None,
 ) -> dict:
     """Report what a bake of ``input_dir`` would describe, without baking it.
 
@@ -90,6 +91,10 @@ def dry_run(
         input_dir: Directory containing the dataset files.
         include: Optional glob patterns; only matching files are scanned.
         exclude: Optional glob patterns; matching files are skipped.
+        output: The output path the bake will be given. When it falls inside
+            ``input_dir``, that file and its report are skipped exactly as
+            bake skips them, so a dry run after an earlier bake counts what
+            the next bake will.
 
     Returns:
         ``total``, ``would_process`` and ``unclaimed`` counts, ``by_reason``
@@ -98,7 +103,8 @@ def dry_run(
         counted and not listed, so a large tree does not flood the caller
         with entries that need no decision.
     """
-    entries = dry_run_entries(input_dir, include, exclude)
+    skip = _own_files_under(input_dir, *_bake_files(output)) if output else None
+    entries = dry_run_entries(input_dir, include, exclude, skip)
     claimed = [e for e in entries if e.outcome is Outcome.WOULD_PROCESS]
     unclaimed = [e for e in entries if e.outcome is Outcome.UNCLAIMED]
     tally = Counter(e.reason for e in unclaimed if e.reason is not None)

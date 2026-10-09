@@ -191,12 +191,14 @@ than scraping the terminal output.
 When a `croissant-baker` MCP server is connected, use its tools instead of the
 shell; they run the same pipeline. The loop is unchanged.
 
-1. `dry_run(input_dir, include?, exclude?)` returns `total`, `would_process`,
+1. `dry_run(input_dir, include?, exclude?, output?)` returns `total`, `would_process`,
    `unclaimed`, a `by_reason` map and a `files` array listing each unclaimed
    file with its reason; claimed files are counted, not listed. Read
    `by_reason` first: it is the fastest read on whether the directory is ready.
    `dry_run` reads at most a small header per file and describes nothing, so
-   it reports `would_process`, never `described`.
+   it reports `would_process`, never `described`. Pass the `output` you will
+   give `bake`: when it sits inside the dataset, the output and report of an
+   earlier bake are skipped as `bake` skips them, so the counts match.
 2. `bake(input_dir, output, name, description, license, creators, url?,
    citation?, date_published?, detect_references?, include?, exclude?)` writes
    the file and returns `output` and `report_path`, both absolute, with the

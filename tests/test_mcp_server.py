@@ -59,6 +59,22 @@ def test_dry_run_counters_match_the_per_file_outcomes() -> None:
     assert "described" not in report and "undescribed" not in report
 
 
+def test_dry_run_given_the_output_counts_what_bake_will(dataset: Path) -> None:
+    """After a bake into the dataset, dry_run must not count the bake's files.
+
+    Passed the same output, it skips the same exact paths bake does, so the
+    two totals agree.
+    """
+    output = dataset / "croissant.jsonld"
+    mcp_server.bake(input_dir=str(dataset), output=str(output), **REQUIRED)
+
+    predicted = mcp_server.dry_run(str(dataset), output=str(output))
+    baked = mcp_server.bake(input_dir=str(dataset), output=str(output), **REQUIRED)
+
+    assert predicted["total"] == baked["total"]
+    assert mcp_server.dry_run(str(dataset))["total"] == baked["total"] + 2
+
+
 def test_dry_run_honours_exclude(dataset: Path) -> None:
     """The include/exclude filters reach the scan."""
     everything = mcp_server.dry_run(str(dataset))
