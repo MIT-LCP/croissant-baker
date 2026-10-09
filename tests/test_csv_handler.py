@@ -5,6 +5,8 @@ import pytest
 from croissant_baker.handlers.csv_handler import CSVHandler
 from croissant_baker.sources import make_source
 
+from tests.helpers import bake
+
 
 def test_csv_handler_extract_metadata(tmp_path: Path) -> None:
     """Test CSV metadata extraction (default: no row counting)."""
@@ -101,6 +103,27 @@ def test_csv_build_croissant_multiple_files() -> None:
     assert filesets == []
     assert len(record_sets) == 2
     assert {rs.name for rs in record_sets} == {"a", "b"}
+
+
+def test_colliding_record_set_ids_do_not_follow_discovery_order(
+    tmp_path: Path, reverse_discovery: bool
+) -> None:
+    """Both names sanitize to ``lab_results``, and which file took the
+    ``__2`` used to depend on rglob order."""
+    (tmp_path / "lab results.csv").write_text("id\n1\n")
+    (tmp_path / "lab@results.csv").write_text("id\n2\n")
+
+    document = bake(tmp_path)
+
+    by_file = {
+        node["@id"]: node["contentUrl"]
+        for node in document["distribution"]
+        if node["@type"] == "cr:FileObject"
+    }
+    assert {
+        by_file[rs["field"][0]["source"]["fileObject"]["@id"]]: rs["@id"]
+        for rs in document["recordSet"]
+    } == {"lab results.csv": "lab_results", "lab@results.csv": "lab_results__2"}
 
 
 def test_parse_conflict_known_format() -> None:

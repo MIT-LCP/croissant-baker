@@ -176,9 +176,6 @@
           "source": {
             "fileSet": {
               "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -191,9 +188,6 @@
           "source": {
             "fileSet": {
               "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -206,9 +200,6 @@
           "source": {
             "fileSet": {
               "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -221,9 +212,6 @@
           "source": {
             "fileSet": {
               "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -236,9 +224,6 @@
           "source": {
             "fileSet": {
               "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -251,9 +236,6 @@
           "source": {
             "fileSet": {
               "@id": "nifti-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         }
@@ -274,9 +256,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -289,9 +268,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -304,9 +280,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -319,9 +292,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -334,9 +304,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -349,9 +316,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -364,9 +328,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         },
@@ -379,9 +340,6 @@
           "source": {
             "fileSet": {
               "@id": "dicom-files"
-            },
-            "extract": {
-              "fileProperty": "content"
             }
           }
         }
