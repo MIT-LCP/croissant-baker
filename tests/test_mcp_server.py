@@ -8,6 +8,7 @@ would make these tests slow and non-deterministic for no extra coverage.
 import asyncio
 import importlib.resources
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -150,6 +151,64 @@ def test_validate_reports_the_error_on_broken_jsonld(tmp_path: Path) -> None:
 
     assert result["valid"] is False
     assert isinstance(result["error"], str) and result["error"]
+
+
+def _call_validate(path: str):
+    return asyncio.run(mcp_server.build_server().call_tool("validate", {"path": path}))
+
+
+def test_validate_on_a_missing_file_is_an_error_not_an_invalid_document(
+    tmp_path: Path,
+) -> None:
+    """``valid: False`` means mlcroissant refused a document that exists.
+
+    A path that is not there is a different failure: an agent branching on
+    ``valid`` would otherwise try to repair a document that was never written.
+    """
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    with pytest.raises(ToolError, match="missing.jsonld"):
+        _call_validate(str(tmp_path / "missing.jsonld"))
+
+
+def test_validate_on_an_unreadable_file_is_an_error(tmp_path: Path) -> None:
+    """A file the server cannot open is the caller's path problem, too."""
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    locked = tmp_path / "locked.jsonld"
+    locked.write_text("{}", encoding="utf-8")
+    locked.chmod(0)
+    try:
+        if os.access(locked, os.R_OK):
+            pytest.skip("running with privileges that ignore file modes")
+        with pytest.raises(ToolError, match="locked.jsonld"):
+            _call_validate(str(locked))
+    finally:
+        locked.chmod(0o600)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["https://example.org/croissant.jsonld", "http://127.0.0.1:9/x.jsonld"],
+)
+def test_validate_never_fetches_a_url(
+    path: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """mlcroissant fetches a URL it is given; the server must not pass one on.
+
+    A URL smuggled into a prompt would otherwise become a request from the
+    user's machine, and the server promises it makes none.
+    """
+    import mlcroissant as mlc
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("mlcroissant was asked to load a URL")
+
+    monkeypatch.setattr(mlc, "Dataset", refuse)
+
+    with pytest.raises(ToolError, match="local file"):
+        _call_validate(path)
 
 
 def test_build_server_registers_exactly_the_three_tools() -> None:

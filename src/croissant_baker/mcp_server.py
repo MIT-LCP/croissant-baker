@@ -22,6 +22,7 @@ from __future__ import annotations
 import functools
 import importlib.resources
 from collections import Counter
+from pathlib import Path
 from typing import Any, Callable, List, Optional
 
 from croissant_baker.metadata_generator import MetadataGenerator
@@ -146,13 +147,32 @@ def bake(
 def validate(path: str) -> dict:
     """Check that a Croissant file constructs under ``mlcroissant``.
 
+    Only a file on this machine is read. ``mlcroissant`` would fetch a URL
+    it is given, and a URL that reached this tool from untrusted text would
+    then become a request from the user's machine.
+
     Args:
-        path: Path to a Croissant JSON-LD file.
+        path: Path to a local Croissant JSON-LD file.
 
     Returns:
-        ``{"valid": True}``, or ``{"valid": False, "error": <message>}``.
+        ``{"valid": True}``, or ``{"valid": False, "error": <message>}`` when
+        ``mlcroissant`` read the file and refused it.
+
+    Raises:
+        FileNotFoundError: If ``path`` is not a local file, including a URL.
+            Kept apart from ``valid: False``, which is about a document that
+            exists.
+        OSError: If the file cannot be opened.
     """
     import mlcroissant as mlc
+
+    if not Path(path).is_file():
+        raise FileNotFoundError(
+            f"{path} is not a local file. validate reads files on this "
+            "machine only, and never fetches a URL."
+        )
+    with open(path, "rb"):
+        pass
 
     try:
         mlc.Dataset(path)
