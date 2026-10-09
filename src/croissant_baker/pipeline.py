@@ -174,7 +174,9 @@ def dry_run_entries(
     reason is asked for rather than assumed.
     """
     entries = scan_directory(
-        input_dir, include_patterns=include, exclude_patterns=exclude
+        input_dir,
+        include_patterns=include,
+        exclude_patterns=exclude,
     )
     for entry in entries:
         selection = select_handler(Path(input_dir) / entry.path, entry.path)

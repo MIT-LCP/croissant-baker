@@ -22,12 +22,11 @@ them, and could not open a file the skill names.
 from __future__ import annotations
 
 import functools
-import glob
 import importlib.resources
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Tuple
 
 from croissant_baker.metadata_generator import MetadataGenerator
 from croissant_baker.pipeline import (
@@ -166,9 +165,7 @@ def bake(
             ``mlcroissant`` validation; in each case nothing is written.
     """
     _check_iso_date("date_published", date_published)
-    output_path = Path(output).resolve()
-    report_path = output_path.with_suffix(".report.json")
-    own_files = _own_files_under(input_dir, output_path, report_path)
+    output_path, report_path = _bake_files(output)
 
     generator = MetadataGenerator(
         dataset_path=input_dir,
@@ -181,7 +178,8 @@ def bake(
         creators=parse_creators(creators, cli=False),
         detect_references=detect_references,
         includes=include,
-        excludes=[*(exclude or []), *own_files] or None,
+        excludes=exclude,
+        skip_paths=_own_files_under(input_dir, output_path, report_path),
     )
     metadata_dict = generator.generate_metadata()
     save_dict(metadata_dict, str(output_path), validate=True)
@@ -208,21 +206,22 @@ def _check_iso_date(argument: str, value: Optional[str]) -> None:
         ) from exc
 
 
-def _own_files_under(input_dir: str, *paths: Path) -> List[str]:
-    """Exclude patterns for the files a bake writes inside its own input.
+def _bake_files(output: str) -> Tuple[Path, Path]:
+    """The output and the report a bake to ``output`` writes, resolved."""
+    output_path = Path(output).resolve()
+    return output_path, output_path.with_suffix(".report.json")
+
+
+def _own_files_under(input_dir: str, *paths: Path) -> List[Path]:
+    """The files a bake writes inside its own input, relative to it.
 
     A bake written into the dataset directory would otherwise describe its
     own output and report on the next run, and the report, being JSON, is
-    claimed and refused. Each pattern is the file's escaped relative path,
-    and a glob matches from the right, so a file of the same name deeper in
-    the tree is skipped too: that is another bake's output.
+    claimed and refused. Each one is skipped by its exact path, so data of
+    the same name elsewhere in the tree is still scanned.
     """
     root = Path(input_dir).resolve()
-    return [
-        glob.escape(path.relative_to(root).as_posix())
-        for path in paths
-        if path.is_relative_to(root)
-    ]
+    return [path.relative_to(root) for path in paths if path.is_relative_to(root)]
 
 
 def validate(path: str) -> dict:

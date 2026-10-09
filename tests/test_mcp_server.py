@@ -138,6 +138,35 @@ def test_bake_into_the_dataset_directory_can_run_again(dataset: Path) -> None:
     assert not paths & {"croissant.jsonld", "croissant.report.json"}
 
 
+@pytest.mark.parametrize(
+    "output_name, data_name",
+    [
+        ("metadata.json", "metadata.json"),
+        ("croissant.jsonld", "croissant.report.json"),
+    ],
+    ids=["output-name", "report-name"],
+)
+def test_bake_skips_only_its_own_files_not_data_of_the_same_name(
+    tmp_path: Path, output_name: str, data_name: str
+) -> None:
+    """The skip is the exact path written, never a name match.
+
+    A file deeper in the tree that shares a name with the output or the report
+    is data, and dropping it would skip it with no reason given.
+    """
+    data = tmp_path / "ds"
+    (data / "sub").mkdir(parents=True)
+    (data / "sub" / data_name).write_text('[{"a": 1}, {"a": 2}]\n')
+    output = data / output_name
+
+    mcp_server.bake(input_dir=str(data), output=str(output), **REQUIRED)
+    again = mcp_server.bake(input_dir=str(data), output=str(output), **REQUIRED)
+
+    report = json.loads(Path(again["report_path"]).read_text(encoding="utf-8"))
+    outcomes = {f["path"]: f["outcome"] for f in report["files"]}
+    assert outcomes == {f"sub/{data_name}": "described"}
+
+
 def test_bake_returns_absolute_paths_for_a_relative_output(
     dataset: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
