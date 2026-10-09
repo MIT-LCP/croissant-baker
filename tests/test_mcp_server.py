@@ -268,7 +268,8 @@ def test_bake_refuses_a_nameless_creator_with_a_clear_error(
     with pytest.raises(ToolError, match="has no name") as refusal:
         asyncio.run(mcp_server.build_server().call_tool("bake", arguments))
 
-    assert "Example: --creator" in str(refusal.value)
+    assert "creators" in str(refusal.value)
+    assert "--creator" not in str(refusal.value), "a CLI flag means nothing here"
     assert not output.exists()
 
 
@@ -290,8 +291,11 @@ def test_bake_refuses_an_empty_creator_list(dataset: Path, tmp_path: Path) -> No
         "creators": [],
     }
 
-    with pytest.raises(ToolError, match="At least one"):
+    with pytest.raises(ToolError, match="At least one") as refusal:
         asyncio.run(mcp_server.build_server().call_tool("bake", arguments))
+
+    assert "creators" in str(refusal.value)
+    assert "--creator" not in str(refusal.value), "a CLI flag means nothing here"
 
     assert not output.exists()
 
@@ -308,8 +312,11 @@ def test_bake_refuses_a_date_that_is_not_iso(dataset: Path, tmp_path: Path) -> N
         **REQUIRED,
     }
 
-    with pytest.raises(ToolError, match="Invalid date format"):
+    with pytest.raises(ToolError, match="Invalid date format") as refusal:
         asyncio.run(mcp_server.build_server().call_tool("bake", arguments))
+
+    assert "date_published" in str(refusal.value)
+    assert "--date-published" not in str(refusal.value)
 
     assert not output.exists()
 

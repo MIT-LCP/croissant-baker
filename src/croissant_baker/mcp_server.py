@@ -22,6 +22,7 @@ them, and could not open a file the skill names.
 from __future__ import annotations
 
 import functools
+from datetime import datetime
 import glob
 import importlib.resources
 from collections import Counter
@@ -165,6 +166,7 @@ def bake(
             ``date_published`` is not an ISO date, or the document fails
             ``mlcroissant`` validation; in each case nothing is written.
     """
+    _check_iso_date("date_published", date_published)
     output_path = Path(output).resolve()
     report_path = output_path.with_suffix(".report.json")
     own_files = _own_files_under(input_dir, output_path, report_path)
@@ -177,7 +179,7 @@ def bake(
         license=license,
         citation=citation,
         date_published=date_published,
-        creators=parse_creators(creators),
+        creators=parse_creators(creators, cli=False),
         detect_references=detect_references,
         includes=include,
         excludes=[*(exclude or []), *own_files] or None,
@@ -188,6 +190,23 @@ def bake(
     summary = generator.scan_report.to_dict()
     del summary["files"]
     return {"output": str(output_path), "report_path": str(report_path), **summary}
+
+
+def _check_iso_date(argument: str, value: Optional[str]) -> None:
+    """Refuse a date that is not ISO 8601, naming the argument, not a flag.
+
+    The generator refuses it too, but words the error for the CLI's
+    ``--date-published``.
+    """
+    if not value:
+        return
+    try:
+        datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid date format for {argument}: {value!r}. Expected ISO "
+            "format like '2023-12-15' or '2023-12-15T10:30:00'."
+        ) from exc
 
 
 def _own_files_under(input_dir: str, *paths: Path) -> List[str]:

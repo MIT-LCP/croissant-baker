@@ -98,24 +98,36 @@ def get_version() -> str:
         return "unknown (not installed as package)"
 
 
-def parse_creators(creator: Optional[List[str]]) -> List[dict]:
+def parse_creators(creator: Optional[List[str]], cli: bool = True) -> List[dict]:
     """Parse ``Name,email,url`` creator strings into mlcroissant Person dicts.
 
     Semicolons take precedence as the separator so a name containing a comma
     needs no quoting; otherwise the string is read as one CSV row, which
     handles quoting properly.
 
+    Args:
+        creator: The creator strings, as typed.
+        cli: Word a refusal for the CLI's ``--creator`` flag. False words it
+            for the MCP server's ``creators`` argument, since a flag means
+            nothing to a caller that never typed one.
+
     Raises:
         ValueError: If there is no creator at all, or an entry has a blank
             name part. The spec requires a creator, and without one the
             generator would fill in a placeholder person.
     """
+    if cli:
+        example = (
+            "Example: --creator 'John Doe,john@example.com' or --creator 'Jane Smith'"
+        )
+        required = "At least one '--creator' option is required"
+    else:
+        example = 'Example: creators=["John Doe,john@example.com"]'
+        required = "At least one entry in 'creators' is required"
+
     if not creator:
         raise ValueError(
-            "At least one '--creator' option is required "
-            "to comply with the Croissant specification.\n"
-            "Example: --creator 'John Doe,john@example.com' "
-            "or --creator 'Jane Smith'"
+            f"{required} to comply with the Croissant specification.\n{example}"
         )
 
     parsed_creators: List[dict] = []
@@ -134,11 +146,8 @@ def parse_creators(creator: Optional[List[str]]) -> List[dict]:
         # Skipping it would drop a creator the user asked for, or
         # leave the placeholder, without a word; refuse it instead.
         if not creator_parts or not creator_parts[0]:
-            raise ValueError(
-                f"--creator {raw_creator!r} has no name.\n"
-                "Example: --creator 'John Doe,john@example.com' "
-                "or --creator 'Jane Smith'"
-            )
+            label = "--creator" if cli else "creators entry"
+            raise ValueError(f"{label} {raw_creator!r} has no name.\n{example}")
 
         creator_obj = {"name": creator_parts[0]}
 

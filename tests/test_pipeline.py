@@ -22,3 +22,14 @@ def test_a_named_creator_is_parsed() -> None:
     assert parse_creators(["Jane Doe,jane@example.com"]) == [
         {"name": "Jane Doe", "email": "jane@example.com"}
     ]
+
+
+def test_refusals_name_the_flag_on_the_cli_and_the_argument_elsewhere() -> None:
+    """Each front door names the input its caller actually typed."""
+    with pytest.raises(ValueError, match="--creator"):
+        parse_creators([",a@example.com"])
+    with pytest.raises(ValueError) as refusal:
+        parse_creators([",a@example.com"], cli=False)
+
+    assert "--creator" not in str(refusal.value)
+    assert "creators" in str(refusal.value)
