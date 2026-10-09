@@ -14,6 +14,21 @@ from croissant_baker.rai.schema import AIFairnessConfig
 
 REPO_ROOT = Path(__file__).parent.parent
 RAI_EXAMPLE = REPO_ROOT / "rai-example.yaml"
+#: The copy the Agent Skill hands to agents. Both must match the schema.
+SKILL_RAI_TEMPLATE = (
+    REPO_ROOT
+    / "src"
+    / "croissant_baker"
+    / "skills"
+    / "croissant-baker"
+    / "assets"
+    / "rai-template.yaml"
+)
+RAI_TEMPLATES = pytest.mark.parametrize(
+    "template",
+    [RAI_EXAMPLE, SKILL_RAI_TEMPLATE],
+    ids=["rai-example", "skill-template"],
+)
 
 
 def write_config(tmp_path: Path, body: str) -> Path:
@@ -53,14 +68,16 @@ def _template_mappings(raw: dict) -> dict[str, list[dict]]:
     }
 
 
-def test_shipped_example_names_every_schema_field() -> None:
+@RAI_TEMPLATES
+def test_shipped_example_names_every_schema_field(template: Path) -> None:
     """The template has to show every field the config can carry.
 
-    ``--rai-config --help`` points users at ``rai-example.yaml``, so a field
-    missing from it is a field they will never know they could have filled in,
-    and a key it spells wrong is one silently dropped from their output.
+    ``--rai-config --help`` points users at ``rai-example.yaml`` and the skill
+    points agents at its own copy, so a field missing from either is a field
+    they will never know they could have filled in. Checked against the schema
+    for both, so the two cannot drift apart in silence.
     """
-    raw = yaml.safe_load(RAI_EXAMPLE.read_text(encoding="utf-8"))
+    raw = yaml.safe_load(template.read_text(encoding="utf-8"))
     mappings = _template_mappings(raw)
 
     declared = {
@@ -80,6 +97,45 @@ def test_shipped_example_names_every_schema_field() -> None:
         if not any(f.name in entry for entry in entries)
     )
     assert unnamed == []
+
+
+@RAI_TEMPLATES
+def test_shipped_template_loads(template: Path) -> None:
+    """A key the loader does not read is refused, so loading proves the spelling."""
+    load_rai_config(template)
+
+
+#: Keys whose template value is a real choice from a fixed vocabulary, not a
+#: placeholder: leaving one as written is a valid answer.
+CHOSEN_NOT_FILLED = {"id", "type", "collection_types"}
+
+
+def _strings(node, key: str = ""):
+    """Yield ``(key, value)`` for every string in a parsed YAML tree."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield from _strings(v, k)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _strings(item, key)
+    elif isinstance(node, str):
+        yield key, node
+
+
+def test_every_skill_template_placeholder_says_replace() -> None:
+    """The skill tells agents to search for REPLACE before baking.
+
+    That search only catches every leftover if every value to fill in carries
+    the word. A plausible example URL or date without it would be published.
+    """
+    raw = yaml.safe_load(SKILL_RAI_TEMPLATE.read_text(encoding="utf-8"))
+
+    unmarked = sorted(
+        f"{key}: {value}"
+        for key, value in _strings(raw)
+        if key not in CHOSEN_NOT_FILLED and "REPLACE" not in value
+    )
+    assert unmarked == []
 
 
 def test_unknown_fairness_key_is_refused(tmp_path: Path) -> None:

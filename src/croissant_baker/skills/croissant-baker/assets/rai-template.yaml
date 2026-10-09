@@ -5,8 +5,11 @@
 # short honest file beats a long speculative one. None of these values can be
 # inferred from the data: each one is a claim the dataset owner is making.
 #
-# The key names below are the only ones the loader reads. A misspelled key is
-# silently ignored, so keep them exactly as written.
+# Every value to fill in contains REPLACE. The loader accepts it as ordinary
+# text, so search for REPLACE before baking: any left would be published.
+#
+# The key names below are the only ones the loader reads. A misspelled key
+# stops the run with a message naming it, so keep them exactly as written.
 #
 # Where each section lands in the output:
 #   ai_fairness             -> rai: properties on the dataset node
@@ -43,16 +46,21 @@ ai_fairness:
   has_synthetic_data: false
 
 lineage:
-  # prov:wasDerivedFrom. `url` is required; the rest are optional and any
-  # entry without a `url` is dropped.
+  # prov:wasDerivedFrom. `url` is required, and an entry without one stops
+  # the run. The rest are optional; `id` is your own identifier, if any.
   source_datasets:
-    - url: https://example.org/source-dataset
+    - url: https://example.org/REPLACE
+      id: REPLACE
       name: REPLACE
       organisation: REPLACE
       license: REPLACE
 
   # rai:usedBy. Models or assets that trained or evaluated on this dataset.
-  # `url` is required. Leave the list empty if there are none.
+  # `url` is required; `name` and `id` are optional. Leave the list empty
+  # unless the owner names one, in this shape:
+  #   - url: https://example.org/REPLACE
+  #     name: REPLACE
+  #     id: REPLACE
   models: []
 
 # Each entry becomes one prov:Activity. Document the steps that actually
@@ -64,23 +72,24 @@ activities:
     description: >
       REPLACE: how and where the raw data was gathered.
     # ISO 8601 dates, quoted so YAML keeps them as strings.
-    start_at: "2020-01-01"
-    end_at: "2024-12-31"
+    start_at: "REPLACE: YYYY-MM-DD"
+    end_at: "REPLACE: YYYY-MM-DD"
     # Only for data_collection. One or more of: surveys | interviews |
     # observations | experiments | web_scraping | crowdsourcing |
     # existing_datasets | simulations | other
     collection_types:
       - observations
-    # Who or what performed the activity. `name` is required; an entry
-    # without one is dropped. is_synthetic: true marks an automated agent.
+    # Who or what performed the activity. `name` is required, and an entry
+    # without one stops the run. is_synthetic: true marks an automated agent.
     agents:
       - name: REPLACE
-        url: https://example.org
+        url: https://example.org/REPLACE
         description: >
           REPLACE: the role this agent played.
         is_synthetic: false
     # Tools or systems used. `name` is required.
     platforms:
       - name: REPLACE
+        url: https://example.org/REPLACE
         description: >
           REPLACE: what this platform was used for.
