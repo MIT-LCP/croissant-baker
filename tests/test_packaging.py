@@ -6,7 +6,6 @@ The editable install the test suite runs under resolves the package back to
 own build backend and read it the way pip would.
 """
 
-import os
 import zipfile
 from email.parser import Parser
 from pathlib import Path
@@ -26,12 +25,9 @@ def wheel(tmp_path_factory: pytest.TempPathFactory) -> zipfile.ZipFile:
     from the working directory.
     """
     out = tmp_path_factory.mktemp("wheel")
-    previous = Path.cwd()
-    os.chdir(REPO_ROOT)
-    try:
+    with pytest.MonkeyPatch.context() as patch:
+        patch.chdir(REPO_ROOT)
         name = build_wheel(str(out))
-    finally:
-        os.chdir(previous)
     with zipfile.ZipFile(out / name) as archive:
         yield archive
 
