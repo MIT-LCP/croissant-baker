@@ -51,7 +51,21 @@ uv run croissant-baker --input ./my-dataset --creator "Jane Doe"
 ```bash
 uv run pytest -v                                          # all tests
 uv run pytest tests/test_cli.py::test_creator_formats -v  # single test
+uv run pytest --cov --cov-report=term-missing             # with coverage
 ```
+
+The coverage badge in `README.md` and the browsable HTML report it links to are
+produced by `test.yaml`: on every push to `main`, `python-coverage-comment-action`
+commits a shields.io endpoint and an `htmlcov/` report to the
+`python-coverage-comment-action-data` branch, and on pull requests it comments
+the coverage delta. Until that first push to `main` creates the branch, the
+endpoint URL is a 404 and the badge renders as an error rather than as nothing,
+so on a pull request that adds the badge it looks broken until the merge.
+
+Coverage is advisory. Nothing gates on it: there is no `fail_under` and
+nothing on the action fails the run, so the number can drop and every check stays green.
+The badge is green from 90% (`MINIMUM_GREEN` in both workflows), orange from
+70% (the action's default `MINIMUM_ORANGE`), and red below that.
 
 End-to-end tests in `tests/test_end_to_end.py` run Croissant Baker on datasets under `tests/data/input/` and validate the generated Croissant metadata with `mlcroissant`. Covered datasets include MIMIC-IV, eICU, MIT-BIH, MEDS, OMOP, glaucoma fundus, satellite imagery, a synthetic partitioned-Parquet layout, and a committed subset of Open Targets (3 datasets, ~2 MB). JSON-LD outputs are written to `tests/data/output/`.
 
@@ -94,7 +108,8 @@ Re-run `uv run python docs/generate.py` after changing CLI flags or adding/modif
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `test.yaml` | Push/PR to any branch | Runs tests on Python 3.10 + 3.12 |
+| `test.yaml` | Push/PR to `main` | Runs tests on Python 3.10 + 3.12 read-only, then a separate job reports coverage from the 3.12 leg |
+| `coverage-comment.yaml` | `test.yaml` completing | Posts the coverage comment for pull requests from forks |
 | `pre-commit.yaml` | Push/PR | Runs ruff lint + format checks |
 | `release-please.yaml` | Push to `main` | Opens/updates Release PR; on release, runs `uv build` |
 | `docs.yaml` | Push to `main` | Runs `generate.py` + `mkdocs gh-deploy --force` |

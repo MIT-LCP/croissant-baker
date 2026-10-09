@@ -176,66 +176,52 @@ class NIfTIHandler(FileTypeHandler):
             includes=includes,
         )
 
+        # Header fields are descriptive: each names the FileSet and no
+        # extract. A content extract would select the whole file, which
+        # says nothing about the header slot a field describes, so reading a
+        # value takes a NIfTI reader. The OME fields follow the same shape.
         fields = [
             mlc.Field(
                 id="nifti/dim_x",
                 name="dim_x",
                 description="NIfTI dim[1]; voxel grid size along x axis",
                 data_types=["sc:Integer"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="nifti/dim_y",
                 name="dim_y",
                 description="NIfTI dim[2]; voxel grid size along y axis",
                 data_types=["sc:Integer"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="nifti/dim_z",
                 name="dim_z",
                 description="NIfTI dim[3]; voxel grid size along z axis",
                 data_types=["sc:Integer"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="nifti/voxel_spacing",
                 name="voxel_spacing",
                 description="NIfTI pixdim[1:4]; voxel size in mm along x, y, z",
                 data_types=["sc:Text"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="nifti/data_dtype",
                 name="data_dtype",
                 description=f"NIfTI datatype; stored data type ({dtypes_str})",
                 data_types=["sc:Text"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
             mlc.Field(
                 id="nifti/nifti_version",
                 name="nifti_version",
                 description="Inferred from sizeof_hdr (348=NIfTI-1, 540=NIfTI-2)",
                 data_types=["sc:Integer"],
-                source=mlc.Source(
-                    file_set=fileset_id,
-                    extract=mlc.Extract(file_property="content"),
-                ),
+                source=mlc.Source(file_set=fileset_id),
             ),
         ]
 
@@ -247,10 +233,7 @@ class NIfTIHandler(FileTypeHandler):
                     name="tr_seconds",
                     description="NIfTI pixdim[4]; repetition time in seconds for fMRI volumes",
                     data_types=["sc:Float"],
-                    source=mlc.Source(
-                        file_set=fileset_id,
-                        extract=mlc.Extract(file_property="content"),
-                    ),
+                    source=mlc.Source(file_set=fileset_id),
                 )
             )
 
@@ -306,7 +289,9 @@ def collect_nifti_summary(nifti_metadata_list: List[Dict]) -> Dict:
     if dt:
         summary["dim_t_range"] = (min(dt), max(dt))
     if dtype_counts:
-        summary["dtype_counts"] = dtype_counts
+        # Sorted by dtype, as image formats are: insertion order is rglob
+        # order, which differs between filesystems.
+        summary["dtype_counts"] = dict(sorted(dtype_counts.items()))
     if tr_list:
         summary["tr_range"] = (min(tr_list), max(tr_list))
 

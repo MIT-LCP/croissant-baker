@@ -1,11 +1,13 @@
 """Shared utilities for file handlers."""
 
 import datetime
+import gzip
+import io
 import logging
 import re
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union
+from typing import BinaryIO, Dict, Iterator, List, Optional, Sequence, Union
 
 
 import mlcroissant as mlc
@@ -66,6 +68,78 @@ def open_text_file(file_path: Path):
     if comp is None:
         return open(path, "r", encoding=compression.DEFAULT_TEXT_ENCODING)
     return comp.opener(path, "rt", encoding=compression.DEFAULT_TEXT_ENCODING)
+
+
+#: The largest header a handler will read out of a file that states its own
+#: header length. Every such length is a number the file chooses, so trusting
+#: one turns a header read into a read of the whole file, which is the one
+#: thing a header-only handler exists not to do. 64 MiB is far above any real
+#: header: a header of a million reference sequences, which no assembly has, is
+#: a few tens of MiB, and a cohort declaring thousands of contigs and keys is a
+#: few hundred KiB.
+MAX_HEADER_BYTES = 64 * 1024 * 1024
+
+
+def read_exactly(
+    stream: BinaryIO, count: int, what: str, name: str, format_name: str
+) -> bytes:
+    """``count`` bytes, or a refusal naming the file and what was missing.
+
+    Shared because every binary container reaches its header the same way: a
+    length the file states, then that many bytes. A short read there is the
+    file ending mid-header, and what a reader needs told is which file and
+    which field, whichever container it was.
+    """
+    data = stream.read(count)
+    if len(data) != count:
+        raise ValueError(
+            f"Truncated {format_name} header in {name}: {what} needs {count} "
+            f"bytes, got {len(data)}"
+        )
+    return data
+
+
+#: How much of a stream is pulled at a time by a handler reading a prefix whose
+#: length nothing states in advance. Small enough that a short header costs one
+#: read of it, large enough that a long one costs a handful.
+PREFIX_CHUNK_BYTES = 32 * 1024
+
+
+def read_prefix_chunks(
+    stream: BinaryIO, limit: int, chunk_size: int = PREFIX_CHUNK_BYTES
+) -> Iterator[bytes]:
+    """Up to ``limit`` bytes of ``stream``, a chunk at a time, until it ends.
+
+    Chunked rather than one read of ``limit``, because the limit is the size of
+    the largest header or record anyone writes: pulling it every time would
+    read a megabyte off a file to look at the first line of it. Chunked rather
+    than iterated by line, because a file holding no line ending is one line,
+    and reading it is reading the whole file.
+    """
+    remaining = limit
+    while remaining > 0:
+        data = stream.read(min(chunk_size, remaining))
+        if not data:
+            return
+        remaining -= len(data)
+        yield data
+
+
+def decompress_prefix(head: bytes, count: int) -> bytes:
+    """The first ``count`` bytes inside a compressed prefix.
+
+    A prefix, so the stream ends mid-member; that is expected, and the bytes
+    already produced are the answer. Shared by the handlers whose format is
+    itself a gzip container, so the compression layer hands them the bytes as
+    they sit on disk and they open the wrapper themselves.
+    """
+    with gzip.GzipFile(fileobj=io.BytesIO(head), mode="rb") as payload:
+        return payload.read(count)
+
+
+def plural(count: int, noun: str) -> str:
+    """``1 read group``, ``2 reference sequences``."""
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 # Characters that are invalid in Croissant @id values.
@@ -158,14 +232,34 @@ def make_record_set_ids(file_metas: list) -> list:
     prefixes config-level identifiers into split @id values), so
     consumers familiar with that style do not encounter a new shape.
     """
+    paths = [
+        str(Path(meta.get("relative_path", meta["file_name"]))) for meta in file_metas
+    ]
     items = [
         (
             sanitize_id(get_clean_record_name(meta["file_name"])),
-            list(Path(meta.get("relative_path", meta["file_name"])).parts[:-1]),
+            list(Path(path).parts[:-1]),
         )
-        for meta in file_metas
+        for meta, path in zip(file_metas, paths)
     ]
-    return _disambiguate_ids(items)
+    return disambiguate_in_path_order(items, paths)
+
+
+def disambiguate_in_path_order(items: list, paths: list) -> list:
+    """:func:`_disambiguate_ids` run over ``items`` sorted by ``paths``.
+
+    Batch order is rglob order. Where parents cannot separate two stems (``a b``
+    and ``a@b`` sanitize alike) a numeric suffix settles it, and allocating in
+    path order keeps which file takes it the same on every filesystem.
+
+    Returns:
+        One id per item, parallel to ``items``.
+    """
+    order = sorted(range(len(items)), key=lambda i: paths[i])
+    ids = [""] * len(items)
+    for rs_id, i in zip(_disambiguate_ids([items[i] for i in order]), order):
+        ids[i] = rs_id
+    return ids
 
 
 #: Key under which :func:`allocate_record_set_ids` returns a file's own base
@@ -184,8 +278,8 @@ def allocate_record_set_ids(
     is what a local implementation forgets:
 
     1. A base per file, from ``Path(file_name).stem`` plus parent components
-       through :func:`_disambiguate_ids`, so two files with the same basename
-       in different directories stay apart.
+       through :func:`disambiguate_in_path_order`, so two files with the same
+       basename in different directories stay apart.
     2. **Every base is reserved**, so a real file named ``x_samples.csv`` keeps
        the bare ``x_samples`` and a record set derived from ``x.soft`` does not
        displace it.
@@ -222,20 +316,15 @@ def allocate_record_set_ids(
         for meta, path in zip(file_metas, paths)
     ]
 
-    # Allocated in path order, not batch order. Batch order is rglob order, and
-    # where parents cannot separate two stems — ``a b`` and ``a@b`` sanitize
-    # alike — a numeric suffix settles it, so without this which file takes the
-    # suffix would depend on which was discovered first.
-    order = sorted(range(len(items)), key=lambda i: paths[i])
-    bases = [""] * len(items)
-    for base, i in zip(_disambiguate_ids([items[i] for i in order]), order):
-        bases[i] = base
+    bases = disambiguate_in_path_order(items, paths)
 
     taken = set(bases)
     allocated: List[Dict[str, str]] = [
         {BASE: base} if include_base else {} for base in bases
     ]
-    for i in order:
+    # Derived ids go in path order too, so which one takes a ``__2`` does not
+    # depend on which file was discovered first.
+    for i in sorted(range(len(bases)), key=lambda i: paths[i]):
         for suffix in suffixes:
             candidate = f"{bases[i]}_{sanitize_id(suffix)}"
             if candidate in taken:

@@ -680,24 +680,14 @@ def test_properties_recovery_does_not_rescue_an_otherwise_broken_workbook(
         handler.extract(make_source(path))
 
 
-@pytest.mark.parametrize("reverse", [False, True], ids=["as-walked", "reversed"])
 @pytest.mark.parametrize("workers", [1, 4], ids=["serial", "parallel"])
 def test_identifiers_do_not_depend_on_the_order_files_were_found(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reverse: bool, workers: int
+    tmp_path: Path, reverse_discovery: bool, workers: int
 ) -> None:
     """`a.xlsx` sheet `b_c` and `a_b.xlsx` sheet `c` both want `a_b_c`. Which
     one moves has to follow from the names, not from the walk order."""
     _book(tmp_path / "a.xlsx", {"b_c": [["v"], [1]]})
     _book(tmp_path / "a_b.xlsx", {"c": [["v"], [2]]})
-    if reverse:
-        from croissant_baker import scan
-
-        discover = scan.discover_files
-        monkeypatch.setattr(
-            scan,
-            "discover_files",
-            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
-        )
 
     document = bake(tmp_path, max_workers=workers)
 
