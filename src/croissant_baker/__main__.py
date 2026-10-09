@@ -781,18 +781,16 @@ def main(
         typer.echo(f"Error: Dataset path '{input}' is not a directory", err=True)
         raise typer.Exit(code=1)
 
-    # 2. At least one creator required by the Croissant spec (cardinality MANY)
-    if not creator and not dry_run:
-        typer.echo(
-            "Error: At least one '--creator' option is required "
-            "to comply with the Croissant specification.",
-            err=True,
-        )
-        typer.echo(
-            "Example: --creator 'John Doe,john@example.com' or --creator 'Jane Smith'",
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    # 2. At least one named creator, required by the Croissant spec
+    # (cardinality MANY). Parsed by the code the MCP server calls too, so the
+    # two refuse the same input.
+    parsed_creators: List[dict] = []
+    if not dry_run:
+        try:
+            parsed_creators = parse_creators(creator)
+        except ValueError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(code=1)
 
     # The RAI inputs are read before anything looks at the dataset: they are
     # inputs like any other flag, so a conflict or a typo in the config is
@@ -869,10 +867,6 @@ def main(
 
     generator: Optional[MetadataGenerator] = None
     try:
-        # Parse creators following mlcroissant specification
-        # Allows flexible Person/Organization objects with optional properties
-        parsed_creators = parse_creators(creator)
-
         # Warn early if --count-csv-rows is set but dataset has no CSV files.
         # Asked of the logical name, so the CLI does not become a second
         # compression owner.

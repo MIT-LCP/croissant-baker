@@ -117,6 +117,30 @@ def test_bake_refuses_a_nameless_creator_with_a_clear_error(
     assert not output.exists()
 
 
+def test_bake_refuses_an_empty_creator_list(dataset: Path, tmp_path: Path) -> None:
+    """``[]`` satisfies the schema, so the refusal has to come from the code.
+
+    Without it the document names the generator's placeholder person, which
+    the CLI never allows.
+    """
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    output = tmp_path / "out.jsonld"
+    arguments = {
+        "input_dir": str(dataset),
+        "output": str(output),
+        "name": "gharchive-demo",
+        "description": "A committed subset of the GH Archive.",
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "creators": [],
+    }
+
+    with pytest.raises(ToolError, match="At least one"):
+        asyncio.run(mcp_server.build_server().call_tool("bake", arguments))
+
+    assert not output.exists()
+
+
 def test_validate_reports_the_error_on_broken_jsonld(tmp_path: Path) -> None:
     """A document mlcroissant cannot construct comes back with the error text."""
     broken = tmp_path / "broken.jsonld"

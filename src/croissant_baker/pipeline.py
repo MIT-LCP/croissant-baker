@@ -97,10 +97,20 @@ def parse_creators(creator: Optional[List[str]]) -> List[dict]:
     handles quoting properly.
 
     Raises:
-        ValueError: If an entry has a blank name part.
+        ValueError: If there is no creator at all, or an entry has a blank
+            name part. The spec requires a creator, and without one the
+            generator would fill in a placeholder person.
     """
+    if not creator:
+        raise ValueError(
+            "At least one '--creator' option is required "
+            "to comply with the Croissant specification.\n"
+            "Example: --creator 'John Doe,john@example.com' "
+            "or --creator 'Jane Smith'"
+        )
+
     parsed_creators: List[dict] = []
-    for raw_creator in creator or []:
+    for raw_creator in creator:
         creator_info = raw_creator.strip()
 
         # Preferred: semicolon
