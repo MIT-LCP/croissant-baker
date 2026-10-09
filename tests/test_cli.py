@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -355,6 +356,30 @@ def test_help_and_version() -> None:
     result = runner.invoke(app, [])
     assert result.exit_code == 0
     assert "Usage:" in result.stdout
+
+
+def test_mcp_help_names_the_transport() -> None:
+    """The subcommand is discoverable and says which transport it speaks."""
+    result = runner.invoke(app, ["mcp", "--help"])
+    assert result.exit_code == 0
+    assert "stdio" in _strip_ansi(result.stdout)
+
+
+def test_mcp_without_the_server_sdk_names_the_extra(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An mcp 1.x installed for another tool has no ``mcp.server.mcpserver``.
+
+    Checking for that module, not for ``mcp`` alone, turns what would be a bare
+    traceback into the install hint.
+    """
+    monkeypatch.setitem(sys.modules, "mcp.server.mcpserver", None)
+
+    result = runner.invoke(app, ["mcp"])
+
+    assert result.exit_code == 1
+    assert "croissant-baker[mcp]" in result.stderr
+    assert "mcp>=2.2" in result.stderr
 
 
 @pytest.fixture

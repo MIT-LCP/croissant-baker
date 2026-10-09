@@ -117,3 +117,14 @@ def test_discover_files_include_and_exclude(tmp_path: Path) -> None:
     )
     expected = {Path("data1.csv"), Path("sub/data3.csv")}
     assert set(files) == expected
+
+
+def test_skip_paths_match_the_whole_relative_path(tmp_path: Path) -> None:
+    """A skipped path leaves a file of the same name elsewhere in the tree."""
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "out.json").write_text("{}")
+    (tmp_path / "sub" / "out.json").write_text("{}")
+
+    files = discover_files(str(tmp_path), skip_paths=[Path("out.json")])
+
+    assert files == [Path("sub/out.json")]

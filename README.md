@@ -68,6 +68,34 @@ croissant-baker \
 croissant-baker validate mimic-iv-demo-croissant.jsonld
 ```
 
+## Use with an agent
+
+croissant-baker ships a local [MCP](https://modelcontextprotocol.io) server and
+an [Agent Skill](https://agentskills.io/specification). The server needs the
+optional `mcp` extra:
+
+```bash
+pip install 'croissant-baker[mcp]'
+```
+
+Then point your MCP client at the `croissant-baker mcp` command. Most clients
+take an entry like this one:
+
+```json
+{
+  "mcpServers": {
+    "croissant-baker": {"command": "croissant-baker", "args": ["mcp"]}
+  }
+}
+```
+
+The server speaks stdio only and offers three tools: `dry_run`, `bake` and
+`validate`. It reads local files and makes no network request. Pass absolute
+paths, since a relative one resolves against the directory the client started
+the server in. The skill ships inside the package at
+`croissant_baker/skills/croissant-baker/SKILL.md`, and the server also serves it
+as the resource `croissant-baker://skill`.
+
 ## Supported formats
 
 | Format | Extensions | Notes |
