@@ -213,6 +213,47 @@ def test_creator_parsing_variants(csv_dataset: Path, tmp_path: Path) -> None:
             )
 
 
+@pytest.mark.parametrize(
+    "creator_input", [",jane@example.com", " , x", ";x@y.z", "", "   "]
+)
+def test_creator_without_a_name_is_refused(
+    csv_dataset: Path, tmp_path: Path, creator_input: str
+) -> None:
+    """A creator with a blank name stops the bake with an error."""
+    output = tmp_path / "output.jsonld"
+
+    result = runner.invoke(
+        app,
+        [
+            "--input",
+            str(csv_dataset),
+            "--output",
+            str(output),
+            "--creator",
+            "Alice Smith",
+            "--creator",
+            creator_input,
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert f"Error: --creator {creator_input!r} has no name" in result.stderr
+    assert "Example:" in result.stderr
+    assert "Unexpected error" not in result.stderr
+    assert not output.exists()
+
+
+def test_dry_run_does_not_read_creators(csv_dataset: Path) -> None:
+    """Dry run lists files only, so a creator it never uses is not checked."""
+    result = runner.invoke(
+        app,
+        ["--input", str(csv_dataset), "--dry-run", "--creator", ",jane@example.com"],
+    )
+
+    assert result.exit_code == 0, result.output
+
+
 def test_invalid_date_format(csv_dataset: Path, tmp_path: Path) -> None:
     """Test that invalid date format gives clear error message."""
     output = tmp_path / "output.jsonld"
@@ -804,6 +845,114 @@ def test_field_mapping_flag_overrides_yaml(csv_dataset: Path, tmp_path: Path) ->
     }
     assert fields["age"]["equivalentProperty"] == "wdt:NEW"  # flag won
     assert fields["id"]["equivalentProperty"] == "wdt:P527"  # flag-only column
+
+
+def test_bad_field_mapping_flag_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A malformed --field-mapping prints a plain Error and exits 1."""
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mapping", "age")
+
+    assert result.exit_code == 1
+    assert "Error: --field-mapping must be 'COLUMN=URI', got 'age'" in result.stderr
+    assert "Unexpected error" not in result.stderr
+    assert not output.exists()
+
+
+def test_bad_field_mappings_file_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A malformed --field-mappings YAML prints a plain Error and exits 1."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text("- age\n", encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert "Error: " in result.stderr
+    assert "must contain a YAML mapping at the top level" in result.stderr
+    assert "Unexpected error" not in result.stderr
+    assert not output.exists()
+
+
+def test_broken_field_mappings_yaml_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A --field-mappings file that does not parse prints a plain Error and exits 1."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text("fields: [\n", encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert "Error: " in result.stderr
+    assert f"{mappings}: invalid YAML at line 2, column 1" in result.stderr
+    assert "Unexpected error" not in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not output.exists()
+
+
+def test_broken_field_mappings_yaml_error_is_one_line(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """The parser's multi-line report is cut to one line that keeps the location."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_text("fields:\n  age: a: b\n", encoding="utf-8")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert (
+        f"Error: {mappings}: invalid YAML at line 2, column 9: "
+        "mapping values are not allowed here\n"
+    ) in result.stderr
+    assert 'in "' not in result.stderr
+
+
+def test_field_mappings_with_two_documents_keeps_the_context(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A second YAML document is reported with what the parser expected."""
+    mappings = tmp_path / "mappings.yaml"
+    # The three dash document marker is built here to keep it out of the source.
+    marker = "-" * 3
+    mappings.write_text(
+        f"fields:\n  age: {{}}\n{marker}\nfields: {{}}\n", encoding="utf-8"
+    )
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert (
+        f"Error: {mappings}: invalid YAML at line 3, column 1: "
+        "expected a single document in the stream, but found another document\n"
+    ) in result.stderr
+    assert not output.exists()
+
+
+def test_field_mappings_file_not_utf8_is_a_plain_error(
+    csv_dataset: Path, tmp_path: Path
+) -> None:
+    """A --field-mappings file with bytes that are not UTF-8 prints one plain line."""
+    mappings = tmp_path / "mappings.yaml"
+    mappings.write_bytes(b"fields:\n  a: \xff\n")
+    output = tmp_path / "output.jsonld"
+
+    result = cli(csv_dataset, output, "--field-mappings", str(mappings))
+
+    assert result.exit_code == 1
+    assert result.stderr.startswith("Error: ")
+    assert f"{mappings}: invalid UTF-8 at byte offset 13" in result.stderr
+    assert len(result.stderr.strip().splitlines()) == 1
+    assert "Unexpected error" not in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not output.exists()
 
 
 def test_usage_info_rejects_free_text(csv_dataset: Path, tmp_path: Path) -> None:
