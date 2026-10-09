@@ -13,9 +13,10 @@ back with every refusal counted by reason, and the full per-file report is
 written next to the output. There is no fetch, search or upload tool, and no
 HTTP transport, so the local-first invariant holds.
 
-Alongside the tools the server publishes one read-only resource: the packaged
-Agent Skill. A client that has the tools but not the skill would otherwise have
-to be told separately how to use them.
+Alongside the tools the server publishes two read-only resources: the packaged
+Agent Skill and the RAI config template it points at. A client that has the
+tools but not the skill would otherwise have to be told separately how to use
+them, and could not open a file the skill names.
 """
 
 from __future__ import annotations
@@ -40,12 +41,15 @@ from croissant_baker.scan import Outcome, Reason
 #: The name the server reports to a connecting client.
 SERVER_NAME = "croissant-baker"
 
-#: URI of the bundled Agent Skill, served as the server's one resource.
+#: URI of the bundled Agent Skill, served as a resource.
 SKILL_URI = "croissant-baker://skill"
 
+#: URI of the RAI config template the skill points at, served as a resource.
+RAI_TEMPLATE_URI = "croissant-baker://rai-template"
 
-def skill_markdown() -> str:
-    """Return the text of the bundled ``SKILL.md``.
+
+def _skill_file(*parts: str) -> str:
+    """Return the text of a file in the bundled skill directory.
 
     Read through :mod:`importlib.resources` rather than from a path relative
     to this file, so it resolves the same way from a wheel, a zip import and a
@@ -53,9 +57,19 @@ def skill_markdown() -> str:
     """
     return (
         importlib.resources.files("croissant_baker")
-        .joinpath("skills", "croissant-baker", "SKILL.md")
+        .joinpath("skills", "croissant-baker", *parts)
         .read_text(encoding="utf-8")
     )
+
+
+def skill_markdown() -> str:
+    """Return the text of the bundled ``SKILL.md``."""
+    return _skill_file("SKILL.md")
+
+
+def rai_template_yaml() -> str:
+    """Return the text of the bundled ``assets/rai-template.yaml``."""
+    return _skill_file("assets", "rai-template.yaml")
 
 
 def dry_run(
@@ -227,7 +241,7 @@ def _reported_to_client(tool: Callable[..., Any], error: type) -> Callable[..., 
 
 
 def build_server() -> Any:
-    """Build the MCP server with the three tools and the skill resource.
+    """Build the MCP server with the three tools and the two resources.
 
     Returns:
         An ``MCPServer`` from the ``mcp`` package, imported here so the
@@ -264,6 +278,16 @@ def build_server() -> Any:
         ),
         mime_type="text/markdown",
     )(skill_markdown)
+    server.resource(
+        RAI_TEMPLATE_URI,
+        name="croissant-baker-rai-template",
+        title="Croissant Baker RAI config template",
+        description=(
+            "Starting point for --rai-config: every key the loader accepts, "
+            "with a comment on what belongs in each."
+        ),
+        mime_type="application/yaml",
+    )(rai_template_yaml)
     return server
 
 

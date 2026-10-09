@@ -9,6 +9,7 @@ import asyncio
 import importlib.resources
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -377,27 +378,48 @@ def test_the_server_reports_the_package_version() -> None:
     assert mcp_server.build_server().version == get_version() != ""
 
 
-def test_the_server_publishes_the_skill_as_its_only_resource() -> None:
-    """An agent that connects can read the skill without a filesystem path."""
+def test_the_server_publishes_the_skill_and_the_rai_template() -> None:
+    """An agent that connects can read both without a filesystem path.
+
+    The skill sends the agent to the RAI template, so a client that reached the
+    skill over MCP has to be able to reach the template the same way.
+    """
     resources = asyncio.run(mcp_server.build_server().list_resources())
 
-    assert [str(r.uri) for r in resources] == ["croissant-baker://skill"]
-    assert [r.mime_type for r in resources] == ["text/markdown"]
+    assert {str(r.uri): r.mime_type for r in resources} == {
+        "croissant-baker://skill": "text/markdown",
+        "croissant-baker://rai-template": "application/yaml",
+    }
 
 
-def test_reading_the_skill_resource_returns_the_packaged_skill() -> None:
-    """The resource serves the file that ships in the package, verbatim."""
+@pytest.mark.parametrize(
+    "uri, relative",
+    [
+        ("croissant-baker://skill", "SKILL.md"),
+        ("croissant-baker://rai-template", "assets/rai-template.yaml"),
+    ],
+)
+def test_each_resource_serves_the_packaged_file(uri: str, relative: str) -> None:
+    """A resource serves the file that ships in the package, verbatim."""
     packaged = (
         importlib.resources.files("croissant_baker")
-        .joinpath("skills", "croissant-baker", "SKILL.md")
+        .joinpath("skills", "croissant-baker", relative)
         .read_text(encoding="utf-8")
     )
 
-    contents = asyncio.run(
-        mcp_server.build_server().read_resource("croissant-baker://skill")
-    )
+    contents = asyncio.run(mcp_server.build_server().read_resource(uri))
 
     assert "".join(chunk.content for chunk in contents) == packaged
+
+
+def test_every_resource_the_skill_names_is_served() -> None:
+    """A URI the skill points at and the server does not serve is a dead end."""
+    named = set(re.findall(r"croissant-baker://[a-z-]+", mcp_server.skill_markdown()))
+    served = {
+        str(r.uri) for r in asyncio.run(mcp_server.build_server().list_resources())
+    }
+
+    assert named and named <= served
 
 
 def test_dry_run_on_a_missing_directory_names_it_to_the_client(tmp_path: Path) -> None:

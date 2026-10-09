@@ -159,6 +159,7 @@ Use flags for two or three fields; switch to the YAML as soon as the user has
 lineage or activities to record. When you need the YAML, read
 `assets/rai-template.yaml` and copy it as the starting point; it carries the
 exact key names the loader accepts and comments saying what belongs in each.
+Over MCP, read the same file as the resource `croissant-baker://rai-template`.
 Delete the keys the user cannot answer rather than filling them with plausible
 text.
 
