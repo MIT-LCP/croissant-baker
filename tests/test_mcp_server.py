@@ -412,6 +412,9 @@ def test_tools_tell_the_client_which_are_read_only() -> None:
     assert tools["validate"].read_only_hint is True
     assert tools["bake"].read_only_hint is False
     assert tools["bake"].destructive_hint is True
+    assert all(hints.open_world_hint is False for hints in tools.values()), (
+        "no tool reaches beyond the local machine"
+    )
 
 
 def test_the_server_reports_the_package_version() -> None:

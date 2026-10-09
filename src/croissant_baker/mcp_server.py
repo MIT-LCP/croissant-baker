@@ -22,10 +22,10 @@ them, and could not open a file the skill names.
 from __future__ import annotations
 
 import functools
-from datetime import datetime
 import glob
 import importlib.resources
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Optional
 
@@ -299,9 +299,12 @@ def build_server() -> Any:
 
     # The hints let a client approve the two tools that only read on its own
     # and ask before bake, which writes the output, the report and any
-    # missing parent directories, replacing files already there.
-    read_only = ToolAnnotations(read_only_hint=True)
-    writes = ToolAnnotations(read_only_hint=False, destructive_hint=True)
+    # missing parent directories, replacing files already there. None of the
+    # three reaches beyond the local machine.
+    read_only = ToolAnnotations(read_only_hint=True, open_world_hint=False)
+    writes = ToolAnnotations(
+        read_only_hint=False, destructive_hint=True, open_world_hint=False
+    )
 
     server = MCPServer(SERVER_NAME, version=get_version())
     for tool, hints in (
