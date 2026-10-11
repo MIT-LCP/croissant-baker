@@ -5,12 +5,12 @@
 | Name                                                        |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |------------------------------------------------------------ | -------: | -------: | -------: | -------: | ------: | --------: |
 | src/croissant\_baker/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |    100% |           |
-| src/croissant\_baker/\_\_main\_\_.py                        |      373 |       48 |      140 |       17 |     87% |87-88, 107-108, 168, 203, 274-275, 312, 314, 318, 347, 376, 399, 506-507, 515-\>exit, 946-948, 956-\>991, 992-1000, 1144, 1155-1158, 1186-1187, 1194-1202, 1207-1209, 1226-\>1232, 1232-\>exit, 1238-1244, 1248 |
+| src/croissant\_baker/\_\_main\_\_.py                        |      326 |       47 |      118 |       17 |     85% |95, 98, 133, 204-205, 242, 244, 248, 277, 306, 329, 421-422, 430-\>exit, 845-847, 856-864, 1008, 1019-1022, 1050-1051, 1058-1066, 1071-1073, 1095-1097, 1114-\>1120, 1120-\>exit, 1126-1132, 1136 |
 | src/croissant\_baker/assembly.py                            |       65 |        0 |       26 |        2 |     98% |144-\>143, 154-\>156 |
 | src/croissant\_baker/compression.py                         |       58 |        3 |       14 |        2 |     93% |69-70, 137 |
 | src/croissant\_baker/duplicates.py                          |       56 |        4 |       24 |        0 |     95% |103-104, 112-113 |
 | src/croissant\_baker/entries.py                             |       86 |        0 |        4 |        0 |    100% |           |
-| src/croissant\_baker/files.py                               |       34 |        2 |       16 |        0 |     96% |     76-77 |
+| src/croissant\_baker/files.py                               |       37 |        2 |       18 |        0 |     96% |     85-86 |
 | src/croissant\_baker/handlers/\_\_init\_\_.py               |        0 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/handlers/bam\_handler.py               |       69 |        3 |       16 |        0 |     96% |105-106, 165 |
 | src/croissant\_baker/handlers/base\_handler.py              |       89 |       15 |       20 |        0 |     84% |172, 192, 203-204, 208-209, 235, 277-279, 284-289 |
@@ -20,7 +20,7 @@
 | src/croissant\_baker/handlers/dicom\_handler.py             |      154 |        6 |       72 |       10 |     93% |35-36, 47-\>49, 49-\>52, 56-\>59, 60-\>63, 64-\>67, 75-76, 79-\>82, 95-\>101, 194, 280, 326-\>328 |
 | src/croissant\_baker/handlers/fasta\_handler.py             |       34 |        0 |       10 |        0 |    100% |           |
 | src/croissant\_baker/handlers/fastq\_handler.py             |       63 |        1 |       26 |        1 |     98% |        88 |
-| src/croissant\_baker/handlers/fhir\_handler.py              |      194 |       24 |       84 |       14 |     86% |65-66, 77-80, 101-\>103, 140, 146-147, 199, 202-206, 208, 214-217, 224, 263-264, 269, 293, 296-\>290, 300, 347-\>342, 362-363 |
+| src/croissant\_baker/handlers/fhir\_handler.py              |      194 |       23 |       84 |       13 |     86% |65-66, 77-80, 101-\>103, 146-147, 199, 202-206, 208, 214-217, 224, 263-264, 269, 293, 296-\>290, 300, 347-\>342, 362-363 |
 | src/croissant\_baker/handlers/hdf5\_handler/\_\_init\_\_.py |        2 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/handlers/hdf5\_handler/handler.py      |       82 |        0 |       24 |        0 |    100% |           |
 | src/croissant\_baker/handlers/hdf5\_handler/layouts.py      |      283 |       14 |      122 |       12 |     93% |230-234, 285, 377, 383, 397-398, 433, 454, 517-\>515, 593-\>609, 626, 628, 707-\>705 |
@@ -41,16 +41,18 @@
 | src/croissant\_baker/handlers/vcf\_handler.py               |      245 |        5 |       98 |        4 |     97% |246-247, 249-250, 272, 330-\>exit |
 | src/croissant\_baker/handlers/wfdb\_handler.py              |       65 |        3 |       26 |        9 |     87% |78-\>90, 113, 115, 117, 118-\>120, 120-\>122, 122-\>124, 124-\>126, 126-\>129 |
 | src/croissant\_baker/identifiers.py                         |       58 |        6 |       32 |        5 |     86% |20-\>22, 38-\>40, 77, 87-89, 107, 109 |
-| src/croissant\_baker/metadata\_generator.py                 |      392 |       17 |      168 |       10 |     95% |168-\>170, 174, 176, 180-\>179, 343, 524-\>523, 558-561, 576-578, 594-\>592, 604, 945-946, 977-978, 1035-1036 |
+| src/croissant\_baker/mcp\_server.py                         |       75 |        1 |        4 |        0 |     99% |       330 |
+| src/croissant\_baker/metadata\_generator.py                 |      393 |       17 |      168 |       10 |     95% |168-\>170, 174, 176, 180-\>179, 347, 530-\>529, 564-567, 582-584, 600-\>598, 610, 951-952, 983-984, 1041-1042 |
+| src/croissant\_baker/pipeline.py                            |       78 |        4 |       24 |        0 |     96% |69-70, 98-99 |
 | src/croissant\_baker/rai/\_\_init\_\_.py                    |        4 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/rai/injector.py                        |       78 |       11 |       48 |        5 |     83% |102, 163-\>165, 171-179, 188, 190-\>exit |
 | src/croissant\_baker/rai/loader.py                          |      139 |        6 |       54 |        2 |     94% |55-59, 151 |
 | src/croissant\_baker/rai/schema.py                          |       53 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/references.py                          |       92 |        1 |       42 |        1 |     99% |       181 |
 | src/croissant\_baker/report.py                              |       50 |        1 |        6 |        1 |     96% |       113 |
-| src/croissant\_baker/scan.py                                |        9 |        0 |        0 |        0 |    100% |           |
+| src/croissant\_baker/scan.py                                |       10 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/sources.py                             |       60 |        1 |        6 |        1 |     97% |       141 |
-| **TOTAL**                                                   | **5240** |  **268** | **1906** |  **179** | **93%** |           |
+| **TOTAL**                                                   | **5351** |  **271** | **1914** |  **178** | **93%** |           |
 
 
 ## Setup coverage badge
