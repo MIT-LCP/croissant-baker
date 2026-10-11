@@ -2112,7 +2112,7 @@ found nothing, and a populated one otherwise.</p>
 
 
 <h3 id="croissant_baker.metadata_generator.MetadataGenerator.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">citation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_published</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_created</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_modified</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">creators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">publisher</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_language</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">same_as</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternate_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_live_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temporal_coverage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">usage_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">identifier</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conditions_of_access</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_accessible_for_free</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">included_in_data_catalog</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">profiles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">field_mappings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">count_csv_rows</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">genomic_sample_ids</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">detect_references</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">excludes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rai_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">handlers</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">citation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_published</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_created</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_modified</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">creators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">publisher</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_language</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">same_as</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_license</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sd_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternate_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_live_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temporal_coverage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">usage_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">identifier</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conditions_of_access</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_accessible_for_free</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">included_in_data_catalog</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">profiles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">field_mappings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">count_csv_rows</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">genomic_sample_ids</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">detect_references</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">includes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">excludes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skip_paths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rai_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">handlers</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2687,6 +2687,24 @@ column with a name-identifiable parent table. Defaults to False.</p>
             <td>
               <div class="doc-md-description">
                 <p>Glob patterns to exclude. Applied after includes.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>skip_paths</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="typing.List">List</span>[<span title="pathlib.Path">Path</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Paths relative to the dataset to leave out exactly,
+such as a bake's own output written inside it. See
+:func:<code>croissant_baker.files.discover_files</code>.</p>
               </div>
             </td>
             <td>
@@ -3459,7 +3477,7 @@ one and two competing tips read as noise.</p>
 
 
 <h2 id="croissant_baker.files.discover_files" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">croissant_baker</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">discover_files</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">include_patterns</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exclude_patterns</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">croissant_baker</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">discover_files</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">include_patterns</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exclude_patterns</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skip_paths</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -3523,6 +3541,26 @@ and return their relative paths.</p>
             <td>
               <div class="doc-md-description">
                 <p>Optional list of glob patterns to exclude.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>skip_paths</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="typing.Iterable">Iterable</span>[<span title="pathlib.Path">Path</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional relative paths to leave out, each compared with
+the whole relative path. Unlike a glob, which matches from the
+right, it never catches a file of the same name deeper in the
+tree. Meant for files the caller wrote itself, such as a bake's
+own output inside the dataset.</p>
               </div>
             </td>
             <td>

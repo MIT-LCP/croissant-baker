@@ -586,6 +586,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#croissant-baker-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        croissant-baker mcp
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#croissant-baker-validate" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -671,6 +682,17 @@
     <span class="md-ellipsis">
       
         croissant-baker rai-apply
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#croissant-baker-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        croissant-baker mcp
       
     </span>
   </a>
@@ -783,6 +805,7 @@
 <p><strong>Commands</strong>:</p>
 <ul>
 <li><code>rai-apply</code>: Apply RAI attributes from a config YAML to...</li>
+<li><code>mcp</code>: Serve the dry_run, bake and validate tools...</li>
 <li><code>validate</code>: Validate a Croissant metadata file.</li>
 </ul>
 <h2 id="croissant-baker-rai-apply"><code>croissant-baker rai-apply</code></h2>
@@ -801,10 +824,21 @@
 <li><code>--validate / --no-validate</code>: Validate after applying RAI attributes  [default: validate]</li>
 <li><code>--help</code>: Show this message and exit.</li>
 </ul>
+<h2 id="croissant-baker-mcp"><code>croissant-baker mcp</code></h2>
+<p>Serve the dry_run, bake and validate tools over stdio to a local agent.</p>
+<p>Model Context Protocol, stdio transport only: no HTTP listener and no
+outbound requests, so a bake still never leaves the local environment.</p>
+<p><strong>Usage</strong>:</p>
+<div class="language-console highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>croissant-baker<span class="w"> </span>mcp<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<p><strong>Options</strong>:</p>
+<ul>
+<li><code>--help</code>: Show this message and exit.</li>
+</ul>
 <h2 id="croissant-baker-validate"><code>croissant-baker validate</code></h2>
 <p>Validate a Croissant metadata file.</p>
 <p><strong>Usage</strong>:</p>
-<div class="language-console highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>croissant-baker<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>FILE_PATH
+<div class="language-console highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="gp">$ </span>croissant-baker<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>FILE_PATH
 </span></code></pre></div>
 <p><strong>Arguments</strong>:</p>
 <ul>
