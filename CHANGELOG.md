@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.7.0...croissant-baker-v0.8.0) (2026-10-11)
+
+
+### Features
+
+* add a local MCP server and an Agent Skill ([#130](https://github.com/MIT-LCP/croissant-baker/issues/130)) ([2b82381](https://github.com/MIT-LCP/croissant-baker/commit/2b823815979c2888de276d8a5545634d66cdf0d5))
+
+
+### Build System
+
+* **deps:** bump py-cov-action/python-coverage-comment-action from 4.3 to 4.5 ([#168](https://github.com/MIT-LCP/croissant-baker/issues/168)) ([e938255](https://github.com/MIT-LCP/croissant-baker/commit/e9382555d192b0281448abd4fc41a965517901af))
+
 ## [0.7.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.6.2...croissant-baker-v0.7.0) (2026-09-30)
 
 
