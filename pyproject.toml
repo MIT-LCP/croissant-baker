@@ -38,13 +38,20 @@ dependencies = [
     "xlrd>=2.0",
 ]
 
+# Optional: the local stdio MCP server (`croissant-baker mcp`). An extra rather
+# than a dependency group, because only an extra is written into the wheel.
+# Install with: pip install 'croissant-baker[mcp]', or uv sync --extra mcp
+[project.optional-dependencies]
+mcp = ["mcp>=2.2"]
+
 [project.scripts]
 croissant-baker = "croissant_baker.__main__:app"
 
 # PEP 735 dependency groups — not propagated to downstream consumers.
 # Install with: uv sync --group dev
 [dependency-groups]
-test = ["pytest>=7.0", "pytest-cov>=5"]
+# hatchling is the build backend; tests/test_packaging.py builds a wheel with it.
+test = ["pytest>=7.0", "pytest-cov>=5", "hatchling"]
 dev = [
     "ruff>=0.1.0",
     "pre-commit>=4.5.1",
@@ -57,6 +64,17 @@ docs = [
     "griffe>=2.0",
     "typer-cli",
 ]
+
+# The Agent Skill lives at src/croissant_baker/skills/croissant-baker/ and is
+# surfaced to agent clients through the symlink in .agents/skills/. Hatchling
+# follows that symlink and keeps one path per file, so whichever it walks first
+# wins: without this the skill ships under a dot-directory instead of inside
+# the package, or not at all. `skip-excluded-dirs` is what stops the walk,
+# since `exclude` alone filters the result after the link has already claimed
+# the files.
+[tool.hatch.build]
+exclude = [".agents"]
+skip-excluded-dirs = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/croissant_baker"]

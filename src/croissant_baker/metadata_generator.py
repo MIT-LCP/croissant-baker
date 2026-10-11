@@ -256,6 +256,7 @@ class MetadataGenerator:
         detect_references: bool = False,
         includes: Optional[List[str]] = None,
         excludes: Optional[List[str]] = None,
+        skip_paths: Optional[List[Path]] = None,
         rai_fields: Optional[Dict[str, object]] = None,
         handlers: Optional[HandlerRegistry] = None,
     ):
@@ -328,6 +329,9 @@ class MetadataGenerator:
                 column with a name-identifiable parent table. Defaults to False.
             includes: Glob patterns to include. Applied before excludes.
             excludes: Glob patterns to exclude. Applied after includes.
+            skip_paths: Paths relative to the dataset to leave out exactly,
+                such as a bake's own output written inside it. See
+                :func:`croissant_baker.files.discover_files`.
             rai_fields: Native mlcroissant RAI metadata fields, passed through
                 to ``mlc.Metadata`` unchanged.
             handlers: Which handlers to consult, and in what order. Defaults to
@@ -370,6 +374,7 @@ class MetadataGenerator:
         self.field_mappings = field_mappings or {}
         self.includes = includes
         self.excludes = excludes
+        self.skip_paths = skip_paths
         self.rai_fields = rai_fields or {}
         self.max_workers = max_workers
         self.handlers = handlers if handlers is not None else default_registry()
@@ -434,6 +439,7 @@ class MetadataGenerator:
             str(self.dataset_path),
             include_patterns=self.includes,
             exclude_patterns=self.excludes,
+            skip_paths=self.skip_paths,
         )
         self._scan_entries = entries
         self._reference_report = None
