@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from croissant_baker.__main__ import app
@@ -12,6 +13,7 @@ from croissant_baker.rai import inject_rai
 from croissant_baker.rai.injector import _COLLECTION_TYPE_TERMS
 from croissant_baker.rai.schema import Activity, RAIConfig
 from tests.helpers import cli
+from tests.test_end_to_end import _discovery_independent
 
 runner = CliRunner()
 
@@ -53,15 +55,13 @@ def mimiciv_demo_path() -> Path:
     return MIMICIV_PATH
 
 
-def test_rai_generation_matches_reference(
-    mimiciv_demo_path: Path, tmp_path: Path
-) -> None:
-    output = tmp_path / "output.jsonld"
-    result = runner.invoke(
+def _bake_with_rai(dataset: Path, output: Path) -> Result:
+    """Bake the MIMIC-IV demo with the fixture RAI config, as the golden was."""
+    return runner.invoke(
         app,
         [
             "-i",
-            str(mimiciv_demo_path),
+            str(dataset),
             "-o",
             str(output),
             "--name",
@@ -96,6 +96,13 @@ def test_rai_generation_matches_reference(
         ],
     )
 
+
+def test_rai_generation_matches_reference(
+    mimiciv_demo_path: Path, tmp_path: Path
+) -> None:
+    output = tmp_path / "output.jsonld"
+    result = _bake_with_rai(mimiciv_demo_path, output)
+
     assert result.exit_code == 0, result.output
 
     generated = json.loads(output.read_text())
@@ -103,6 +110,34 @@ def test_rai_generation_matches_reference(
 
     for key in _RAI_PROV_KEYS:
         assert generated.get(key) == expected.get(key), f"Mismatch for {key}"
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_rai_generation_matches_the_whole_reference(
+    mimiciv_demo_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
+    """The whole document is compared, so the golden cannot drift from the bake.
+
+    Compared through :func:`_discovery_independent` and run in both discovery
+    orders, since ``rglob`` order depends on the filesystem. To regenerate, bake with the arguments of
+    :func:`_bake_with_rai` and write to ``EXPECTED``.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output = tmp_path / "output.jsonld"
+    result = _bake_with_rai(mimiciv_demo_path, output)
+
+    assert result.exit_code == 0, result.output
+    assert _discovery_independent(
+        json.loads(output.read_text())
+    ) == _discovery_independent(json.loads(EXPECTED.read_text()))
 
 
 BAD_RAI_YAML = "ai_fairness:\n  social_impact: It enables research.\n"
