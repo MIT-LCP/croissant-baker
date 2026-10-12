@@ -7,6 +7,7 @@ from croissant_baker.handlers.utils import (
     make_field_id,
     make_record_set_ids,
     normalize_array_shape,
+    plural,
     shard_template,
 )
 
@@ -180,6 +181,18 @@ def test_allocation_does_not_depend_on_batch_order() -> None:
     )
 
     assert forward == list(reversed(reversed_))
+
+
+def test_plural_keeps_one_of_a_thing_singular() -> None:
+    assert plural(1, "NIfTI file") == "1 NIfTI file"
+
+
+def test_plural_adds_an_s_for_two() -> None:
+    assert plural(2, "NIfTI file") == "2 NIfTI files"
+
+
+def test_plural_adds_an_s_for_none() -> None:
+    assert plural(0, "row") == "0 rows"
 
 
 def test_record_set_ids_do_not_depend_on_batch_order() -> None:

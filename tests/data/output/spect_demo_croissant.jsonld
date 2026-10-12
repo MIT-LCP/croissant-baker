@@ -138,7 +138,7 @@
       "@type": "cr:FileSet",
       "@id": "nifti-files",
       "name": "NIfTI files",
-      "description": "3 NIfTI file(s) (70x70x50)",
+      "description": "3 NIfTI files (70x70x50)",
       "encodingFormat": [
         "application/x-nifti",
         "application/gzip"
@@ -152,7 +152,7 @@
       "@type": "cr:FileSet",
       "@id": "dicom-files",
       "name": "DICOM files",
-      "description": "3 DICOM file(s) (NM (3))",
+      "description": "3 DICOM files (NM (3))",
       "encodingFormat": "application/dicom",
       "includes": [
         "**/*.dcm",
