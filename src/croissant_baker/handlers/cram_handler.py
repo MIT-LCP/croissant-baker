@@ -24,7 +24,7 @@ from typing import BinaryIO, Tuple
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.sam_header import (
     SamHeader,
-    describe_alignment,
+    alignment_metadata,
     parse_sam_header,
 )
 from croissant_baker.handlers.utils import MAX_HEADER_BYTES, read_exactly
@@ -244,37 +244,17 @@ class CRAMHandler(FileTypeHandler):
         major, minor, header = self._read_header(source, name)
         version = f"{major}.{minor}"
 
-        metadata = {
-            "file_name": source.name,
-            "file_size": source.size,
-            "sha256": source.sha256,
-            "encoding_format": ENCODING_FORMAT,
-            "cram_version": version,
-            "sam_version": header.sam_version,
-            "sort_order": header.sort_order,
-            "sq_count": header.sq_count,
-            "read_group_count": header.read_group_count,
-            "platforms": header.platforms,
-            "centres": header.centres,
-            "programs": header.programs,
-        }
-        if header.assembly:
-            metadata["assembly"] = header.assembly
-        # Withheld before anything is written, so the description cannot leak
-        # what the metadata withholds.
-        sample_ids = header.sample_ids if genomic_sample_ids else []
-        if sample_ids:
-            metadata["sample_ids"] = sample_ids
         # The reference count is the number of @SQ lines and nothing else: a
         # CRAM states no second count for them the way a BAM's n_ref does.
-        metadata["description"] = describe_alignment(
-            f"{self.FORMAT_NAME} {version}",
-            header,
-            header.sq_count,
-            source.name,
-            sample_ids,
+        return alignment_metadata(
+            source,
+            encoding_format=ENCODING_FORMAT,
+            described_as=f"{self.FORMAT_NAME} {version}",
+            header=header,
+            reference_count=header.sq_count,
+            genomic_sample_ids=genomic_sample_ids,
+            extra={"cram_version": version},
         )
-        return metadata
 
     def _read_header(self, source: FileSource, name: str) -> Tuple[int, int, SamHeader]:
         """The version and the SAM header, and nothing after the first block."""

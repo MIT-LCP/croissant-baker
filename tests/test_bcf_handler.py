@@ -17,6 +17,7 @@ import pytest
 
 from croissant_baker.entries import Reason
 from croissant_baker.handlers.bcf_handler import BCFHandler
+from croissant_baker.handlers.utils import MAX_HEADER_BYTES
 from croissant_baker.handlers.vcf_handler import VCFHandler
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
@@ -28,6 +29,7 @@ from tests.helpers import (
     bake_with_report,
     bcf_payload,
     cli,
+    cut_gzip,
     file_objects,
     record_sets,
     write_wrapped,
@@ -351,3 +353,54 @@ def test_the_flag_reaches_a_bake_from_the_command_line(
 
     assert result.exit_code == 0, result.output
     assert "NA00001" in samples_description(json.loads(output.read_text()))
+
+
+def test_a_corrupt_wrapper_is_not_claimed(dataset: Path) -> None:
+    """A gzip magic in front of a member that does not decompress is not a BCF
+    this handler can vouch for, and the claim says no rather than raising."""
+    path = write(dataset, "corrupt.bcf", b"\x1f\x8b" + b"\xff" * 64)
+
+    assert not HANDLER.claims(source_for(path))
+
+
+def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "cut.bcf", cut_gzip(bcf_payload()))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value).startswith("Failed to read BCF file cut.bcf: ")
+    assert isinstance(caught.value.__cause__, EOFError)
+
+
+def test_a_truncated_header_names_the_container_and_the_field(
+    dataset: Path,
+) -> None:
+    path = write(
+        dataset,
+        "truncated.bcf",
+        gzip.compress(b"BCF\x02\x02" + struct.pack("<I", 4096) + b"##file"),
+    )
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value) == (
+        "Truncated BCF header in truncated.bcf: the header text needs 4096 bytes, got 6"
+    )
+
+
+def test_the_cap_refusal_states_the_declared_length_and_the_cap(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "huge.bcf", b"BCF\x02\x02" + struct.pack("<I", 2**32 - 1))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value) == (
+        "Not a BCF file: huge.bcf declares a header of 4294967295 bytes, "
+        f"above the {MAX_HEADER_BYTES} a header can be"
+    )

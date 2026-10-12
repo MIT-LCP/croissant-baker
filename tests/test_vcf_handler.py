@@ -950,3 +950,37 @@ def test_a_structured_reference_prefers_its_url_to_its_path() -> None:
     declared = "<ID=GRCh38,Path=/gpfs/jdoe/GRCh38.fa,URL=https://h.org/GRCh38.fa>"
 
     assert vcf_handler.reference_name(declared) == "GRCh38 (https://h.org/GRCh38.fa)"
+
+
+def test_the_line_cap_refusal_states_the_cap(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(vcf_handler, "MAX_LINE_BYTES", SMALL_LINE_CAP)
+    path = write(
+        dataset, "unbroken.vcf", UNBROKEN_OPENING + b"x" * (4 * SMALL_LINE_CAP)
+    )
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    message = str(caught.value)
+    assert message.startswith("Not a VCF file: unbroken.vcf runs to ")
+    assert message.endswith(
+        f" bytes with no line ending, past the {SMALL_LINE_CAP} a header line can be"
+    )
+
+
+def test_the_header_cap_refusal_states_the_cap(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(vcf_handler, "MAX_HEADER_BYTES", SMALL_HEADER_CAP)
+    contigs = b"".join(b"##contig=<ID=chr%d,length=100000>\n" % i for i in range(40000))
+    path = write(dataset, "endless.vcf", b"##fileformat=VCFv4.2\n" + contigs)
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value) == (
+        f"Not a VCF file: the header of endless.vcf runs past {SMALL_HEADER_CAP} "
+        "bytes without reaching a line that is not a header line"
+    )
