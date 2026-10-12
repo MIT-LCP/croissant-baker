@@ -12,7 +12,7 @@ from croissant_baker.handlers.nifti_handler import (
 )
 from croissant_baker.sources import make_source
 
-from tests.helpers import bake_validated, record_sets
+from tests.helpers import bake, bake_validated, record_sets
 
 
 def _make_nifti(
@@ -225,10 +225,6 @@ def test_a_mixed_dtype_bake_describes_itself_one_way(
     tmp_path: Path, reverse_discovery: bool
 ) -> None:
     """The same directory, reached in either order, bakes to one description."""
-    # Local, since the header field tests in #152 add their own helpers
-    # import on the line a top-level one would take.
-    from tests.helpers import bake
-
     _make_nifti(tmp_path / "a.nii", dtype=np.uint8)
     _make_nifti(tmp_path / "b.nii", dtype=np.float32)
 
