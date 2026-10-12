@@ -398,3 +398,49 @@ def test_compressed_dicom_header_fields_keep_their_schema_without_an_extract(
         assert field["name"] == field_id.split("/", 1)[1]
         assert "isArray" not in field, field_id
     assert dicom["description"] == "2 DICOM files (4-512x6-512): CT (2)"
+
+
+def _make_bare_dicom(path: Path) -> FileDataset:
+    """A DICOM holding no image, modality or class tags: only its meta."""
+    file_meta = Dataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    return FileDataset(str(path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
+
+
+def test_a_dicom_with_no_image_tags_is_described_without_them(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    path = tmp_path / "bare.dcm"
+    pydicom.dcmwrite(str(path), _make_bare_dicom(path))
+
+    meta = handler.extract(make_source(path))
+    built = handler.build_croissant([meta], ["file_0"])
+
+    assert meta["dicom_properties"] == {"num_frames": 1}
+    assert built.file_sets[0].description == "1 DICOM file(s) (no modality (1))"
+    assert "(unknown dimensions)" in built.record_sets[0].description
+
+
+def test_numeric_tags_that_do_not_read_as_numbers_are_left_out(
+    handler: DICOMHandler, tmp_path: Path
+) -> None:
+    """A writer that stores spacing or thickness as free text does not cost
+    the file its description; only the unreadable values are dropped."""
+    path = tmp_path / "text.dcm"
+    ds = _make_bare_dicom(path)
+    ds.Modality = "CT"
+    ds.add_new(0x00280030, "LO", "wide\\narrow")  # PixelSpacing
+    ds.add_new(0x00180050, "LO", "thick")  # SliceThickness
+    pydicom.dcmwrite(str(path), ds)
+
+    props = handler.extract(make_source(path))["dicom_properties"]
+
+    assert props["modality"] == "CT"
+    assert "pixel_spacing" not in props
+    assert "slice_thickness" not in props
+
+
+def test_an_empty_batch_summarises_to_nothing() -> None:
+    assert collect_dicom_summary([]) == {}

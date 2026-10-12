@@ -1,11 +1,23 @@
 """Tests for handler utilities."""
 
+import datetime
+from pathlib import Path
+
+import pyarrow as pa
+import pytest
+
 from croissant_baker.handlers.utils import (
     ARRAY_SHAPE_UNKNOWN_1D,
     _disambiguate_ids,
     allocate_record_set_ids,
+    compute_file_hash,
+    get_clean_record_name,
+    infer_croissant_type,
+    infer_field_type,
+    infer_json_schema,
     make_field_id,
     make_record_set_ids,
+    map_arrow_type,
     normalize_array_shape,
     shard_template,
 )
@@ -199,3 +211,46 @@ def test_numeric_identifier_collisions_start_at_two() -> None:
         "data__2",
         "data__3",
     ]
+
+
+@pytest.mark.parametrize(
+    "arrow_type, expected",
+    [
+        (pa.decimal128(10, 2), "cr:Float64"),
+        (pa.binary(), "sc:Text"),
+        (pa.large_binary(), "sc:Text"),
+    ],
+    ids=["decimal", "binary", "large_binary"],
+)
+def test_map_arrow_type_reads_decimals_as_floats_and_bytes_as_text(
+    arrow_type: pa.DataType, expected: str
+) -> None:
+    assert map_arrow_type(arrow_type) == expected
+
+
+def test_a_date_is_inferred_as_a_date_not_a_datetime() -> None:
+    assert infer_croissant_type(datetime.date(2020, 1, 1)) == "sc:Date"
+
+
+def test_a_field_with_no_values_is_text() -> None:
+    assert infer_field_type([]) == "sc:Text"
+
+
+def test_json_schema_inference_skips_records_that_are_not_objects() -> None:
+    assert infer_json_schema([]) == {}
+    assert infer_json_schema([1, "two", {"a": 1}]) == {"a": "cr:Int64"}
+
+
+@pytest.mark.parametrize("file_name", ["", None])
+def test_a_missing_file_name_gives_a_placeholder_record_name(file_name) -> None:
+    assert get_clean_record_name(file_name) == "unknown"
+
+
+def test_hashing_a_missing_path_names_it(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError, match="missing.csv"):
+        compute_file_hash(tmp_path / "missing.csv")
+
+
+def test_hashing_a_directory_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Path is not a file"):
+        compute_file_hash(tmp_path)

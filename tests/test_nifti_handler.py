@@ -346,3 +346,56 @@ def test_compressed_nifti_header_fields_keep_their_schema_without_an_extract(
     assert nifti["description"] == (
         "2 NIfTI files (8-64x8-64x4-30, 5 volumes): float32"
     )
+
+
+@pytest.mark.parametrize(
+    "shape, zooms, dims_note",
+    [((5,), (1.5,), "5"), ((5, 4), (1.5, 2.0), "5x4")],
+    ids=["1d", "2d"],
+)
+def test_a_volume_under_three_dimensions_states_only_the_axes_it_has(
+    handler: NIfTIHandler, tmp_path: Path, shape, zooms, dims_note
+) -> None:
+    path = _make_nifti(tmp_path / "slice.nii", shape=shape, zooms=zooms)
+
+    meta = handler.extract(make_source(path))
+    props = meta["nifti_properties"]
+    axes = ["x", "y", "z"][: len(shape)]
+    built = handler.build_croissant([meta], ["file_0"])
+
+    assert props["ndim"] == len(shape)
+    assert {k for k in props if k.startswith("dim_")} == {f"dim_{a}" for a in axes}
+    assert {k for k in props if k.startswith("voxel_spacing_")} == {
+        f"voxel_spacing_{a}" for a in axes
+    }
+    assert f"({dims_note}): int16" in built.record_sets[0].description
+
+
+def test_a_4d_volume_with_no_repetition_time_states_none(
+    handler: NIfTIHandler, tmp_path: Path
+) -> None:
+    path = _make_nifti_4d(
+        tmp_path / "bold.nii", shape=(4, 4, 2, 3), zooms=(2.0, 2.0, 3.0, 0.0)
+    )
+
+    props = handler.extract(make_source(path))["nifti_properties"]
+
+    assert props["dim_t"] == 3
+    assert "tr_seconds" not in props
+
+
+def test_4d_volumes_of_different_lengths_state_the_range(
+    handler: NIfTIHandler,
+) -> None:
+    metas = [
+        _nifti_meta("short.nii.gz", ndim=4, dim_t=120),
+        _nifti_meta("long.nii.gz", ndim=4, dim_t=200),
+    ]
+
+    built = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    assert "120-200 volumes" in built.record_sets[0].description
+
+
+def test_an_empty_batch_summarises_to_nothing() -> None:
+    assert collect_nifti_summary([]) == {}
