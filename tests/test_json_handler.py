@@ -274,3 +274,55 @@ def test_a_fhir_bundle_named_json_goes_to_the_fhir_handler(tmp_path: Path) -> No
     _write_json(path, _FHIR_BUNDLE)
 
     assert isinstance(find_handler(path), FHIRHandler)
+
+
+@pytest.mark.parametrize("compressed", [False, True], ids=["plain", "gzip"])
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"metadata": {"resourceType": "Patient"}, "value": 1},
+        {"metadata": [{"resourceType": "Patient"}], "value": 1},
+    ],
+    ids=["nested-object", "nested-array"],
+)
+def test_nested_resource_type_routes_to_json(tmp_path, compressed, data):
+    from croissant_baker.handlers.registry import HandlerRegistry, builtin_handlers
+    from tests.helpers import bake_validated, record_sets
+
+    path = tmp_path / ("nested.json.gz" if compressed else "nested.json")
+    (_write_json_gz if compressed else _write_json)(path, data)
+    selection = HandlerRegistry(builtin_handlers()).select(path)
+    assert isinstance(selection.handler, JSONHandler)
+    assert selection.handler.extract(selection.source)["num_rows"] == 1
+    assert len(record_sets(bake_validated(tmp_path))) == 1
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        ([{"resourceType": "Patient"}], True),
+        ({"resourceType": "Patient", "padding": "x" * 5000}, False),
+        ({"padding": "x" * 5000, "resourceType": "Patient"}, True),
+        ({"resourceType": "notFHIR", "data": 1}, True),
+        ({"resourceType": "", "data": 1}, True),
+        ({"resourceType": 1, "data": 1}, True),
+    ],
+    ids=["array", "large-fhir", "late-key", "lowercase", "empty", "non-string"],
+)
+def test_json_sniff_controls(tmp_path, data, expected):
+    path = tmp_path / "control.json"
+    _write_json(path, data)
+    assert JSONHandler().claims(make_source(path)) is expected
+
+
+@pytest.mark.parametrize("compressed", [False, True], ids=["plain", "gzip"])
+@pytest.mark.parametrize("array", [False, True], ids=["fhir", "array"])
+def test_resource_type_routing_controls(tmp_path, compressed, array):
+    from croissant_baker.handlers.fhir_handler import FHIRHandler
+    from croissant_baker.handlers.registry import HandlerRegistry, builtin_handlers
+
+    data = [{"resourceType": "Patient"}] if array else _FHIR_BUNDLE
+    path = tmp_path / ("control.json.gz" if compressed else "control.json")
+    (_write_json_gz if compressed else _write_json)(path, data)
+    selected = HandlerRegistry(builtin_handlers()).select(path)
+    assert isinstance(selected.handler, JSONHandler if array else FHIRHandler)
