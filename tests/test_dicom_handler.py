@@ -236,11 +236,30 @@ def test_the_modality_breakdown_does_not_follow_discovery_order(
 
     for built in (forward, backward):
         assert built.file_sets[0].description == (
-            "4 DICOM file(s) (CT (2), MR (1), no modality (1))"
+            "4 DICOM files (CT (2), MR (1), no modality (1))"
         )
         assert built.record_sets[0].description == (
             "4 DICOM files (512x512): CT (2), MR (1), no modality (1)"
         )
+
+
+@pytest.mark.parametrize(
+    ("count", "file_set", "record_set"),
+    [
+        (1, "1 DICOM file (CT (1))", "1 DICOM file (512x512): CT (1)"),
+        (2, "2 DICOM files (CT (2))", "2 DICOM files (512x512): CT (2)"),
+    ],
+    ids=["one file", "two files"],
+)
+def test_the_file_count_agrees_with_its_noun(
+    handler: DICOMHandler, count: int, file_set: str, record_set: str
+) -> None:
+    metas = [_dicom_meta(f"{i}.dcm") for i in range(count)]
+
+    built = handler.build_croissant(metas, [f"file_{i}" for i in range(count)])
+
+    assert built.file_sets[0].description == file_set
+    assert built.record_sets[0].description == record_set
 
 
 def test_files_without_a_modality_are_counted_last() -> None:
@@ -282,7 +301,7 @@ def test_a_modality_spelled_unknown_is_kept_apart_from_missing_ones(
     assert list(counts.items()) == [("CT", 1), ("unknown", 1), (None, 1)]
     assert sum(counts.values()) == summary["num_files"]
     assert built.file_sets[0].description == (
-        "3 DICOM file(s) (CT (1), unknown (1), no modality (1))"
+        "3 DICOM files (CT (1), unknown (1), no modality (1))"
     )
 
 
