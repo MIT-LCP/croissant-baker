@@ -631,6 +631,12 @@ def test_merge_prefers_structure_over_primitives() -> None:
                 "tags": {"type": "cr:Int64", "is_array": True},
             },
             {"tags": {"type": "sc:Text", "is_array": True}},
+            # One file represents `tags` as a struct. Every other file here
+            # calls it a primitive-array, so this is the only case in the
+            # fixture where the two actually collide on the same key -
+            # without it, struct-vs-primitive-array priority is never
+            # exercised, only struct-vs-primitive and array-vs-primitive.
+            {"tags": {"fields": {"display": "sc:Text"}, "is_array": False}},
         ]
     )
 
@@ -638,5 +644,8 @@ def test_merge_prefers_structure_over_primitives() -> None:
         "fields": {"system": "sc:URL", "text": "sc:Text"},
         "is_array": True,
     }
-    assert merged["tags"] == {"type": "sc:Text", "is_array": True}
+    assert merged["tags"] == {
+        "fields": {"display": "sc:Text"},
+        "is_array": False,
+    }
     assert merged["id"] == "sc:Text"
