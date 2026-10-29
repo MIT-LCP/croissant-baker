@@ -17,17 +17,17 @@
 | src/croissant\_baker/handlers/bcf\_handler.py               |       53 |        3 |       10 |        0 |     95% |115-116, 136 |
 | src/croissant\_baker/handlers/cram\_handler.py              |      147 |        5 |       46 |        5 |     95% |149-\>151, 180, 288, 339, 408, 418 |
 | src/croissant\_baker/handlers/csv\_handler.py               |      140 |       14 |       36 |        8 |     86% |91-\>137, 105, 112-\>117, 121-127, 138, 140, 192, 226-227, 245, 271, 338 |
-| src/croissant\_baker/handlers/dicom\_handler.py             |      154 |        6 |       72 |       10 |     93% |35-36, 47-\>49, 49-\>52, 56-\>59, 60-\>63, 64-\>67, 75-76, 79-\>82, 95-\>101, 194, 280, 326-\>328 |
+| src/croissant\_baker/handlers/dicom\_handler.py             |      155 |        6 |       72 |       10 |     93% |36-37, 48-\>50, 50-\>53, 57-\>60, 61-\>64, 65-\>68, 76-77, 80-\>83, 96-\>102, 195, 281, 327-\>329 |
 | src/croissant\_baker/handlers/fasta\_handler.py             |       34 |        0 |       10 |        0 |    100% |           |
 | src/croissant\_baker/handlers/fastq\_handler.py             |       63 |        1 |       26 |        1 |     98% |        88 |
-| src/croissant\_baker/handlers/fhir\_handler.py              |      194 |       23 |       84 |       13 |     86% |65-66, 77-80, 101-\>103, 146-147, 199, 202-206, 208, 214-217, 224, 263-264, 269, 293, 296-\>290, 300, 347-\>342, 362-363 |
+| src/croissant\_baker/handlers/fhir\_handler.py              |      194 |       21 |       84 |       12 |     87% |66-67, 78-81, 102-\>104, 147-148, 200, 203-207, 209, 215-218, 225, 264-265, 270, 294, 297-\>291, 301, 348-\>343 |
 | src/croissant\_baker/handlers/hdf5\_handler/\_\_init\_\_.py |        2 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/handlers/hdf5\_handler/handler.py      |       82 |        0 |       24 |        0 |    100% |           |
 | src/croissant\_baker/handlers/hdf5\_handler/layouts.py      |      283 |       14 |      122 |       12 |     93% |230-234, 285, 377, 383, 397-398, 433, 454, 517-\>515, 593-\>609, 626, 628, 707-\>705 |
 | src/croissant\_baker/handlers/hdf5\_handler/reading.py      |      106 |        1 |       42 |        1 |     99% |       255 |
 | src/croissant\_baker/handlers/image\_handler.py             |      199 |       15 |       74 |       10 |     89% |97, 158-167, 170, 175, 591, 602-605, 613-\>615, 615-\>617, 617-\>619, 619-\>599 |
 | src/croissant\_baker/handlers/json\_handler.py              |       93 |        7 |       32 |        6 |     90% |70-71, 123, 125-\>111, 132, 171, 176, 182 |
-| src/croissant\_baker/handlers/nifti\_handler.py             |      131 |        4 |       62 |       18 |     89% |54-\>56, 56-\>58, 58-\>60, 67-\>69, 69-\>71, 71-\>75, 77-\>81, 83-84, 149-\>143, 162, 252, 262-\>264, 264-\>266, 266-\>268, 274-\>277, 283-\>285, 285-\>287, 287-\>289, 291-\>295 |
+| src/croissant\_baker/handlers/nifti\_handler.py             |      132 |        4 |       62 |       18 |     89% |55-\>57, 57-\>59, 59-\>61, 68-\>70, 70-\>72, 72-\>76, 78-\>82, 84-85, 150-\>144, 163, 253, 263-\>265, 265-\>267, 267-\>269, 275-\>278, 284-\>286, 286-\>288, 288-\>290, 292-\>296 |
 | src/croissant\_baker/handlers/ome.py                        |       88 |        1 |       14 |        1 |     98% |        94 |
 | src/croissant\_baker/handlers/parquet\_handler.py           |      178 |        1 |       56 |        1 |     99% |        65 |
 | src/croissant\_baker/handlers/registry.py                   |       94 |        3 |       24 |        1 |     97% |67, 79, 206 |
@@ -52,7 +52,7 @@
 | src/croissant\_baker/report.py                              |       50 |        1 |        6 |        1 |     96% |       113 |
 | src/croissant\_baker/scan.py                                |       10 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/sources.py                             |       60 |        1 |        6 |        1 |     97% |       141 |
-| **TOTAL**                                                   | **5351** |  **271** | **1914** |  **178** | **93%** |           |
+| **TOTAL**                                                   | **5353** |  **269** | **1914** |  **177** | **93%** |           |
 
 
 ## Setup coverage badge
