@@ -419,7 +419,7 @@ def test_a_dicom_with_no_image_tags_is_described_without_them(
     built = handler.build_croissant([meta], ["file_0"])
 
     assert meta["dicom_properties"] == {"num_frames": 1}
-    assert built.file_sets[0].description == "1 DICOM file(s) (no modality (1))"
+    assert built.file_sets[0].description == "1 DICOM file (no modality (1))"
     assert "(unknown dimensions)" in built.record_sets[0].description
 
 
