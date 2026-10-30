@@ -72,6 +72,25 @@ def test_rdheader_failure_is_wrapped(tmp_path):
             handler.extract(make_source(hea_file, with_path=True))
 
 
+def test_a_record_with_a_start_time_and_no_annotations(tmp_path):
+    """The start date and time come from the header line, and a record with
+    no .atr file names only its data file as a sibling."""
+    handler = WFDBHandler()
+    hea_file = tmp_path / "rec.hea"
+    hea_file.write_text(
+        "rec 1 250 1000 12:30:00 25/12/2020\nrec.dat 16 200 12 0 0 0 0 sig\n"
+    )
+    (tmp_path / "rec.dat").write_bytes(b"")
+
+    metadata = handler.extract(make_source(hea_file, with_path=True))
+
+    assert metadata["base_date"] == "2020-12-25"
+    assert metadata["base_time"] == "12:30:00"
+    assert metadata["base_datetime"] == "2020-12-25T12:30:00"
+    assert metadata["duration_seconds"] == 4.0
+    assert [f["name"] for f in metadata["related_files"]] == ["rec.dat"]
+
+
 def test_wfdb_build_croissant() -> None:
     handler = WFDBHandler()
     meta = {

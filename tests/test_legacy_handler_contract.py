@@ -9,6 +9,7 @@ from croissant_baker.handlers.base_handler import FileTypeHandler, InputKind
 from croissant_baker.handlers.registry import HandlerRegistry, builtin_handlers
 from croissant_baker.metadata_generator import MetadataGenerator
 from croissant_baker.scan import Outcome
+from croissant_baker.sources import make_source
 
 
 class LegacyXYZHandler(FileTypeHandler):
@@ -192,3 +193,51 @@ def test_the_deprecated_text_opener_still_reads_a_wrapped_file(
     with pytest.warns(DeprecationWarning, match="open_text_file is deprecated"):
         with open_text_file(path) as fh:
             assert fh.read() == "id,name\n1,Ada\n"
+
+
+def test_a_caller_using_the_old_methods_is_warned_once_and_served(
+    tmp_path: Path,
+) -> None:
+    """A modern handler still answers can_handle and extract_metadata by path."""
+    import gzip
+    import warnings
+
+    from croissant_baker.handlers.csv_handler import CSVHandler
+
+    path = tmp_path / "notes.csv.gz"
+    with gzip.open(path, "wt", encoding="utf-8") as fh:
+        fh.write("id,name\n1,Ada\n")
+
+    class _Csv(CSVHandler):
+        """A fresh class, so no earlier test has used up its one warning."""
+
+    handler = _Csv()
+
+    with pytest.warns(DeprecationWarning, match=r"can_handle\(Path\) is deprecated"):
+        assert handler.can_handle(path) is True
+    with pytest.warns(DeprecationWarning, match=r"extract_metadata\(Path\) is dep"):
+        meta = handler.extract_metadata(path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        handler.can_handle(path)
+        handler.extract_metadata(path)
+
+    assert meta["column_types"] == {"id": "cr:Int64", "name": "sc:Text"}
+
+
+def test_a_handler_implementing_neither_contract_says_so(tmp_path: Path) -> None:
+    class Empty(FileTypeHandler):
+        EXTENSIONS = (".nil",)
+        FORMAT_NAME = "Nil"
+
+        def build_croissant(self, file_metas, file_ids):
+            return [], []
+
+    path = tmp_path / "thing.nil"
+    path.write_text("x")
+    source = make_source(path)
+
+    with pytest.raises(NotImplementedError, match="neither claims"):
+        Empty().claims(source)
+    with pytest.raises(NotImplementedError, match="neither extract"):
+        Empty().extract(source)
