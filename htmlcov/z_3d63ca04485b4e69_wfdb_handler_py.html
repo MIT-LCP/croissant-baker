@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for src/croissant_baker/handlers/wfdb_handler.py: 87%</title>
+    <title>Coverage for src/croissant_baker/handlers/wfdb_handler.py: 95%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_54cfdca1.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>src<span class="sep">/</span>croissant_baker<span class="sep">/</span>handlers<span class="sep">/</span>wfdb_handler.py</b>:
-            <span class="pc_cov">87%</span>
+            <span class="pc_cov">95%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -56,10 +56,10 @@
         </aside>
         <h2>
             <span class="text">65 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">62<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">3<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">65<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
-            <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">9<span class="text"> partial</span></button>
+            <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">5<span class="text"> partial</span></button>
         </h2>
         <p class="text">
             <a id="prevFileLink" class="nav" href="z_3d63ca04485b4e69_vcf_handler_py.html">&#xab; prev</a> &nbsp; &nbsp;
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a17f773bc33b1f6d_identifiers_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-10-29 14:14 +0000
+            created at 2026-10-30 15:22 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -159,7 +159,7 @@
     <p class="run run2"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">        <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">        <span class="nam">atr_file</span> <span class="op">=</span> <span class="nam">file_path</span><span class="op">.</span><span class="nam">with_suffix</span><span class="op">(</span><span class="str">&quot;.atr&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">        <span class="key">if</span> <span class="nam">atr_file</span><span class="op">.</span><span class="nam">exists</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">78&#x202F;&#x219B;&#x202F;90</span><span class="annotate long">line 78 didn't jump to line 90 because the condition on line 78 was always true</span></span></p>
+    <p class="run"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">        <span class="key">if</span> <span class="nam">atr_file</span><span class="op">.</span><span class="nam">exists</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">            <span class="nam">related_files</span><span class="op">.</span><span class="nam">append</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">                <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">                    <span class="str">&quot;path&quot;</span><span class="op">:</span> <span class="nam">str</span><span class="op">(</span><span class="nam">atr_file</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -193,12 +193,12 @@
     <p class="run run2"><span class="n"><a id="t109" href="#t109">109</a></span><span class="t">            <span class="str">&quot;comments&quot;</span><span class="op">:</span> <span class="nam">record</span><span class="op">.</span><span class="nam">comments</span> <span class="key">if</span> <span class="nam">record</span><span class="op">.</span><span class="nam">comments</span> <span class="key">else</span> <span class="op">[</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t110" href="#t110">110</a></span><span class="t">        <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t111" href="#t111">111</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t112" href="#t112">112</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">record</span><span class="op">,</span> <span class="str">&quot;base_datetime&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">record</span><span class="op">.</span><span class="nam">base_datetime</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">112&#x202F;&#x219B;&#x202F;113</span><span class="annotate long">line 112 didn't jump to line 113 because the condition on line 112 was never true</span></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t113" href="#t113">113</a></span><span class="t">            <span class="nam">metadata</span><span class="op">[</span><span class="str">&quot;base_datetime&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">record</span><span class="op">.</span><span class="nam">base_datetime</span><span class="op">.</span><span class="nam">isoformat</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">record</span><span class="op">,</span> <span class="str">&quot;base_date&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">record</span><span class="op">.</span><span class="nam">base_date</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">114&#x202F;&#x219B;&#x202F;115</span><span class="annotate long">line 114 didn't jump to line 115 because the condition on line 114 was never true</span></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t115" href="#t115">115</a></span><span class="t">            <span class="nam">metadata</span><span class="op">[</span><span class="str">&quot;base_date&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">str</span><span class="op">(</span><span class="nam">record</span><span class="op">.</span><span class="nam">base_date</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">record</span><span class="op">,</span> <span class="str">&quot;base_time&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">record</span><span class="op">.</span><span class="nam">base_time</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">116&#x202F;&#x219B;&#x202F;117</span><span class="annotate long">line 116 didn't jump to line 117 because the condition on line 116 was never true</span></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t117" href="#t117">117</a></span><span class="t">            <span class="nam">metadata</span><span class="op">[</span><span class="str">&quot;base_time&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">str</span><span class="op">(</span><span class="nam">record</span><span class="op">.</span><span class="nam">base_time</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t112" href="#t112">112</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">record</span><span class="op">,</span> <span class="str">&quot;base_datetime&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">record</span><span class="op">.</span><span class="nam">base_datetime</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t113" href="#t113">113</a></span><span class="t">            <span class="nam">metadata</span><span class="op">[</span><span class="str">&quot;base_datetime&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">record</span><span class="op">.</span><span class="nam">base_datetime</span><span class="op">.</span><span class="nam">isoformat</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">record</span><span class="op">,</span> <span class="str">&quot;base_date&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">record</span><span class="op">.</span><span class="nam">base_date</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t115" href="#t115">115</a></span><span class="t">            <span class="nam">metadata</span><span class="op">[</span><span class="str">&quot;base_date&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">str</span><span class="op">(</span><span class="nam">record</span><span class="op">.</span><span class="nam">base_date</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">record</span><span class="op">,</span> <span class="str">&quot;base_time&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">record</span><span class="op">.</span><span class="nam">base_time</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t117" href="#t117">117</a></span><span class="t">            <span class="nam">metadata</span><span class="op">[</span><span class="str">&quot;base_time&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">str</span><span class="op">(</span><span class="nam">record</span><span class="op">.</span><span class="nam">base_time</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="par run show_par"><span class="n"><a id="t118" href="#t118">118</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">record</span><span class="op">,</span> <span class="str">&quot;adc_gain&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">record</span><span class="op">.</span><span class="nam">adc_gain</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">118&#x202F;&#x219B;&#x202F;120</span><span class="annotate long">line 118 didn't jump to line 120 because the condition on line 118 was always true</span></span></p>
     <p class="run"><span class="n"><a id="t119" href="#t119">119</a></span><span class="t">            <span class="nam">metadata</span><span class="op">[</span><span class="str">&quot;adc_gain&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">record</span><span class="op">.</span><span class="nam">adc_gain</span>&nbsp;</span><span class="r"></span></p>
     <p class="par run show_par"><span class="n"><a id="t120" href="#t120">120</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">record</span><span class="op">,</span> <span class="str">&quot;baseline&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">record</span><span class="op">.</span><span class="nam">baseline</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">120&#x202F;&#x219B;&#x202F;122</span><span class="annotate long">line 120 didn't jump to line 122 because the condition on line 120 was always true</span></span></p>
@@ -277,7 +277,7 @@
             <a class="nav" href="z_a17f773bc33b1f6d_identifiers_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-10-29 14:14 +0000
+            created at 2026-10-30 15:22 +0000
         </p>
     </div>
 </footer>

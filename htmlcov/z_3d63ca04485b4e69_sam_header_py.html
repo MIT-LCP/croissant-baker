@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for src/croissant_baker/handlers/sam_header.py: 93%</title>
+    <title>Coverage for src/croissant_baker/handlers/sam_header.py: 100%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_54cfdca1.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>src<span class="sep">/</span>croissant_baker<span class="sep">/</span>handlers<span class="sep">/</span>sam_header.py</b>:
-            <span class="pc_cov">93%</span>
+            <span class="pc_cov">100%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -56,10 +56,10 @@
         </aside>
         <h2>
             <span class="text">73 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">71<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">2<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">73<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
-            <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">5<span class="text"> partial</span></button>
+            <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
         </h2>
         <p class="text">
             <a id="prevFileLink" class="nav" href="z_3d63ca04485b4e69_sam_handler_py.html">&#xab; prev</a> &nbsp; &nbsp;
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_3d63ca04485b4e69_soft_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-10-29 14:14 +0000
+            created at 2026-10-30 15:22 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -111,8 +111,8 @@
     <p class="pln"><span class="n"><a id="t27" href="#t27">27</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t28" href="#t28">28</a></span><span class="t">    <span class="key">def</span> <span class="nam">read</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">text</span><span class="op">:</span> <span class="nam">str</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t29" href="#t29">29</a></span><span class="t">        <span class="key">for</span> <span class="nam">line</span> <span class="key">in</span> <span class="nam">text</span><span class="op">.</span><span class="nam">splitlines</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t30" href="#t30">30</a></span><span class="t">            <span class="key">if</span> <span class="key">not</span> <span class="nam">line</span><span class="op">.</span><span class="nam">startswith</span><span class="op">(</span><span class="str">&quot;@&quot;</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">30&#x202F;&#x219B;&#x202F;31</span><span class="annotate long">line 30 didn't jump to line 31 because the condition on line 30 was never true</span></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t31" href="#t31">31</a></span><span class="t">                <span class="key">continue</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t30" href="#t30">30</a></span><span class="t">            <span class="key">if</span> <span class="key">not</span> <span class="nam">line</span><span class="op">.</span><span class="nam">startswith</span><span class="op">(</span><span class="str">&quot;@&quot;</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t31" href="#t31">31</a></span><span class="t">                <span class="key">continue</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t32" href="#t32">32</a></span><span class="t">            <span class="nam">fields</span> <span class="op">=</span> <span class="nam">line</span><span class="op">.</span><span class="nam">split</span><span class="op">(</span><span class="str">&quot;\t&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t33" href="#t33">33</a></span><span class="t">            <span class="nam">tags</span> <span class="op">=</span> <span class="nam">_tags</span><span class="op">(</span><span class="nam">fields</span><span class="op">[</span><span class="num">1</span><span class="op">:</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t">            <span class="nam">record</span> <span class="op">=</span> <span class="nam">fields</span><span class="op">[</span><span class="num">0</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
@@ -131,7 +131,7 @@
     <p class="run"><span class="n"><a id="t47" href="#t47">47</a></span><span class="t">                <span class="nam">_collect</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">platforms</span><span class="op">,</span> <span class="nam">tags</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;PL&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t48" href="#t48">48</a></span><span class="t">                <span class="nam">_collect</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">centres</span><span class="op">,</span> <span class="nam">tags</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;CN&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t49" href="#t49">49</a></span><span class="t">                <span class="nam">_collect</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">sample_ids</span><span class="op">,</span> <span class="nam">tags</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;SM&quot;</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t50" href="#t50">50</a></span><span class="t">            <span class="key">elif</span> <span class="nam">record</span> <span class="op">==</span> <span class="str">&quot;@PG&quot;</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">50&#x202F;&#x219B;&#x202F;29</span><span class="annotate long">line 50 didn't jump to line 29 because the condition on line 50 was always true</span></span></p>
+    <p class="run"><span class="n"><a id="t50" href="#t50">50</a></span><span class="t">            <span class="key">elif</span> <span class="nam">record</span> <span class="op">==</span> <span class="str">&quot;@PG&quot;</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t51" href="#t51">51</a></span><span class="t">                <span class="nam">self</span><span class="op">.</span><span class="nam">programs</span><span class="op">.</span><span class="nam">append</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t52" href="#t52">52</a></span><span class="t">                    <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t53" href="#t53">53</a></span><span class="t">                        <span class="str">&quot;id&quot;</span><span class="op">:</span> <span class="nam">tags</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;ID&quot;</span><span class="op">,</span> <span class="str">&quot;&quot;</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -146,7 +146,7 @@
     <p class="run"><span class="n"><a id="t62" href="#t62">62</a></span><span class="t">    <span class="nam">pairs</span><span class="op">:</span> <span class="nam">Dict</span><span class="op">[</span><span class="nam">str</span><span class="op">,</span> <span class="nam">str</span><span class="op">]</span> <span class="op">=</span> <span class="op">{</span><span class="op">}</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t">    <span class="key">for</span> <span class="nam">field</span> <span class="key">in</span> <span class="nam">fields</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t">        <span class="nam">tag</span><span class="op">,</span> <span class="nam">sep</span><span class="op">,</span> <span class="nam">value</span> <span class="op">=</span> <span class="nam">field</span><span class="op">.</span><span class="nam">partition</span><span class="op">(</span><span class="str">&quot;:&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t">        <span class="key">if</span> <span class="nam">sep</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">65&#x202F;&#x219B;&#x202F;63</span><span class="annotate long">line 65 didn't jump to line 63 because the condition on line 65 was always true</span></span></p>
+    <p class="run"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t">        <span class="key">if</span> <span class="nam">sep</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t66" href="#t66">66</a></span><span class="t">            <span class="nam">pairs</span><span class="op">.</span><span class="nam">setdefault</span><span class="op">(</span><span class="nam">tag</span><span class="op">.</span><span class="nam">strip</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="nam">value</span><span class="op">.</span><span class="nam">strip</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t67" href="#t67">67</a></span><span class="t">    <span class="key">return</span> <span class="nam">pairs</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t68" href="#t68">68</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -157,7 +157,7 @@
     <p class="pln"><span class="n"><a id="t73" href="#t73">73</a></span><span class="t"><span class="str">    Declaration order rather than sorted: read groups are written in the order</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t74" href="#t74">74</a></span><span class="t"><span class="str">    the file was assembled, and that order is itself header content.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">    <span class="key">if</span> <span class="nam">value</span> <span class="key">and</span> <span class="nam">value</span> <span class="key">not</span> <span class="key">in</span> <span class="nam">into</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">76&#x202F;&#x219B;&#x202F;exit</span><span class="annotate long">line 76 didn't return from function '_collect' because the condition on line 76 was always true</span></span></p>
+    <p class="run"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">    <span class="key">if</span> <span class="nam">value</span> <span class="key">and</span> <span class="nam">value</span> <span class="key">not</span> <span class="key">in</span> <span class="nam">into</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">        <span class="nam">into</span><span class="op">.</span><span class="nam">append</span><span class="op">(</span><span class="nam">value</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -166,8 +166,8 @@
     <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">    <span class="nam">named</span> <span class="op">=</span> <span class="op">[</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">    <span class="key">for</span> <span class="nam">program</span> <span class="key">in</span> <span class="nam">programs</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">        <span class="nam">name</span> <span class="op">=</span> <span class="nam">program</span><span class="op">[</span><span class="str">&quot;name&quot;</span><span class="op">]</span> <span class="key">or</span> <span class="nam">program</span><span class="op">[</span><span class="str">&quot;id&quot;</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">name</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">85&#x202F;&#x219B;&#x202F;86</span><span class="annotate long">line 85 didn't jump to line 86 because the condition on line 85 was never true</span></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">            <span class="key">continue</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">name</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">            <span class="key">continue</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">        <span class="nam">named</span><span class="op">.</span><span class="nam">append</span><span class="op">(</span><span class="fst">f&quot;</span><span class="op">{</span><span class="nam">name</span><span class="op">}</span><span class="fst"> </span><span class="op">{</span><span class="nam">program</span><span class="op">[</span><span class="str">&#x27;version&#x27;</span><span class="op">]</span><span class="op">}</span><span class="fst">&quot;</span> <span class="key">if</span> <span class="nam">program</span><span class="op">[</span><span class="str">&quot;version&quot;</span><span class="op">]</span> <span class="key">else</span> <span class="nam">name</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">    <span class="key">return</span> <span class="str">&quot;, &quot;</span><span class="op">.</span><span class="nam">join</span><span class="op">(</span><span class="nam">named</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t89" href="#t89">89</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -222,7 +222,7 @@
             <a class="nav" href="z_3d63ca04485b4e69_soft_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-10-29 14:14 +0000
+            created at 2026-10-30 15:22 +0000
         </p>
     </div>
 </footer>
