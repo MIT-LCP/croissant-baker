@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.8.0...croissant-baker-v0.8.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* say 1 NIfTI, DICOM or FHIR Bundle file, not 1 files ([#167](https://github.com/MIT-LCP/croissant-baker/issues/167)) ([ec8b147](https://github.com/MIT-LCP/croissant-baker/commit/ec8b1476cd77e1db0210242922766e50af138882))
+
 ## [0.8.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.7.0...croissant-baker-v0.8.0) (2026-10-11)
 
 
