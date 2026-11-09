@@ -321,25 +321,40 @@ def test_a_type_conflict_promotes_only_its_own_unnamed_column(tmp_path: Path) ->
     assert meta["num_rows"] == 200_001
 
 
-def test_a_quoted_line_break_in_the_header_does_not_shift_the_rows(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    "header",
+    ['"two\nlines",,v', '"two\rlines",,v', "\nid,,v", "#meta\n\nid,,v"],
+    ids=["quoted-newline", "quoted-cr", "blank-line-first", "preamble-then-blank"],
+)
+def test_the_rows_after_a_conflict_start_right_after_the_header(
+    tmp_path: Path, header: str
 ) -> None:
-    """After a conflict the names are handed to pyarrow and the header row is
-    skipped by line count, so a header cell holding a line break must be
-    stepped over whole, or its second half is read as a data row."""
+    """After a conflict the names are handed to pyarrow and the header is
+    skipped by line count. A line break inside a quoted cell, or a blank line
+    before the header, must be counted too, or a header line is read as data:
+    the first column turns to text and the count gains a row."""
     path = tmp_path / "table.csv"
-    path.write_text(
-        '"two\nlines",,v\n' + "1,2,x\n" * 200_000 + "1,abc,y\n", encoding="utf-8"
+    path.write_bytes(
+        (header + "\n" + "1,2,x\n" * 200_000 + "1,abc,y\n").encode("utf-8")
     )
 
     meta = CSVHandler().extract(make_source(path), count_rows=True)
 
-    assert meta["column_types"] == {
-        "two\nlines": "cr:Int64",
-        "Unnamed: 1": "sc:Text",
-        "v": "sc:Text",
-    }
+    first, unnamed, last = meta["column_types"].values()
+    assert (first, unnamed, last) == ("cr:Int64", "sc:Text", "sc:Text")
+    assert list(meta["column_types"])[1] == "Unnamed: 1"
     assert meta["num_rows"] == 200_001
+
+
+def test_a_latin1_file_with_an_empty_header_keeps_its_columns(tmp_path: Path) -> None:
+    """pandas decodes a block of data, not just the header, to name columns.
+    A byte that is not UTF-8 there must not cost the file its manifest entry."""
+    path = tmp_path / "table.csv"
+    path.write_bytes(",v\n0,\xe9t\xe9\n1,x\n".encode("latin-1"))
+
+    meta = CSVHandler().extract(make_source(path))
+
+    assert meta["columns"] == ["Unnamed: 0", "v"]
 
 
 @pytest.mark.parametrize(

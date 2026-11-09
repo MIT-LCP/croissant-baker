@@ -1,5 +1,7 @@
 """CSV file handler for tabular data processing."""
 
+import csv
+import io
 import logging
 import re
 
@@ -44,16 +46,49 @@ def _pandas_names(
     cannot be loaded. pyarrow keeps an empty cell (``DataFrame.to_csv()``
     writes one over its index) or a repeated name as is, while pandas renames
     them, so only then are the names read through pandas itself. pandas is
-    not a direct dependency; it comes with mlcroissant, the reader matched.
+    not a direct dependency, but mlcroissant cannot read a CSV without it.
     """
     if "" not in header and len(set(header)) == len(header):
         return header
     import pandas as pd
 
     with source.open() as stream:
-        frame = pd.read_csv(stream, sep=delimiter, skiprows=skip_rows, nrows=0)
+        frame = pd.read_csv(
+            stream,
+            sep=delimiter,
+            skiprows=skip_rows,
+            nrows=0,
+            encoding_errors="replace",
+        )
     names = [str(name) for name in frame.columns]
-    return names if len(names) == len(header) else header
+    if len(names) != len(header):
+        logger.warning(
+            "%s: pandas reads %d columns where pyarrow reads %d; keeping pyarrow's",
+            source.relative_path,
+            len(names),
+            len(header),
+        )
+        return header
+    return names
+
+
+def _header_lines(source: FileSource, delimiter: str, skip_rows: int) -> int:
+    """How many lines, after ``skip_rows``, run through the end of the header.
+
+    Handing pyarrow the names replaces its header row, which ``skip_rows``
+    then has to step over. It counts lines, blank ones included, and a quoted
+    header cell may hold a line break, so the header is found by parsing.
+    """
+    with io.TextIOWrapper(
+        source.open(), encoding="utf-8", errors="replace", newline=""
+    ) as fh:
+        for _ in range(skip_rows):
+            fh.readline()
+        reader = csv.reader(fh, delimiter=delimiter)
+        for row in reader:
+            if row:
+                return reader.line_num
+    return 1
 
 
 class CSVHandler(FileTypeHandler):
@@ -192,17 +227,12 @@ class CSVHandler(FileTypeHandler):
         )
 
     def _lookup_names(self, source: FileSource, delimiter: str, skip_rows: int):
-        """Return ``(names, names to hand pyarrow or None, header lines)``.
-
-        Handing pyarrow names replaces its header row, which ``skip_rows``
-        then has to step over; it counts lines, and a quoted cell may hold a
-        line break.
-        """
+        """Return ``(names, names to hand pyarrow or None, header lines)``."""
         header = self._header(source, delimiter=delimiter, skip_rows=skip_rows)
         names = _pandas_names(source, header, delimiter, skip_rows)
         if names is header:
             return header, None, 1
-        return names, names, 1 + sum(cell.count("\n") for cell in header)
+        return names, names, _header_lines(source, delimiter, skip_rows)
 
     #: A leading ``#`` block is a metadata preamble, not data. 10x probe-set
     #: exports lead with one; PyArrow has no comment option, so the rows are
