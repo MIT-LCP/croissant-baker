@@ -34,6 +34,18 @@ _ARROW_COL_RE = re.compile(r"In CSV column #(\d+): CSV conversion error to (\w+)
 _MAX_TYPE_CONFLICT_RETRIES = 50
 
 
+def _name_empty_headers(schema: pa.Schema) -> pa.Schema:
+    """Name each empty header cell ``Unnamed: <position>``.
+
+    That is the name pandas reads the column under, and mlcroissant reads CSV
+    and TSV through pandas, so a field extracting any other name cannot be
+    loaded. ``DataFrame.to_csv()`` writes its index under an empty cell.
+    """
+    return pa.schema(
+        f if f.name else f.with_name(f"Unnamed: {i}") for i, f in enumerate(schema)
+    )
+
+
 class CSVHandler(FileTypeHandler):
     """
     Handler for CSV files with automatic type inference.
@@ -235,7 +247,7 @@ class CSVHandler(FileTypeHandler):
                     parse_options=parse_options,
                 )
                 with reader_cm as reader:
-                    schema = reader.schema
+                    schema = _name_empty_headers(reader.schema)
                     column_types = infer_column_types_from_arrow_schema(schema)
                     columns = schema.names
                     num_rows = (

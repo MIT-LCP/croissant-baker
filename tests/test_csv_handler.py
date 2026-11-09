@@ -1,8 +1,12 @@
 """Tests for CSV handler."""
 
+import json
 from pathlib import Path
+
+import mlcroissant as mlc
 import pytest
 from croissant_baker.handlers.csv_handler import CSVHandler
+from croissant_baker.metadata_generator import MetadataGenerator
 from croissant_baker.sources import make_source
 
 from tests.helpers import bake
@@ -266,3 +270,57 @@ def test_a_hash_header_is_not_a_preamble(tmp_path: Path) -> None:
     assert meta["column_types"]["name"] == "sc:Text"
     assert meta["column_types"]["age"] == "cr:Int64"
     assert meta["num_rows"] == 2
+
+
+@pytest.mark.parametrize(
+    ("text", "columns"),
+    [
+        (",value\n0,x\n1,y\n", ["Unnamed: 0", "value"]),
+        (",,value\n0,a,x\n1,b,y\n", ["Unnamed: 0", "Unnamed: 1", "value"]),
+        ("id,,value\n0,a,x\n1,b,y\n", ["id", "Unnamed: 1", "value"]),
+    ],
+    ids=["pandas-index", "two-empty", "empty-in-the-middle"],
+)
+def test_an_empty_header_cell_is_named_by_its_position(
+    tmp_path: Path, text: str, columns: list
+) -> None:
+    """``DataFrame.to_csv()`` writes its index under an empty header cell.
+
+    An empty name gave a field with no name and an ``@id`` ending in ``/``,
+    and a second empty cell collapsed into the first, dropping a column. The
+    name is the one pandas, and so mlcroissant, reads the column back under.
+    """
+    path = tmp_path / "table.csv"
+    path.write_text(text, encoding="utf-8")
+
+    meta = CSVHandler().extract(make_source(path))
+
+    assert meta["columns"] == columns
+    assert list(meta["column_types"]) == columns
+    assert meta["num_columns"] == len(columns)
+
+
+@pytest.mark.parametrize(
+    ("name", "text"),
+    [("table.csv", ",value\n0,x\n1,y\n"), ("table.tsv", "\tvalue\n0\tx\n1\ty\n")],
+    ids=["csv", "tsv"],
+)
+def test_a_column_under_an_empty_header_reads_back_through_mlcroissant(
+    tmp_path: Path, name: str, text: str
+) -> None:
+    """Validation passes either way, so only reading the rows proves the field
+    points at a column the loader can find."""
+    (tmp_path / name).write_text(text, encoding="utf-8")
+    output = tmp_path / "croissant.jsonld"
+    MetadataGenerator(
+        str(tmp_path), name="test", creators=[{"name": "Tester"}]
+    ).save_metadata(str(output), validate=True)
+
+    doc = json.loads(output.read_text())
+    (record_set,) = doc["recordSet"]
+    ids = [field["@id"] for field in record_set["field"]]
+    assert not any(field_id.endswith("/") for field_id in ids)
+
+    (index,) = [f["@id"] for f in record_set["field"] if f["name"] == "Unnamed: 0"]
+    rows = list(mlc.Dataset(str(output)).records(record_set["@id"]))
+    assert [row[index] for row in rows] == [0, 1]
