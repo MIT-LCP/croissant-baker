@@ -153,14 +153,7 @@ def test_parse_conflict_unknown_falls_back_to_all_string(tmp_path: Path) -> None
     csv_file.write_text("a,b,c\n1,2,3\n")
     seen_overrides = []
 
-    def fake_read(
-        file_path,
-        convert_options,
-        count_rows=False,
-        delimiter=",",
-        skip_rows=0,
-        column_names=None,
-    ):
+    def fake_read(file_path, convert_options, **kwargs):
         overrides = {k: str(v) for k, v in (convert_options.column_types or {}).items()}
         seen_overrides.append(overrides)
         if overrides == {"a": "string", "b": "string", "c": "string"}:
@@ -289,6 +282,8 @@ _HEADERS_PANDAS_RENAMES = [
     "a,a,a.1",
     ",Unnamed: 0",
     "Unnamed: 0,",
+    ",Unnamed: 0,Unnamed: 0",
+    "a,a.1,a.1",
 ]
 
 
@@ -320,6 +315,27 @@ def test_a_type_conflict_promotes_only_its_own_unnamed_column(tmp_path: Path) ->
 
     assert meta["column_types"] == {
         "Unnamed: 0": "cr:Int64",
+        "Unnamed: 1": "sc:Text",
+        "v": "sc:Text",
+    }
+    assert meta["num_rows"] == 200_001
+
+
+def test_a_quoted_line_break_in_the_header_does_not_shift_the_rows(
+    tmp_path: Path,
+) -> None:
+    """After a conflict the names are handed to pyarrow and the header row is
+    skipped by line count, so a header cell holding a line break must be
+    stepped over whole, or its second half is read as a data row."""
+    path = tmp_path / "table.csv"
+    path.write_text(
+        '"two\nlines",,v\n' + "1,2,x\n" * 200_000 + "1,abc,y\n", encoding="utf-8"
+    )
+
+    meta = CSVHandler().extract(make_source(path), count_rows=True)
+
+    assert meta["column_types"] == {
+        "two\nlines": "cr:Int64",
         "Unnamed: 1": "sc:Text",
         "v": "sc:Text",
     }
