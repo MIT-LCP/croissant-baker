@@ -77,6 +77,11 @@ relative_files = true
 
 [tool.coverage.report]
 show_missing = true
+# Issue #146: a run fails when the total (lines and branches together) drops
+# below 95%. Two decimals so the bar is exact; with none, the total is rounded
+# first and anything above 94.5% passes.
+fail_under = 95
+precision = 2
 
 [tool.ruff]
 src = ["src"]

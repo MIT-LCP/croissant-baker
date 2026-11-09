@@ -42,8 +42,22 @@ the coverage delta. Until that first push to `main` creates the branch, the
 endpoint URL is a 404 and the badge renders as an error rather than as nothing,
 so on a pull request that adds the badge it looks broken until the merge.
 
-Coverage is advisory. Nothing gates on it: there is no `fail_under` and
-nothing on the action fails the run, so the number can drop and every check stays green.
+Coverage is a gate. The tests job fails on Python 3.10 and 3.12 when total
+coverage, lines and branches counted together, drops below 95%. The bar is
+`fail_under` in `[tool.coverage.report]` in `pyproject.toml`, so a local run
+with `--cov` checks the same bar as CI. To check before you push, run what CI
+runs:
+
+```bash
+uv run pytest --cov --cov-report=term-missing:skip-covered
+```
+
+A line near the end names the total and says whether it is below the bar. A
+run of only some test files with `--cov` measures only what those files reach,
+so it will usually fail the bar; that is expected. A run that trips the gate
+gets no coverage comment on the pull request, so read the missing lines in the
+job log.
+
 The badge is green from 90% (`MINIMUM_GREEN` in both workflows), orange from
 70% (the action's default `MINIMUM_ORANGE`), and red below that.
 
