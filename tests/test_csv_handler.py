@@ -1,15 +1,14 @@
 """Tests for CSV handler."""
 
-import json
 from pathlib import Path
 
 import mlcroissant as mlc
+import pandas as pd
 import pytest
 from croissant_baker.handlers.csv_handler import CSVHandler
-from croissant_baker.metadata_generator import MetadataGenerator
 from croissant_baker.sources import make_source
 
-from tests.helpers import bake
+from tests.helpers import bake, bake_validated
 
 
 def test_csv_handler_extract_metadata(tmp_path: Path) -> None:
@@ -155,7 +154,12 @@ def test_parse_conflict_unknown_falls_back_to_all_string(tmp_path: Path) -> None
     seen_overrides = []
 
     def fake_read(
-        file_path, convert_options, count_rows=False, delimiter=",", skip_rows=0
+        file_path,
+        convert_options,
+        count_rows=False,
+        delimiter=",",
+        skip_rows=0,
+        column_names=None,
     ):
         overrides = {k: str(v) for k, v in (convert_options.column_types or {}).items()}
         seen_overrides.append(overrides)
@@ -272,32 +276,54 @@ def test_a_hash_header_is_not_a_preamble(tmp_path: Path) -> None:
     assert meta["num_rows"] == 2
 
 
-@pytest.mark.parametrize(
-    ("text", "columns"),
-    [
-        (",value\n0,x\n1,y\n", ["Unnamed: 0", "value"]),
-        (",,value\n0,a,x\n1,b,y\n", ["Unnamed: 0", "Unnamed: 1", "value"]),
-        ("id,,value\n0,a,x\n1,b,y\n", ["id", "Unnamed: 1", "value"]),
-    ],
-    ids=["pandas-index", "two-empty", "empty-in-the-middle"],
-)
-def test_an_empty_header_cell_is_named_by_its_position(
-    tmp_path: Path, text: str, columns: list
-) -> None:
-    """``DataFrame.to_csv()`` writes its index under an empty header cell.
+#: Header rows whose column names pandas does not take verbatim: empty cells,
+#: repeats, and generated names colliding with ones the header spells out.
+_HEADERS_PANDAS_RENAMES = [
+    ",value",
+    ",,value",
+    "id,,value",
+    "a,,a,",
+    "a,a",
+    "a,a,a",
+    "a,a.1,a",
+    "a,a,a.1",
+    ",Unnamed: 0",
+    "Unnamed: 0,",
+]
 
-    An empty name gave a field with no name and an ``@id`` ending in ``/``,
-    and a second empty cell collapsed into the first, dropping a column. The
-    name is the one pandas, and so mlcroissant, reads the column back under.
-    """
+
+@pytest.mark.parametrize("header", _HEADERS_PANDAS_RENAMES)
+def test_columns_are_named_as_pandas_reads_them(tmp_path: Path, header: str) -> None:
+    """mlcroissant reads CSV through pandas, so a field must extract the name
+    pandas gives the column. An empty cell (``DataFrame.to_csv()`` writes one
+    over its index) used to become a nameless field, and a repeated name used
+    to collapse two columns into one field."""
     path = tmp_path / "table.csv"
-    path.write_text(text, encoding="utf-8")
+    width = header.count(",") + 1
+    path.write_text(header + "\n" + ",".join(["1"] * width) + "\n", encoding="utf-8")
 
     meta = CSVHandler().extract(make_source(path))
 
-    assert meta["columns"] == columns
-    assert list(meta["column_types"]) == columns
-    assert meta["num_columns"] == len(columns)
+    expected = list(pd.read_csv(path, nrows=0).columns)
+    assert meta["columns"] == expected
+    assert list(meta["column_types"]) == expected
+
+
+def test_a_type_conflict_promotes_only_its_own_unnamed_column(tmp_path: Path) -> None:
+    """The promotion after a conflict is keyed by column name. Every empty
+    header cell reads as ``""`` to pyarrow, so a fix aimed at one unnamed
+    column used to land on all of them."""
+    path = tmp_path / "table.csv"
+    path.write_text(",,v\n" + "1,2,x\n" * 200_000 + "1,abc,y\n", encoding="utf-8")
+
+    meta = CSVHandler().extract(make_source(path), count_rows=True)
+
+    assert meta["column_types"] == {
+        "Unnamed: 0": "cr:Int64",
+        "Unnamed: 1": "sc:Text",
+        "v": "sc:Text",
+    }
+    assert meta["num_rows"] == 200_001
 
 
 @pytest.mark.parametrize(
@@ -311,16 +337,12 @@ def test_a_column_under_an_empty_header_reads_back_through_mlcroissant(
     """Validation passes either way, so only reading the rows proves the field
     points at a column the loader can find."""
     (tmp_path / name).write_text(text, encoding="utf-8")
-    output = tmp_path / "croissant.jsonld"
-    MetadataGenerator(
-        str(tmp_path), name="test", creators=[{"name": "Tester"}]
-    ).save_metadata(str(output), validate=True)
 
-    doc = json.loads(output.read_text())
+    doc = bake_validated(tmp_path)
+
     (record_set,) = doc["recordSet"]
-    ids = [field["@id"] for field in record_set["field"]]
-    assert not any(field_id.endswith("/") for field_id in ids)
-
+    assert not any(f["@id"].endswith("/") for f in record_set["field"])
     (index,) = [f["@id"] for f in record_set["field"] if f["name"] == "Unnamed: 0"]
-    rows = list(mlc.Dataset(str(output)).records(record_set["@id"]))
+    dataset = mlc.Dataset(str(tmp_path / "croissant.jsonld"))
+    rows = list(dataset.records(record_set["@id"]))
     assert [row[index] for row in rows] == [0, 1]
