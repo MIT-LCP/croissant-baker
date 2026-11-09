@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.8.1...croissant-baker-v0.8.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* name CSV columns the way mlcroissant will read them ([#175](https://github.com/MIT-LCP/croissant-baker/issues/175)) ([b6c0204](https://github.com/MIT-LCP/croissant-baker/commit/b6c0204964110322bf8f8dfcf222506bac3ef649))
+
 ## [0.8.1](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.8.0...croissant-baker-v0.8.1) (2026-10-30)
 
 
