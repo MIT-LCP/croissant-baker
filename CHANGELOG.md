@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.8.2...croissant-baker-v0.8.3) (2026-11-10)
+
+
+### Bug Fixes
+
+* widen fhir column types when files disagree ([#156](https://github.com/MIT-LCP/croissant-baker/issues/156)) ([ae2ef55](https://github.com/MIT-LCP/croissant-baker/commit/ae2ef55d0d4b77418b1d499e708961c75d67206f))
+
 ## [0.8.2](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.8.1...croissant-baker-v0.8.2) (2026-11-09)
 
 
