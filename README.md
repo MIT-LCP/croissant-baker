@@ -20,7 +20,7 @@
 | src/croissant\_baker/handlers/dicom\_handler.py             |      155 |        0 |       72 |        1 |     99% | 327-\>329 |
 | src/croissant\_baker/handlers/fasta\_handler.py             |       34 |        0 |       10 |        0 |    100% |           |
 | src/croissant\_baker/handlers/fastq\_handler.py             |       63 |        1 |       26 |        1 |     98% |        88 |
-| src/croissant\_baker/handlers/fhir\_handler.py              |      194 |        6 |       84 |        5 |     95% |66-67, 78-81, 102-\>104, 297-\>291, 348-\>343 |
+| src/croissant\_baker/handlers/fhir\_handler.py              |      196 |        2 |       86 |        4 |     98% |67-68, 117-\>119, 312-\>306, 363-\>358 |
 | src/croissant\_baker/handlers/hdf5\_handler/\_\_init\_\_.py |        2 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/handlers/hdf5\_handler/handler.py      |       82 |        0 |       24 |        0 |    100% |           |
 | src/croissant\_baker/handlers/hdf5\_handler/layouts.py      |      283 |       14 |      122 |       12 |     93% |230-234, 285, 377, 383, 397-398, 433, 454, 517-\>515, 593-\>609, 626, 628, 707-\>705 |
@@ -52,7 +52,7 @@
 | src/croissant\_baker/report.py                              |       50 |        1 |        6 |        1 |     96% |       113 |
 | src/croissant\_baker/scan.py                                |       10 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/sources.py                             |       60 |        1 |        6 |        1 |     97% |       141 |
-| **TOTAL**                                                   | **5388** |  **145** | **1928** |   **99** | **96%** |           |
+| **TOTAL**                                                   | **5390** |  **141** | **1930** |   **98** | **97%** |           |
 
 
 ## Setup coverage badge
