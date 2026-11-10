@@ -5,7 +5,7 @@ Supports four file formats:
   or a single JSON object (treated as one row).
 - ``.jsonl``: newline-delimited JSON (one JSON object per line).
 
-FHIR ``.json`` files (those containing ``"resourceType": "<UpperCase…"``)
+FHIR ``.json`` files (those with a top-level ``"resourceType": "<UpperCase…"``)
 are intentionally excluded — they are claimed by FHIRHandler instead.
 """
 
@@ -36,8 +36,8 @@ class JSONHandler(FileTypeHandler):
 
     Detection strategy:
     - ``.jsonl``: always accepted (FHIR uses ``.ndjson``, not ``.jsonl``).
-    - ``.json``: accepted only when the first 4 KB does NOT match the FHIR
-      resourceType pattern and the content starts with ``[`` (array) or ``{`` (object).
+    - ``.json``: objects without a top-level FHIR resourceType and arrays.
+      Incomplete 4 KB prefixes fall back to the FHIR resourceType pattern.
     """
 
     EXTENSIONS = (".json", ".jsonl")
@@ -65,7 +65,15 @@ class JSONHandler(FileTypeHandler):
                 head = fh.read(4096)
             head = head.strip()
             if head.startswith("{"):
-                return not _FHIR_PATTERN.search(head)
+                try:
+                    obj = json.loads(head)
+                except json.JSONDecodeError:
+                    # Preserve bounded sniffing for documents larger than the prefix.
+                    return not _FHIR_PATTERN.search(head)
+                resource_type = obj.get("resourceType")
+                return not (
+                    isinstance(resource_type, str) and re.match(r"[A-Z]", resource_type)
+                )
             return head.startswith("[")
         except (OSError, UnicodeDecodeError):
             return False
