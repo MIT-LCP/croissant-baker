@@ -5,7 +5,7 @@
 | Name                                                        |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |------------------------------------------------------------ | -------: | -------: | -------: | -------: | ------: | --------: |
 | src/croissant\_baker/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |    100% |           |
-| src/croissant\_baker/\_\_main\_\_.py                        |      326 |        9 |      118 |        5 |     97% |95, 133, 1008, 1095-1097, 1114-\>1120, 1120-\>exit, 1127-1129, 1136 |
+| src/croissant\_baker/\_\_main\_\_.py                        |      330 |        9 |      120 |        5 |     97% |96, 134, 1013, 1107-1109, 1126-\>1132, 1132-\>exit, 1139-1141, 1148 |
 | src/croissant\_baker/assembly.py                            |       65 |        0 |       26 |        2 |     98% |144-\>143, 154-\>156 |
 | src/croissant\_baker/compression.py                         |       58 |        3 |       14 |        2 |     93% |69-70, 137 |
 | src/croissant\_baker/duplicates.py                          |       56 |        4 |       24 |        0 |     95% |103-104, 112-113 |
@@ -42,17 +42,17 @@
 | src/croissant\_baker/handlers/wfdb\_handler.py              |       65 |        0 |       26 |        5 |     95% |118-\>120, 120-\>122, 122-\>124, 124-\>126, 126-\>129 |
 | src/croissant\_baker/identifiers.py                         |       58 |        0 |       32 |        2 |     98% |20-\>22, 38-\>40 |
 | src/croissant\_baker/mcp\_server.py                         |       75 |        1 |        4 |        0 |     99% |       330 |
-| src/croissant\_baker/metadata\_generator.py                 |      393 |       17 |      168 |       10 |     95% |168-\>170, 174, 176, 180-\>179, 347, 530-\>529, 564-567, 582-584, 600-\>598, 610, 951-952, 983-984, 1041-1042 |
+| src/croissant\_baker/metadata\_generator.py                 |      395 |       17 |      168 |       10 |     95% |206-\>208, 212, 214, 218-\>217, 385, 568-\>567, 602-605, 620-622, 638-\>636, 648, 989-990, 1021-1022, 1079-1080 |
 | src/croissant\_baker/pipeline.py                            |       78 |        0 |       24 |        0 |    100% |           |
 | src/croissant\_baker/rai/\_\_init\_\_.py                    |        4 |        0 |        0 |        0 |    100% |           |
-| src/croissant\_baker/rai/injector.py                        |       78 |        0 |       48 |        0 |    100% |           |
+| src/croissant\_baker/rai/injector.py                        |      127 |        1 |       70 |        1 |     99% |       265 |
 | src/croissant\_baker/rai/loader.py                          |      139 |        6 |       54 |        2 |     94% |55-59, 151 |
 | src/croissant\_baker/rai/schema.py                          |       53 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/references.py                          |       92 |        1 |       42 |        1 |     99% |       181 |
 | src/croissant\_baker/report.py                              |       50 |        1 |        6 |        1 |     96% |       113 |
 | src/croissant\_baker/scan.py                                |       10 |        0 |        0 |        0 |    100% |           |
 | src/croissant\_baker/sources.py                             |       60 |        1 |        6 |        1 |     97% |       141 |
-| **TOTAL**                                                   | **5390** |  **141** | **1930** |   **98** | **97%** |           |
+| **TOTAL**                                                   | **5445** |  **142** | **1954** |   **99** | **97%** |           |
 
 
 ## Setup coverage badge
