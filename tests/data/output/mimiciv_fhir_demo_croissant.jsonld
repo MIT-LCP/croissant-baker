@@ -3958,7 +3958,7 @@
       "@type": "cr:RecordSet",
       "@id": "MimicOrganization",
       "name": "Organization",
-      "description": "Records from MimicOrganization.ndjson.gz (1 rows)",
+      "description": "Records from MimicOrganization.ndjson.gz (1 row)",
       "field": [
         {
           "@type": "cr:Field",

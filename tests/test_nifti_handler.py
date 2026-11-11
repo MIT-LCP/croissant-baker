@@ -221,6 +221,40 @@ def test_the_dtype_list_does_not_follow_discovery_order(
         )
 
 
+@pytest.mark.parametrize(
+    ("count", "file_set", "record_set"),
+    [
+        (1, "1 NIfTI file (64x64x30)", "1 NIfTI file (64x64x30): int16"),
+        (2, "2 NIfTI files (64x64x30)", "2 NIfTI files (64x64x30): int16"),
+    ],
+    ids=["one file", "two files"],
+)
+def test_the_file_count_agrees_with_its_noun(
+    handler: NIfTIHandler, count: int, file_set: str, record_set: str
+) -> None:
+    metas = [_nifti_meta(f"{i}.nii.gz") for i in range(count)]
+
+    built = handler.build_croissant(metas, [f"file_{i}" for i in range(count)])
+
+    assert built.file_sets[0].description == file_set
+    assert built.record_sets[0].description == record_set
+
+
+@pytest.mark.parametrize(
+    ("volumes", "note"),
+    [(1, "64x64x30, 1 volume"), (2, "64x64x30, 2 volumes")],
+    ids=["one volume", "two volumes"],
+)
+def test_the_volume_count_agrees_with_its_noun(
+    handler: NIfTIHandler, volumes: int, note: str
+) -> None:
+    metas = [_nifti_meta("bold.nii.gz", ndim=4, dim_t=volumes)]
+
+    built = handler.build_croissant(metas, ["file_0"])
+
+    assert built.record_sets[0].description == f"1 NIfTI file ({note}): int16"
+
+
 def test_a_mixed_dtype_bake_describes_itself_one_way(
     tmp_path: Path, reverse_discovery: bool
 ) -> None:
@@ -346,3 +380,56 @@ def test_compressed_nifti_header_fields_keep_their_schema_without_an_extract(
     assert nifti["description"] == (
         "2 NIfTI files (8-64x8-64x4-30, 5 volumes): float32"
     )
+
+
+@pytest.mark.parametrize(
+    "shape, zooms, dims_note",
+    [((5,), (1.5,), "5"), ((5, 4), (1.5, 2.0), "5x4")],
+    ids=["1d", "2d"],
+)
+def test_a_volume_under_three_dimensions_states_only_the_axes_it_has(
+    handler: NIfTIHandler, tmp_path: Path, shape, zooms, dims_note
+) -> None:
+    path = _make_nifti(tmp_path / "slice.nii", shape=shape, zooms=zooms)
+
+    meta = handler.extract(make_source(path))
+    props = meta["nifti_properties"]
+    axes = ["x", "y", "z"][: len(shape)]
+    built = handler.build_croissant([meta], ["file_0"])
+
+    assert props["ndim"] == len(shape)
+    assert {k for k in props if k.startswith("dim_")} == {f"dim_{a}" for a in axes}
+    assert {k for k in props if k.startswith("voxel_spacing_")} == {
+        f"voxel_spacing_{a}" for a in axes
+    }
+    assert f"({dims_note}): int16" in built.record_sets[0].description
+
+
+def test_a_4d_volume_with_no_repetition_time_states_none(
+    handler: NIfTIHandler, tmp_path: Path
+) -> None:
+    path = _make_nifti_4d(
+        tmp_path / "bold.nii", shape=(4, 4, 2, 3), zooms=(2.0, 2.0, 3.0, 0.0)
+    )
+
+    props = handler.extract(make_source(path))["nifti_properties"]
+
+    assert props["dim_t"] == 3
+    assert "tr_seconds" not in props
+
+
+def test_4d_volumes_of_different_lengths_state_the_range(
+    handler: NIfTIHandler,
+) -> None:
+    metas = [
+        _nifti_meta("short.nii.gz", ndim=4, dim_t=120),
+        _nifti_meta("long.nii.gz", ndim=4, dim_t=200),
+    ]
+
+    built = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    assert "120-200 volumes" in built.record_sets[0].description
+
+
+def test_an_empty_batch_summarises_to_nothing() -> None:
+    assert collect_nifti_summary([]) == {}

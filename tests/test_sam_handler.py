@@ -15,6 +15,7 @@ import pytest
 
 from croissant_baker.entries import Reason
 from croissant_baker.handlers.sam_handler import SAMHandler
+from croissant_baker.handlers.sam_header import parse_sam_header, program_chain
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
 
@@ -150,6 +151,46 @@ def test_the_description_names_the_samples_when_asked_to(dataset: Path) -> None:
     described = extract(sample_sam(dataset), genomic_sample_ids=True)["description"]
 
     assert "NA00001" in described
+
+
+def test_comments_and_stray_lines_in_the_header_text_change_nothing() -> None:
+    """``@CO`` is free text, and a line not opening with ``@`` is no header
+    record at all; neither is counted as a reference, read group or program."""
+    header = parse_sam_header(
+        "@HD\tVN:1.6\n@CO\tID:bwa\tPN:bwa\nnot a header line\n@SQ\tSN:chr1\tLN:9\n"
+    )
+
+    assert header.sam_version == "1.6"
+    assert header.sq_count == 1
+    assert header.read_group_count == 0
+    assert header.programs == []
+
+
+def test_a_field_with_no_tag_is_skipped_and_the_first_value_wins() -> None:
+    header = parse_sam_header("@HD\tVN:1.6\tjunk\tVN:9.9\tSO:queryname\n")
+
+    assert header.sam_version == "1.6"
+    assert header.sort_order == "queryname"
+
+
+def test_a_platform_shared_by_read_groups_is_named_once() -> None:
+    """A read group stating no platform is still counted."""
+    header = parse_sam_header(
+        "@RG\tID:a\tPL:ILLUMINA\n@RG\tID:b\tPL:ILLUMINA\n@RG\tID:c\n"
+    )
+
+    assert header.read_group_count == 3
+    assert header.platforms == ["ILLUMINA"]
+
+
+def test_the_program_chain_falls_back_to_the_id_and_skips_the_unnamed() -> None:
+    programs = [
+        {"id": "", "name": "", "version": "1.0"},
+        {"id": "gatk", "name": "", "version": ""},
+        {"id": "pg2", "name": "samtools", "version": "1.19"},
+    ]
+
+    assert program_chain(programs) == "gatk, samtools 1.19"
 
 
 def test_a_file_carrying_no_header_line_is_refused_with_a_reason(
