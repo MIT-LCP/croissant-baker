@@ -561,6 +561,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#terms-that-are-not-part-of-rai-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terms that are not part of RAI 1.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#what-a-config-is-rejected-for" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -811,6 +822,17 @@
     <span class="md-ellipsis">
       
         activities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terms-that-are-not-part-of-rai-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terms that are not part of RAI 1.0
       
     </span>
   </a>
@@ -1105,6 +1127,32 @@
 </table>
 <p>Case and spacing do not matter, so <code>SURVEYS</code> is read as <code>surveys</code>. Six of those terms are the ones <a href="https://docs.mlcommons.org/croissant/docs/croissant-rai-spec.html">RAI 1.0</a> recommends. <code>interviews</code>, <code>crowdsourcing</code> and <code>simulations</code> have no recommended term, so the value is written in title case: the property takes plain text and the recommended list is advice, so an honest term is better than a poor fit. Any other text you write is written out as given, so you can write a recommended term straight into the config, or a term of your own.</p>
 <p>A complete working example is at <a href="https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml"><code>tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml</code></a>.</p>
+<h3 id="terms-that-are-not-part-of-rai-10">Terms that are not part of RAI 1.0</h3>
+<p>Three fields in the config have no term in the <a href="https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl">RAI 1.0 vocabulary</a>. They are croissant-baker extensions, and the output writes them under a prefix of their own, <code>cb:</code>, so that <code>rai:</code> only carries RAI 1.0 terms. The one exception comes from <code>mlcroissant</code>, which writes two of the native flags with its own spelling: <code>--rai-data-collection-timeframe</code> becomes <code>rai:dataCollectionTimeFrame</code> and <code>--rai-data-manipulation-protocol</code> becomes <code>rai:dataDataManipulationProtocol</code>, where RAI 1.0 has <code>dataCollectionTimeframe</code> and <code>dataManipulationProtocol</code>. Both still count as RAI 1.0 terms for the <code>conformsTo</code> claim.</p>
+<table>
+<thead>
+<tr>
+<th>Config field</th>
+<th>Output property</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai_fairness.has_synthetic_data</code></td>
+<td><code>cb:hasSyntheticData</code> on the dataset node</td>
+</tr>
+<tr>
+<td><code>lineage.models</code></td>
+<td><code>cb:usedBy</code> on the dataset node</td>
+</tr>
+<tr>
+<td><code>activities[].platforms</code></td>
+<td><code>cb:usedPlatform</code> on each <code>prov:Activity</code></td>
+</tr>
+</tbody>
+</table>
+<p>The prefix stands for <code>https://github.com/MIT-LCP/croissant-baker#</code> and is added to <code>@context</code> only when the output carries one of these properties. If <code>@context</code> already binds <code>cb</code> to another IRI, that binding is kept, the old <code>rai:</code> keys described under <a href="#apply-rai-to-an-existing-file">Apply RAI to an existing file</a> are not moved, and <code>rai-apply</code> prints a warning that names both IRIs. <code>mlcroissant</code> accepts the properties but does not read them.</p>
+<p>The output claims RAI 1.0 in <code>conformsTo</code> only when it carries at least one term from the RAI 1.0 vocabulary. A <code>rai:</code> key that is not in the vocabulary does not count. A config that fills in only these three fields, or only source datasets and activities without <code>collection_types</code> (which are written as <code>prov:</code> terms), adds no claim.</p>
 <h3 id="what-a-config-is-rejected-for">What a config is rejected for</h3>
 <p>Every key is checked against the keys its section accepts, at every level of the file. A key that is not recognised stops the run with an error naming the key by its path in the YAML (for example <code>activities[0].agents[1].nme</code>) and listing the keys that section does accept. Where the key came close to an accepted one, the error names it: <code>started_at</code> is answered with <code>Did you mean 'start_at' for 'started_at'?</code>. A message can list several unknown keys, so every hint names the key it answers.</p>
 <p>Values are checked as well. <code>has_synthetic_data</code> and <code>is_synthetic</code> take a bare <code>true</code> or <code>false</code>. A quoted <code>"false"</code> or <code>"no"</code> stops the run, because a quoted word is text and any text would be read as true. A text field takes text, a number, or a date, so <code>start_at: 2011-01-01</code> is fine. A list or a mapping in a text field stops the run, because it would reach the output as a Python repr such as <code>"['sampling', 'labelling']"</code>.</p>
@@ -1118,6 +1166,7 @@
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--output<span class="w"> </span>dataset-croissant-rai.jsonld
 </span></code></pre></div>
 <p>Omit <code>--output</code> to overwrite the input file in place.</p>
+<p>A file written by an older release may hold the three extension terms under <code>rai:</code>: <code>rai:hasSyntheticData</code> and <code>rai:usedBy</code> on the dataset, <code>rai:usedPlatform</code> on an activity. <code>rai-apply</code> moves each of them to its <code>cb:</code> name. When the config sets the same field, the config value replaces the old one. When the config leaves it empty, the old value is kept under the <code>cb:</code> name. If the file already has the <code>cb:</code> name as well, that value is kept and the <code>rai:</code> one is dropped. If the file binds <code>cb</code> to an IRI other than croissant-baker's, the old keys are left where they are, so nothing is moved into another namespace, and a warning says so. Activities work as a whole: when the config lists any, they replace the file's activities, old platforms included. The old keys alone do not make the file claim RAI 1.0.</p>
 
 
 
