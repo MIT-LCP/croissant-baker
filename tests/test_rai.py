@@ -1055,7 +1055,7 @@ def test_rai_apply_writes_rai_and_provenance_to_the_output(tmp_path: Path) -> No
     assert baked.read_text() == before
     doc = json.loads(output.read_text())
     assert doc["rai:dataLimitations"] == "Single site"
-    assert doc["rai:hasSyntheticData"] is False
+    assert doc["cb:hasSyntheticData"] is False
     assert RAI_CONFORMS_TO in doc["conformsTo"]
     assert doc["@context"]["prov"] == "http://www.w3.org/ns/prov#"
     assert doc["prov:wasDerivedFrom"] == [
@@ -1069,7 +1069,7 @@ def test_rai_apply_writes_rai_and_provenance_to_the_output(tmp_path: Path) -> No
             },
         }
     ]
-    assert doc["rai:usedBy"] == [
+    assert doc["cb:usedBy"] == [
         {"url": "https://example.org/model", "name": "Example model"}
     ]
 
@@ -1102,7 +1102,7 @@ def test_rai_apply_describes_each_activity(tmp_path: Path) -> None:
         },
         {"@type": "prov:SoftwareAgent", "name": "Scraper"},
     ]
-    assert collection["rai:usedPlatform"] == {
+    assert collection["cb:usedPlatform"] == {
         "name": "EHR",
         "url": "https://example.org/ehr",
         "prov:description": "Hospital record system",
@@ -1110,7 +1110,7 @@ def test_rai_apply_describes_each_activity(tmp_path: Path) -> None:
     # An unknown activity type keeps its own name as the label, and a single
     # platform is written as one node rather than a list of one.
     assert cleanup["prov:label"] == "custom_step"
-    assert cleanup["rai:usedPlatform"] == {"name": "Python"}
+    assert cleanup["cb:usedPlatform"] == {"name": "Python"}
 
 
 def test_rai_apply_validates_by_default(tmp_path: Path) -> None:
