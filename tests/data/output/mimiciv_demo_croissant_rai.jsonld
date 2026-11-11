@@ -45,7 +45,8 @@
     "source": "cr:source",
     "subField": "cr:subField",
     "transform": "cr:transform",
-    "prov": "http://www.w3.org/ns/prov#"
+    "prov": "http://www.w3.org/ns/prov#",
+    "cb": "https://github.com/MIT-LCP/croissant-baker#"
   },
   "@type": "sc:Dataset",
   "@id": "https://physionet.org/content/mimic-iv-demo/",
@@ -5886,7 +5887,7 @@
   "rai:personalSensitiveInformation": "The dataset contains de-identified patient health records. Re-identification risk has been minimised via HIPAA Safe Harbor procedures. Access is restricted to credentialed researchers who have signed a data use agreement.",
   "rai:dataUseCases": "Benchmarking clinical natural language processing and machine learning models. Supporting research into hospital readmission, mortality prediction, and clinical decision support. Not intended for direct clinical decision-making.",
   "rai:dataSocialImpact": "This dataset enables research that could improve clinical AI tools and patient outcomes. However, models trained on biased data risk perpetuating health disparities if deployed without careful evaluation.",
-  "rai:hasSyntheticData": false,
+  "cb:hasSyntheticData": false,
   "rai:dataCollectionType": [
     "Passive Data Collection",
     "Secondary Data analysis"
