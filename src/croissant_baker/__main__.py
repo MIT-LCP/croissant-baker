@@ -38,7 +38,7 @@ from croissant_baker.scan import Outcome, ScanReport
 app = typer.Typer(
     name="croissant-baker",
     help="🥐 Generate Croissant metadata for datasets with automatic type inference",
-    add_completion=False,
+    add_completion=True,
     rich_markup_mode="markdown",
 )
 
