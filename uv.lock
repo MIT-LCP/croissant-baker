@@ -1982,12 +1982,13 @@ wheels = [
 
 [[package]]
 name = "mlcroissant"
-version = "1.1.0"
+version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
     { name = "etils", version = "1.13.0", source = { registry = "https://pypi.org/simple" }, extra = ["epath"], marker = "python_full_version < '3.11'" },
     { name = "etils", version = "1.14.0", source = { registry = "https://pypi.org/simple" }, extra = ["epath"], marker = "python_full_version >= '3.11'" },
+    { name = "jinja2" },
     { name = "jsonpath-rw" },
     { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -2002,9 +2003,9 @@ dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/94/67287557ad889c85d37700bed09b33f1be8b7a272a5d0dbb84f4a697e7b0/mlcroissant-1.1.0.tar.gz", hash = "sha256:fd4a5fc875fa1531fabe4c131acdf8aaf9428fd69583cc51a7a5c23262b48259", size = 111643, upload-time = "2026-04-16T13:18:44.302Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/26/b7/5a691996de73614a165a4ba9138b5a67024a2398d6fec06f8816a5f24363/mlcroissant-1.1.1.tar.gz", hash = "sha256:1e42053eee457cccf2412bbea7bdd6d312fdf68ba31d350957ebc8850aa95ca1", size = 121379, upload-time = "2026-10-05T09:59:42.922Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/f9/9d4602e4346e4d6625e67ddcfd1ebd8d7d13860025bde43c8ed8149758e5/mlcroissant-1.1.0-py2.py3-none-any.whl", hash = "sha256:46f9ab72fc193e1e3730dbbd872eb8cdf07ca16e854578c5c30c2aad2854423a", size = 155405, upload-time = "2026-04-16T13:18:42.718Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/b7/16334c39db51142efdb24ab52862c74f98b99ac668b56b39afbdae86ce7b/mlcroissant-1.1.1-py2.py3-none-any.whl", hash = "sha256:d7a69c6568ed05f36cdb485669c42b20ac08f63046ea3c36eb84cc02c8b83bd1", size = 166945, upload-time = "2026-10-05T09:59:41.208Z" },
 ]
 
 [[package]]
