@@ -877,6 +877,36 @@ def test_collect_image_summary() -> None:
     assert summary["format_counts"] == {"JPEG": 2, "TIFF": 1}
 
 
+def test_an_empty_image_batch_summarises_to_nothing() -> None:
+    assert collect_image_summary([]) == {}
+
+
+def test_image_entries_without_properties_are_skipped_and_logged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An entry with no properties is left out of the count and logged; one
+    with only some properties counts, and its missing values widen no range."""
+    metas = [
+        {"file_name": "lost.png"},
+        {"image_properties": {}},
+        {"image_properties": {"image_format": "PNG"}},
+        {"image_properties": {"width": 8, "height": 4, "num_bands": 1}},
+    ]
+
+    with caplog.at_level("WARNING", logger="croissant_baker.handlers.image_handler"):
+        summary = collect_image_summary(metas)
+
+    assert summary == {
+        "num_images": 2,
+        "width_range": (8, 8),
+        "height_range": (4, 4),
+        "num_bands_range": (1, 1),
+        "format_counts": {"PNG": 1},
+    }
+    skipped = [r for r in caplog.records if "Skipping image entry" in r.message]
+    assert len(skipped) == 2
+
+
 def test_the_format_breakdown_does_not_follow_discovery_order() -> None:
     """Read into a description verbatim, and discovery order is rglob's, so a
     dataset and the same dataset compressed would describe one batch two ways.

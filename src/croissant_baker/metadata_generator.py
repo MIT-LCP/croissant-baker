@@ -54,6 +54,44 @@ _CARRIED_BY_ANOTHER = (Outcome.UNCLAIMED, Outcome.FAILED)
 # https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html
 CROISSANT_CONFORMS_TO = "http://mlcommons.org/croissant/1.1"
 RAI_CONFORMS_TO = "http://mlcommons.org/croissant/RAI/1.0"
+
+# Every term RAI 1.0 defines, as listed in croissant_rai.ttl. The injector
+# writes only these under rai:. mlcroissant, which writes the native --rai-*
+# flags, spells two of them its own way (see RAI_CONFORMANCE_KEYS below).
+# https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl
+RAI_1_0_TERMS = frozenset(
+    f"rai:{term}"
+    for term in (
+        "annotationsPerItem",
+        "annotatorDemographics",
+        "dataAnnotationAnalysis",
+        "dataAnnotationPlatform",
+        "dataAnnotationProtocol",
+        "dataBiases",
+        "dataCollection",
+        "dataCollectionMissingData",
+        "dataCollectionRawData",
+        "dataCollectionTimeframe",
+        "dataCollectionType",
+        "dataImputationProtocol",
+        "dataLimitations",
+        "dataManipulationProtocol",
+        "dataPreprocessingProtocol",
+        "dataReleaseMaintenancePlan",
+        "dataSocialImpact",
+        "dataUseCases",
+        "machineAnnotationTools",
+        "personalSensitiveInformation",
+    )
+)
+
+# mlcroissant 1.1 writes two of those terms with a spelling of its own:
+# dataCollectionTimeFrame and dataDataManipulationProtocol. The native --rai-*
+# flags reach the output through mlcroissant, so the claim accepts both.
+RAI_CONFORMANCE_KEYS = RAI_1_0_TERMS | {
+    "rai:dataCollectionTimeFrame",
+    "rai:dataDataManipulationProtocol",
+}
 BIOSCHEMAS_CONFORMS_TO = "https://bioschemas.org/profiles/Dataset/1.0-RELEASE"
 
 # Profiles a document can additionally declare, by the name --profile takes.
@@ -256,6 +294,7 @@ class MetadataGenerator:
         detect_references: bool = False,
         includes: Optional[List[str]] = None,
         excludes: Optional[List[str]] = None,
+        skip_paths: Optional[List[Path]] = None,
         rai_fields: Optional[Dict[str, object]] = None,
         handlers: Optional[HandlerRegistry] = None,
     ):
@@ -328,6 +367,9 @@ class MetadataGenerator:
                 column with a name-identifiable parent table. Defaults to False.
             includes: Glob patterns to include. Applied before excludes.
             excludes: Glob patterns to exclude. Applied after includes.
+            skip_paths: Paths relative to the dataset to leave out exactly,
+                such as a bake's own output written inside it. See
+                :func:`croissant_baker.files.discover_files`.
             rai_fields: Native mlcroissant RAI metadata fields, passed through
                 to ``mlc.Metadata`` unchanged.
             handlers: Which handlers to consult, and in what order. Defaults to
@@ -370,6 +412,7 @@ class MetadataGenerator:
         self.field_mappings = field_mappings or {}
         self.includes = includes
         self.excludes = excludes
+        self.skip_paths = skip_paths
         self.rai_fields = rai_fields or {}
         self.max_workers = max_workers
         self.handlers = handlers if handlers is not None else default_registry()
@@ -434,6 +477,7 @@ class MetadataGenerator:
             str(self.dataset_path),
             include_patterns=self.includes,
             exclude_patterns=self.excludes,
+            skip_paths=self.skip_paths,
         )
         self._scan_entries = entries
         self._reference_report = None

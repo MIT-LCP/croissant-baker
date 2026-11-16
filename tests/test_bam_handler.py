@@ -16,6 +16,7 @@ import pytest
 
 from croissant_baker.entries import Reason
 from croissant_baker.handlers.bam_handler import BAMHandler
+from croissant_baker.handlers.utils import MAX_HEADER_BYTES
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
 
@@ -25,6 +26,7 @@ from tests.helpers import (
     bake_with_report,
     bam_payload,
     cli,
+    cut_gzip,
     file_objects,
     record_sets,
     write_wrapped,
@@ -316,3 +318,83 @@ def test_the_flag_reaches_a_bake_from_the_command_line(
     assert result.exit_code == 0, result.output
     document = json.loads(output.read_text())
     assert "NA00001" in file_objects(document)[0]["description"]
+
+
+def test_a_corrupt_wrapper_is_not_claimed(dataset: Path) -> None:
+    """A gzip magic in front of a member that does not decompress is not a BAM
+    this handler can vouch for, and the claim says no rather than raising."""
+    path = write(dataset, "corrupt.bam", b"\x1f\x8b" + b"\xff" * 64)
+
+    assert not HANDLER.claims(source_for(path))
+
+
+def test_a_wrapper_ending_mid_stream_is_refused_naming_the_file(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "cut.bam", cut_gzip(bam_payload()))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value).startswith("Failed to read BAM file cut.bam: ")
+    assert isinstance(caught.value.__cause__, EOFError)
+
+
+def test_a_truncated_header_names_the_container_and_the_field(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "truncated.bam", gzip.compress(b"BAM\x01\x10"))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value) == (
+        "Truncated BAM header in truncated.bam: l_text needs 4 bytes, got 1"
+    )
+
+
+def test_the_cap_refusal_states_the_declared_length_and_the_cap(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "huge.bam", b"BAM\x01" + struct.pack("<i", 2**31 - 1))
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value) == (
+        "Not a BAM file: huge.bam declares a SAM header of 2147483647 bytes, "
+        f"outside the 0 to {MAX_HEADER_BYTES} a header can be"
+    )
+
+
+def test_the_metadata_carries_the_reference_count_beside_the_header(
+    dataset: Path,
+) -> None:
+    meta = extract(sample_bam(dataset), genomic_sample_ids=True)
+
+    assert set(meta) == {
+        "file_name",
+        "file_size",
+        "sha256",
+        "encoding_format",
+        "sam_version",
+        "sort_order",
+        "sq_count",
+        "reference_count",
+        "read_group_count",
+        "platforms",
+        "centres",
+        "programs",
+        "assembly",
+        "sample_ids",
+        "description",
+    }
+    assert meta["encoding_format"] == "application/x-bam"
+    assert meta["reference_count"] == 2
+    assert meta["description"] == (
+        "BAM alignment file sample.bam (coordinate-sorted; 2 "
+        "reference sequences (GRCh38); 1 read group; platform: "
+        "ILLUMINA; centre: STJUDE; aligned with bwa 0.7.17, samtools "
+        "1.19). Described from its header; no alignment record was "
+        "read. Sample identifiers: NA00001."
+    )

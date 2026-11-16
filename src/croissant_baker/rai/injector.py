@@ -2,9 +2,25 @@
 
 from __future__ import annotations
 
+import logging
+from typing import Optional
+
 from croissant_baker.rai.schema import Activity, RAIConfig
 
+logger = logging.getLogger(__name__)
+
 _PROV_NS = "http://www.w3.org/ns/prov#"
+
+# Terms croissant-baker writes that RAI 1.0 does not define: hasSyntheticData,
+# usedBy and usedPlatform. They get a prefix of their own so that rai: carries
+# only the terms in https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl
+# and the RAI 1.0 conformsTo claim is not read as covering them.
+_CB_PREFIX = "cb"
+_CB_NS = "https://github.com/MIT-LCP/croissant-baker#"
+
+# Where a document baked before the move holds each of the three terms.
+_DATASET_OLD_TERMS = ("hasSyntheticData", "usedBy")
+_ACTIVITY_OLD_TERMS = ("usedPlatform",)
 
 _ACTIVITY_LABELS = {
     "data_collection": "Data Collection",
@@ -46,20 +62,27 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     Inject RAI and PROV-O attributes into a Croissant metadata dict.
 
     Mutates and returns the dict. Fields that are None/empty are skipped.
-    The prov: namespace is added to @context automatically when needed.
+    The prov: and cb: namespaces are added to @context when a term uses them.
 
     Structure:
     - AI Safety and Fairness fields are direct rai: properties on the dataset.
     - Source datasets → prov:wasDerivedFrom.
-    - Models that used this dataset → rai:usedBy.
+    - Whether the data holds synthetic content → cb:hasSyntheticData.
+    - Models that used this dataset → cb:usedBy.
     - Activities → prov:wasGeneratedBy (list of prov:Activity), each with
-      optional prov:wasAssociatedWith (agents) and rai:usedPlatform (platforms).
+      optional prov:wasAssociatedWith (agents) and cb:usedPlatform (platforms).
+    - cb: terms are croissant-baker extensions, not part of RAI 1.0. A
+      document written before they moved holds them under rai:; those keys
+      are moved to cb:, where a value the config sets replaces them, unless
+      @context binds cb to another IRI; then they are left where they are.
     - Collection types → rai:dataCollectionType on the dataset node, unioned
       across the activities and written with the terms RAI 1.0 recommends.
       RAI 1.0 declares the property on sc:Dataset, so it does not go on the
       prov:Activity that carries the types in the config.
     """
     _ensure_prov_context(metadata, config)
+    if _foreign_cb_binding(metadata) is None:
+        _move_old_terms(metadata)
 
     # AI Safety and Fairness
     af = config.ai_fairness
@@ -74,7 +97,7 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     if af.data_social_impact:
         metadata["rai:dataSocialImpact"] = af.data_social_impact
     if af.has_synthetic_data is not None:
-        metadata["rai:hasSyntheticData"] = af.has_synthetic_data
+        metadata["cb:hasSyntheticData"] = af.has_synthetic_data
 
     # rai:dataCollectionType is declared on sc:Dataset, so the types every
     # activity declares are unioned onto the dataset rather than left on it.
@@ -99,7 +122,7 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
 
     # Lineage — models that used this dataset
     if config.lineage.models:
-        metadata["rai:usedBy"] = [
+        metadata["cb:usedBy"] = [
             {
                 k: v
                 for k, v in {
@@ -117,6 +140,7 @@ def inject_rai(metadata: dict, config: RAIConfig) -> dict:
     if activities:
         metadata["prov:wasGeneratedBy"] = _one_or_many(activities)
 
+    _ensure_cb_context(metadata)
     return metadata
 
 
@@ -176,7 +200,7 @@ def _build_activity(act: Activity) -> dict:
             if p.description:
                 plat["prov:description"] = p.description
             platform_nodes.append(plat)
-        node["rai:usedPlatform"] = _one_or_many(platform_nodes)
+        node["cb:usedPlatform"] = _one_or_many(platform_nodes)
 
     return node
 
@@ -189,3 +213,79 @@ def _ensure_prov_context(metadata: dict, config: RAIConfig) -> None:
     ctx = metadata.get("@context")
     if isinstance(ctx, dict) and "prov" not in ctx:
         ctx["prov"] = _PROV_NS
+
+
+def _move_old_terms(metadata: dict) -> None:
+    """Move rai:hasSyntheticData, rai:usedBy and rai:usedPlatform to cb:.
+
+    Runs before the config is written, so a value the config sets replaces the
+    old one and a value it leaves empty is kept under cb:. A cb: value already
+    in the document is newer than the rai: one, so it is kept.
+    """
+    moves = [(metadata, _DATASET_OLD_TERMS)]
+    moves += [(act, _ACTIVITY_OLD_TERMS) for act in _activity_nodes(metadata)]
+    for node, terms in moves:
+        for term in terms:
+            if f"rai:{term}" in node:
+                node.setdefault(f"cb:{term}", node.pop(f"rai:{term}"))
+
+
+def _activity_nodes(metadata: dict) -> list[dict]:
+    """The prov:Activity nodes on the dataset, whether one or a list."""
+    activities = metadata.get("prov:wasGeneratedBy")
+    if isinstance(activities, dict):
+        return [activities]
+    if isinstance(activities, list):
+        return [act for act in activities if isinstance(act, dict)]
+    return []
+
+
+def _foreign_cb_binding(metadata: dict) -> Optional[str]:
+    """The IRI @context binds cb to, when that is not ours."""
+    ctx = metadata.get("@context")
+    bound = ctx.get(_CB_PREFIX) if isinstance(ctx, dict) else None
+    return bound if bound not in (None, _CB_NS) else None
+
+
+def cb_prefix_conflict(metadata: dict) -> Optional[str]:
+    """Say so when cb is bound to another IRI and the output cares, else None.
+
+    It cares when it carries a cb: term, which then means something under the
+    other IRI, or an old rai: extension key, which was left unmoved. The
+    injector logs this for callers who configure logging; the CLI prints it,
+    since the package only ships a NullHandler.
+    """
+    bound = _foreign_cb_binding(metadata)
+    if bound is None:
+        return None
+    old_keys = {f"rai:{t}" for t in _DATASET_OLD_TERMS + _ACTIVITY_OLD_TERMS}
+    nodes = [metadata, *_activity_nodes(metadata)]
+    keys = [key for node in nodes for key in node]
+    if not any(key.startswith("cb:") or key in old_keys for key in keys):
+        return None
+    return (
+        f"@context already binds {_CB_PREFIX!r} to {bound!r}, not {_CB_NS!r}. "
+        "It was left as it is, so any cb: term written here reads under that "
+        "IRI, and rai:hasSyntheticData, rai:usedBy and rai:usedPlatform were "
+        "not moved to cb:."
+    )
+
+
+def _ensure_cb_context(metadata: dict) -> None:
+    """Add the cb: namespace to @context if the output carries a cb: term.
+
+    The output is read rather than the config, so the check cannot drift from
+    what was written, and a cb: term that was already in the document counts.
+    A cb prefix the document already binds elsewhere is left as it is, and
+    a warning says so.
+    """
+    conflict = cb_prefix_conflict(metadata)
+    if conflict:
+        logger.warning(conflict)
+        return
+    nodes = [metadata, *_activity_nodes(metadata)]
+    if not any(key.startswith("cb:") for node in nodes for key in node):
+        return
+    ctx = metadata.get("@context")
+    if isinstance(ctx, dict):
+        ctx.setdefault(_CB_PREFIX, _CB_NS)

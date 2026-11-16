@@ -11,7 +11,8 @@ This module is where they meet, and it re-exports all three so
 
 from __future__ import annotations
 
-from typing import List, Optional
+from pathlib import Path
+from typing import Iterable, List, Optional
 
 from croissant_baker.duplicates import PREFIX_BYTES, choose_primary, resolve_duplicates
 from croissant_baker.entries import REASON_LABELS, Outcome, Reason, ScanEntry
@@ -23,6 +24,7 @@ def scan_directory(
     dir_path: str,
     include_patterns: Optional[List[str]] = None,
     exclude_patterns: Optional[List[str]] = None,
+    skip_paths: Optional[Iterable[Path]] = None,
 ) -> List[ScanEntry]:
     """One entry per file found, in discovery order, each still ``PENDING``.
 
@@ -39,6 +41,7 @@ def scan_directory(
             dir_path,
             include_patterns=include_patterns,
             exclude_patterns=exclude_patterns,
+            skip_paths=skip_paths,
         )
     ]
 

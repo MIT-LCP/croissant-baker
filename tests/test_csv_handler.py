@@ -1,11 +1,14 @@
 """Tests for CSV handler."""
 
 from pathlib import Path
+
+import mlcroissant as mlc
+import pandas as pd
 import pytest
 from croissant_baker.handlers.csv_handler import CSVHandler
 from croissant_baker.sources import make_source
 
-from tests.helpers import bake
+from tests.helpers import bake, bake_validated
 
 
 def test_csv_handler_extract_metadata(tmp_path: Path) -> None:
@@ -150,9 +153,7 @@ def test_parse_conflict_unknown_falls_back_to_all_string(tmp_path: Path) -> None
     csv_file.write_text("a,b,c\n1,2,3\n")
     seen_overrides = []
 
-    def fake_read(
-        file_path, convert_options, count_rows=False, delimiter=",", skip_rows=0
-    ):
+    def fake_read(file_path, convert_options, **kwargs):
         overrides = {k: str(v) for k, v in (convert_options.column_types or {}).items()}
         seen_overrides.append(overrides)
         if overrides == {"a": "string", "b": "string", "c": "string"}:
@@ -266,3 +267,113 @@ def test_a_hash_header_is_not_a_preamble(tmp_path: Path) -> None:
     assert meta["column_types"]["name"] == "sc:Text"
     assert meta["column_types"]["age"] == "cr:Int64"
     assert meta["num_rows"] == 2
+
+
+#: Header rows whose column names pandas does not take verbatim: empty cells,
+#: repeats, and generated names colliding with ones the header spells out.
+_HEADERS_PANDAS_RENAMES = [
+    ",value",
+    ",,value",
+    "id,,value",
+    "a,,a,",
+    "a,a",
+    "a,a,a",
+    "a,a.1,a",
+    "a,a,a.1",
+    ",Unnamed: 0",
+    "Unnamed: 0,",
+    ",Unnamed: 0,Unnamed: 0",
+    "a,a.1,a.1",
+]
+
+
+@pytest.mark.parametrize("header", _HEADERS_PANDAS_RENAMES)
+def test_columns_are_named_as_pandas_reads_them(tmp_path: Path, header: str) -> None:
+    """mlcroissant reads CSV through pandas, so a field must extract the name
+    pandas gives the column. An empty cell (``DataFrame.to_csv()`` writes one
+    over its index) used to become a nameless field, and a repeated name used
+    to collapse two columns into one field."""
+    path = tmp_path / "table.csv"
+    width = header.count(",") + 1
+    path.write_text(header + "\n" + ",".join(["1"] * width) + "\n", encoding="utf-8")
+
+    meta = CSVHandler().extract(make_source(path))
+
+    expected = list(pd.read_csv(path, nrows=0).columns)
+    assert meta["columns"] == expected
+    assert list(meta["column_types"]) == expected
+
+
+def test_a_type_conflict_promotes_only_its_own_unnamed_column(tmp_path: Path) -> None:
+    """The promotion after a conflict is keyed by column name. Every empty
+    header cell reads as ``""`` to pyarrow, so a fix aimed at one unnamed
+    column used to land on all of them."""
+    path = tmp_path / "table.csv"
+    path.write_text(",,v\n" + "1,2,x\n" * 200_000 + "1,abc,y\n", encoding="utf-8")
+
+    meta = CSVHandler().extract(make_source(path), count_rows=True)
+
+    assert meta["column_types"] == {
+        "Unnamed: 0": "cr:Int64",
+        "Unnamed: 1": "sc:Text",
+        "v": "sc:Text",
+    }
+    assert meta["num_rows"] == 200_001
+
+
+@pytest.mark.parametrize(
+    "header",
+    ['"two\nlines",,v', '"two\rlines",,v', "\nid,,v", "#meta\n\nid,,v"],
+    ids=["quoted-newline", "quoted-cr", "blank-line-first", "preamble-then-blank"],
+)
+def test_the_rows_after_a_conflict_start_right_after_the_header(
+    tmp_path: Path, header: str
+) -> None:
+    """After a conflict the names are handed to pyarrow and the header is
+    skipped by line count. A line break inside a quoted cell, or a blank line
+    before the header, must be counted too, or a header line is read as data:
+    the first column turns to text and the count gains a row."""
+    path = tmp_path / "table.csv"
+    path.write_bytes(
+        (header + "\n" + "1,2,x\n" * 200_000 + "1,abc,y\n").encode("utf-8")
+    )
+
+    meta = CSVHandler().extract(make_source(path), count_rows=True)
+
+    first, unnamed, last = meta["column_types"].values()
+    assert (first, unnamed, last) == ("cr:Int64", "sc:Text", "sc:Text")
+    assert list(meta["column_types"])[1] == "Unnamed: 1"
+    assert meta["num_rows"] == 200_001
+
+
+def test_a_latin1_file_with_an_empty_header_keeps_its_columns(tmp_path: Path) -> None:
+    """pandas decodes a block of data, not just the header, to name columns.
+    A byte that is not UTF-8 there must not cost the file its manifest entry."""
+    path = tmp_path / "table.csv"
+    path.write_bytes(",v\n0,\xe9t\xe9\n1,x\n".encode("latin-1"))
+
+    meta = CSVHandler().extract(make_source(path))
+
+    assert meta["columns"] == ["Unnamed: 0", "v"]
+
+
+@pytest.mark.parametrize(
+    ("name", "text"),
+    [("table.csv", ",value\n0,x\n1,y\n"), ("table.tsv", "\tvalue\n0\tx\n1\ty\n")],
+    ids=["csv", "tsv"],
+)
+def test_a_column_under_an_empty_header_reads_back_through_mlcroissant(
+    tmp_path: Path, name: str, text: str
+) -> None:
+    """Validation passes either way, so only reading the rows proves the field
+    points at a column the loader can find."""
+    (tmp_path / name).write_text(text, encoding="utf-8")
+
+    doc = bake_validated(tmp_path)
+
+    (record_set,) = doc["recordSet"]
+    assert not any(f["@id"].endswith("/") for f in record_set["field"])
+    (index,) = [f["@id"] for f in record_set["field"] if f["name"] == "Unnamed: 0"]
+    dataset = mlc.Dataset(str(tmp_path / "croissant.jsonld"))
+    rows = list(dataset.records(record_set["@id"]))
+    assert [row[index] for row in rows] == [0, 1]

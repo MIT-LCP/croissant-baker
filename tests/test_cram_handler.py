@@ -475,3 +475,49 @@ def test_the_flag_reaches_a_bake_from_the_command_line(
     assert result.exit_code == 0, result.output
     document = json.loads(output.read_text())
     assert "NA00001" in file_objects(document)[0]["description"]
+
+
+def test_a_truncated_file_id_names_the_container_and_the_field(
+    dataset: Path,
+) -> None:
+    path = write(dataset, "short.cram", b"CRAM\x03\x00" + b"\x00" * 5)
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value) == (
+        "Truncated CRAM header in short.cram: the file id needs 20 bytes, got 5"
+    )
+
+
+def test_the_metadata_carries_the_cram_version_beside_the_header(
+    dataset: Path,
+) -> None:
+    meta = extract(sample_cram(dataset), genomic_sample_ids=True)
+
+    assert set(meta) == {
+        "file_name",
+        "file_size",
+        "sha256",
+        "encoding_format",
+        "cram_version",
+        "sam_version",
+        "sort_order",
+        "sq_count",
+        "read_group_count",
+        "platforms",
+        "centres",
+        "programs",
+        "assembly",
+        "sample_ids",
+        "description",
+    }
+    assert meta["encoding_format"] == "application/x-cram"
+    assert meta["cram_version"] == "3.0"
+    assert meta["description"] == (
+        "CRAM 3.0 alignment file sample.cram (coordinate-sorted; 2 "
+        "reference sequences (GRCh38); 1 read group; platform: "
+        "ILLUMINA; centre: STJUDE; aligned with bwa 0.7.17, samtools "
+        "1.19). Described from its header; no alignment record was "
+        "read. Sample identifiers: NA00001."
+    )

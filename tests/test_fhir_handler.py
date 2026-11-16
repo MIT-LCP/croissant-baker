@@ -14,6 +14,7 @@ import pytest
 from croissant_baker.handlers.fhir_handler import (
     FHIRHandler,
     _is_bulk_chunk,
+    merge_fhir_column_types,
 )
 from croissant_baker.handlers.utils import infer_croissant_type as _infer_croissant_type
 from croissant_baker.handlers.utils import infer_field_type as _infer_field_type
@@ -427,6 +428,56 @@ def test_file_set_includes_do_not_follow_discovery_order(metas: list) -> None:
         assert file_set.includes == sorted(m["relative_path"] for m in metas)
 
 
+@pytest.mark.parametrize(
+    ("count", "file_set", "record_set"),
+    [
+        (1, "1 FHIR Bundle file", "FHIR Patient from 1 Bundle file (1 resource)"),
+        (2, "2 FHIR Bundle files", "FHIR Patient from 2 Bundle files (2 resources)"),
+    ],
+    ids=["one bundle", "two bundles"],
+)
+def test_the_bundle_count_agrees_with_its_noun(
+    count: int, file_set: str, record_set: str
+) -> None:
+    metas = [_bundle_meta(f"{i}.json") for i in range(count)]
+
+    built = FHIRHandler().build_croissant(metas, [f"file_{i}" for i in range(count)])
+
+    assert built.file_sets[0].description == file_set
+    assert built.record_sets[0].description == record_set
+
+
+@pytest.mark.parametrize(
+    ("rows", "phrase"), [(1, "(1 row)"), (2, "(2 rows)")], ids=["one", "two"]
+)
+def test_the_row_count_of_a_chunked_table_agrees_with_its_noun(
+    rows: int, phrase: str
+) -> None:
+    metas = [_chunk_meta(0, {"id": "sc:Text"}), _chunk_meta(1, {"id": "sc:Text"})]
+    metas[0]["num_rows"], metas[1]["num_rows"] = rows - 1, 1
+
+    built = FHIRHandler().build_croissant(metas, ["file_0", "file_1"])
+
+    assert built.file_sets[0].description == (
+        "2 NDJSON chunk files for FHIR Observation"
+    )
+    assert built.record_sets[0].description == (
+        f"FHIR Observation from 2 NDJSON chunk files {phrase}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("rows", "phrase"), [(1, "(1 row)"), (2, "(2 rows)")], ids=["one", "two"]
+)
+def test_the_row_count_of_one_file_agrees_with_its_noun(rows: int, phrase: str) -> None:
+    meta = _chunk_meta(0, {"id": "sc:Text"})
+    meta["num_rows"] = rows
+
+    built = FHIRHandler().build_croissant([meta], ["file_0"])
+
+    assert built.record_sets[0].description.endswith(phrase)
+
+
 def test_build_croissant_all_skipped_returns_empty(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -448,6 +499,123 @@ def test_build_croissant_all_skipped_returns_empty(
     assert filesets == []
     assert record_sets == []
     assert any("no RecordSets" in msg for msg in caplog.messages)
+
+
+@pytest.mark.parametrize(
+    "per_file,expected",
+    [
+        (["cr:Int64", "cr:Float64"], "cr:Float64"),
+        (["cr:Float64", "cr:Int64"], "cr:Float64"),
+        (["cr:Int64", "cr:Int64", "cr:Float64"], "cr:Float64"),
+        (["sc:Date", "sc:DateTime"], "sc:DateTime"),
+        (["sc:DateTime", "sc:Date", "sc:Date"], "sc:DateTime"),
+        (["cr:Int64", "sc:Text"], "sc:Text"),
+        (["sc:Boolean", "sc:Text"], "sc:Text"),
+        (["sc:Text", "sc:Boolean", "sc:Boolean"], "sc:Text"),
+        (["sc:URL", "sc:Text"], "sc:Text"),
+        (["cr:Int64"], "cr:Int64"),
+        (["sc:Date", "sc:Date"], "sc:Date"),
+    ],
+)
+def test_merge_widens_disagreeing_primitives(per_file: list, expected: str) -> None:
+    """Files that disagree on a column type merge to a type that holds every value."""
+    merged = merge_fhir_column_types([{"x": t} for t in per_file])
+    assert merged["x"] == expected
+
+
+def test_merge_widens_primitive_arrays() -> None:
+    """Arrays of primitives widen their item type the same way."""
+    merged = merge_fhir_column_types(
+        [
+            {"x": {"type": "cr:Int64", "is_array": True}},
+            {"x": {"type": "cr:Int64", "is_array": True}},
+            {"x": {"type": "cr:Float64", "is_array": True}},
+        ]
+    )
+    assert merged["x"] == {"type": "cr:Float64", "is_array": True}
+
+
+def test_merge_widens_nested_struct_fields() -> None:
+    """Sub-fields of a struct widen across files."""
+    merged = merge_fhir_column_types(
+        [
+            {"valueQuantity": {"fields": {"value": "cr:Int64"}, "is_array": False}},
+            {"valueQuantity": {"fields": {"value": "cr:Float64"}, "is_array": False}},
+        ]
+    )
+    assert merged["valueQuantity"]["fields"]["value"] == "cr:Float64"
+
+
+def test_merge_column_missing_in_some_files_keeps_type() -> None:
+    """A column absent from some files keeps the type of the files that have it."""
+    merged = merge_fhir_column_types(
+        [
+            {"id": "sc:Text", "birthDate": "sc:Date"},
+            {"id": "sc:Text"},
+            {"id": "sc:Text", "birthDate": "sc:Date"},
+        ]
+    )
+    assert merged == {"birthDate": "sc:Date", "id": "sc:Text"}
+
+
+def test_build_croissant_int_and_float_chunks_emit_float(tmp_path: Path) -> None:
+    """Chunks where a value is int in one file and float in another emit Float64."""
+    rows_int = [
+        {"resourceType": "Observation", "id": f"a{i}", "valueQuantity": {"value": i}}
+        for i in range(3)
+    ]
+    rows_float = [
+        {
+            "resourceType": "Observation",
+            "id": f"b{i}",
+            "valueQuantity": {"value": i + 0.5},
+        }
+        for i in range(3)
+    ]
+    _ndjson(tmp_path / "Observation.000.ndjson", rows_int)
+    _ndjson(tmp_path / "Observation.001.ndjson", rows_float)
+    handler = FHIRHandler()
+    metas = [
+        handler.extract(make_source(tmp_path / name))
+        for name in ("Observation.000.ndjson", "Observation.001.ndjson")
+    ]
+
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    quantity = next(f for f in record_sets[0].fields if f.name == "valueQuantity")
+    value = next(f for f in quantity.sub_fields if f.name == "value")
+    assert [str(t) for t in value.data_types] == ["cr:Float64"]
+
+
+def test_build_croissant_int_and_float_bundles_emit_float(tmp_path: Path) -> None:
+    """Bundles where a value is int in one file and float in another emit Float64."""
+
+    def bundle(values: list) -> dict:
+        return {
+            "resourceType": "Bundle",
+            "type": "collection",
+            "entry": [
+                {
+                    "resource": {
+                        "resourceType": "Observation",
+                        "id": f"o{i}",
+                        "valueQuantity": {"value": v},
+                    }
+                }
+                for i, v in enumerate(values)
+            ],
+        }
+
+    (tmp_path / "a.json").write_text(json.dumps(bundle([1, 2, 3])))
+    (tmp_path / "b.json").write_text(json.dumps(bundle([1.5, 2.5, 3.5])))
+    handler = FHIRHandler()
+    metas = [handler.extract(make_source(tmp_path / n)) for n in ("a.json", "b.json")]
+
+    _, record_sets = handler.build_croissant(metas, ["file_0", "file_1"])
+
+    quantity = next(f for f in record_sets[0].fields if f.name == "valueQuantity")
+    value = next(f for f in quantity.sub_fields if f.name == "value")
+    assert [str(t) for t in value.data_types] == ["cr:Float64"]
 
 
 @pytest.fixture
@@ -520,3 +688,131 @@ def test_mimiciv_fhir_observation_labevents(mimiciv_fhir_path: Path) -> None:
     assert meta["fhir_resource_type"] == "Observation"
     assert meta["num_rows"] > 100_000
     assert "effectiveDateTime" in meta["column_types"]
+
+
+def test_json_array_is_not_claimed(tmp_path: Path) -> None:
+    """A top-level JSON array is never a FHIR resource, whatever it holds."""
+    p = tmp_path / "list.json"
+    p.write_text(json.dumps([{"resourceType": "Patient"}]))
+    assert FHIRHandler().claims(make_source(p)) is False
+
+
+def test_large_fhir_json_is_claimed_from_its_head(tmp_path: Path) -> None:
+    """A Bundle bigger than the sniffed prefix is still recognised by its resourceType."""
+    p = tmp_path / "bundle.json"
+    entries = [{"resource": dict(r)} for r in _PATIENTS * 40]
+    p.write_text(json.dumps({"resourceType": "Bundle", "entry": entries}))
+    assert p.stat().st_size > 4096
+    assert FHIRHandler().claims(make_source(p)) is True
+
+
+def test_undecodable_json_is_not_claimed(tmp_path: Path) -> None:
+    p = tmp_path / "latin1.json"
+    p.write_bytes(b'{"resourceType": "Patient", "name": "\xff\xfe"}')
+    assert FHIRHandler().claims(make_source(p)) is False
+
+
+def test_extract_ndjson_skips_rows_it_cannot_use(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Blank, malformed, non-FHIR and off-type rows are left out of the count."""
+    p = tmp_path / "Patient.ndjson"
+    p.write_text(
+        "\n".join(
+            [
+                json.dumps(_PATIENTS[0]),
+                "",
+                "{not json",
+                json.dumps({"id": "no-resource-type"}),
+                json.dumps({"resourceType": "OperationOutcome", "issue": []}),
+                json.dumps(_PATIENTS[1]),
+            ]
+        )
+        + "\n"
+    )
+
+    with caplog.at_level("WARNING", logger="croissant_baker.handlers.fhir_handler"):
+        meta = FHIRHandler().extract(make_source(p))
+
+    assert meta["fhir_resource_type"] == "Patient"
+    assert meta["num_rows"] == 2
+    assert "issue" not in meta["column_types"]
+    assert any("malformed JSON line" in m for m in caplog.messages)
+
+
+def test_extract_ndjson_without_resources_raises(tmp_path: Path) -> None:
+    p = tmp_path / "Patient.ndjson"
+    p.write_text(json.dumps({"id": "a"}) + "\n")
+    with pytest.raises(ValueError, match="No valid FHIR resources"):
+        FHIRHandler().extract(make_source(p))
+
+
+@pytest.mark.parametrize(
+    "content, message",
+    [
+        ('{"resourceType": "Bundle", ', "Cannot parse"),
+        (json.dumps({"id": "a"}), "No FHIR resourceType"),
+        (
+            json.dumps({"resourceType": "Bundle", "entry": [{"resource": {}}]}),
+            "No FHIR resources found in Bundle",
+        ),
+    ],
+)
+def test_extract_json_refuses_what_is_not_fhir(
+    tmp_path: Path, content: str, message: str
+) -> None:
+    p = tmp_path / "bundle.json"
+    p.write_text(content)
+    with pytest.raises(ValueError, match=message):
+        FHIRHandler().extract(make_source(p))
+
+
+def test_build_croissant_treats_a_lone_chunk_as_a_table() -> None:
+    """One bulk chunk has nothing to merge with, so it gets no FileSet."""
+    meta = {
+        "file_name": "Observation.000.ndjson",
+        "relative_path": "Observation.000.ndjson",
+        "fhir_resource_type": "Observation",
+        "column_types": {"id": "sc:Text"},
+        "encoding_format": "application/fhir+ndjson",
+        "num_rows": 4,
+    }
+    filesets, record_sets = FHIRHandler().build_croissant([meta], ["file_0"])
+
+    assert filesets == []
+    assert len(record_sets) == 1
+    assert record_sets[0].name == "Observation"
+
+
+def test_merge_prefers_structure_over_primitives() -> None:
+    merged = merge_fhir_column_types(
+        [
+            {"code": "sc:Text", "tags": "sc:Text", "id": "sc:Text"},
+            {
+                "code": {"fields": {"text": "sc:Text"}, "is_array": False},
+                "tags": {"type": "sc:Text", "is_array": True},
+                "id": "sc:Text",
+            },
+            {
+                "code": {"fields": {"system": "sc:URL"}, "is_array": True},
+                "tags": {"type": "cr:Int64", "is_array": True},
+            },
+            {"tags": {"type": "sc:Text", "is_array": True}},
+            # One file represents `tags` as a struct. Every other file here
+            # calls it a primitive-array, so this is the only case in the
+            # fixture where the two actually collide on the same key -
+            # without it, struct-vs-primitive-array priority is never
+            # exercised, only struct-vs-primitive and array-vs-primitive.
+            {"tags": {"fields": {"display": "sc:Text"}, "is_array": False}},
+        ]
+    )
+
+    assert merged["code"] == {
+        "fields": {"system": "sc:URL", "text": "sc:Text"},
+        "is_array": True,
+    }
+    assert merged["tags"] == {
+        "fields": {"display": "sc:Text"},
+        "is_array": False,
+    }
+    assert merged["id"] == "sc:Text"

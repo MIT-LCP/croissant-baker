@@ -14,7 +14,13 @@ import mlcroissant as mlc
 import pytest
 
 from croissant_baker.entries import Reason
+from croissant_baker.handlers import sam_handler
 from croissant_baker.handlers.sam_handler import SAMHandler
+from croissant_baker.handlers.sam_header import (
+    alignment_metadata,
+    parse_sam_header,
+    program_chain,
+)
 from croissant_baker.identifiers import serialize_datetime
 from croissant_baker.sources import FileSource, make_source
 
@@ -150,6 +156,46 @@ def test_the_description_names_the_samples_when_asked_to(dataset: Path) -> None:
     described = extract(sample_sam(dataset), genomic_sample_ids=True)["description"]
 
     assert "NA00001" in described
+
+
+def test_comments_and_stray_lines_in_the_header_text_change_nothing() -> None:
+    """``@CO`` is free text, and a line not opening with ``@`` is no header
+    record at all; neither is counted as a reference, read group or program."""
+    header = parse_sam_header(
+        "@HD\tVN:1.6\n@CO\tID:bwa\tPN:bwa\nnot a header line\n@SQ\tSN:chr1\tLN:9\n"
+    )
+
+    assert header.sam_version == "1.6"
+    assert header.sq_count == 1
+    assert header.read_group_count == 0
+    assert header.programs == []
+
+
+def test_a_field_with_no_tag_is_skipped_and_the_first_value_wins() -> None:
+    header = parse_sam_header("@HD\tVN:1.6\tjunk\tVN:9.9\tSO:queryname\n")
+
+    assert header.sam_version == "1.6"
+    assert header.sort_order == "queryname"
+
+
+def test_a_platform_shared_by_read_groups_is_named_once() -> None:
+    """A read group stating no platform is still counted."""
+    header = parse_sam_header(
+        "@RG\tID:a\tPL:ILLUMINA\n@RG\tID:b\tPL:ILLUMINA\n@RG\tID:c\n"
+    )
+
+    assert header.read_group_count == 3
+    assert header.platforms == ["ILLUMINA"]
+
+
+def test_the_program_chain_falls_back_to_the_id_and_skips_the_unnamed() -> None:
+    programs = [
+        {"id": "", "name": "", "version": "1.0"},
+        {"id": "gatk", "name": "", "version": ""},
+        {"id": "pg2", "name": "samtools", "version": "1.19"},
+    ]
+
+    assert program_chain(programs) == "gatk, samtools 1.19"
 
 
 def test_a_file_carrying_no_header_line_is_refused_with_a_reason(
@@ -352,3 +398,137 @@ def test_the_flag_reaches_a_bake_from_the_command_line(
     assert result.exit_code == 0, result.output
     document = json.loads(output.read_text())
     assert "NA00001" in file_objects(document)[0]["description"]
+
+
+def test_a_last_header_line_without_an_ending_is_read(dataset: Path) -> None:
+    """A header-only SAM whose writer left off the final line ending still
+    declares the reference on that line."""
+    path = write(dataset, "open.sam", b"@HD\tVN:1.6\n@SQ\tSN:chr1\tLN:100")
+
+    assert extract(path)["sq_count"] == 1
+
+
+def test_the_line_cap_refusal_states_the_cap(dataset: Path) -> None:
+    body = b"@HD\tVN:1.6\t" + b"x" * NO_NEWLINE_BYTES
+    path = write(dataset, "unbroken.sam", body)
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    message = str(caught.value)
+    assert message.startswith("Not a SAM file: unbroken.sam runs to ")
+    assert message.endswith(
+        " bytes with no line ending, past the "
+        f"{sam_handler.MAX_LINE_BYTES} a header line can be"
+    )
+
+
+#: The header cap the bound test shrinks the handler's to, so a file under a
+#: megabyte exercises it.
+SMALL_HEADER_CAP = 256 * 1024
+
+
+def test_a_header_running_past_the_cap_is_refused_after_a_bounded_read(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Short lines are no way around the line cap: a header that never reaches
+    an alignment record stops at the cap on the header as a whole."""
+    monkeypatch.setattr(sam_handler, "MAX_HEADER_BYTES", SMALL_HEADER_CAP)
+    references = b"".join(b"@SQ\tSN:chr%d\tLN:100000\n" % i for i in range(60000))
+    path = write(dataset, "endless.sam", b"@HD\tVN:1.6\n" + references)
+    assert path.stat().st_size > 4 * SMALL_HEADER_CAP
+    opened: list = []
+
+    with pytest.raises(ValueError) as caught:
+        HANDLER.extract(counting_source(path, opened))
+
+    assert str(caught.value) == (
+        f"Not a SAM file: the header of endless.sam runs past {SMALL_HEADER_CAP} "
+        "bytes without reaching a line that is not a header line"
+    )
+    assert sum(stream.read_bytes for stream in opened) < 2 * SMALL_HEADER_CAP
+
+
+def test_the_metadata_carries_the_header_and_nothing_else(dataset: Path) -> None:
+    meta = extract(sample_sam(dataset), genomic_sample_ids=True)
+
+    assert set(meta) == {
+        "file_name",
+        "file_size",
+        "sha256",
+        "encoding_format",
+        "sam_version",
+        "sort_order",
+        "sq_count",
+        "read_group_count",
+        "platforms",
+        "centres",
+        "programs",
+        "assembly",
+        "sample_ids",
+        "description",
+    }
+    assert meta["encoding_format"] == "text/x-sam"
+    assert meta["description"] == (
+        "SAM alignment file sample.sam (coordinate-sorted; 2 "
+        "reference sequences (GRCh38); 1 read group; platform: "
+        "ILLUMINA; centre: STJUDE; aligned with bwa 0.7.17, samtools "
+        "1.19). Described from its header; no alignment record was "
+        "read. Sample identifiers: NA00001."
+    )
+
+
+def test_alignment_metadata_puts_the_container_keys_beside_the_header(
+    dataset: Path,
+) -> None:
+    source = source_for(sample_sam(dataset))
+
+    meta = alignment_metadata(
+        source,
+        encoding_format="application/x-test",
+        described_as="TEST 1.0",
+        header=parse_sam_header(BAM_HEADER_TEXT),
+        reference_count=7,
+        genomic_sample_ids=False,
+        extra={"test_version": "1.0"},
+    )
+
+    assert meta["encoding_format"] == "application/x-test"
+    assert meta["test_version"] == "1.0"
+    assert meta["description"].startswith(
+        "TEST 1.0 alignment file sample.sam (coordinate-sorted; 7 reference "
+    )
+
+
+def test_alignment_metadata_withholds_the_samples_from_the_description_too(
+    dataset: Path,
+) -> None:
+    meta = alignment_metadata(
+        source_for(sample_sam(dataset)),
+        encoding_format="text/x-sam",
+        described_as="SAM",
+        header=parse_sam_header(BAM_HEADER_TEXT),
+        reference_count=2,
+        genomic_sample_ids=False,
+    )
+
+    assert "sample_ids" not in meta
+    assert "NA00001" not in meta["description"]
+
+
+def test_alignment_metadata_refuses_an_extra_key_it_writes_itself(
+    dataset: Path,
+) -> None:
+    """A container key named like a header key would silently replace it."""
+    with pytest.raises(ValueError) as caught:
+        alignment_metadata(
+            source_for(sample_sam(dataset)),
+            encoding_format="text/x-sam",
+            described_as="SAM",
+            header=parse_sam_header(BAM_HEADER_TEXT),
+            reference_count=2,
+            genomic_sample_ids=False,
+            extra={"sq_count": 99, "assembly": "hg19"},
+        )
+
+    assert "assembly, sq_count" in str(caught.value)

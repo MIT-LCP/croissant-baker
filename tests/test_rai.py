@@ -1,17 +1,34 @@
 """Integration test for the RAI metadata extension."""
 
 import json
+import logging
 import re
 from pathlib import Path
 
+import mlcroissant as mlc
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
-from croissant_baker.__main__ import app
+from croissant_baker.__main__ import _ensure_rai_conforms_to, app
 from croissant_baker.rai import inject_rai
 from croissant_baker.rai.injector import _COLLECTION_TYPE_TERMS
-from croissant_baker.rai.schema import Activity, RAIConfig
+from croissant_baker.metadata_generator import (
+    CROISSANT_CONFORMS_TO,
+    RAI_1_0_TERMS,
+    RAI_CONFORMS_TO,
+)
+from croissant_baker.rai.schema import (
+    Activity,
+    AIFairnessConfig,
+    LineageConfig,
+    ModelRef,
+    Platform,
+    RAIConfig,
+    SourceDataset,
+)
 from tests.helpers import cli
+from tests.test_end_to_end import _discovery_independent
 
 runner = CliRunner()
 
@@ -53,15 +70,13 @@ def mimiciv_demo_path() -> Path:
     return MIMICIV_PATH
 
 
-def test_rai_generation_matches_reference(
-    mimiciv_demo_path: Path, tmp_path: Path
-) -> None:
-    output = tmp_path / "output.jsonld"
-    result = runner.invoke(
+def _bake_with_rai(dataset: Path, output: Path) -> Result:
+    """Bake the MIMIC-IV demo with the fixture RAI config, as the golden was."""
+    return runner.invoke(
         app,
         [
             "-i",
-            str(mimiciv_demo_path),
+            str(dataset),
             "-o",
             str(output),
             "--name",
@@ -96,6 +111,13 @@ def test_rai_generation_matches_reference(
         ],
     )
 
+
+def test_rai_generation_matches_reference(
+    mimiciv_demo_path: Path, tmp_path: Path
+) -> None:
+    output = tmp_path / "output.jsonld"
+    result = _bake_with_rai(mimiciv_demo_path, output)
+
     assert result.exit_code == 0, result.output
 
     generated = json.loads(output.read_text())
@@ -103,6 +125,34 @@ def test_rai_generation_matches_reference(
 
     for key in _RAI_PROV_KEYS:
         assert generated.get(key) == expected.get(key), f"Mismatch for {key}"
+
+
+@pytest.mark.parametrize("reverse_discovery", [False, True])
+def test_rai_generation_matches_the_whole_reference(
+    mimiciv_demo_path: Path, tmp_path: Path, monkeypatch, reverse_discovery: bool
+) -> None:
+    """The whole document is compared, so the golden cannot drift from the bake.
+
+    Compared through :func:`_discovery_independent` and run in both discovery
+    orders, since ``rglob`` order depends on the filesystem. To regenerate, bake with the arguments of
+    :func:`_bake_with_rai` and write to ``EXPECTED``.
+    """
+    if reverse_discovery:
+        from croissant_baker import scan
+
+        discover = scan.discover_files
+        monkeypatch.setattr(
+            scan,
+            "discover_files",
+            lambda *args, **kwargs: list(reversed(discover(*args, **kwargs))),
+        )
+    output = tmp_path / "output.jsonld"
+    result = _bake_with_rai(mimiciv_demo_path, output)
+
+    assert result.exit_code == 0, result.output
+    assert _discovery_independent(
+        json.loads(output.read_text())
+    ) == _discovery_independent(json.loads(EXPECTED.read_text()))
 
 
 BAD_RAI_YAML = "ai_fairness:\n  social_impact: It enables research.\n"
@@ -395,3 +445,795 @@ def test_a_dry_run_checks_the_rai_config_too(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "ai_fairness.social_impact" in result.stderr
     assert "would be processed" not in result.output
+
+
+CB_NAMESPACE = "https://github.com/MIT-LCP/croissant-baker#"
+
+
+def _keys(node) -> set[str]:
+    """Every key in a JSON document, at any depth."""
+    if isinstance(node, dict):
+        return set(node).union(*(_keys(value) for value in node.values()))
+    if isinstance(node, list):
+        return set().union(*(_keys(value) for value in node))
+    return set()
+
+
+def _rai_keys(node) -> set[str]:
+    return {key for key in _keys(node) if key.startswith("rai:")}
+
+
+def _full_config() -> RAIConfig:
+    """A config that fills in every field the injector writes."""
+    return RAIConfig(
+        ai_fairness=AIFairnessConfig(
+            data_limitations="Single site.",
+            data_biases="Adults only.",
+            personal_sensitive_information="De-identified.",
+            data_use_cases="Benchmarking.",
+            data_social_impact="May improve triage research.",
+            has_synthetic_data=True,
+        ),
+        lineage=LineageConfig(
+            source_datasets=[SourceDataset(url="https://example.org/source")],
+            models=[ModelRef(url="https://example.org/model", name="A model")],
+        ),
+        activities=[
+            Activity(
+                id="ACT-001",
+                type="data_collection",
+                collection_types=["surveys"],
+                platforms=[Platform(name="A platform", url="https://example.org")],
+            )
+        ],
+    )
+
+
+def _extensions_only_config() -> RAIConfig:
+    """A config whose output carries no RAI 1.0 term at all."""
+    return RAIConfig(
+        ai_fairness=AIFairnessConfig(has_synthetic_data=False),
+        lineage=LineageConfig(models=[ModelRef(url="https://example.org/model")]),
+    )
+
+
+def test_every_rai_key_the_injector_writes_is_a_rai_1_0_term() -> None:
+    """The rai: prefix is a claim that the term is in the RAI 1.0 vocabulary."""
+    document = inject_rai({"@context": {}}, _full_config())
+
+    assert _rai_keys(document) <= RAI_1_0_TERMS
+
+
+def test_has_synthetic_data_is_written_as_a_croissant_baker_term() -> None:
+    document = inject_rai({"@context": {}}, _full_config())
+
+    assert document["cb:hasSyntheticData"] is True
+
+
+def test_models_are_written_as_a_croissant_baker_term() -> None:
+    document = inject_rai({"@context": {}}, _full_config())
+
+    assert document["cb:usedBy"] == [
+        {"url": "https://example.org/model", "name": "A model"}
+    ]
+
+
+def test_platforms_are_written_as_a_croissant_baker_term() -> None:
+    document = inject_rai({"@context": {}}, _full_config())
+
+    assert document["prov:wasGeneratedBy"]["cb:usedPlatform"] == {
+        "name": "A platform",
+        "url": "https://example.org",
+    }
+
+
+def test_the_croissant_baker_prefix_is_declared_when_a_term_uses_it() -> None:
+    document = inject_rai({"@context": {}}, _extensions_only_config())
+
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_the_croissant_baker_prefix_is_declared_for_a_platform_alone() -> None:
+    """cb:usedPlatform sits on an activity node, not on the dataset node."""
+    config = RAIConfig(
+        activities=[
+            Activity(id="ACT-001", type="data_collection", platforms=[Platform("P")])
+        ]
+    )
+
+    document = inject_rai({"@context": {}}, config)
+
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_the_croissant_baker_prefix_follows_the_output_not_the_config() -> None:
+    """A cb: term already in the document needs the prefix as much as a new one."""
+    document = inject_rai({"@context": {}, "cb:hasSyntheticData": True}, RAIConfig())
+
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_a_cb_prefix_bound_elsewhere_is_left_alone_with_a_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Rebinding a prefix the author chose would change what their terms mean."""
+    other = "https://example.org/other#"
+
+    with caplog.at_level(logging.WARNING, logger="croissant_baker.rai.injector"):
+        document = inject_rai({"@context": {"cb": other}}, _extensions_only_config())
+
+    assert document["@context"]["cb"] == other
+    assert any(
+        other in record.getMessage() and CB_NAMESPACE in record.getMessage()
+        for record in caplog.records
+    )
+
+
+def test_the_croissant_baker_prefix_is_not_declared_when_no_term_uses_it() -> None:
+    config = RAIConfig(ai_fairness=AIFairnessConfig(data_biases="Adults only."))
+
+    document = inject_rai({"@context": {}}, config)
+
+    assert "cb" not in document["@context"]
+
+
+def test_the_reference_output_carries_only_rai_1_0_terms_under_rai() -> None:
+    expected = json.loads(EXPECTED.read_text())
+
+    assert _rai_keys(expected) <= RAI_1_0_TERMS
+
+
+def test_the_reference_output_writes_synthetic_data_under_cb() -> None:
+    expected = json.loads(EXPECTED.read_text())
+
+    assert expected["cb:hasSyntheticData"] is False
+    assert expected["@context"]["cb"] == CB_NAMESPACE
+
+
+def _write_config(tmp_path: Path, text: str) -> Path:
+    path = tmp_path / "rai.yaml"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+_FULL_YAML = """
+ai_fairness:
+  data_biases: Adults only.
+  has_synthetic_data: true
+lineage:
+  models:
+    - url: https://example.org/model
+      name: A model
+activities:
+  - id: ACT-001
+    type: data_collection
+    platforms:
+      - name: A platform
+        url: https://example.org
+""".strip()
+
+
+def _bake_with_extensions(tmp_path: Path) -> Path:
+    """Bake a one-file dataset with every cb: term, validated by mlcroissant."""
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n", encoding="utf-8")
+    output = tmp_path / "out.jsonld"
+
+    result = cli(
+        dataset,
+        output,
+        "--rai-config",
+        str(_write_config(tmp_path, _FULL_YAML)),
+        validate=True,
+    )
+
+    assert result.exit_code == 0, result.output
+    return output
+
+
+def test_a_bake_with_the_extension_terms_passes_mlcroissant(tmp_path: Path) -> None:
+    """mlcroissant reads the whole document back, the cb: terms included."""
+    document = json.loads(_bake_with_extensions(tmp_path).read_text())
+
+    assert {"cb:hasSyntheticData", "cb:usedBy"} <= set(document)
+    assert "cb:usedPlatform" in document["prov:wasGeneratedBy"]
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_the_extension_terms_survive_a_round_trip_through_mlcroissant(
+    tmp_path: Path,
+) -> None:
+    """A tool that loads the file with mlcroissant and writes it out keeps them."""
+    document = mlc.Dataset(_bake_with_extensions(tmp_path)).metadata.to_json()
+
+    assert document["@context"]["cb"] == CB_NAMESPACE
+    assert document["cb:hasSyntheticData"] is True
+    # JSON-LD writes a one-item list as the item, so either shape is the same.
+    assert document["cb:usedBy"] in (
+        {"url": "https://example.org/model", "name": "A model"},
+        [{"url": "https://example.org/model", "name": "A model"}],
+    )
+    assert document["prov:wasGeneratedBy"]["cb:usedPlatform"] == {
+        "name": "A platform",
+        "url": "https://example.org",
+    }
+
+
+_EXTENSIONS_ONLY_YAML = """
+ai_fairness:
+  has_synthetic_data: false
+lineage:
+  models:
+    - url: https://example.org/model
+""".strip()
+
+
+def test_extension_terms_alone_do_not_claim_rai_conformance(tmp_path: Path) -> None:
+    """RAI 1.0 is claimed for the rai: terms, and none of these is one."""
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n", encoding="utf-8")
+    output = tmp_path / "out.jsonld"
+
+    result = cli(
+        dataset,
+        output,
+        "--rai-config",
+        str(_write_config(tmp_path, _EXTENSIONS_ONLY_YAML)),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(output.read_text())["conformsTo"] == CROISSANT_CONFORMS_TO
+
+
+def test_rai_apply_with_extension_terms_alone_does_not_claim_rai_conformance(
+    tmp_path: Path,
+) -> None:
+    document = tmp_path / "croissant.jsonld"
+    document.write_text(
+        json.dumps(
+            {"@context": {}, "name": "test", "conformsTo": ["http://example.org/x"]}
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(document),
+            "--rai-config",
+            str(_write_config(tmp_path, _EXTENSIONS_ONLY_YAML)),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(document.read_text())["conformsTo"] == ["http://example.org/x"]
+
+
+def test_rai_apply_with_a_rai_term_claims_rai_conformance(tmp_path: Path) -> None:
+    document = tmp_path / "croissant.jsonld"
+    document.write_text(json.dumps({"@context": {}, "name": "test"}), encoding="utf-8")
+    config = "ai_fairness:\n  data_biases: Adults only.\n"
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(document),
+            "--rai-config",
+            str(_write_config(tmp_path, config)),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(document.read_text())["conformsTo"] == [RAI_CONFORMS_TO]
+
+
+#: The twenty terms of croissant_rai.ttl, written out again on purpose so the
+#: list in src cannot change without this copy changing with it:
+#: https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl
+_TTL_TERMS = {
+    "rai:annotationsPerItem",
+    "rai:annotatorDemographics",
+    "rai:dataAnnotationAnalysis",
+    "rai:dataAnnotationPlatform",
+    "rai:dataAnnotationProtocol",
+    "rai:dataBiases",
+    "rai:dataCollection",
+    "rai:dataCollectionMissingData",
+    "rai:dataCollectionRawData",
+    "rai:dataCollectionTimeframe",
+    "rai:dataCollectionType",
+    "rai:dataImputationProtocol",
+    "rai:dataLimitations",
+    "rai:dataManipulationProtocol",
+    "rai:dataPreprocessingProtocol",
+    "rai:dataReleaseMaintenancePlan",
+    "rai:dataSocialImpact",
+    "rai:dataUseCases",
+    "rai:machineAnnotationTools",
+    "rai:personalSensitiveInformation",
+}
+
+
+def test_the_rai_term_list_holds_the_twenty_terms_of_the_ttl() -> None:
+    assert RAI_1_0_TERMS == _TTL_TERMS
+
+
+@pytest.mark.parametrize(
+    "key", ["rai:hasSyntheticData", "rai:usedBy", "rai:somethingElse"]
+)
+def test_a_rai_key_outside_rai_1_0_does_not_claim_rai_conformance(key: str) -> None:
+    """A document written before the cb: move still carries the old keys."""
+    document = {"conformsTo": CROISSANT_CONFORMS_TO, key: False}
+
+    _ensure_rai_conforms_to(document)
+
+    assert document["conformsTo"] == CROISSANT_CONFORMS_TO
+
+
+@pytest.mark.parametrize(
+    "key", ["rai:dataCollectionTimeFrame", "rai:dataDataManipulationProtocol"]
+)
+def test_the_mlcroissant_spelling_of_a_rai_term_claims_rai_conformance(
+    key: str,
+) -> None:
+    """mlcroissant writes these two RAI 1.0 terms with its own spelling.
+
+    The ttl has dataCollectionTimeframe and dataManipulationProtocol, but a
+    native --rai-* flag reaches the output through mlcroissant, so the claim
+    has to follow what mlcroissant writes.
+    """
+    document = {"conformsTo": CROISSANT_CONFORMS_TO, key: "x"}
+
+    _ensure_rai_conforms_to(document)
+
+    assert document["conformsTo"] == [CROISSANT_CONFORMS_TO, RAI_CONFORMS_TO]
+
+
+def _old_document() -> dict:
+    """A document baked before the three terms moved from rai: to cb:."""
+    return {
+        "@context": {"prov": "http://www.w3.org/ns/prov#"},
+        "name": "test",
+        "conformsTo": CROISSANT_CONFORMS_TO,
+        "rai:hasSyntheticData": False,
+        "rai:usedBy": [{"url": "https://example.org/old-model"}],
+        "prov:wasGeneratedBy": {
+            "@type": "prov:Activity",
+            "@id": "ACT-001",
+            "rai:usedPlatform": {"name": "Old platform"},
+        },
+    }
+
+
+def test_an_old_document_keeps_no_rai_extension_key() -> None:
+    document = inject_rai(_old_document(), RAIConfig())
+
+    assert _rai_keys(document) == set()
+
+
+def test_an_old_value_is_carried_to_cb_when_the_config_leaves_it_empty() -> None:
+    document = inject_rai(_old_document(), RAIConfig())
+
+    assert document["cb:hasSyntheticData"] is False
+    assert document["cb:usedBy"] == [{"url": "https://example.org/old-model"}]
+    assert document["prov:wasGeneratedBy"]["cb:usedPlatform"] == {
+        "name": "Old platform"
+    }
+    assert document["@context"]["cb"] == CB_NAMESPACE
+
+
+def test_the_config_value_wins_over_an_old_value() -> None:
+    config = RAIConfig(
+        ai_fairness=AIFairnessConfig(has_synthetic_data=True),
+        lineage=LineageConfig(models=[ModelRef(url="https://example.org/model")]),
+    )
+
+    document = inject_rai(_old_document(), config)
+
+    assert document["cb:hasSyntheticData"] is True
+    assert document["cb:usedBy"] == [{"url": "https://example.org/model"}]
+
+
+def test_an_existing_cb_value_wins_over_an_old_rai_value() -> None:
+    """A document that holds both was already updated once; cb: is the newer."""
+    old = _old_document()
+    old["cb:hasSyntheticData"] = True
+
+    document = inject_rai(old, RAIConfig())
+
+    assert document["cb:hasSyntheticData"] is True
+    assert "rai:hasSyntheticData" not in document
+
+
+def test_a_platform_in_an_activity_list_is_carried_to_cb() -> None:
+    old = _old_document()
+    old["prov:wasGeneratedBy"] = [old["prov:wasGeneratedBy"]]
+
+    document = inject_rai(old, RAIConfig())
+
+    assert document["prov:wasGeneratedBy"][0]["cb:usedPlatform"] == {
+        "name": "Old platform"
+    }
+
+
+def _rai_apply(document: dict, config: str, tmp_path: Path) -> dict:
+    path = tmp_path / "croissant.jsonld"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(path),
+            "--rai-config",
+            str(_write_config(tmp_path, config)),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    return json.loads(path.read_text())
+
+
+def test_rai_apply_moves_the_old_keys_when_the_config_sets_them(
+    tmp_path: Path,
+) -> None:
+    config = "ai_fairness:\n  has_synthetic_data: true\n"
+
+    document = _rai_apply(_old_document(), config, tmp_path)
+
+    assert document["cb:hasSyntheticData"] is True
+    assert document["cb:usedBy"] == [{"url": "https://example.org/old-model"}]
+    assert _rai_keys(document) == set()
+
+
+def test_rai_apply_carries_the_old_keys_when_the_config_is_empty(
+    tmp_path: Path,
+) -> None:
+    config = "ai_fairness:\n  data_limitations:\n"
+
+    document = _rai_apply(_old_document(), config, tmp_path)
+
+    assert document["cb:hasSyntheticData"] is False
+    assert _rai_keys(document) == set()
+
+
+def test_rai_apply_makes_no_rai_claim_from_the_old_keys_alone(
+    tmp_path: Path,
+) -> None:
+    config = "ai_fairness:\n  has_synthetic_data: true\n"
+
+    document = _rai_apply(_old_document(), config, tmp_path)
+
+    assert document["conformsTo"] == CROISSANT_CONFORMS_TO
+
+
+_OTHER_CB = "https://example.org/other#"
+
+
+def _old_document_with_another_cb() -> dict:
+    old = _old_document()
+    old["@context"]["cb"] = _OTHER_CB
+    return old
+
+
+def test_old_keys_stay_put_when_cb_is_bound_elsewhere() -> None:
+    """Moving them would file croissant-baker terms under someone else's IRI."""
+    document = inject_rai(_old_document_with_another_cb(), RAIConfig())
+
+    assert document["rai:hasSyntheticData"] is False
+    assert document["rai:usedBy"] == [{"url": "https://example.org/old-model"}]
+    assert "rai:usedPlatform" in document["prov:wasGeneratedBy"]
+    assert not any(key.startswith("cb:") for key in _keys(document))
+    assert document["@context"]["cb"] == _OTHER_CB
+
+
+def test_rai_apply_prints_a_warning_when_cb_is_bound_elsewhere(
+    tmp_path: Path,
+) -> None:
+    """The package logs to a NullHandler, so the CLI has to say it itself."""
+    path = tmp_path / "croissant.jsonld"
+    path.write_text(json.dumps(_old_document_with_another_cb()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(path),
+            "--rai-config",
+            str(_write_config(tmp_path, "ai_fairness:\n  data_biases: x\n")),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Warning" in result.stderr
+    assert _OTHER_CB in result.stderr
+    assert CB_NAMESPACE in result.stderr
+    assert "rai:hasSyntheticData" in result.stderr
+
+
+def test_rai_apply_prints_no_cb_warning_for_our_own_binding(tmp_path: Path) -> None:
+    path = tmp_path / "croissant.jsonld"
+    path.write_text(json.dumps(_old_document()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(path),
+            "--rai-config",
+            str(_write_config(tmp_path, "ai_fairness:\n  data_biases: x\n")),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Warning" not in result.stderr
+
+
+_APPLY_YAML = """
+ai_fairness:
+  data_limitations: Single site
+  has_synthetic_data: false
+lineage:
+  source_datasets:
+    - url: https://example.org/source
+      name: Example source
+      organisation: Example Lab
+      license: CC0-1.0
+  models:
+    - url: https://example.org/model
+      name: Example model
+activities:
+  - id: collection
+    type: data_collection
+    description: Bedside charting
+    start_at: "2008-01-01"
+    end_at: "2019-12-31"
+    agents:
+      - name: Nurses
+        url: https://example.org/nurses
+        description: Ward staff
+      - name: Scraper
+        is_synthetic: true
+    platforms:
+      - name: EHR
+        url: https://example.org/ehr
+        description: Hospital record system
+  - id: cleanup
+    type: custom_step
+    platforms:
+      - name: Python
+"""
+
+
+def _baked(tmp_path: Path) -> Path:
+    """A plain Croissant file, baked from one CSV without any RAI metadata."""
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "data.csv").write_text("id,name\n1,Ada\n2,Grace\n")
+    baked = tmp_path / "baked.jsonld"
+    result = cli(dataset, baked)
+    assert result.exit_code == 0, result.output
+    return baked
+
+
+def _rai_yaml(tmp_path: Path, text: str = _APPLY_YAML) -> Path:
+    path = tmp_path / "rai.yaml"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_rai_apply_writes_rai_and_provenance_to_the_output(tmp_path: Path) -> None:
+    baked = _baked(tmp_path)
+    before = baked.read_text()
+    output = tmp_path / "enriched.jsonld"
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(baked),
+            "--rai-config",
+            str(_rai_yaml(tmp_path)),
+            "-o",
+            str(output),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert f"saved to: {output}" in result.output
+    assert "croissant-baker validate" in result.output
+    assert baked.read_text() == before
+    doc = json.loads(output.read_text())
+    assert doc["rai:dataLimitations"] == "Single site"
+    assert doc["cb:hasSyntheticData"] is False
+    assert RAI_CONFORMS_TO in doc["conformsTo"]
+    assert doc["@context"]["prov"] == "http://www.w3.org/ns/prov#"
+    assert doc["prov:wasDerivedFrom"] == [
+        {
+            "url": "https://example.org/source",
+            "name": "Example source",
+            "license": "CC0-1.0",
+            "prov:wasAssociatedWith": {
+                "@type": "prov:Organization",
+                "name": "Example Lab",
+            },
+        }
+    ]
+    assert doc["cb:usedBy"] == [
+        {"url": "https://example.org/model", "name": "Example model"}
+    ]
+
+
+def test_rai_apply_describes_each_activity(tmp_path: Path) -> None:
+    baked = _baked(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(baked),
+            "--rai-config",
+            str(_rai_yaml(tmp_path)),
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    collection, cleanup = json.loads(baked.read_text())["prov:wasGeneratedBy"]
+    assert collection["prov:label"] == "Data Collection"
+    assert collection["prov:startedAtTime"] == "2008-01-01"
+    assert collection["prov:endedAtTime"] == "2019-12-31"
+    assert collection["prov:wasAssociatedWith"] == [
+        {
+            "@type": "prov:Agent",
+            "name": "Nurses",
+            "url": "https://example.org/nurses",
+            "prov:description": "Ward staff",
+        },
+        {"@type": "prov:SoftwareAgent", "name": "Scraper"},
+    ]
+    assert collection["cb:usedPlatform"] == {
+        "name": "EHR",
+        "url": "https://example.org/ehr",
+        "prov:description": "Hospital record system",
+    }
+    # An unknown activity type keeps its own name as the label, and a single
+    # platform is written as one node rather than a list of one.
+    assert cleanup["prov:label"] == "custom_step"
+    assert cleanup["cb:usedPlatform"] == {"name": "Python"}
+
+
+def test_rai_apply_validates_by_default(tmp_path: Path) -> None:
+    baked = _baked(tmp_path)
+
+    result = runner.invoke(
+        app, ["rai-apply", str(baked), "--rai-config", str(_rai_yaml(tmp_path))]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "croissant-baker validate" not in result.output
+    assert "rai:dataLimitations" in json.loads(baked.read_text())
+
+
+def test_rai_apply_refuses_a_file_it_cannot_validate(tmp_path: Path) -> None:
+    broken = tmp_path / "broken.jsonld"
+    broken.write_text("{}", encoding="utf-8")
+    output = tmp_path / "out.jsonld"
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(broken),
+            "--rai-config",
+            str(_rai_yaml(tmp_path)),
+            "-o",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Validation failed" in result.stderr
+    assert not output.exists()
+
+
+def test_rai_apply_rejects_a_missing_input(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(tmp_path / "missing.jsonld"),
+            "--rai-config",
+            str(_rai_yaml(tmp_path)),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "is not a file" in result.stderr
+
+
+def test_rai_apply_reports_input_that_is_not_json(tmp_path: Path) -> None:
+    not_json = tmp_path / "notes.jsonld"
+    not_json.write_text("not json", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["rai-apply", str(not_json), "--rai-config", str(_rai_yaml(tmp_path))],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr.startswith("Error:")
+    assert "Expecting value" in result.stderr
+
+
+def test_rai_apply_reports_a_malformed_config(tmp_path: Path) -> None:
+    baked = _baked(tmp_path)
+    before = baked.read_text()
+    config = _rai_yaml(tmp_path, "lineage:\n  source_datasets:\n    - just a string\n")
+
+    result = runner.invoke(
+        app, ["rai-apply", str(baked), "--rai-config", str(config), "--no-validate"]
+    )
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert baked.read_text() == before
+
+
+def test_rai_apply_twice_declares_rai_conformance_once(tmp_path: Path) -> None:
+    baked = _baked(tmp_path)
+    apply = ["rai-apply", str(baked), "--rai-config", str(_rai_yaml(tmp_path))]
+
+    first = runner.invoke(app, [*apply, "--no-validate"])
+    second = runner.invoke(app, [*apply, "--no-validate"])
+
+    assert first.exit_code == 0, first.output
+    assert second.exit_code == 0, second.output
+    conforms_to = json.loads(baked.read_text())["conformsTo"]
+    assert conforms_to.count(RAI_CONFORMS_TO) == 1
+
+
+def test_rai_apply_reports_an_output_it_cannot_write(tmp_path: Path) -> None:
+    """An output path under a regular file fails cleanly, input untouched."""
+    baked = _baked(tmp_path)
+    before = baked.read_text()
+    blocker = tmp_path / "not_a_directory"
+    blocker.write_text("", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rai-apply",
+            str(baked),
+            "--rai-config",
+            str(_rai_yaml(tmp_path)),
+            "--no-validate",
+            "-o",
+            str(blocker / "out.jsonld"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert str(blocker) in result.stderr
+    assert baked.read_text() == before
+
+
+def test_inject_rai_leaves_the_context_alone_without_provenance() -> None:
+    config = RAIConfig(ai_fairness=AIFairnessConfig(data_biases="Adults only"))
+    metadata = {"@context": {"cr": "http://mlcommons.org/croissant/"}}
+
+    inject_rai(metadata, config)
+
+    assert metadata["@context"] == {"cr": "http://mlcommons.org/croissant/"}
+    assert metadata["rai:dataBiases"] == "Adults only"

@@ -4,6 +4,12 @@
 # specification (http://mlcommons.org/croissant/RAI/) and the W3C PROV-O ontology
 # (https://www.w3.org/TR/prov-o/) for dataset-level provenance.
 #
+# Three fields have no RAI 1.0 term: has_synthetic_data, lineage.models and an
+# activity's platforms. They are croissant-baker extensions, written under the
+# cb: prefix (https://github.com/MIT-LCP/croissant-baker#) so that rai: only
+# carries RAI 1.0 terms. They do not by themselves make the output claim RAI
+# 1.0 in conformsTo; only a rai: term does.
+#
 # Usage:
 #   When generating a new Croissant file:
 #     croissant-maker --input ./my-dataset --creator "Name" --rai-config rai.yaml
@@ -22,18 +28,20 @@
 # OUTPUT STRUCTURE
 # ----------------
 # ai_fairness fields      → direct rai: properties on the dataset node
+#   except has_synthetic_data → cb:hasSyntheticData (extension)
 # lineage.source_datasets → prov:wasDerivedFrom on the dataset node
-# lineage.models          → rai:usedBy on the dataset node
+# lineage.models          → cb:usedBy on the dataset node (extension)
 # activities              → prov:wasGeneratedBy (list of prov:Activity)
 #   each activity carries optional agents (prov:wasAssociatedWith)
-#   and optional platforms (rai:usedPlatform)
+#   and optional platforms (cb:usedPlatform, extension)
 # ----------------------------------------------------------------------------
 
 
 # ── AI Safety and Fairness ────────────────────────────────────────────────────
 #
-# These fields are written as direct rai: properties on the dataset node.
-# Each is a free-text field that requires deliberate authorship.
+# These fields are written as direct rai: properties on the dataset node,
+# except has_synthetic_data, which is a croissant-baker extension.
+# Each text field requires deliberate authorship.
 
 ai_fairness:
 
@@ -83,7 +91,7 @@ ai_fairness:
     health disparities if deployed without careful evaluation. Access is
     restricted via a data use agreement to mitigate misuse.
 
-  # rai:hasSyntheticData
+  # cb:hasSyntheticData (croissant-baker extension, not a RAI 1.0 term)
   # Set to true if the dataset includes any synthetically generated content.
   # If true, document the generation process in the activities section below.
   # Write true or false without quotes. A quoted "false" is a piece of text,
@@ -105,8 +113,9 @@ lineage:
       organisation: PhysioNet
       license: PhysioNet Credentialed Health Data License 1.5.0
 
-  # rai:usedBy — models or assets that have used this dataset (e.g. for training
-  # or evaluation). url is required; name and id are optional.
+  # cb:usedBy (croissant-baker extension, not a RAI 1.0 term)
+  # Models or assets that have used this dataset (e.g. for training or
+  # evaluation). url is required; name and id are optional.
   # An entry here asserts that a named model used this dataset, so the shape is
   # shown as a comment: fill it in only for a model you know of.
   models: []
@@ -150,7 +159,8 @@ lineage:
 #   is_synthetic: false → human agent (team, crowd workers, domain experts)
 #
 # platforms — tools or systems used during the activity (annotation tools,
-#   data collection systems, processing pipelines, etc.)
+#   data collection systems, processing pipelines, etc.), written as
+#   cb:usedPlatform, a croissant-baker extension rather than a RAI 1.0 term.
 #   name is required; url and description are optional.
 
 activities:
