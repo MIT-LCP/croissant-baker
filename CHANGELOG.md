@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.8.3...croissant-baker-v0.9.0) (2026-11-11)
+
+
+### Features
+
+* keep rai: for RAI 1.0 terms and move the 3 extras to a cb: prefix ([943d94b](https://github.com/MIT-LCP/croissant-baker/commit/943d94b85fed1e9f2621b4a92ccb1a3c95b3b5d0))
+
 ## [0.8.3](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.8.2...croissant-baker-v0.8.3) (2026-11-10)
 
 
