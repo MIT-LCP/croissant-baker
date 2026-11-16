@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,7 @@ def discover_files(
     dir_path: str,
     include_patterns: Optional[List[str]] = None,
     exclude_patterns: Optional[List[str]] = None,
+    skip_paths: Optional[Iterable[Path]] = None,
 ) -> List[Path]:
     """
     Recursively discover all files in a directory (skipping hidden directories)
@@ -26,6 +27,11 @@ def discover_files(
         dir_path: Path to the directory to scan.
         include_patterns: Optional list of glob patterns to include.
         exclude_patterns: Optional list of glob patterns to exclude.
+        skip_paths: Optional relative paths to leave out, each compared with
+            the whole relative path. Unlike a glob, which matches from the
+            right, it never catches a file of the same name deeper in the
+            tree. Meant for files the caller wrote itself, such as a bake's
+            own output inside the dataset.
 
     Returns:
         List of relative file paths found in the directory.
@@ -42,12 +48,15 @@ def discover_files(
         skipped_count = 0
         skipped_examples: List[str] = []
 
+        skip = {Path(p) for p in skip_paths or []}
         files = []
         for file in directory.rglob("*"):
             if not file.is_file():
                 continue
 
             rel_path = file.relative_to(directory)
+            if rel_path in skip:
+                continue
 
             if any(part.startswith(".") for part in rel_path.parts):
                 skipped_count += 1

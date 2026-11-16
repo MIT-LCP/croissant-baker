@@ -130,6 +130,20 @@ Case and spacing do not matter, so `SURVEYS` is read as `surveys`. Six of those 
 
 A complete working example is at [`tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml`](https://github.com/MIT-LCP/croissant-baker/blob/main/tests/data/input/mimiciv_demo/physionet.org/mimiciv_demo-rai-example.yaml).
 
+### Terms that are not part of RAI 1.0
+
+Three fields in the config have no term in the [RAI 1.0 vocabulary](https://github.com/mlcommons/croissant/blob/main/docs/croissant_rai.ttl). They are croissant-baker extensions, and the output writes them under a prefix of their own, `cb:`, so that `rai:` only carries RAI 1.0 terms. The one exception comes from `mlcroissant`, which writes two of the native flags with its own spelling: `--rai-data-collection-timeframe` becomes `rai:dataCollectionTimeFrame` and `--rai-data-manipulation-protocol` becomes `rai:dataDataManipulationProtocol`, where RAI 1.0 has `dataCollectionTimeframe` and `dataManipulationProtocol`. Both still count as RAI 1.0 terms for the `conformsTo` claim.
+
+| Config field | Output property |
+|--------------|-----------------|
+| `ai_fairness.has_synthetic_data` | `cb:hasSyntheticData` on the dataset node |
+| `lineage.models` | `cb:usedBy` on the dataset node |
+| `activities[].platforms` | `cb:usedPlatform` on each `prov:Activity` |
+
+The prefix stands for `https://github.com/MIT-LCP/croissant-baker#` and is added to `@context` only when the output carries one of these properties. If `@context` already binds `cb` to another IRI, that binding is kept, the old `rai:` keys described under [Apply RAI to an existing file](#apply-rai-to-an-existing-file) are not moved, and `rai-apply` prints a warning that names both IRIs. `mlcroissant` accepts the properties but does not read them.
+
+The output claims RAI 1.0 in `conformsTo` only when it carries at least one term from the RAI 1.0 vocabulary. A `rai:` key that is not in the vocabulary does not count. A config that fills in only these three fields, or only source datasets and activities without `collection_types` (which are written as `prov:` terms), adds no claim.
+
 ### What a config is rejected for
 
 Every key is checked against the keys its section accepts, at every level of the file. A key that is not recognised stops the run with an error naming the key by its path in the YAML (for example `activities[0].agents[1].nme`) and listing the keys that section does accept. Where the key came close to an accepted one, the error names it: `started_at` is answered with `Did you mean 'start_at' for 'started_at'?`. A message can list several unknown keys, so every hint names the key it answers.
@@ -153,3 +167,5 @@ croissant-baker rai-apply dataset-croissant.jsonld \
 ```
 
 Omit `--output` to overwrite the input file in place.
+
+A file written by an older release may hold the three extension terms under `rai:`: `rai:hasSyntheticData` and `rai:usedBy` on the dataset, `rai:usedPlatform` on an activity. `rai-apply` moves each of them to its `cb:` name. When the config sets the same field, the config value replaces the old one. When the config leaves it empty, the old value is kept under the `cb:` name. If the file already has the `cb:` name as well, that value is kept and the `rai:` one is dropped. If the file binds `cb` to an IRI other than croissant-baker's, the old keys are left where they are, so nothing is moved into another namespace, and a warning says so. Activities work as a whole: when the config lists any, they replace the file's activities, old platforms included. The old keys alone do not make the file claim RAI 1.0.

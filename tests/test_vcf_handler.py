@@ -360,6 +360,43 @@ def test_a_quoted_description_survives_its_commas(dataset: Path) -> None:
     assert by_id["AF"]["description"] == "Allele frequency, for each ALT allele"
 
 
+def test_an_escaped_quote_inside_a_description_is_unescaped(dataset: Path) -> None:
+    """An escaped quote neither ends the quoted value nor lets the comma
+    after it split the declaration."""
+    path = write(
+        dataset,
+        "escaped.vcf",
+        b"##fileformat=VCFv4.3\n"
+        b'##INFO=<ID=NOTE,Number=1,Type=String,Description="Says \\"hi, there\\"">\n'
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    meta = extract(path)
+
+    assert meta["info"][0]["description"] == 'Says "hi, there"'
+
+
+def test_a_declaration_part_with_no_value_is_ignored(dataset: Path) -> None:
+    path = write(
+        dataset,
+        "bare.vcf",
+        b"##fileformat=VCFv4.2\n"
+        b'##INFO=<ID=DP,Number=1,Type=Integer,Phased,Description="Depth">\n'
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    meta = extract(path)
+
+    assert meta["info"] == [
+        {"id": "DP", "number": "1", "type": "Integer", "description": "Depth"}
+    ]
+
+
+@pytest.mark.parametrize("line", ["##source=GATK", "##INFO=ID>DP<"])
+def test_a_line_with_no_bracketed_body_declares_nothing(line: str) -> None:
+    assert vcf_handler.parse_declaration(line) == {}
+
+
 def test_an_unbounded_number_is_read_verbatim(dataset: Path) -> None:
     path = write(
         dataset,
@@ -464,6 +501,18 @@ def test_a_gvcf_is_recognised_from_its_header(
     )
 
     assert extract(path)["is_gvcf"] is True
+
+
+def test_a_symbolic_allele_other_than_non_ref_is_not_a_gvcf(dataset: Path) -> None:
+    path = write(
+        dataset,
+        "deletions.vcf",
+        b"##fileformat=VCFv4.2\n"
+        b'##ALT=<ID=DEL,Description="Deletion">\n'
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    assert extract(path)["is_gvcf"] is False
 
 
 def test_a_wrapped_callset_reads_the_same(dataset: Path) -> None:

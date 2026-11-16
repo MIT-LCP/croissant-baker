@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/MIT-LCP/croissant-baker/actions/workflows/test.yaml"><img src="https://github.com/MIT-LCP/croissant-baker/actions/workflows/test.yaml/badge.svg" alt="CI"></a>
+  <a href="https://htmlpreview.github.io/?https://github.com/MIT-LCP/croissant-baker/blob/python-coverage-comment-action-data/htmlcov/index.html"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/MIT-LCP/croissant-baker/python-coverage-comment-action-data/endpoint.json" alt="Coverage"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
   <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv"></a>
   <a href="https://github.com/MIT-LCP/croissant-baker/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
@@ -66,6 +67,34 @@ croissant-baker \
   --output mimic-iv-demo-croissant.jsonld
 croissant-baker validate mimic-iv-demo-croissant.jsonld
 ```
+
+## Use with an agent
+
+croissant-baker ships a local [MCP](https://modelcontextprotocol.io) server and
+an [Agent Skill](https://agentskills.io/specification). The server needs the
+optional `mcp` extra:
+
+```bash
+pip install 'croissant-baker[mcp]'
+```
+
+Then point your MCP client at the `croissant-baker mcp` command. Most clients
+take an entry like this one:
+
+```json
+{
+  "mcpServers": {
+    "croissant-baker": {"command": "croissant-baker", "args": ["mcp"]}
+  }
+}
+```
+
+The server speaks stdio only and offers three tools: `dry_run`, `bake` and
+`validate`. It reads local files and makes no network request. Pass absolute
+paths, since a relative one resolves against the directory the client started
+the server in. The skill ships inside the package at
+`croissant_baker/skills/croissant-baker/SKILL.md`, and the server also serves it
+as the resource `croissant-baker://skill`.
 
 ## Supported formats
 
