@@ -739,67 +739,69 @@
 </span></code></pre></div>
 <p><strong>Options</strong>:</p>
 <ul>
-<li><code>-i, --input TEXT</code>: Directory containing dataset files</li>
-<li><code>-o, --output TEXT</code>: Output file path</li>
+<li><code>-i, --input &lt;str&gt;</code>: Directory containing dataset files</li>
+<li><code>-o, --output &lt;str&gt;</code>: Output file path</li>
 <li><code>--validate / --no-validate</code>: Validate metadata before saving  [default: validate]</li>
 <li><code>--version</code>: Show version and exit</li>
-<li><code>--name TEXT</code>: Dataset name (defaults to directory name)</li>
-<li><code>--description TEXT</code>: Dataset description</li>
-<li><code>--url TEXT</code>: Dataset URL (e.g., https://example.com/dataset)</li>
-<li><code>--license TEXT</code>: License URL or SPDX identifier (e.g., CC-BY-4.0)</li>
-<li><code>--citation TEXT</code>: Citation text (preferably BibTeX format)</li>
-<li><code>--dataset-version TEXT</code>: Dataset version (e.g., 1.0.0)</li>
-<li><code>--date-published TEXT</code>: Publication date (e.g., 2023-12-15 or 2023-12-15T10:30:00)</li>
-<li><code>--date-created TEXT</code>: Creation date (e.g., 2023-12-15 or 2023-12-15T10:30:00).</li>
-<li><code>--date-modified TEXT</code>: Last-modified date (e.g., 2023-12-15 or 2023-12-15T10:30:00).</li>
-<li><code>--creator TEXT</code>: Creator information. Format: 'Name[,Email[,URL]]'. Use multiple times for multiple creators. Examples: --creator 'John Doe' --creator 'Jane Smith,jane@example.com,https://jane.com'</li>
-<li><code>--publisher TEXT</code>: Publishing organization name (e.g., 'PhysioNet').</li>
-<li><code>--keywords TEXT</code>: Topical keywords for dataset discovery. Repeat (--keywords a --keywords b) or comma-delimit (--keywords 'a,b').</li>
-<li><code>--in-language TEXT</code>: BCP 47 language code (e.g., 'en'). Repeat or comma-delimit for multilingual datasets.</li>
-<li><code>--same-as TEXT</code>: URL of an equivalent record (e.g. DOI, mirror landing page). Repeat or comma-delimit.</li>
-<li><code>--sd-license TEXT</code>: License of the metadata description itself (e.g., 'CC0-1.0'), distinct from the data license.</li>
-<li><code>--sd-version TEXT</code>: Version of the metadata description (e.g., '1.0.0'), distinct from --dataset-version.</li>
-<li><code>--alternate-name TEXT</code>: Short alias for the dataset (e.g., 'MIMIC-IV').</li>
+<li><code>--name &lt;str&gt;</code>: Dataset name (defaults to directory name)</li>
+<li><code>--description &lt;str&gt;</code>: Dataset description</li>
+<li><code>--url &lt;str&gt;</code>: Dataset URL (e.g., https://example.com/dataset)</li>
+<li><code>--license &lt;str&gt;</code>: License URL or SPDX identifier (e.g., CC-BY-4.0)</li>
+<li><code>--citation &lt;str&gt;</code>: Citation text (preferably BibTeX format)</li>
+<li><code>--dataset-version &lt;str&gt;</code>: Dataset version (e.g., 1.0.0)</li>
+<li><code>--date-published &lt;str&gt;</code>: Publication date (e.g., 2023-12-15 or 2023-12-15T10:30:00)</li>
+<li><code>--date-created &lt;str&gt;</code>: Creation date (e.g., 2023-12-15 or 2023-12-15T10:30:00).</li>
+<li><code>--date-modified &lt;str&gt;</code>: Last-modified date (e.g., 2023-12-15 or 2023-12-15T10:30:00).</li>
+<li><code>--creator &lt;list[str]&gt;</code>: Creator information. Format: 'Name[,Email[,URL]]'. Use multiple times for multiple creators. Examples: --creator 'John Doe' --creator 'Jane Smith,jane@example.com,https://jane.com'</li>
+<li><code>--publisher &lt;str&gt;</code>: Publishing organization name (e.g., 'PhysioNet').</li>
+<li><code>--keywords &lt;list[str]&gt;</code>: Topical keywords for dataset discovery. Repeat (--keywords a --keywords b) or comma-delimit (--keywords 'a,b').</li>
+<li><code>--in-language &lt;list[str]&gt;</code>: BCP 47 language code (e.g., 'en'). Repeat or comma-delimit for multilingual datasets.</li>
+<li><code>--same-as &lt;list[str]&gt;</code>: URL of an equivalent record (e.g. DOI, mirror landing page). Repeat or comma-delimit.</li>
+<li><code>--sd-license &lt;str&gt;</code>: License of the metadata description itself (e.g., 'CC0-1.0'), distinct from the data license.</li>
+<li><code>--sd-version &lt;str&gt;</code>: Version of the metadata description (e.g., '1.0.0'), distinct from --dataset-version.</li>
+<li><code>--alternate-name &lt;str&gt;</code>: Short alias for the dataset (e.g., 'MIMIC-IV').</li>
 <li><code>--is-live-dataset</code>: Mark the dataset as a live, evolving stream (e.g., a continuously-appended log).</li>
-<li><code>--temporal-coverage TEXT</code>: Time period the data covers. ISO 8601 recommended: '2008/2019' (interval) or '2023-01-15' (point).</li>
-<li><code>--usage-info TEXT</code>: URI pointing to a usage or consent policy. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'http://purl.obolibrary.org/obo/DUO_0000042' (DUO term).</li>
-<li><code>--identifier TEXT</code>: Accession or persistent identifier the dataset is known by (e.g., 'phs000218.v1.p1', 'EGAS00001000255', a DOI). Repeat or comma-delimit.</li>
-<li><code>--conditions-of-access TEXT</code>: How access is obtained, in free text. Example: 'Controlled access: Data Access Agreement via the Data Access Committee'.</li>
+<li><code>--temporal-coverage &lt;str&gt;</code>: Time period the data covers. ISO 8601 recommended: '2008/2019' (interval) or '2023-01-15' (point).</li>
+<li><code>--usage-info &lt;str&gt;</code>: URI pointing to a usage or consent policy. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'http://purl.obolibrary.org/obo/DUO_0000042' (DUO term).</li>
+<li><code>--identifier &lt;list[str]&gt;</code>: Accession or persistent identifier the dataset is known by (e.g., 'phs000218.v1.p1', 'EGAS00001000255', a DOI). Repeat or comma-delimit.</li>
+<li><code>--conditions-of-access &lt;str&gt;</code>: How access is obtained, in free text. Example: 'Controlled access: Data Access Agreement via the Data Access Committee'.</li>
 <li><code>--is-accessible-for-free / --not-accessible-for-free</code>: Whether the data can be had without payment or an access agreement. Omit to leave the field out.</li>
-<li><code>--included-in-data-catalog TEXT</code>: URL of a catalog entry listing this dataset. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'https://datacatalog.ccdi.cancer.gov/'.</li>
-<li><code>--profile TEXT</code>: Additional profile to declare in conformsTo. One of: bioschemas. The bake is refused if the document lacks the profile's minimum fields. Repeat or comma-delimit.</li>
-<li><code>--field-mappings FILE</code>: YAML file mapping columns to external vocabularies (Wikidata, SNOMED, LOINC). Schema: 'fields:\n  <col>:\n    equivalent_property: <URI>\n    data_types: [<URI>, ...]'. Note: column names match across ALL RecordSets, so 'id' applies to every 'id' column in the dataset.</li>
-<li><code>--field-mapping TEXT</code>: Link one column to an external vocabulary URI. Format: 'COLUMN=URI'. Example: --field-mapping 'age=http://www.wikidata.org/entity/Q11464'. Matches by bare column name across all RecordSets; a warning prints if a name resolves to multiple fields. Repeatable; combine with --field-mappings (flags override YAML).</li>
+<li><code>--included-in-data-catalog &lt;str&gt;</code>: URL of a catalog entry listing this dataset. Any RFC 3986 scheme (http(s), urn, did, mailto). Example: 'https://datacatalog.ccdi.cancer.gov/'.</li>
+<li><code>--profile &lt;list[str]&gt;</code>: Additional profile to declare in conformsTo. One of: bioschemas. The bake is refused if the document lacks the profile's minimum fields. Repeat or comma-delimit.</li>
+<li><code>--field-mappings &lt;file&gt;</code>: YAML file mapping columns to external vocabularies (Wikidata, SNOMED, LOINC). Schema: 'fields:\n  <col>:\n    equivalent_property: <URI>\n    data_types: [<URI>, ...]'. Note: column names match across ALL RecordSets, so 'id' applies to every 'id' column in the dataset.</li>
+<li><code>--field-mapping &lt;list[str]&gt;</code>: Link one column to an external vocabulary URI. Format: 'COLUMN=URI'. Example: --field-mapping 'age=http://www.wikidata.org/entity/Q11464'. Matches by bare column name across all RecordSets; a warning prints if a name resolves to multiple fields. Repeatable; combine with --field-mappings (flags override YAML).</li>
 <li><code>--count-csv-rows</code>: Count exact row numbers for CSV files (slow for large datasets)</li>
 <li><code>--genomic-sample-ids</code>: Emit the sample identifiers a genomic file names in its header (VCF and BCF sample columns; BAM, CRAM and SAM read-group SM tags). Off by default: for a controlled release those identifiers are a manifest of the cohort, and the counts are emitted either way.</li>
-<li><code>-j, --jobs INTEGER</code>: Worker threads for file extraction. 0 = auto (from CPU count), 1 = serial. Output is identical regardless of this value.  [default: 0]</li>
+<li><code>-j, --jobs &lt;int&gt;</code>: Worker threads for file extraction. 0 = auto (from CPU count), 1 = serial. Output is identical regardless of this value.  [default: 0]</li>
 <li><code>--detect-references</code>: Detect foreign keys between tables that share a key column (e.g. subject_id) and emit cr:references links. Conservative: links only when a parent table is identifiable by name; shared keys it will not link are reported, and named under --verbose.</li>
-<li><code>--rai-data-collection TEXT</code>: How and where the data was gathered.</li>
-<li><code>--rai-data-collection-type TEXT</code>: Collection type, e.g. 'observational'. Can be used multiple times.</li>
-<li><code>--rai-data-collection-missing-data TEXT</code>: How missing data was handled during collection.</li>
-<li><code>--rai-data-collection-raw-data TEXT</code>: Description of the raw data before processing.</li>
-<li><code>--rai-data-collection-timeframe TEXT</code>: Collection date or datetime in ISO format. Can be used multiple times.</li>
-<li><code>--rai-data-imputation-protocol TEXT</code>: How missing values were imputed.</li>
-<li><code>--rai-data-preprocessing-protocol TEXT</code>: Preprocessing step. Can be used multiple times.</li>
-<li><code>--rai-data-manipulation-protocol TEXT</code>: Transformations applied to the data.</li>
-<li><code>--rai-data-annotation-protocol TEXT</code>: Annotation procedure. Can be used multiple times.</li>
-<li><code>--rai-data-annotation-platform TEXT</code>: Annotation platform or tool. Can be used multiple times.</li>
-<li><code>--rai-data-annotation-analysis TEXT</code>: Annotation quality or agreement analysis. Can be used multiple times.</li>
-<li><code>--rai-annotations-per-item TEXT</code>: Annotation density, e.g. '3 annotators per item'.</li>
-<li><code>--rai-annotator-demographics TEXT</code>: Annotator demographic note. Can be used multiple times.</li>
-<li><code>--rai-machine-annotation-tools TEXT</code>: Automated annotation tool. Can be used multiple times.</li>
-<li><code>--rai-data-biases TEXT</code>: Known bias description. Can be used multiple times.</li>
-<li><code>--rai-data-use-cases TEXT</code>: Intended use case. Can be used multiple times.</li>
-<li><code>--rai-data-limitations TEXT</code>: Known limitation. Can be used multiple times.</li>
-<li><code>--rai-data-social-impact TEXT</code>: Potential social impact of using the dataset.</li>
-<li><code>--rai-personal-sensitive-information TEXT</code>: Sensitive information note. Can be used multiple times.</li>
-<li><code>--rai-data-release-maintenance-plan TEXT</code>: How the dataset release will be maintained over time.</li>
-<li><code>--rai-config FILE</code>: Path to a RAI config YAML file (see rai-example.yaml for the template)</li>
-<li><code>-I, --include TEXT</code>: Glob pattern to include (e.g., '*.csv'). Can be used multiple times.</li>
-<li><code>-E, --exclude TEXT</code>: Glob pattern to exclude (e.g., '*.tmp'). Can be used multiple times.</li>
+<li><code>--rai-data-collection &lt;str&gt;</code>: How and where the data was gathered.</li>
+<li><code>--rai-data-collection-type &lt;list[str]&gt;</code>: Collection type, e.g. 'observational'. Can be used multiple times.</li>
+<li><code>--rai-data-collection-missing-data &lt;str&gt;</code>: How missing data was handled during collection.</li>
+<li><code>--rai-data-collection-raw-data &lt;str&gt;</code>: Description of the raw data before processing.</li>
+<li><code>--rai-data-collection-timeframe &lt;list[str]&gt;</code>: Collection date or datetime in ISO format. Can be used multiple times.</li>
+<li><code>--rai-data-imputation-protocol &lt;str&gt;</code>: How missing values were imputed.</li>
+<li><code>--rai-data-preprocessing-protocol &lt;list[str]&gt;</code>: Preprocessing step. Can be used multiple times.</li>
+<li><code>--rai-data-manipulation-protocol &lt;str&gt;</code>: Transformations applied to the data.</li>
+<li><code>--rai-data-annotation-protocol &lt;list[str]&gt;</code>: Annotation procedure. Can be used multiple times.</li>
+<li><code>--rai-data-annotation-platform &lt;list[str]&gt;</code>: Annotation platform or tool. Can be used multiple times.</li>
+<li><code>--rai-data-annotation-analysis &lt;list[str]&gt;</code>: Annotation quality or agreement analysis. Can be used multiple times.</li>
+<li><code>--rai-annotations-per-item &lt;str&gt;</code>: Annotation density, e.g. '3 annotators per item'.</li>
+<li><code>--rai-annotator-demographics &lt;list[str]&gt;</code>: Annotator demographic note. Can be used multiple times.</li>
+<li><code>--rai-machine-annotation-tools &lt;list[str]&gt;</code>: Automated annotation tool. Can be used multiple times.</li>
+<li><code>--rai-data-biases &lt;list[str]&gt;</code>: Known bias description. Can be used multiple times.</li>
+<li><code>--rai-data-use-cases &lt;list[str]&gt;</code>: Intended use case. Can be used multiple times.</li>
+<li><code>--rai-data-limitations &lt;list[str]&gt;</code>: Known limitation. Can be used multiple times.</li>
+<li><code>--rai-data-social-impact &lt;str&gt;</code>: Potential social impact of using the dataset.</li>
+<li><code>--rai-personal-sensitive-information &lt;list[str]&gt;</code>: Sensitive information note. Can be used multiple times.</li>
+<li><code>--rai-data-release-maintenance-plan &lt;str&gt;</code>: How the dataset release will be maintained over time.</li>
+<li><code>--rai-config &lt;file&gt;</code>: Path to a RAI config YAML file (see rai-example.yaml for the template)</li>
+<li><code>-I, --include &lt;list[str]&gt;</code>: Glob pattern to include (e.g., '*.csv'). Can be used multiple times.</li>
+<li><code>-E, --exclude &lt;list[str]&gt;</code>: Glob pattern to exclude (e.g., '*.tmp'). Can be used multiple times.</li>
 <li><code>--dry-run</code>: Perform a dry run to list matching files without generating metadata.</li>
-<li><code>--report PATH</code>: Write a JSON scan report naming every file found and its outcome.</li>
+<li><code>--report &lt;path&gt;</code>: Write a JSON scan report naming every file found and its outcome.</li>
 <li><code>-v, --verbose</code>: Also list each undescribed file and its reason, not the summary alone.</li>
+<li><code>--install-completion</code>: Install completion for the current shell.</li>
+<li><code>--show-completion</code>: Show completion for the current shell, to copy it or customize the installation.</li>
 <li><code>--help</code>: Show this message and exit.</li>
 </ul>
 <p><strong>Commands</strong>:</p>
@@ -811,16 +813,16 @@
 <h2 id="croissant-baker-rai-apply"><code>croissant-baker rai-apply</code></h2>
 <p>Apply RAI attributes from a config YAML to an existing Croissant file.</p>
 <p><strong>Usage</strong>:</p>
-<div class="language-console highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gp">$ </span>croissant-baker<span class="w"> </span>rai-apply<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>FILE_PATH
+<div class="language-console highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gp">$ </span>croissant-baker<span class="w"> </span>rai-apply<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">{</span>file_path<span class="o">}</span>
 </span></code></pre></div>
 <p><strong>Arguments</strong>:</p>
 <ul>
-<li><code>FILE_PATH</code>: Croissant metadata file to update  [required]</li>
+<li><code>file_path &lt;str&gt;</code>: Croissant metadata file to update  [required]</li>
 </ul>
 <p><strong>Options</strong>:</p>
 <ul>
-<li><code>--rai-config FILE</code>: RAI config YAML file  [required]</li>
-<li><code>-o, --output TEXT</code>: Output path (defaults to overwriting the input file)</li>
+<li><code>--rai-config &lt;file&gt;</code>: RAI config YAML file  [required]</li>
+<li><code>-o, --output &lt;str&gt;</code>: Output path (defaults to overwriting the input file)</li>
 <li><code>--validate / --no-validate</code>: Validate after applying RAI attributes  [default: validate]</li>
 <li><code>--help</code>: Show this message and exit.</li>
 </ul>
@@ -838,11 +840,11 @@ outbound requests, so a bake still never leaves the local environment.</p>
 <h2 id="croissant-baker-validate"><code>croissant-baker validate</code></h2>
 <p>Validate a Croissant metadata file.</p>
 <p><strong>Usage</strong>:</p>
-<div class="language-console highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="gp">$ </span>croissant-baker<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>FILE_PATH
+<div class="language-console highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="gp">$ </span>croissant-baker<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">{</span>file_path<span class="o">}</span>
 </span></code></pre></div>
 <p><strong>Arguments</strong>:</p>
 <ul>
-<li><code>FILE_PATH</code>: Path to Croissant metadata file  [required]</li>
+<li><code>file_path &lt;str&gt;</code>: Path to Croissant metadata file  [required]</li>
 </ul>
 <p><strong>Options</strong>:</p>
 <ul>
