@@ -6,8 +6,9 @@ updates:
     schedule:
       interval: "weekly"
 
-  # Keep Python dependencies current (uv.lock)
-  - package-ecosystem: "pip"
+  # Keep Python dependencies current. The uv ecosystem updates
+  # pyproject.toml and uv.lock together, so uv sync --locked still passes.
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
