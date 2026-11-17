@@ -14,6 +14,7 @@ from pathlib import Path
 import mlcroissant as mlc
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
+from croissant_baker.handlers.utils import plural
 from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
@@ -238,7 +239,7 @@ class MRCHandler(FileTypeHandler):
             id=FILE_SET_ID,
             name="MRC / CCP4 maps",
             description=(
-                f"{count} MRC/CCP4 map file(s) ({dims}; {kinds})"
+                f"{plural(count, 'MRC/CCP4 map file')} ({dims}; {kinds})"
                 + _label_note(properties)
             ),
             encoding_formats=sorted({meta["encoding_format"] for meta in file_metas}),
@@ -249,7 +250,7 @@ class MRCHandler(FileTypeHandler):
             id=RECORD_SET_ID,
             name=RECORD_SET_ID,
             description=(
-                f"{count} MRC/CCP4 map file(s) ({dims}): {kinds}; stored as {dtypes}"
+                f"{plural(count, 'MRC/CCP4 map file')} ({dims}): {kinds}; stored as {dtypes}"
             ),
             fields=_fields(stacked, dtypes, kinds),
         )

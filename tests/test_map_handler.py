@@ -479,7 +479,7 @@ def test_a_batch_declaring_no_label_says_nothing_about_one(
 
     file_sets, _ = handler.build_croissant([meta], ["file_0"])
 
-    assert file_sets[0].description == "1 MRC/CCP4 map file(s) (128x128x64; volume)"
+    assert file_sets[0].description == "1 MRC/CCP4 map file (128x128x64; volume)"
 
 
 def test_the_record_set_describes_the_grid(handler: MRCHandler) -> None:

@@ -755,7 +755,7 @@ def test_a_mixed_batch_describes_structures_and_documents_apart(
         "notes_notes_1",
         "notes_notes_2",
     ]
-    assert "1 structure file(s), 1abc.pdb" in file_sets[0].description
+    assert "1 structure file, 1abc.pdb" in file_sets[0].description
 
 
 def test_the_fileset_excludes_a_document_its_glob_would_reach(

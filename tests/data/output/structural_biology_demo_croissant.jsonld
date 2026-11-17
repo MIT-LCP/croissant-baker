@@ -194,7 +194,7 @@
       "@type": "cr:FileSet",
       "@id": "structure-files",
       "name": "Structure files",
-      "description": "4 structure file(s) in CIF, PDB, mmCIF format",
+      "description": "4 structure files in CIF, PDB, mmCIF format",
       "cr:excludes": "dictionaries/audit.cif",
       "encodingFormat": [
         "chemical/x-cif",
@@ -212,7 +212,7 @@
       "@type": "cr:FileSet",
       "@id": "mrc-files",
       "name": "MRC / CCP4 maps",
-      "description": "2 MRC/CCP4 map file(s) (8x8x4-6; image stack, volume). Labelled: created by the croissant-baker test suite",
+      "description": "2 MRC/CCP4 map files (8x8x4-6; image stack, volume). Labelled: created by the croissant-baker test suite",
       "encodingFormat": "application/x-mrc",
       "includes": [
         "**/*.mrc",
@@ -225,7 +225,7 @@
       "@type": "cr:RecordSet",
       "@id": "structures",
       "name": "structures",
-      "description": "One record per structure file: 4 structure file(s) in CIF, PDB, mmCIF format. Experimental method(s): ELECTRON MICROSCOPY, X-RAY DIFFRACTION. Resolution: 1.8 A.",
+      "description": "One record per structure file: 4 structure files in CIF, PDB, mmCIF format. Experimental methods: ELECTRON MICROSCOPY, X-RAY DIFFRACTION. Resolution: 1.8 A.",
       "field": [
         {
           "@type": "cr:Field",
@@ -577,7 +577,7 @@
       "@type": "cr:RecordSet",
       "@id": "mrc_maps",
       "name": "mrc_maps",
-      "description": "2 MRC/CCP4 map file(s) (8x8x4-6): image stack, volume; stored as float32",
+      "description": "2 MRC/CCP4 map files (8x8x4-6): image stack, volume; stored as float32",
       "field": [
         {
           "@type": "cr:Field",

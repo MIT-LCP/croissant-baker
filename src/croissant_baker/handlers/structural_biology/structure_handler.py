@@ -21,7 +21,7 @@ import mlcroissant as mlc
 
 from croissant_baker.handlers.base_handler import BuildResult, FileTypeHandler
 from croissant_baker.handlers.structural_biology import cif, tables
-from croissant_baker.handlers.utils import display_name
+from croissant_baker.handlers.utils import display_name, plural
 from croissant_baker.sources import FileSource
 
 logger = logging.getLogger(__name__)
@@ -381,7 +381,7 @@ def collect_structure_summary(file_metas: list) -> dict:
 
 def _named(summary: dict) -> str:
     """How prose refers to the batch: the one file by name, or a count."""
-    files = f"{summary['num_files']} structure file(s)"
+    files = plural(summary["num_files"], "structure file")
     return f"{files}, {summary['stored_name']}" if summary["stored_name"] else files
 
 
@@ -395,7 +395,12 @@ def _record_set_description(summary: dict) -> str:
         f"{', '.join(summary['formats']) or 'CIF'} format."
     ]
     if summary["methods"]:
-        parts.append(f"Experimental method(s): {', '.join(summary['methods'])}.")
+        label = (
+            "Experimental method"
+            if len(summary["methods"]) == 1
+            else "Experimental methods"
+        )
+        parts.append(f"{label}: {', '.join(summary['methods'])}.")
     span = summary.get("resolution_range")
     if span:
         low, high = span
