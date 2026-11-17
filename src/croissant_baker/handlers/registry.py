@@ -161,6 +161,20 @@ def builtin_handlers() -> List[FileTypeHandler]:
     from croissant_baker.handlers.bcf_handler import BCFHandler
     from croissant_baker.handlers.cram_handler import CRAMHandler
 
+    # Constructing the registry pulls gemmi in only when the optional
+    # structural-biology extra is installed: each module that parses through it
+    # guards its own import.
+    from croissant_baker.handlers.structural_biology.structure_handler import (
+        StructureHandler,
+    )
+    from croissant_baker.handlers.structural_biology.star_handler import STARHandler
+    from croissant_baker.handlers.structural_biology.map_handler import MRCHandler
+    from croissant_baker.handlers.structural_biology.mtz_handler import MTZHandler
+    from croissant_baker.handlers.structural_biology.mdoc_handler import MdocHandler
+    from croissant_baker.handlers.structural_biology.molecule_handler import (
+        SmallMoleculeHandler,
+    )
+
     return [
         CSVHandler(),
         TSVHandler(),
@@ -183,6 +197,12 @@ def builtin_handlers() -> List[FileTypeHandler]:
         SAMHandler(),
         FASTQHandler(),
         FASTAHandler(),
+        StructureHandler(),
+        STARHandler(),
+        MRCHandler(),
+        MTZHandler(),
+        MdocHandler(),
+        SmallMoleculeHandler(),
     ]
 
 

@@ -1,0 +1,10 @@
+data_audit
+_audit_creation_method    'written by hand'
+_audit_creation_date      2026-01-01
+_audit_revision_count     2
+
+loop_
+_audit_author_name
+_audit_author_address
+'Rivera, K.'  'Cambridge, MA'
+'Okafor, N.'  'Cambridge, MA'

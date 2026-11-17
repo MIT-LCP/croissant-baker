@@ -43,6 +43,12 @@ dependencies = [
 # Install with: pip install 'croissant-baker[mcp]', or uv sync --extra mcp
 [project.optional-dependencies]
 mcp = ["mcp>=2.2"]
+# Structural biology: PDB, mmCIF and STAR parsing through gemmi. MRC, MTZ,
+# mdoc, SDF, MOL and MOL2 are read without it. Install with:
+#   pip install "croissant-baker[structural-biology]"
+# Without it those files are still claimed and refused with that hint,
+# so a folder of CSVs does not have to carry a crystallography library.
+structural-biology = ["gemmi>=0.7.0"]
 
 [project.scripts]
 croissant-baker = "croissant_baker.__main__:app"
@@ -51,7 +57,9 @@ croissant-baker = "croissant_baker.__main__:app"
 # Install with: uv sync --group dev
 [dependency-groups]
 # hatchling is the build backend; tests/test_packaging.py builds a wheel with it.
-test = ["pytest>=7.0", "pytest-cov>=5", "hatchling"]
+# The suite covers every handler, so it also needs the structural-biology extra,
+# named here so the tests run against the gemmi version the extra ships.
+test = ["pytest>=7.0", "pytest-cov>=5", "hatchling", "croissant-baker[structural-biology]"]
 dev = [
     "ruff>=0.1.0",
     "pre-commit>=4.5.1",
