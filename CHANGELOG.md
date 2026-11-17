@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.10.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.9.0...croissant-baker-v0.10.0) (2026-11-17)
+
+
+### Features
+
+* offer shell completion and bump typer to 0.29.1 ([#181](https://github.com/MIT-LCP/croissant-baker/issues/181)) ([3e864cd](https://github.com/MIT-LCP/croissant-baker/commit/3e864cd8b6766ad60838d62d5db2acb15b7668cd))
+* structural biology files (PDB, mmCIF, STAR, MRC, MTZ, mdoc, SDF) ([#141](https://github.com/MIT-LCP/croissant-baker/issues/141)) ([b0d108d](https://github.com/MIT-LCP/croissant-baker/commit/b0d108da02f93f6adde394ef1c398bf161f374fb))
+
+
+### Build System
+
+* **deps-dev:** bump hatchling from 1.32.4 to 1.33.0 ([#183](https://github.com/MIT-LCP/croissant-baker/issues/183)) ([8125b87](https://github.com/MIT-LCP/croissant-baker/commit/8125b8783ac7abcd2e8f0dafee07185443a4c279))
+* **deps-dev:** bump pre-commit from 4.5.1 to 4.6.2 ([#184](https://github.com/MIT-LCP/croissant-baker/issues/184)) ([e43e965](https://github.com/MIT-LCP/croissant-baker/commit/e43e9655a92618495d0648008895f7240d626f05))
+* **deps:** bump mlcroissant from 1.1.0 to 1.1.1 ([#185](https://github.com/MIT-LCP/croissant-baker/issues/185)) ([4249ca5](https://github.com/MIT-LCP/croissant-baker/commit/4249ca581e222e2d5ed5ac6e62adea49dbfee7b0))
+* **deps:** bump py-cov-action/python-coverage-comment-action from 4.5 to 4.6 ([#180](https://github.com/MIT-LCP/croissant-baker/issues/180)) ([191a0ed](https://github.com/MIT-LCP/croissant-baker/commit/191a0ed28e72f991053c4333ddf5d893e4c79f71))
+* **deps:** bump pyarrow from 23.0.1 to 25.0.1 ([#182](https://github.com/MIT-LCP/croissant-baker/issues/182)) ([92fd3dd](https://github.com/MIT-LCP/croissant-baker/commit/92fd3dda1f3ea33a351bebb00dd6d28e05f81916))
+* uv.lock hygiene (normalise markers, require uv 0.8+, --locked everywhere) ([#157](https://github.com/MIT-LCP/croissant-baker/issues/157)) ([f52c4f8](https://github.com/MIT-LCP/croissant-baker/commit/f52c4f8175885aee2b6470928511445c1753dfd7))
+
 ## [0.9.0](https://github.com/MIT-LCP/croissant-baker/compare/croissant-baker-v0.8.3...croissant-baker-v0.9.0) (2026-11-11)
 
 
