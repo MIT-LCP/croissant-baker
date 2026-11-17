@@ -25,6 +25,7 @@ from croissant_baker.handlers.utils import (
     display_name,
     infer_json_schema,
     make_record_set_ids,
+    plural,
     sanitize_id,
 )
 
@@ -47,7 +48,8 @@ def merge_fhir_column_types(all_schemas: list) -> dict:
 
     Priority when the same field appears with different representations across
     files: struct > primitive-array > primitive. FHIR R4 cardinality is fixed
-    by the spec, so richer structure always wins.
+    by the spec, so richer structure always wins. Primitive types that differ
+    across files are joined by ``_widen_types``.
 
     Args:
         all_schemas: List of column schema dicts from individual files.
@@ -74,16 +76,30 @@ def merge_fhir_column_types(all_schemas: list) -> dict:
             )
             merged[key] = {"fields": sub, "is_array": is_array}
         elif prim_arrays:
-            votes: dict = {}
-            for t in prim_arrays:
-                votes[t["type"]] = votes.get(t["type"], 0) + 1
-            merged[key] = {"type": max(votes, key=votes.get), "is_array": True}
+            merged[key] = {
+                "type": _widen_types({t["type"] for t in prim_arrays}),
+                "is_array": True,
+            }
         else:
-            votes = {}
-            for t in primitives:
-                votes[t] = votes.get(t, 0) + 1
-            merged[key] = max(votes, key=votes.get) if votes else "sc:Text"
+            merged[key] = _widen_types(set(primitives))
     return merged
+
+
+def _widen_types(types: set[str]) -> str:
+    """The narrowest type that holds every value of the observed types.
+
+    Depends only on which types were seen, so file order and counts do not
+    matter. Like csv_handler, integers widen to floats and other conflicts
+    fall back to text. Date with DateTime widens to DateTime, since a FHIR
+    dateTime may carry a date only.
+    """
+    if len(types) == 1:
+        return next(iter(types))
+    if types == {"cr:Int64", "cr:Float64"}:
+        return "cr:Float64"
+    if types == {"sc:Date", "sc:DateTime"}:
+        return "sc:DateTime"
+    return "sc:Text"
 
 
 def _is_bulk_chunk(file_name: str, resource_type: str) -> bool:
@@ -366,7 +382,9 @@ class FHIRHandler(FileTypeHandler):
             standalone_rs_ids = make_record_set_ids(standalone_metas)
             for (fid, meta), rs_id in zip(standalone, standalone_rs_ids):
                 num_rows = meta.get("num_rows")
-                row_desc = f" ({num_rows} rows)" if num_rows is not None else ""
+                row_desc = (
+                    f" ({plural(num_rows, 'row')})" if num_rows is not None else ""
+                )
                 record_sets.append(
                     mlc.RecordSet(
                         id=rs_id,
@@ -387,7 +405,7 @@ class FHIRHandler(FileTypeHandler):
                     mlc.FileSet(
                         id=fileset_id,
                         name=f"{resource_type} NDJSON files",
-                        description=f"{len(chunks)} NDJSON chunk files for FHIR {resource_type}",
+                        description=f"{plural(len(chunks), 'NDJSON chunk file')} for FHIR {resource_type}",
                         encoding_formats=[first_meta["encoding_format"]],
                         # Sorted by path, as the image and OME FileSets are:
                         # batch order is rglob order.
@@ -405,7 +423,7 @@ class FHIRHandler(FileTypeHandler):
                     mlc.RecordSet(
                         id=rs_id,
                         name=resource_type,
-                        description=f"FHIR {resource_type} from {len(chunks)} NDJSON chunk files ({total_rows} rows)",
+                        description=f"FHIR {resource_type} from {plural(len(chunks), 'NDJSON chunk file')} ({plural(total_rows, 'row')})",
                         fields=self._build_fields(
                             merged,
                             rs_id,
@@ -427,7 +445,7 @@ class FHIRHandler(FileTypeHandler):
                 mlc.FileSet(
                     id=bundle_fileset_id,
                     name="FHIR Bundle files",
-                    description=f"{len(bundle_metas)} FHIR Bundle files",
+                    description=plural(len(bundle_metas), "FHIR Bundle file"),
                     encoding_formats=sorted(
                         set(fm["encoding_format"] for fm in bundle_metas)
                     ),
@@ -448,7 +466,7 @@ class FHIRHandler(FileTypeHandler):
                     mlc.RecordSet(
                         id=rs_id,
                         name=rt,
-                        description=f"FHIR {rt} from {len(bundle_metas)} Bundle files ({total_rows} resources)",
+                        description=f"FHIR {rt} from {plural(len(bundle_metas), 'Bundle file')} ({plural(total_rows, 'resource')})",
                         fields=self._build_fields(
                             merged,
                             rs_id,

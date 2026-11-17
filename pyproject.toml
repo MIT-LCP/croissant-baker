@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "croissant-baker"
-version = "0.7.0"
+version = "0.9.0"
 description = "A tool to automatically generate Croissant metadata for datasets."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -38,10 +38,11 @@ dependencies = [
     "xlrd>=2.0",
 ]
 
-# PEP 621 extras: an install-time choice a downstream consumer can make, which
-# is why these are extras and not dependency groups. A group is reachable only
-# through `uv sync`, and someone who installed from PyPI could not ask for it.
+# Optional: the local stdio MCP server (`croissant-baker mcp`). An extra rather
+# than a dependency group, because only an extra is written into the wheel.
+# Install with: pip install 'croissant-baker[mcp]', or uv sync --extra mcp
 [project.optional-dependencies]
+mcp = ["mcp>=2.2"]
 # Structural biology: PDB, mmCIF and STAR parsing through gemmi. MRC, MTZ,
 # mdoc, SDF, MOL and MOL2 are read without it. Install with:
 #   pip install "croissant-baker[structural-biology]"
@@ -55,10 +56,10 @@ croissant-baker = "croissant_baker.__main__:app"
 # PEP 735 dependency groups — not propagated to downstream consumers.
 # Install with: uv sync --group dev
 [dependency-groups]
-# The suite covers every handler, so it needs the optional extra as well. Named
-# here rather than as a bare gemmi pin, so the version the tests run against is
-# the one the extra ships.
-test = ["pytest>=7.0", "pytest-cov>=5", "croissant-baker[structural-biology]"]
+# hatchling is the build backend; tests/test_packaging.py builds a wheel with it.
+# The suite covers every handler, so it also needs the structural-biology extra,
+# named here so the tests run against the gemmi version the extra ships.
+test = ["pytest>=7.0", "pytest-cov>=5", "hatchling", "croissant-baker[structural-biology]"]
 dev = [
     "ruff>=0.1.0",
     "pre-commit>=4.5.1",
@@ -71,6 +72,17 @@ docs = [
     "griffe>=2.0",
     "typer-cli",
 ]
+
+# The Agent Skill lives at src/croissant_baker/skills/croissant-baker/ and is
+# surfaced to agent clients through the symlink in .agents/skills/. Hatchling
+# follows that symlink and keeps one path per file, so whichever it walks first
+# wins: without this the skill ships under a dot-directory instead of inside
+# the package, or not at all. `skip-excluded-dirs` is what stops the walk,
+# since `exclude` alone filters the result after the link has already claimed
+# the files.
+[tool.hatch.build]
+exclude = [".agents"]
+skip-excluded-dirs = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/croissant_baker"]
@@ -94,3 +106,7 @@ show_missing = true
 
 [tool.ruff]
 src = ["src"]
+
+[tool.uv]
+# uv 0.7 rewrites uv.lock to an older revision; refuse to run with it.
+required-version = ">=0.8"

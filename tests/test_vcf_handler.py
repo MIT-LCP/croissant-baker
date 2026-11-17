@@ -360,6 +360,43 @@ def test_a_quoted_description_survives_its_commas(dataset: Path) -> None:
     assert by_id["AF"]["description"] == "Allele frequency, for each ALT allele"
 
 
+def test_an_escaped_quote_inside_a_description_is_unescaped(dataset: Path) -> None:
+    """An escaped quote neither ends the quoted value nor lets the comma
+    after it split the declaration."""
+    path = write(
+        dataset,
+        "escaped.vcf",
+        b"##fileformat=VCFv4.3\n"
+        b'##INFO=<ID=NOTE,Number=1,Type=String,Description="Says \\"hi, there\\"">\n'
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    meta = extract(path)
+
+    assert meta["info"][0]["description"] == 'Says "hi, there"'
+
+
+def test_a_declaration_part_with_no_value_is_ignored(dataset: Path) -> None:
+    path = write(
+        dataset,
+        "bare.vcf",
+        b"##fileformat=VCFv4.2\n"
+        b'##INFO=<ID=DP,Number=1,Type=Integer,Phased,Description="Depth">\n'
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    meta = extract(path)
+
+    assert meta["info"] == [
+        {"id": "DP", "number": "1", "type": "Integer", "description": "Depth"}
+    ]
+
+
+@pytest.mark.parametrize("line", ["##source=GATK", "##INFO=ID>DP<"])
+def test_a_line_with_no_bracketed_body_declares_nothing(line: str) -> None:
+    assert vcf_handler.parse_declaration(line) == {}
+
+
 def test_an_unbounded_number_is_read_verbatim(dataset: Path) -> None:
     path = write(
         dataset,
@@ -464,6 +501,18 @@ def test_a_gvcf_is_recognised_from_its_header(
     )
 
     assert extract(path)["is_gvcf"] is True
+
+
+def test_a_symbolic_allele_other_than_non_ref_is_not_a_gvcf(dataset: Path) -> None:
+    path = write(
+        dataset,
+        "deletions.vcf",
+        b"##fileformat=VCFv4.2\n"
+        b'##ALT=<ID=DEL,Description="Deletion">\n'
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n",
+    )
+
+    assert extract(path)["is_gvcf"] is False
 
 
 def test_a_wrapped_callset_reads_the_same(dataset: Path) -> None:
@@ -950,3 +999,37 @@ def test_a_structured_reference_prefers_its_url_to_its_path() -> None:
     declared = "<ID=GRCh38,Path=/gpfs/jdoe/GRCh38.fa,URL=https://h.org/GRCh38.fa>"
 
     assert vcf_handler.reference_name(declared) == "GRCh38 (https://h.org/GRCh38.fa)"
+
+
+def test_the_line_cap_refusal_states_the_cap(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(vcf_handler, "MAX_LINE_BYTES", SMALL_LINE_CAP)
+    path = write(
+        dataset, "unbroken.vcf", UNBROKEN_OPENING + b"x" * (4 * SMALL_LINE_CAP)
+    )
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    message = str(caught.value)
+    assert message.startswith("Not a VCF file: unbroken.vcf runs to ")
+    assert message.endswith(
+        f" bytes with no line ending, past the {SMALL_LINE_CAP} a header line can be"
+    )
+
+
+def test_the_header_cap_refusal_states_the_cap(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(vcf_handler, "MAX_HEADER_BYTES", SMALL_HEADER_CAP)
+    contigs = b"".join(b"##contig=<ID=chr%d,length=100000>\n" % i for i in range(40000))
+    path = write(dataset, "endless.vcf", b"##fileformat=VCFv4.2\n" + contigs)
+
+    with pytest.raises(ValueError) as caught:
+        extract(path)
+
+    assert str(caught.value) == (
+        f"Not a VCF file: the header of endless.vcf runs past {SMALL_HEADER_CAP} "
+        "bytes without reaching a line that is not a header line"
+    )

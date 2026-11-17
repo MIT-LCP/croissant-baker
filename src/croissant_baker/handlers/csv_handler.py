@@ -1,5 +1,7 @@
 """CSV file handler for tabular data processing."""
 
+import csv
+import io
 import logging
 import re
 
@@ -32,6 +34,61 @@ _ARROW_COL_RE = re.compile(r"In CSV column #(\d+): CSV conversion error to (\w+)
 # Max promotions before falling back to all-string types. One retry per conflicting
 # column; beyond this we read everything as strings to bound I/O.
 _MAX_TYPE_CONFLICT_RETRIES = 50
+
+
+def _pandas_names(
+    source: FileSource, header: list[str], delimiter: str, skip_rows: int
+) -> list[str]:
+    """Name the columns the way the loader will, if pyarrow's names are unclear.
+
+    mlcroissant reads CSV and TSV through ``pandas.read_csv``, so a field must
+    extract the name pandas gives its column; any other name validates but
+    cannot be loaded. pyarrow keeps an empty cell (``DataFrame.to_csv()``
+    writes one over its index) or a repeated name as is, while pandas renames
+    them, so only then are the names read through pandas itself. pandas is
+    not a direct dependency, but mlcroissant cannot read a CSV without it.
+    """
+    if "" not in header and len(set(header)) == len(header):
+        return header
+    import pandas as pd
+
+    with source.open() as stream:
+        frame = pd.read_csv(
+            stream,
+            sep=delimiter,
+            skiprows=skip_rows,
+            nrows=0,
+            encoding_errors="replace",
+        )
+    names = [str(name) for name in frame.columns]
+    if len(names) != len(header):
+        logger.warning(
+            "%s: pandas reads %d columns where pyarrow reads %d; keeping pyarrow's",
+            source.relative_path,
+            len(names),
+            len(header),
+        )
+        return header
+    return names
+
+
+def _header_lines(source: FileSource, delimiter: str, skip_rows: int) -> int:
+    """How many lines, after ``skip_rows``, run through the end of the header.
+
+    Handing pyarrow the names replaces its header row, which ``skip_rows``
+    then has to step over. It counts lines, blank ones included, and a quoted
+    header cell may hold a line break, so the header is found by parsing.
+    """
+    with io.TextIOWrapper(
+        source.open(), encoding="utf-8", errors="replace", newline=""
+    ) as fh:
+        for _ in range(skip_rows):
+            fh.readline()
+        reader = csv.reader(fh, delimiter=delimiter)
+        for row in reader:
+            if row:
+                return reader.line_num
+    return 1
 
 
 class CSVHandler(FileTypeHandler):
@@ -84,7 +141,12 @@ class CSVHandler(FileTypeHandler):
     def _stream_csv(self, source: FileSource, count_rows: bool = False):
         """Return (column_types, columns, num_rows) by streaming the CSV."""
         overrides: dict = {}
+        # Read only once a type conflict needs names to key overrides on.
         col_names: list | None = None
+        # Handed to pyarrow when it would name two columns alike (two empty
+        # cells, say), so each override lands on one column, not all of them.
+        given_names: list | None = None
+        header_lines = 1
         delimiter = self._delimiter()
         skip_rows = self._preamble_rows(source)
 
@@ -100,6 +162,8 @@ class CSVHandler(FileTypeHandler):
                     count_rows=count_rows,
                     delimiter=delimiter,
                     skip_rows=skip_rows,
+                    column_names=given_names,
+                    header_lines=header_lines,
                 )
                 if overrides:
                     logger.info(
@@ -110,8 +174,8 @@ class CSVHandler(FileTypeHandler):
                 return result
             except pa.lib.ArrowInvalid as exc:
                 if col_names is None:
-                    col_names = self._header(
-                        source, delimiter=delimiter, skip_rows=skip_rows
+                    col_names, given_names, header_lines = self._lookup_names(
+                        source, delimiter, skip_rows
                     )
 
                 idx, inferred = self._parse_conflict(str(exc))
@@ -135,7 +199,9 @@ class CSVHandler(FileTypeHandler):
 
         # Last resort: read everything as strings.
         if col_names is None:
-            col_names = self._header(source, delimiter=delimiter, skip_rows=skip_rows)
+            col_names, given_names, header_lines = self._lookup_names(
+                source, delimiter, skip_rows
+            )
         if len(overrides) >= _MAX_TYPE_CONFLICT_RETRIES:
             logger.warning(
                 "%s: hit type conflict limit (%d), falling back to all-string types",
@@ -156,7 +222,17 @@ class CSVHandler(FileTypeHandler):
             count_rows=count_rows,
             delimiter=delimiter,
             skip_rows=skip_rows,
+            column_names=given_names,
+            header_lines=header_lines,
         )
+
+    def _lookup_names(self, source: FileSource, delimiter: str, skip_rows: int):
+        """Return ``(names, names to hand pyarrow or None, header lines)``."""
+        header = self._header(source, delimiter=delimiter, skip_rows=skip_rows)
+        names = _pandas_names(source, header, delimiter, skip_rows)
+        if names is header:
+            return header, None, 1
+        return names, names, _header_lines(source, delimiter, skip_rows)
 
     #: A leading ``#`` block is a metadata preamble, not data. 10x probe-set
     #: exports lead with one; PyArrow has no comment option, so the rows are
@@ -210,8 +286,13 @@ class CSVHandler(FileTypeHandler):
         count_rows: bool = False,
         delimiter: str = ",",
         skip_rows: int = 0,
+        column_names: list | None = None,
+        header_lines: int = 1,
     ):
         """Open a streaming reader, extract schema, and optionally count rows.
+
+        ``column_names``, when given, replace the header row, whose
+        ``header_lines`` lines are skipped.
 
         Uses a context manager so the file descriptor is released immediately
         on exit — whether count_rows is True or False. Without it, CPython's
@@ -221,6 +302,12 @@ class CSVHandler(FileTypeHandler):
         and has done so since PyArrow 3.x.
         """
         parse_options = pa_csv.ParseOptions(delimiter=delimiter)
+        if column_names is None:
+            read_options = pa_csv.ReadOptions(skip_rows=skip_rows)
+        else:
+            read_options = pa_csv.ReadOptions(
+                skip_rows=skip_rows + header_lines, column_names=column_names
+            )
         try:
             stream = source.open()
         except OSError as exc:
@@ -230,12 +317,14 @@ class CSVHandler(FileTypeHandler):
             with stream:
                 reader_cm = pa_csv.open_csv(
                     stream,
-                    read_options=pa_csv.ReadOptions(skip_rows=skip_rows),
+                    read_options=read_options,
                     convert_options=convert_options,
                     parse_options=parse_options,
                 )
                 with reader_cm as reader:
                     schema = reader.schema
+                    names = _pandas_names(source, schema.names, delimiter, skip_rows)
+                    schema = pa.schema(f.with_name(n) for f, n in zip(schema, names))
                     column_types = infer_column_types_from_arrow_schema(schema)
                     columns = schema.names
                     num_rows = (

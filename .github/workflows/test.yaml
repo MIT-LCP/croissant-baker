@@ -41,7 +41,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --locked --group test
+        run: uv sync --locked --group test --extra mcp
 
       - name: Run tests
         run: uv run pytest -v --cov --cov-report=term-missing:skip-covered
@@ -87,7 +87,7 @@ jobs:
 
       - name: Coverage comment
         id: coverage_comment
-        uses: py-cov-action/python-coverage-comment-action@v4.3
+        uses: py-cov-action/python-coverage-comment-action@v4.6
         with:
           GITHUB_TOKEN: ${{ github.token }}
           # The action's default is 100, which would paint the badge orange at

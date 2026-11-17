@@ -11,6 +11,26 @@ uv sync --group dev
 uv run pre-commit install
 ```
 
+You need uv 0.8 or newer; `pyproject.toml` sets `required-version`, so an older uv stops with an error. Upgrade with `uv self update`, or `brew upgrade uv` if you installed it with Homebrew.
+
+## Dependencies and `uv.lock`
+
+`uv.lock` pins every dependency and is committed.
+
+- `uv add <pkg>` and `uv remove <pkg>` edit `pyproject.toml` and relock in one step. If you edit `pyproject.toml` by hand, run `uv lock` after. To bump one package, run `uv lock --upgrade-package <pkg>`. Commit `pyproject.toml` and `uv.lock` together.
+- Do not edit the lock by hand. To resolve a `uv.lock` merge conflict, settle any `pyproject.toml` conflict first, then take main's lock from the remote that points at MIT-LCP and relock. That remote is `origin` if you cloned MIT-LCP as in Setup, or `upstream` if you work from a fork:
+
+  ```bash
+  git fetch <remote>
+  git checkout <remote>/main -- uv.lock
+  uv lock
+  git add uv.lock
+  ```
+
+  This keeps main's pins, so redo any `uv lock --upgrade-package` bump your branch made.
+- CI runs `uv sync --locked`, which fails if `uv.lock` is out of date with `pyproject.toml`. Run `uv lock --check` to catch this before pushing.
+- release-please bumps the `croissant-baker` version in `uv.lock` along with `pyproject.toml` (see `extra-files` in `release-please-config.json`), so release PRs need no manual relock.
+
 ## Running
 
 After `uv sync`, you can either activate the virtualenv or prefix commands with `uv run`:
@@ -25,6 +45,48 @@ croissant-baker --input ./my-dataset --creator "Jane Doe"
 uv run croissant-baker --help
 uv run croissant-baker --input ./my-dataset --creator "Jane Doe"
 ```
+
+### Local MCP server
+
+`croissant-baker mcp` serves three tools to a local agent over stdio: `dry_run`
+(what a bake would describe and refuse, with reasons), `bake` (generate,
+validate and write the metadata) and `validate` (construct an existing file
+under `mlcroissant`). stdio is the only transport; there is no HTTP listener and
+no outbound request, so the no-upload guarantee is unchanged. The SDK is an
+optional extra:
+
+```bash
+uv sync --extra mcp
+uv run croissant-baker mcp
+```
+
+### Agent Skill
+
+The [Agent Skill](https://agentskills.io/specification) that teaches an LLM how
+to drive the tool lives at
+`src/croissant_baker/skills/croissant-baker/SKILL.md`, inside the package, so
+`pip install croissant-baker` delivers it. `.agents/skills/croissant-baker` is
+a relative symlink to that one directory, the cross-client discovery
+convention, so agent clients find it in a checkout; edit the canonical copy,
+never the link. The MCP server publishes the same file as the resource
+`croissant-baker://skill`, and the RAI template as
+`croissant-baker://rai-template`.
+
+Validate it against the specification with the reference library:
+
+```bash
+uvx --from "git+https://github.com/agentskills/agentskills#subdirectory=skills-ref" \
+  skills-ref validate src/croissant_baker/skills/croissant-baker
+```
+
+`tests/test_skill.py` checks the frontmatter, the body length and the symlink,
+and fails when the skill drifts from the code: a registered format missing
+from the description, a scan reason missing from the reason table, or a flag
+the CLI does not have. `tests/test_packaging.py` builds the wheel and checks it
+carries the skill. Adding another symlink to the
+skill needs a matching entry in `[tool.hatch.build] exclude` in
+`pyproject.toml`, or the build will ship the skill under the link's path
+instead of inside the package.
 
 ## Testing
 
