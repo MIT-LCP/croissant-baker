@@ -802,6 +802,12 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>add<span class="w"> </span>croissant-baker
 </span></code></pre></div>
 <p>Requires Python 3.10 or later.</p>
+<p>To describe PDB, mmCIF or STAR files, add the structural biology extra, which
+brings in <a href="https://gemmi.readthedocs.io/">gemmi</a>:
+<code>pip install "croissant-baker[structural-biology]"</code> (or
+<code>uv add "croissant-baker[structural-biology]"</code>). Without it those files are
+reported with that hint rather than described; every other format, MRC, MTZ,
+mdoc, SDF, MOL and MOL2 included, is read either way.</p>
 <h2 id="your-first-metadata-file">Your first metadata file</h2>
 <p>Try it on the bundled MIMIC-IV Demo test data (included in the repo):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>croissant-baker<span class="w"> </span><span class="se">\</span>
